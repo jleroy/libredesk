@@ -1081,6 +1081,35 @@ func (c *Manager) makeConversationsListQuery(userID int, teamIDs []int, listType
 		return "", nil, fmt.Errorf("no conversation list types specified")
 	}
 
+	// Parse filters to extract tag filters
+	var (
+		filters          []dbutil.Filter
+		tagFilters       []dbutil.Filter
+		remainingFilters []dbutil.Filter
+	)
+	if filtersJSON != "" && filtersJSON != "[]" {
+		if err := json.Unmarshal([]byte(filtersJSON), &filters); err != nil {
+			return "", nil, fmt.Errorf("invalid filters JSON: %w", err)
+		}
+
+		// Separate tag filters from other filters
+		for _, f := range filters {
+			if f.Field == "tags" && (f.Operator == "contains" || f.Operator == "not contains" || f.Operator == "set" || f.Operator == "not set") {
+				tagFilters = append(tagFilters, f)
+			} else {
+				remainingFilters = append(remainingFilters, f)
+			}
+		}
+
+		// Update filtersJSON with remaining filters for the generic builder
+		if len(remainingFilters) > 0 {
+			b, _ := json.Marshal(remainingFilters)
+			filtersJSON = string(b)
+		} else {
+			filtersJSON = "[]"
+		}
+	}
+
 	// Prepare the conditions based on the list types.
 	conditions := []string{}
 	for _, lt := range listTypes {
@@ -1106,12 +1135,59 @@ func (c *Manager) makeConversationsListQuery(userID int, teamIDs []int, listType
 		}
 	}
 
+	// Build the base query with list type conditions
+	var whereClause string
 	if len(conditions) > 0 {
-		baseQuery = fmt.Sprintf(baseQuery, "AND ("+strings.Join(conditions, " OR ")+")")
-	} else {
-		// Replace the `%s` in the base query with an empty string.
-		baseQuery = fmt.Sprintf(baseQuery, "")
+		whereClause = "AND (" + strings.Join(conditions, " OR ") + ")"
 	}
+
+	// Add tag filter conditions
+	// TODO: Evaluate - https://github.com/Masterminds/squirrel when required.
+	for _, tf := range tagFilters {
+		switch tf.Operator {
+		case "contains", "not contains":
+			var tagIDs []int
+			if err := json.Unmarshal([]byte(tf.Value), &tagIDs); err != nil {
+				return "", nil, fmt.Errorf("invalid tag IDs in filter: %w", err)
+			}
+			if len(tagIDs) > 0 {
+				paramIdx := len(qArgs) + 1
+				switch tf.Operator {
+				case "contains":
+					// Has any of the tags
+					tagCondition := fmt.Sprintf(` AND conversations.id IN (
+						SELECT DISTINCT conversation_id 
+						FROM conversation_tags 
+						WHERE tag_id = ANY($%d::int[])
+					)`, paramIdx)
+					whereClause += tagCondition
+				case "not contains":
+					// Doesn't have any of the tags
+					tagCondition := fmt.Sprintf(` AND conversations.id NOT IN (
+						SELECT DISTINCT conversation_id 
+						FROM conversation_tags 
+						WHERE tag_id = ANY($%d::int[])
+					)`, paramIdx)
+					whereClause += tagCondition
+				}
+				qArgs = append(qArgs, pq.Array(tagIDs))
+			}
+		case "set":
+			// Has any tags at all
+			whereClause += ` AND EXISTS (
+				SELECT 1 FROM conversation_tags 
+				WHERE conversation_id = conversations.id
+			)`
+		case "not set":
+			// Has no tags at all
+			whereClause += ` AND NOT EXISTS (
+				SELECT 1 FROM conversation_tags 
+				WHERE conversation_id = conversations.id
+			)`
+		}
+	}
+
+	baseQuery = fmt.Sprintf(baseQuery, whereClause)
 
 	return dbutil.BuildPaginatedQuery(baseQuery, qArgs, dbutil.PaginationOptions{
 		Order:    order,

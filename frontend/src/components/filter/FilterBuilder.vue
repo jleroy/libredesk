@@ -52,8 +52,15 @@
         <div class="flex-1">
           <div v-if="modelFilter.field && modelFilter.operator">
             <template v-if="modelFilter.operator !== 'set' && modelFilter.operator !== 'not set'">
+              <SelectTag
+                v-if="getFieldType(modelFilter) === FIELD_TYPE.MULTI_SELECT"
+                v-model="modelFilter.value"
+                :items="getFieldOptions(modelFilter)"
+                :placeholder="t('globals.messages.select', { name: t('globals.terms.tag', 2) })"
+              />
+
               <SelectComboBox
-                v-if="
+                v-else-if="
                   getFieldOptions(modelFilter).length > 0 &&
                   modelFilter.field === 'assigned_user_id'
                 "
@@ -125,8 +132,10 @@ import { Plus } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useI18n } from 'vue-i18n'
+import { FIELD_TYPE } from '@/constants/filterConfig'
 import CloseButton from '@/components/button/CloseButton.vue'
 import SelectComboBox from '@/components/combobox/SelectCombobox.vue'
+import SelectTag from '@/components/ui/select/SelectTag.vue'
 
 const props = defineProps({
   fields: {
@@ -155,13 +164,22 @@ const getModel = (field) => {
   return fieldConfig?.model || ''
 }
 
-// Set model for each filter
+// Set model for each filter and the default value
 watch(
   () => modelValue.value,
   (filters) => {
     filters.forEach((filter) => {
       if (filter.field && !filter.model) {
         filter.model = getModel(filter.field)
+      }
+
+      // Multi select need arrays as their default value
+      if (
+        filter.field &&
+        getFieldType(filter) === FIELD_TYPE.MULTI_SELECT &&
+        !Array.isArray(filter.value)
+      ) {
+        filter.value = []
       }
     })
   },
@@ -170,15 +188,20 @@ watch(
 
 // Reset operator and value when field changes for a filter at a given index
 watch(
-  () => modelValue.value.map((f) => f.field),
-  (newFields, oldFields) => {
-    newFields.forEach((field, index) => {
-      if (field !== oldFields[index]) {
-        modelValue.value[index].operator = ''
-        modelValue.value[index].value = ''
+  modelValue,
+  (newFilters, oldFilters) => {
+    // Skip first run
+    if (!oldFilters) return
+
+    newFilters.forEach((filter, index) => {
+      const oldFilter = oldFilters[index]
+      if (oldFilter && filter.field !== oldFilter.field) {
+        filter.operator = ''
+        filter.value = ''
       }
     })
-  }
+  },
+  { deep: true }
 )
 
 const addFilter = () => {
@@ -197,7 +220,17 @@ const clearFilters = () => {
 }
 
 const validFilters = computed(() => {
-  return modelValue.value.filter((filter) => filter.field && filter.operator && filter.value)
+  return modelValue.value.filter((filter) => {
+    // For multi-select field type, allow empty array as a valid value
+    const field = props.fields.find((f) => f.field === filter.field)
+    const isMultiSelectField = field?.type === FIELD_TYPE.MULTI_SELECT
+
+    if (isMultiSelectField) {
+      return filter.field && filter.operator && filter.value !== undefined && filter.value !== null
+    }
+
+    return filter.field && filter.operator && filter.value
+  })
 })
 
 const getFieldOptions = (fieldValue) => {
@@ -208,5 +241,10 @@ const getFieldOptions = (fieldValue) => {
 const getFieldOperators = (modelFilter) => {
   const field = props.fields.find((f) => f.field === modelFilter.field)
   return field?.operators || []
+}
+
+const getFieldType = (modelFilter) => {
+  const field = props.fields.find((f) => f.field === modelFilter.field)
+  return field?.type || ''
 }
 </script>
