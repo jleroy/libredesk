@@ -155,7 +155,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.DELETE("/api/v1/inboxes/{id}", perm(handleDeleteInbox, "inboxes:manage"))
 
 	// Roles.
-	g.GET("/api/v1/roles", perm(handleGetRoles, "roles:manage"))
+	g.GET("/api/v1/roles", auth(handleGetRoles))
 	g.GET("/api/v1/roles/{id}", perm(handleGetRole, "roles:manage"))
 	g.POST("/api/v1/roles", perm(handleCreateRole, "roles:manage"))
 	g.PUT("/api/v1/roles/{id}", perm(handleUpdateRole, "roles:manage"))
