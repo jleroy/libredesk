@@ -508,7 +508,7 @@ const viewToDelete = ref(null)
                           asChild
                         >
                           <a href="#" @click.prevent="navigateToViewInbox(view.id)">
-                            <span class="break-words w-32 truncate">{{ view.name }}</span>
+                            <span class="break-words w-32 truncate" :title="view.name">{{ view.name }}</span>
                             <SidebarMenuAction
                               @click.stop
                               :class="[
