@@ -101,8 +101,9 @@
       <CloseButton :onClose="() => removeFilter(index)" />
     </div>
 
+    <!-- Button Container -->
     <div class="flex items-center justify-between pt-3">
-      <Button variant="ghost" size="sm" @click="addFilter" class="text-slate-600">
+      <Button variant="ghost" size="sm" @click.stop="addFilter" class="text-slate-600">
         <Plus class="w-3 h-3 mr-1" />
         {{
           $t('globals.messages.add', {
@@ -111,15 +112,17 @@
         }}
       </Button>
       <div class="flex gap-2" v-if="showButtons">
-        <Button variant="ghost" @click="clearFilters">{{ $t('globals.messages.reset') }}</Button>
-        <Button @click="applyFilters">{{ $t('globals.messages.apply') }}</Button>
+        <Button variant="ghost" @click.stop="clearFilters">
+          {{ $t('globals.messages.reset') }}
+        </Button>
+        <Button @click.stop="applyFilters">{{ $t('globals.messages.apply') }}</Button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import {
   Select,
   SelectContent,
@@ -157,6 +160,11 @@ onMounted(() => {
   if (modelValue.value.length === 0) {
     modelValue.value = [createFilter()]
   }
+})
+
+onUnmounted(() => {
+  // On unmounted set valid filters
+  modelValue.value = validFilters.value
 })
 
 const getModel = (field) => {

@@ -107,27 +107,17 @@ const formSchema = toTypedSchema(
   z.object({
     id: z.number().optional(),
     name: z
-      .string()
+      .string({
+        required_error: t('globals.messages.required')
+      })
       .min(2, { message: t('view.form.name.length') })
       .max(30, { message: t('view.form.name.length') }),
     filters: z
       .array(
         z.object({
-          model: z.string({
-            required_error: t('globals.messages.required', {
-              name: t('globals.terms.filter')
-            })
-          }),
-          field: z.string({
-            required_error: t('globals.messages.required', {
-              name: t('globals.terms.field')
-            })
-          }),
-          operator: z.string({
-            required_error: t('globals.messages.required', {
-              name: t('globals.terms.operator')
-            })
-          }),
+          model: z.string().optional(),
+          field: z.string().optional(),
+          operator: z.string().optional(),
           value: z
             .union([
               z.string(),
@@ -139,40 +129,37 @@ const formSchema = toTypedSchema(
         })
       )
       .default([])
-      .refine((filters) => filters.length > 0, { message: t('view.form.filter.selectAtLeastOne') })
-      .refine(
-        (filters) =>
-          filters.every(
-            (f) =>
-              f.model &&
-              f.field &&
-              f.operator &&
-              ([OPERATOR.SET, OPERATOR.NOT_SET].includes(f.operator) || f.value)
-          ),
-        {
-          message: t('view.form.filter.partiallyFilled')
-        }
-      )
   })
 )
 
 const form = useForm({
-  validationSchema: formSchema,
-  validateOnMount: false,
-  validateOnInput: false,
-  validateOnBlur: false
+  validationSchema: formSchema
 })
 
-const onSubmit = async () => {
-  const validationResult = await form.validate()
-  if (!validationResult.valid) return
-
+const onSubmit = form.handleSubmit(async (values) => {
   if (isSubmitting.value) return
+
+  // Make sure at least one filter is selected
+  if (!values.filters || values.filters.length === 0) {
+    form.setFieldError('filters', t('view.form.filter.selectAtLeastOne'))
+    return
+  }
+
+  // Check for partial filters
+  const hasPartialFilters = values.filters.some(
+    (f) =>
+      !f.field ||
+      !f.operator ||
+      (![OPERATOR.SET, OPERATOR.NOT_SET].includes(f.operator) && !f.value)
+  )
+  if (hasPartialFilters) {
+    form.setFieldError('filters', t('view.form.filter.partiallyFilled'))
+    return
+  }
+
   isSubmitting.value = true
 
   try {
-    const values = { ...form.values }
-
     // Serialize array values to JSON strings for backend
     if (values.filters) {
       values.filters = values.filters.map((filter) => {
@@ -214,7 +201,7 @@ const onSubmit = async () => {
   } finally {
     isSubmitting.value = false
   }
-}
+})
 
 // Set form values when view prop changes
 watch(
