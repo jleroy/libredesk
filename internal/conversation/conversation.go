@@ -582,6 +582,8 @@ func (c *Manager) UpdateAssignee(uuid string, assigneeID int, assigneeType strin
 			c.lo.Error("error updating conversation assignee", "error", err)
 			return fmt.Errorf("updating assignee: %w", err)
 		}
+		// Clear assigned user ID.
+		c.BroadcastConversationUpdate(uuid, "assigned_user_id", nil)
 	default:
 		return fmt.Errorf("invalid assignee type: %s", assigneeType)
 	}

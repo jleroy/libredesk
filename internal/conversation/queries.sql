@@ -215,6 +215,8 @@ WHERE uuid = $1;
 -- name: update-conversation-assigned-team
 UPDATE conversations
 SET assigned_team_id = $2,
+assigned_user_id = NULL,
+assignee_last_seen_at = NULL,
 updated_at = NOW()
 WHERE uuid = $1;
 
