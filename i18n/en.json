@@ -177,6 +177,7 @@
   "globals.terms.usage": "Usage",
   "globals.terms.createdAt": "Created At",
   "globals.terms.updatedAt": "Updated At",
+  "globals.terms.lastMessageAt": "Last message at",
   "globals.terms.pickDate": "Pick a date",
   "globals.terms.time": "Time",
   "globals.terms.listValues": "List values",

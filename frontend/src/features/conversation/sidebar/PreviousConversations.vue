@@ -8,7 +8,7 @@
   >
     {{ $t('conversation.sidebar.noPreviousConvo') }}
   </div>
-  <div v-else class="space-y-3">
+  <div v-else class="space-y-1">
     <router-link
       v-for="conversation in conversationStore.current.previous_conversations"
       :key="conversation.uuid"
@@ -30,9 +30,31 @@
             {{ conversation.last_message }}
           </span>
         </div>
-        <span class="text-xs text-muted-foreground" v-if="conversation.last_message_at">
-          {{ format(new Date(conversation.last_message_at), 'h') + ' h' }}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div class="flex gap-1 items-center text-xs text-muted-foreground">
+              <span v-if="conversation.created_at">
+                {{ getRelativeTime(new Date(conversation.created_at)) }}
+              </span>
+              <span>•</span>
+              <span v-if="conversation.last_message_at">
+                {{ getRelativeTime(new Date(conversation.last_message_at)) }}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div class="space-y-1 text-xs">
+              <p>
+                {{ $t('globals.terms.createdAt') }}:
+                {{ formatFullTimestamp(new Date(conversation.created_at)) }}
+              </p>
+              <p v-if="conversation.last_message_at">
+                {{ $t('globals.terms.lastMessageAt') }}:
+                {{ formatFullTimestamp(new Date(conversation.last_message_at)) }}
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </router-link>
   </div>
@@ -40,7 +62,8 @@
 
 <script setup>
 import { useConversationStore } from '@/stores/conversation'
-import { format } from 'date-fns'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatFullTimestamp, getRelativeTime } from '@/utils/datetime'
 
 const conversationStore = useConversationStore()
 </script>
