@@ -413,7 +413,7 @@
   "admin.general.maxAllowedFileUploadSize.description": "Max allowed file upload size in MB.",
   "admin.general.maxAllowedFileUploadSize.valid": "Max allowed file upload size should be between 1 and 500 MB",
   "admin.general.allowedFileUploadExtensions": "Allowed File Upload Extensions",
-  "admin.general.allowedFileUploadExtensions.description": "Allowed file upload extensions. Use `*` to allow all file types.",
+  "admin.general.allowedFileUploadExtensions.description": "Use `*` to permit all file types. For example: `jpg, png, pdf`",
   "admin.businessHours.unauthorized": "You do not have permission to view business hours.",
   "admin.businessHours.setBusinessHours": "Set business hours",
   "admin.businessHours.alwaysOpen24x7": "Always open (24/7)",
