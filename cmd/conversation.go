@@ -734,7 +734,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.Ts("globals.messages.errorSending", "name", "{globals.terms.message}"), nil))
 		}
 	case umodels.UserTypeContact:
-		// Create message on behalf of contact.
+		// Create contact message.
 		if _, err := app.conversation.CreateContactMessage(media, contact.ID, conversationUUID, req.Content, cmodels.ContentTypeHTML); err != nil {
 			// Delete the conversation if message creation fails.
 			if err := app.conversation.DeleteConversation(conversationUUID); err != nil {
