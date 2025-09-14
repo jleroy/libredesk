@@ -41,7 +41,7 @@ type UserCompact struct {
 	CreatedAt time.Time   `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time   `db:"updated_at" json:"updated_at"`
 
-	Total int `db:"total" json:"total"`
+	Total int `db:"total" json:"-"`
 }
 
 type User struct {
