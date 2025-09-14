@@ -145,7 +145,7 @@ type ConversationContact struct {
 	AvailabilityStatus     string          `db:"availability_status" json:"availability_status"`
 	AvatarURL              null.String     `db:"avatar_url" json:"avatar_url"`
 	PhoneNumber            null.String     `db:"phone_number" json:"phone_number"`
-	PhoneNumberCallingCode null.String     `db:"phone_number_calling_code" json:"phone_number_calling_code"`
+	PhoneNumberCountryCode null.String     `db:"phone_number_country_code" json:"phone_number_country_code"`
 	CustomAttributes       json.RawMessage `db:"custom_attributes" json:"custom_attributes"`
 	Enabled                bool            `db:"enabled" json:"enabled"`
 	LastActiveAt           null.Time       `db:"last_active_at" json:"last_active_at"`

@@ -39,7 +39,7 @@ SELECT
     u.availability_status,
     u.last_active_at,
     u.last_login_at,
-    u.phone_number_calling_code,
+    u.phone_number_country_code,
     u.phone_number,
     u.api_key,
     u.api_key_last_used_at,
@@ -174,7 +174,7 @@ SET first_name = COALESCE($2, first_name),
     email = COALESCE($4, email),
     avatar_url = $5,
     phone_number = $6,
-    phone_number_calling_code = $7,
+    phone_number_country_code = $7,
     updated_at = now()
 WHERE id = $1 and type = 'contact';
 
@@ -233,7 +233,7 @@ SELECT
     u.availability_status,
     u.last_active_at,
     u.last_login_at,
-    u.phone_number_calling_code,
+    u.phone_number_country_code,
     u.phone_number,
     u.api_key,
     u.api_key_last_used_at,
