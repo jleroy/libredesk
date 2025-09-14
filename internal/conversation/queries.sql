@@ -140,7 +140,7 @@ SELECT
    ct.availability_status as "contact.availability_status",
    ct.avatar_url as "contact.avatar_url",
    ct.phone_number as "contact.phone_number",
-   ct.phone_number_calling_code as "contact.phone_number_calling_code",
+   ct.phone_number_country_code as "contact.phone_number_country_code",
    ct.custom_attributes as "contact.custom_attributes",
    ct.enabled as "contact.enabled",
    ct.last_active_at as "contact.last_active_at",

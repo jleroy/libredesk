@@ -103,9 +103,9 @@ func handleUpdateContact(r *fastglue.Request) error {
 	if v, ok := form.Value["phone_number"]; ok && len(v) > 0 {
 		phoneNumber = string(v[0])
 	}
-	phoneNumberCallingCode := ""
-	if v, ok := form.Value["phone_number_calling_code"]; ok && len(v) > 0 {
-		phoneNumberCallingCode = string(v[0])
+	phoneNumberCountryCode := ""
+	if v, ok := form.Value["phone_number_country_code"]; ok && len(v) > 0 {
+		phoneNumberCountryCode = string(v[0])
 	}
 	avatarURL := ""
 	if v, ok := form.Value["avatar_url"]; ok && len(v) > 0 {
@@ -116,8 +116,8 @@ func handleUpdateContact(r *fastglue.Request) error {
 	if avatarURL == "null" {
 		avatarURL = ""
 	}
-	if phoneNumberCallingCode == "null" {
-		phoneNumberCallingCode = ""
+	if phoneNumberCountryCode == "null" {
+		phoneNumberCountryCode = ""
 	}
 	if phoneNumber == "null" {
 		phoneNumber = ""
@@ -146,7 +146,7 @@ func handleUpdateContact(r *fastglue.Request) error {
 		Email:                  null.StringFrom(email),
 		AvatarURL:              null.NewString(avatarURL, avatarURL != ""),
 		PhoneNumber:            null.NewString(phoneNumber, phoneNumber != ""),
-		PhoneNumberCallingCode: null.NewString(phoneNumberCallingCode, phoneNumberCallingCode != ""),
+		PhoneNumberCountryCode: null.NewString(phoneNumberCountryCode, phoneNumberCountryCode != ""),
 	}
 
 	if err := app.user.UpdateContact(id, contactToUpdate); err != nil {

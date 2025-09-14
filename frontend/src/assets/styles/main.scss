@@ -184,6 +184,10 @@
   @apply border shadow rounded;
 }
 
+.loading-fade {
+  @apply opacity-50 transition-opacity duration-300
+}
+
 // Scrollbar start
 ::-webkit-scrollbar {
   width: 8px; /* Adjust width */

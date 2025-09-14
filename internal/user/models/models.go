@@ -53,7 +53,7 @@ type User struct {
 	Email                  null.String          `db:"email" json:"email"`
 	Type                   string               `db:"type" json:"type"`
 	AvailabilityStatus     string               `db:"availability_status" json:"availability_status"`
-	PhoneNumberCallingCode null.String          `db:"phone_number_calling_code" json:"phone_number_calling_code"`
+	PhoneNumberCountryCode null.String          `db:"phone_number_country_code" json:"phone_number_country_code"`
 	PhoneNumber            null.String          `db:"phone_number" json:"phone_number"`
 	AvatarURL              null.String          `db:"avatar_url" json:"avatar_url"`
 	Enabled                bool                 `db:"enabled" json:"enabled"`

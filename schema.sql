@@ -129,7 +129,7 @@ CREATE TABLE users (
     email TEXT NULL,
     first_name TEXT NOT NULL,
     last_name TEXT NULL,
-	phone_number_calling_code TEXT NULL,
+	phone_number_country_code TEXT NULL,
     phone_number TEXT NULL,
     country TEXT NULL,
     "password" VARCHAR(150) NULL,
@@ -146,7 +146,7 @@ CREATE TABLE users (
 	api_key_last_used_at TIMESTAMPTZ NULL,
     CONSTRAINT constraint_users_on_country CHECK (LENGTH(country) <= 140),
     CONSTRAINT constraint_users_on_phone_number CHECK (LENGTH(phone_number) <= 20),
-	CONSTRAINT constraint_users_on_phone_number_calling_code CHECK (LENGTH(phone_number_calling_code) <= 10),
+	CONSTRAINT constraint_users_on_phone_number_country_code CHECK (LENGTH(phone_number_country_code) <= 10),
     CONSTRAINT constraint_users_on_email_length CHECK (LENGTH(email) <= 320),
     CONSTRAINT constraint_users_on_first_name CHECK (LENGTH(first_name) <= 140),
     CONSTRAINT constraint_users_on_last_name CHECK (LENGTH(last_name) <= 140)

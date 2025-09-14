@@ -29,7 +29,7 @@ func (u *Manager) CreateContact(user *models.User) error {
 
 // UpdateContact updates a contact in the database.
 func (u *Manager) UpdateContact(id int, user models.User) error {
-	if _, err := u.q.UpdateContact.Exec(id, user.FirstName, user.LastName, user.Email, user.AvatarURL, user.PhoneNumber, user.PhoneNumberCallingCode); err != nil {
+	if _, err := u.q.UpdateContact.Exec(id, user.FirstName, user.LastName, user.Email, user.AvatarURL, user.PhoneNumber, user.PhoneNumberCountryCode); err != nil {
 		u.lo.Error("error updating user", "error", err)
 		return envelope.NewError(envelope.GeneralError, u.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.contact}"), nil)
 	}
