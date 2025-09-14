@@ -42,7 +42,7 @@
       <div class="flex flex-col flex-1">
         <div class="flex items-end">
           <FormField v-slot="{ componentField }" name="phone_number_country_code">
-            <FormItem class="w-max-content">
+            <FormItem class="w-max">
               <FormLabel class="flex items-center whitespace-nowrap">
                 {{ t('globals.terms.phoneNumber') }}
               </FormLabel>

@@ -5,7 +5,11 @@
         <CustomBreadcrumb :links="breadcrumbLinks" />
       </div>
 
-      <div v-if="contact" class="flex justify-center space-y-4 w-full">
+      <div
+        v-if="contact"
+        class="flex justify-center space-y-4 w-full"
+        :class="{ 'loading-fade': formLoading }"
+      >
         <div class="flex flex-col w-full mt-12">
           <div class="flex flex-col space-y-2">
             <AvatarUpload
