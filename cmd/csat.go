@@ -6,6 +6,10 @@ import (
 	"github.com/zerodha/fastglue"
 )
 
+const (
+	maxCsatFeedbackLength = 1000
+)
+
 // handleShowCSAT renders the CSAT page for a given csat.
 func handleShowCSAT(r *fastglue.Request) error {
 	var (
@@ -86,6 +90,11 @@ func handleUpdateCSATResponse(r *fastglue.Request) error {
 				"ErrorMessage": app.i18n.T("globals.messages.somethingWentWrong"),
 			},
 		})
+	}
+
+	// Trim feedback if it exceeds max length
+	if len(feedback) > maxCsatFeedbackLength {
+		feedback = feedback[:maxCsatFeedbackLength]
 	}
 
 	if err := app.csat.UpdateResponse(uuid, ratingI, feedback); err != nil {
