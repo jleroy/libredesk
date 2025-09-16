@@ -462,6 +462,11 @@ func (m *Manager) InsertMessage(message *models.Message) error {
 		message.Meta = json.RawMessage(`{}`)
 	}
 
+	// Handle empty content type enum, default to text.
+	if message.ContentType == "" {
+		message.ContentType = models.ContentTypeText
+	}
+
 	// Convert HTML content to text for search.
 	message.TextContent = stringutil.HTML2Text(message.Content)
 
