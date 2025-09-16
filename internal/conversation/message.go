@@ -639,7 +639,7 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 	}
 	in.Message.SenderID = in.Contact.ID
 
-	// Conversations exists for this message?
+	// Conversation already exists for this message? Skip if it does.
 	conversationID, err := m.findConversationID([]string{in.Message.SourceID.String})
 	if err != nil && err != errConversationNotFound {
 		return err
@@ -654,10 +654,16 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 		return err
 	}
 
-	// Upload message attachments.
-	if err := m.uploadMessageAttachments(&in.Message); err != nil {
-		// Log error but continue processing.
-		m.lo.Error("error uploading message attachments", "message_source_id", in.Message.SourceID, "error", err)
+	// Upload message attachments, on failure delete the conversation if it was just created for this message.
+	if upErr := m.uploadMessageAttachments(&in.Message); upErr != nil {
+		m.lo.Error("error uploading message attachments", "message_source_id", in.Message.SourceID, "error", upErr)
+		if isNewConversation && in.Message.ConversationUUID != "" {
+			m.lo.Info("deleting conversation as message attachment upload failed", "conversation_uuid", in.Message.ConversationUUID, "message_source_id", in.Message.SourceID)
+			if err := m.DeleteConversation(in.Message.ConversationUUID); err != nil {
+				return fmt.Errorf("error deleting conversation after message attachment upload failure: %w", err)
+			}
+		}
+		return fmt.Errorf("error uploading message attachments: %w", upErr)
 	}
 
 	// Insert message.
@@ -781,12 +787,11 @@ func (c *Manager) generateMessagesQuery(baseQuery string, qArgs []interface{}, p
 }
 
 // uploadMessageAttachments uploads all attachments for a message.
-func (m *Manager) uploadMessageAttachments(message *models.Message) []error {
+func (m *Manager) uploadMessageAttachments(message *models.Message) error {
 	if len(message.Attachments) == 0 {
 		return nil
 	}
 
-	var uploadErr []error
 	for _, attachment := range message.Attachments {
 		// Check if this attachment already exists by the content ID, as inline images can be repeated across conversations.
 		contentID := attachment.ContentID
@@ -833,21 +838,21 @@ func (m *Manager) uploadMessageAttachments(message *models.Message) []error {
 			[]byte("{}"), /** meta **/
 		)
 		if err != nil {
-			uploadErr = append(uploadErr, err)
 			m.lo.Error("failed to upload attachment", "name", attachment.Name, "error", err)
+			return fmt.Errorf("failed to upload media %s: %w", attachment.Name, err)
 		}
 
 		// If the attachment is an image, generate and upload thumbnail.
 		attachmentExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(attachment.Name)), ".")
 		if slices.Contains(image.Exts, attachmentExt) {
 			if err := m.uploadThumbnailForMedia(media, attachment.Content); err != nil {
-				uploadErr = append(uploadErr, err)
 				m.lo.Error("error uploading thumbnail", "error", err)
+				return fmt.Errorf("error uploading thumbnail for media %s: %w", attachment.Name, err)
 			}
 		}
 		message.Media = append(message.Media, media)
 	}
-	return uploadErr
+	return nil
 }
 
 // findOrCreateConversation finds or creates a conversation for the given message.
