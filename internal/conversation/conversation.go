@@ -541,6 +541,10 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 
 	// Team changed?
 	if previousAssignedTeamID != teamID {
+		// Remove assigned user if team has changed.
+		c.RemoveConversationAssignee(uuid, models.AssigneeTypeUser, actor)
+
+		// Apply SLA policy if this new team has a SLA policy.
 		team, err := c.teamStore.Get(teamID)
 		if err != nil {
 			return nil
@@ -582,8 +586,6 @@ func (c *Manager) UpdateAssignee(uuid string, assigneeID int, assigneeType strin
 			c.lo.Error("error updating conversation assignee", "error", err)
 			return fmt.Errorf("updating assignee: %w", err)
 		}
-		// Clear assigned user ID.
-		c.BroadcastConversationUpdate(uuid, "assigned_user_id", nil)
 	default:
 		return fmt.Errorf("invalid assignee type: %s", assigneeType)
 	}
@@ -962,7 +964,7 @@ func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversatio
 	return nil
 }
 
-// RemoveConversationAssignee removes the assignee from the conversation.
+// RemoveConversationAssignee removes assigned user from a conversation.
 func (m *Manager) RemoveConversationAssignee(uuid, typ string, actor umodels.User) error {
 	if _, err := m.q.RemoveConversationAssignee.Exec(uuid, typ); err != nil {
 		m.lo.Error("error removing conversation assignee", "error", err)
@@ -975,6 +977,14 @@ func (m *Manager) RemoveConversationAssignee(uuid, typ string, actor umodels.Use
 			"conversation_uuid": uuid,
 			"actor_id":          actor.ID,
 		})
+	}
+
+	// Broadcast ws update.
+	switch typ {
+	case models.AssigneeTypeUser:
+		m.BroadcastConversationUpdate(uuid, "assigned_user_id", nil)
+	case models.AssigneeTypeTeam:
+		m.BroadcastConversationUpdate(uuid, "assigned_team_id", nil)
 	}
 
 	return nil

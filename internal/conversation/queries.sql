@@ -215,8 +215,6 @@ WHERE uuid = $1;
 -- name: update-conversation-assigned-team
 UPDATE conversations
 SET assigned_team_id = $2,
-assigned_user_id = NULL,
-assignee_last_seen_at = NULL,
 updated_at = NOW()
 WHERE uuid = $1;
 
@@ -355,6 +353,7 @@ WHERE uuid = $1;
 UPDATE conversations
 SET 
     assigned_user_id = CASE WHEN $2 = 'user' THEN NULL ELSE assigned_user_id END,
+    assignee_last_seen_at = CASE WHEN $2 = 'user' THEN NULL ELSE assignee_last_seen_at END,
     assigned_team_id = CASE WHEN $2 = 'team' THEN NULL ELSE assigned_team_id END,
     updated_at = NOW()
 WHERE uuid = $1;
