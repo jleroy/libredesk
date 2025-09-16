@@ -1024,6 +1024,7 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 
 // DeleteConversation deletes a conversation.
 func (m *Manager) DeleteConversation(uuid string) error {
+	m.lo.Info("deleting conversation", "uuid", uuid)
 	if _, err := m.q.DeleteConversation.Exec(uuid); err != nil {
 		m.lo.Error("error deleting conversation", "error", err)
 		return envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorDeleting", "name", m.i18n.Ts("globals.terms.conversation")), nil)
