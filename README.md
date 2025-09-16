@@ -5,7 +5,7 @@
 
 Modern, open source, self-hosted customer support desk. Single binary app. 
 
-![image](https://libredesk.io/hero_white.png)
+![image](https://libredesk.io/hero.png)
 
 
 Visit [libredesk.io](https://libredesk.io) for more info. Check out the [**Live demo**](https://demo.libredesk.io/).
