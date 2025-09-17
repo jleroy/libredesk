@@ -28,7 +28,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mr-karan/balance v0.0.0-20250317053523-d32c6ade6cf1
 	github.com/redis/go-redis/v9 v9.5.5
-	github.com/rhnvrm/simples3 v0.9.1
+	github.com/rhnvrm/simples3 v0.9.2
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.10.0
 	github.com/valyala/fasthttp v1.62.0
