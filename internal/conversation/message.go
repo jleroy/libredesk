@@ -842,12 +842,11 @@ func (m *Manager) uploadMessageAttachments(message *models.Message) error {
 			return fmt.Errorf("failed to upload media %s: %w", attachment.Name, err)
 		}
 
-		// If the attachment is an image, generate and upload thumbnail.
+		// If the attachment is an image, generate and upload a thumbnail. Log any errors and continue, as thumbnail generation failure should not block message processing.
 		attachmentExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(attachment.Name)), ".")
 		if slices.Contains(image.Exts, attachmentExt) {
 			if err := m.uploadThumbnailForMedia(media, attachment.Content); err != nil {
 				m.lo.Error("error uploading thumbnail", "error", err)
-				return fmt.Errorf("error uploading thumbnail for media %s: %w", attachment.Name, err)
 			}
 		}
 		message.Media = append(message.Media, media)
