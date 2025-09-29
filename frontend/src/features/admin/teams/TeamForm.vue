@@ -96,7 +96,7 @@
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem :value=0>None</SelectItem>
+                <SelectItem :value = 0>None</SelectItem>
                 <SelectItem v-for="bh in businessHours" :key="bh.id" :value="bh.id">
                   {{ bh.name }}
                 </SelectItem>
@@ -121,7 +121,7 @@
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem :value=0>None</SelectItem>
+                <SelectItem :value= 0>None</SelectItem>
                 <SelectItem
                   v-for="sla in slaStore.options"
                   :key="sla.value"
@@ -229,8 +229,8 @@ const fetchBusinessHours = async () => {
 const onSubmit = form.handleSubmit((values) => {
   props.submitForm({
     ...values,
-    business_hours_id: values.business_hours_id ? Number(values.business_hours_id) : null,
-    sla_policy_id: values.sla_policy_id ? Number(values.sla_policy_id) : null
+    business_hours_id: values.business_hours_id > 0 ? values.business_hours_id : null,
+    sla_policy_id: values.sla_policy_id > 0 ? values.sla_policy_id: null
   })
 })
 
