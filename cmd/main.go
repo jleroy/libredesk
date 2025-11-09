@@ -191,7 +191,7 @@ func main() {
 		priority                    = initPriority(db, i18n)
 		auth                        = initAuth(oidc, rdb, i18n)
 		template                    = initTemplate(db, fs, constants, i18n)
-		media                       = initMedia(db, i18n)
+		media                       = initMedia(db, i18n, settings)
 		inbox                       = initInbox(db, i18n)
 		team                        = initTeam(db, i18n)
 		businessHours               = initBusinessHours(db, i18n)

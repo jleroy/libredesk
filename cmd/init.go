@@ -429,12 +429,11 @@ func initTeam(db *sqlx.DB, i18n *i18n.I18n) *team.Manager {
 }
 
 // initMedia inits media manager.
-func initMedia(db *sqlx.DB, i18n *i18n.I18n) *media.Manager {
+func initMedia(db *sqlx.DB, i18n *i18n.I18n, settings *setting.Manager) *media.Manager {
 	var (
-		store      media.Store
-		err        error
-		appRootURL = ko.String("app.root_url")
-		lo         = initLogger("media")
+		store media.Store
+		err   error
+		lo    = initLogger("media")
 	)
 	switch s := ko.MustString("upload.provider"); s {
 	case "s3":
@@ -457,7 +456,14 @@ func initMedia(db *sqlx.DB, i18n *i18n.I18n) *media.Manager {
 		store, err = fs.New(fs.Opts{
 			UploadURI:  "/uploads",
 			UploadPath: filepath.Clean(ko.String("upload.fs.upload_path")),
-			RootURL:    appRootURL,
+			RootURL: func() string {
+				rootURL, err := settings.GetAppRootURL()
+				if err != nil {
+					// Fallback to config if settings fetch fails
+					return ko.String("app.root_url")
+				}
+				return rootURL
+			},
 		})
 		if err != nil {
 			log.Fatalf("error initializing fs media store: %v", err)

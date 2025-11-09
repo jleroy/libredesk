@@ -13,7 +13,7 @@ import (
 type Opts struct {
 	UploadPath string
 	UploadURI  string
-	RootURL    string
+	RootURL    func() string
 }
 
 // Client implements `media.Store`
@@ -49,7 +49,7 @@ func (c *Client) Put(filename string, cType string, src io.ReadSeeker) (string, 
 
 // GetURL accepts a filename and retrieves the full URL for file.
 func (c *Client) GetURL(name string) string {
-	return fmt.Sprintf("%s%s/%s", c.opts.RootURL, c.opts.UploadURI, name)
+	return fmt.Sprintf("%s%s/%s", c.opts.RootURL(), c.opts.UploadURI, name)
 }
 
 // GetBlob accepts a URL, reads the file, and returns the blob.
