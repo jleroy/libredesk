@@ -33,7 +33,7 @@
           <!-- Message Text -->
           <div
             v-if="message.content_type === 'text'"
-            class="mb-1 native-html break-all whitespace-pre-wrap"
+            class="mb-1 native-html whitespace-pre-wrap"
             :class="{ 'mb-3': message.attachments.length > 0 }"
           >
             {{ sanitizedMessageContent }}
@@ -42,7 +42,7 @@
             v-else
             :html="sanitizedMessageContent"
             :allowedSchemas="['cid', 'https', 'http', 'mailto']"
-            class="mb-1 native-html break-all"
+            class="mb-1 native-html"
             :class="{ 'mb-3': message.attachments.length > 0 }"
           />
 

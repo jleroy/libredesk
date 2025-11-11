@@ -166,6 +166,17 @@
 
 .message-bubble {
   @apply flex flex-col px-4 pt-2 pb-3 w-fit min-w-[30%] max-w-full border overflow-x-auto rounded shadow-sm;
+  overflow-wrap: break-all;
+
+  * {
+    max-width: 100%;
+  }
+
+  // Force pre blocks to wrap
+  pre, code {
+    white-space: pre-wrap;
+  }
+
   table {
     width: 100% !important;
     table-layout: fixed !important;
