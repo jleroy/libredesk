@@ -153,6 +153,9 @@ type ConversationContact struct {
 }
 
 func (c *ConversationContact) FullName() string {
+	if c.LastName == "" {
+		return c.FirstName
+	}
 	return c.FirstName + " " + c.LastName
 }
 
