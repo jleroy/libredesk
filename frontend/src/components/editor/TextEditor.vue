@@ -149,7 +149,8 @@ const CustomTable = Table.extend({
       ...this.parent?.(),
       style: {
         parseHTML: (element) =>
-          (element.getAttribute('style') || '') + '; border: 1px solid #dee2e6 !important; width: 100%; margin:0; table-layout: fixed; border-collapse: collapse; position:relative; border-radius: 0.25rem;'
+          (element.getAttribute('style') || '') +
+          '; border: 1px solid #dee2e6 !important; width: 100%; margin:0; table-layout: fixed; border-collapse: collapse; position:relative; border-radius: 0.25rem;'
       }
     }
   }
@@ -199,6 +200,10 @@ const editor = useEditor({
   editorProps: {
     attributes: { class: 'outline-none' },
     handleKeyDown: (view, event) => {
+      if (event.ctrlKey && event.key.toLowerCase() === 'b') {
+        event.stopPropagation()
+        return false
+      }
       if (event.ctrlKey && event.key === 'Enter') {
         emit('send')
         return true
