@@ -99,7 +99,7 @@
 
         <!-- Note content -->
         <CardContent class="pt-4 pb-5">
-          <p class="whitespace-pre-wrap text-sm leading-relaxed" v-dompurify-html="note.note"></p>
+          <p class="whitespace-pre-wrap text-sm native-html" v-dompurify-html="note.note"></p>
         </CardContent>
       </Card>
     </div>

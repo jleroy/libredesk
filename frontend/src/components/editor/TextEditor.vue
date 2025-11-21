@@ -68,23 +68,41 @@
         >
           <LinkIcon size="14" />
         </Button>
-        <div v-if="showLinkInput" class="flex space-x-2 p-2 bg-background border rounded">
-          <Input
-            v-model="linkUrl"
-            type="text"
-            placeholder="Enter link URL"
-            class="border p-1 text-sm w-[200px]"
-          />
-          <Button size="sm" @click="setLink">
-            <Check size="14" />
-          </Button>
-          <Button size="sm" @click="unsetLink">
-            <X size="14" />
-          </Button>
-        </div>
       </div>
     </BubbleMenu>
     <EditorContent :editor="editor" class="native-html" />
+
+    <Dialog v-model:open="showLinkDialog">
+      <DialogContent class="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>
+            {{ editor?.isActive('link')
+              ? $t('globals.messages.edit', { name: $t('globals.terms.link', 1).toLowerCase() + ' ' + $t('globals.terms.url', 1).toLowerCase() })
+              : $t('globals.messages.add', { name: $t('globals.terms.link', 1).toLowerCase() + ' ' + $t('globals.terms.url', 1).toLowerCase() })
+            }}
+          </DialogTitle>
+          <DialogDescription></DialogDescription>
+        </DialogHeader>
+        <form @submit.stop.prevent="setLink">
+          <div class="grid gap-4 py-4">
+            <Input
+              v-model="linkUrl"
+              type="text"
+              :placeholder="$t('globals.messages.enter', { name: $t('globals.terms.url', 1) })"
+              @keydown.enter.prevent="setLink"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" @click="unsetLink" v-if="editor?.isActive('link')">
+              {{ $t('globals.messages.remove', { name: $t('globals.terms.link', 1) }) }}
+            </Button>
+            <Button type="submit">
+              {{ $t('globals.messages.save') }}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -99,8 +117,6 @@ import {
   List,
   ListOrdered,
   Link as LinkIcon,
-  Check,
-  X
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -110,6 +126,14 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '@/components/ui/dialog'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import StarterKit from '@tiptap/starter-kit'
@@ -121,7 +145,7 @@ import TableHeader from '@tiptap/extension-table-header'
 
 const textContent = defineModel('textContent', { default: '' })
 const htmlContent = defineModel('htmlContent', { default: '' })
-const showLinkInput = ref(false)
+const showLinkDialog = ref(false)
 const linkUrl = ref('')
 
 const props = defineProps({
@@ -149,7 +173,8 @@ const CustomTable = Table.extend({
       ...this.parent?.(),
       style: {
         parseHTML: (element) =>
-          (element.getAttribute('style') || '') + '; border: 1px solid #dee2e6 !important; width: 100%; margin:0; table-layout: fixed; border-collapse: collapse; position:relative; border-radius: 0.25rem;'
+          (element.getAttribute('style') || '') +
+          '; border: 1px solid #dee2e6 !important; width: 100%; margin:0; table-layout: fixed; border-collapse: collapse; position:relative; border-radius: 0.25rem;'
       }
     }
   }
@@ -199,11 +224,10 @@ const editor = useEditor({
   editorProps: {
     attributes: { class: 'outline-none' },
     handleKeyDown: (view, event) => {
-
       if (event.ctrlKey && event.key.toLowerCase() === 'b') {
-      event.stopPropagation();
-      return false; 
-    }
+        event.stopPropagation()
+        return false
+      }
       if (event.ctrlKey && event.key === 'Enter') {
         emit('send')
         return true
@@ -249,19 +273,19 @@ const openLinkModal = () => {
   } else {
     linkUrl.value = ''
   }
-  showLinkInput.value = true
+  showLinkDialog.value = true
 }
 
 const setLink = () => {
   if (linkUrl.value) {
     editor.value?.chain().focus().extendMarkRange('link').setLink({ href: linkUrl.value }).run()
   }
-  showLinkInput.value = false
+  showLinkDialog.value = false
 }
 
 const unsetLink = () => {
   editor.value?.chain().focus().unsetLink().run()
-  showLinkInput.value = false
+  showLinkDialog.value = false
 }
 </script>
 

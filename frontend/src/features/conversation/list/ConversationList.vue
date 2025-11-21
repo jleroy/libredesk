@@ -29,7 +29,11 @@
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <div v-else></div>
+      <div v-else>
+        <Button variant="ghost" class="w-30">
+          <span>{{ conversationStore.conversations.total }}</span>
+        </Button>
+      </div>
 
       <!-- Sort dropdown-menu -->
       <DropdownMenu>
