@@ -53,8 +53,8 @@
           :isSending="isSending"
           :uploadingFiles="uploadingFiles"
           :uploadedFiles="mediaFiles"
-          v-model:htmlContent="htmlContent"
-          v-model:textContent="textContent"
+          v-model:htmlContent="localHtmlContent"
+          v-model:textContent="localTextContent"
           v-model:to="to"
           v-model:cc="cc"
           v-model:bcc="bcc"
@@ -83,8 +83,8 @@
         :isSending="isSending"
         :uploadingFiles="uploadingFiles"
         :uploadedFiles="mediaFiles"
-        v-model:htmlContent="htmlContent"
-        v-model:textContent="textContent"
+        v-model:htmlContent="localHtmlContent"
+        v-model:textContent="localTextContent"
         v-model:to="to"
         v-model:cc="cc"
         v-model:bcc="bcc"
@@ -166,31 +166,31 @@ const showBcc = ref(false)
 const emailErrors = ref([])
 const aiPrompts = ref([])
 
-// Draft store integration with computed properties
-const htmlContent = computed({
-  get: () => draftStore.getDraft(conversationStore.current?.uuid).htmlContent,
-  set: (value) => {
-    draftStore.setDraft(
-      conversationStore.current?.uuid,
-      value,
-      textContent.value
-    )
-  }
-})
+// Local state for draft content
+const localHtmlContent = ref('')
+const localTextContent = ref('')
 
-const textContent = computed({
-  get: () => draftStore.getDraft(conversationStore.current?.uuid).textContent,
-  set: (value) => {
-    draftStore.setDraft(
-      conversationStore.current?.uuid,
-      htmlContent.value,
-      value
-    )
-  }
-})
+// Watch for conversation changes - save old draft, load new draft
+watch(
+  () => conversationStore.current?.uuid,
+  (newUuid, oldUuid) => {
+    if (oldUuid && (localHtmlContent.value || localTextContent.value)) {
+      draftStore.setDraft(oldUuid, localHtmlContent.value, localTextContent.value)
+    }
+    
+    const draft = draftStore.getDraft(newUuid)
+    localHtmlContent.value = draft.htmlContent
+    localTextContent.value = draft.textContent
+  },
+  { immediate: true }
+)
 
-onMounted( () => {
-  draftStore.loadDrafts()
+// Sync local content to store as user types
+watch([localHtmlContent, localTextContent], () => {
+  const uuid = conversationStore.current?.uuid
+  if (uuid) {
+    draftStore.setDraft(uuid, localHtmlContent.value, localTextContent.value)
+  }
 })
 
 /**
@@ -218,9 +218,9 @@ const handleAiPromptSelected = async (key) => {
   try {
     const resp = await api.aiCompletion({
       prompt_key: key,
-      content: textContent.value
+      content: localTextContent.value
     })
-    htmlContent.value = resp.data.data.replace(/\n/g, '<br>')
+    localHtmlContent.value = resp.data.data.replace(/\n/g, '<br>')
   } catch (error) {
     // Check if user needs to enter OpenAI API key and has permission to do so.
     if (error.response?.status === 400 && userStore.can('ai:manage')) {
@@ -261,7 +261,7 @@ const updateProvider = async (values) => {
  * Returns true if the editor has text content.
  */
 const hasTextContent = computed(() => {
-  return textContent.value.trim().length > 0
+  return localTextContent.value.trim().length > 0
 })
 
 /**
@@ -274,7 +274,7 @@ const processSend = async () => {
     isSending.value = true
     // Send message if there is text content in the editor or media files are attached.
     if (hasTextContent.value > 0 || mediaFiles.value.length > 0) {
-      const message = htmlContent.value
+      const message = localHtmlContent.value
       await api.sendMessage(conversationStore.current.uuid, {
         sender_type: UserTypeAgent,
         private: messageType.value === 'private_note',
@@ -322,8 +322,12 @@ const processSend = async () => {
   } finally {
     // If API has NOT errored clear state.
     if (hasMessageSendingErrored === false) {
-      // Clear draft from store
-      draftStore.clearDraft(conversationStore.current?.uuid)
+      const uuid = conversationStore.current?.uuid
+      if (uuid) {
+        draftStore.clearDraft(uuid)
+      }
+      localHtmlContent.value = ''
+      localTextContent.value = ''
       
       // Clear macro.
       conversationStore.resetMacro('reply')
@@ -343,7 +347,7 @@ const processSend = async () => {
 watch(
   () => conversationStore.getMacro('reply').id,
   () => {
-    htmlContent.value = conversationStore.getMacro('reply').message_content
+    localHtmlContent.value = conversationStore.getMacro('reply').message_content
   },
   { deep: true }
 )
