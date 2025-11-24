@@ -8,7 +8,7 @@
     <div class="flex justify-center mb-6">
       <a
         href="https://libredesk.io/"
-        class="text-xs text-center text-muted-foreground"
+        class="text-[0.75rem] text-center text-[#aaa]"
         target="_blank"
         rel="noopener noreferrer"
       >
