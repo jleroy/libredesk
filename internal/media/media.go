@@ -198,7 +198,7 @@ func (m *Manager) Delete(name string) error {
 		}
 	}
 
-	// Return thumbs don't exist in DB, just on store.
+	// Thumbnail files do not exist in the database, only in the storage backend, so return early.
 	if strings.HasPrefix(name, image.ThumbPrefix) {
 		return nil
 	}
