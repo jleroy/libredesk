@@ -198,7 +198,7 @@ func handleServeMedia(r *fastglue.Request) error {
 
 		fasthttp.ServeFile(r.RequestCtx, filepath.Join(ko.String("upload.fs.upload_path"), uuid))
 	case "s3":
-		r.RequestCtx.Redirect(app.media.GetURL(media.UUID, media.ContentType, media.Filename), http.StatusFound)
+		r.RequestCtx.Redirect(app.media.GetURL(uuid, media.ContentType, media.Filename), http.StatusFound)
 	}
 	return nil
 }
