@@ -243,7 +243,7 @@ func (m *Manager) deleteUnlinkedMessageMedia() error {
 
 		// If it's an image, also delete the `thumb_uuid` image from store.
 		if strings.HasPrefix(mm.ContentType, "image/") {
-			thumbUUID := "thumb_" + mm.UUID
+			thumbUUID := image.ThumbPrefix + mm.UUID
 			m.lo.Debug("deleting thumbnail for unlinked media", "thumb_uuid", thumbUUID)
 			if err := m.Delete(thumbUUID); err != nil {
 				m.lo.Error("error deleting thumbnail for unlinked media", "error", err)
