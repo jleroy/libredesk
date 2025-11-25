@@ -10,6 +10,7 @@ require (
 	github.com/emersion/go-message v0.18.1
 	github.com/fasthttp/websocket v1.5.9
 	github.com/ferluci/fast-realip v1.0.1
+	github.com/gabriel-vasile/mimetype v1.4.11
 	github.com/google/uuid v1.6.0
 	github.com/jhillyerd/enmime v1.2.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -78,3 +79,6 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// TODO: Push simple s3 change to upstream 
+replace github.com/rhnvrm/simples3 => /home/abhinavr/projects/simples3

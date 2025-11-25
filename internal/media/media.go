@@ -9,11 +9,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/image"
 	"github.com/abhinavxd/libredesk/internal/media/models"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-i18n"
@@ -30,7 +33,7 @@ var (
 type Store interface {
 	Put(name, contentType string, content io.ReadSeeker) (string, error)
 	Delete(name string) error
-	GetURL(name string) string
+	GetURL(name, disposition, fileName string) string
 	GetBlob(name string) ([]byte, error)
 	Name() string
 }
@@ -78,8 +81,13 @@ type queries struct {
 
 // UploadAndInsert uploads file on storage and inserts an entry in db.
 func (m *Manager) UploadAndInsert(srcFilename, contentType, contentID string, modelType null.String, modelID null.Int, content io.ReadSeeker, fileSize int, disposition null.String, meta []byte) (models.Media, error) {
-	var uuid = uuid.New()
-	_, err := m.Upload(uuid.String(), contentType, content)
+	var (
+		uuid = uuid.New()
+		err  error
+	)
+
+	// Override content type after upload (in case it was detected incorrectly).
+	_, contentType, err = m.Upload(uuid.String(), contentType, content)
 	if err != nil {
 		return models.Media{}, err
 	}
@@ -92,14 +100,19 @@ func (m *Manager) UploadAndInsert(srcFilename, contentType, contentID string, mo
 	return media, nil
 }
 
-// Upload saves the media file to the storage backend and returns the generated filename.
-func (m *Manager) Upload(fileName, contentType string, content io.ReadSeeker) (string, error) {
+// Upload saves the media file to the storage backend - returns the generated filename and content type (after detection).
+func (m *Manager) Upload(fileName, contentType string, content io.ReadSeeker) (string, string, error) {
+	contentType, err := m.detectContentType(fileName, contentType, content)
+	if err != nil {
+		return "", "", err
+	}
+
 	fName, err := m.store.Put(fileName, contentType, content)
 	if err != nil {
 		m.lo.Error("error uploading media", "error", err)
-		return "", envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUploading", "name", "{globals.terms.media}"), nil)
+		return "", "", envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUploading", "name", "{globals.terms.media}"), nil)
 	}
-	return fName, nil
+	return fName, contentType, nil
 }
 
 // Insert inserts media details into the database and returns the inserted media record.
@@ -122,7 +135,7 @@ func (m *Manager) Get(id int, uuid string) (models.Media, error) {
 		m.lo.Error("error fetching media", "error", err)
 		return media, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.media}"), nil)
 	}
-	media.URL = m.store.GetURL(media.UUID)
+	media.URL = m.store.GetURL(media.UUID, media.ContentType, media.Filename)
 	return media, nil
 }
 
@@ -145,8 +158,15 @@ func (m *Manager) GetBlob(name string) ([]byte, error) {
 }
 
 // GetURL returns the URL for accessing a media file by its name.
-func (m *Manager) GetURL(name string) string {
-	return m.store.GetURL(name)
+func (m *Manager) GetURL(uuid, contentType, fileName string) string {
+	// Keep some content types inline.
+	disposition := "attachment"
+	if strings.HasPrefix(contentType, "image/") ||
+		strings.HasPrefix(contentType, "video/") ||
+		contentType == "application/pdf" {
+		disposition = "inline"
+	}
+	return m.store.GetURL(uuid, disposition, fileName)
 }
 
 // Attach associates a media file with a specific model by its ID and model name.
@@ -177,6 +197,12 @@ func (m *Manager) Delete(name string) error {
 			return envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorDeleting", "name", "{globals.terms.media}"), nil)
 		}
 	}
+
+	// Return thumbs don't exist in DB, just on store.
+	if strings.HasPrefix(name, image.ThumbPrefix) {
+		return nil
+	}
+
 	// Delete the media record from the database.
 	if _, err := m.queries.Delete.Exec(name); err != nil {
 		m.lo.Error("error deleting media from db", "error", err)
@@ -214,7 +240,43 @@ func (m *Manager) deleteUnlinkedMessageMedia() error {
 			m.lo.Error("error deleting unlinked media", "error", err)
 			continue
 		}
-		// TODO: If it's an image also delete the `thumb_uuid` image.
+
+		// If it's an image, also delete the `thumb_uuid` image from store.
+		if strings.HasPrefix(mm.ContentType, "image/") {
+			thumbUUID := "thumb_" + mm.UUID
+			m.lo.Debug("deleting thumbnail for unlinked media", "thumb_uuid", thumbUUID)
+			if err := m.Delete(thumbUUID); err != nil {
+				m.lo.Error("error deleting thumbnail for unlinked media", "error", err)
+			}
+		}
 	}
 	return nil
+}
+
+// detectContentType detects the content type of a file from its filename or content.
+// If contentType is unreliable, it attempts to detect the proper type using mimetype library.
+// Returns the detected content type or an error if seeking fails after content detection.
+func (m *Manager) detectContentType(fileName, contentType string, content io.ReadSeeker) (string, error) {
+	m.lo.Debug("detecting content type for file", "filename", fileName, "content_type", contentType)
+
+	if contentType != "" && contentType != "application/octet-stream" {
+		return contentType, nil
+	}
+
+	mtype, err := mimetype.DetectReader(content)
+	if err != nil {
+		m.lo.Error("error detecting content type", "filename", fileName, "error", err)
+		return "application/octet-stream", nil
+	}
+
+	detectedType := mtype.String()
+	m.lo.Debug("detected content type for file", "filename", fileName, "detected_content_type", detectedType, "previous_content_type", contentType)
+
+	// Reset ptr.
+	if _, err := content.Seek(0, io.SeekStart); err != nil {
+		m.lo.Error("error seeking to start after content type detection", "error", err)
+		return "", envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUploading", "name", "{globals.terms.media}"), nil)
+	}
+
+	return detectedType, nil
 }
