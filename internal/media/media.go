@@ -135,7 +135,7 @@ func (m *Manager) Get(id int, uuid string) (models.Media, error) {
 		m.lo.Error("error fetching media", "error", err)
 		return media, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.media}"), nil)
 	}
-	media.URL = m.store.GetURL(media.UUID, media.ContentType, media.Filename)
+	media.URL = m.GetURL(media.UUID, media.ContentType, media.Filename)
 	return media, nil
 }
 
