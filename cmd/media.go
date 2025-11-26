@@ -66,6 +66,12 @@ func handleMediaUpload(r *fastglue.Request) error {
 	srcFileSize := fileHeader.Size
 	srcExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(srcFileName)), ".")
 
+	// Check if file is empty
+	if srcFileSize == 0 {
+		app.lo.Error("error: uploaded file is empty (0 bytes)")
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("media.fileEmpty"), nil, envelope.InputError)
+	}
+
 	// Check file size
 	consts := app.consts.Load().(*constants)
 	if bytesToMegabytes(srcFileSize) > float64(consts.MaxFileUploadSizeMB) {
