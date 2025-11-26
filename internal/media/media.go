@@ -103,6 +103,9 @@ func (m *Manager) UploadAndInsert(srcFilename, contentType, contentID string, mo
 
 // Upload saves the media file to the storage backend - returns the generated filename and content type (after detection).
 func (m *Manager) Upload(fileName, contentType string, content io.ReadSeeker) (string, string, error) {
+	// On store file is named by UUID to avoid collisions and the actual filename is stored in DB.
+	m.lo.Debug("detecting content type for file before upload", "uuid", fileName, "source_content_type", contentType)
+
 	// Detect content type and override if needed.
 	contentType, err := m.detectContentType(contentType, content)
 	if err != nil {
