@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -102,7 +103,8 @@ func (m *Manager) UploadAndInsert(srcFilename, contentType, contentID string, mo
 
 // Upload saves the media file to the storage backend - returns the generated filename and content type (after detection).
 func (m *Manager) Upload(fileName, contentType string, content io.ReadSeeker) (string, string, error) {
-	contentType, err := m.detectContentType(fileName, contentType, content)
+	// Detect content type and override if needed.
+	contentType, err := m.detectContentType(contentType, content)
 	if err != nil {
 		return "", "", err
 	}
@@ -253,30 +255,52 @@ func (m *Manager) deleteUnlinkedMessageMedia() error {
 	return nil
 }
 
-// detectContentType detects the content type of a file from its filename or content.
-// If contentType is unreliable, it attempts to detect the proper type using mimetype library.
-// Returns the detected content type or an error if seeking fails after content detection.
-func (m *Manager) detectContentType(fileName, contentType string, content io.ReadSeeker) (string, error) {
-	m.lo.Debug("detecting content type for file", "filename", fileName, "content_type", contentType)
-
-	if contentType != "" && contentType != "application/octet-stream" {
-		return contentType, nil
+// detectContentType detects the content type of a file.
+// It trusts the source content type unless it's a generic type like application/octet-stream.
+// For generic types, it uses http.DetectContentType (stdlib) as a fast path,
+// falling back to mimetype library for deeper inspection using magic numbers.
+func (m *Manager) detectContentType(sourceContentType string, content io.ReadSeeker) (string, error) {
+	// Set default if empty
+	if sourceContentType == "" {
+		sourceContentType = "application/octet-stream"
 	}
 
+	// Trust source unless it's a generic/useless type
+	if sourceContentType != "application/octet-stream" &&
+		sourceContentType != "application/data" &&
+		sourceContentType != "application/binary" {
+		m.lo.Debug("detected media content type from trusted source", "detected_type", sourceContentType)
+		return sourceContentType, nil
+	}
+
+	// Ensure we're at the start
+	content.Seek(0, io.SeekStart)
+
+	// Fast path: stdlib
+	buf := make([]byte, 512)
+	n, _ := content.Read(buf)
+	detected := http.DetectContentType(buf[:n])
+
+	// If stdlib gives a useful type, use it.
+	// stdlib defaults to application/octet-stream for unknown types.
+	if detected != "application/octet-stream" {
+		content.Seek(0, io.SeekStart)
+		m.lo.Debug("detected media content type using stdlib", "detected_type", detected, "source_type", sourceContentType)
+		return detected, nil
+	}
+
+	// Slow path: mimetype library
+	content.Seek(0, io.SeekStart)
 	mtype, err := mimetype.DetectReader(content)
 	if err != nil {
-		m.lo.Error("error detecting content type", "filename", fileName, "error", err)
-		return "application/octet-stream", nil
+		m.lo.Error("error detecting content type", "error", err)
+		content.Seek(0, io.SeekStart)
+		return sourceContentType, nil
 	}
 
 	detectedType := mtype.String()
-	m.lo.Debug("detected content type for file", "filename", fileName, "detected_content_type", detectedType, "previous_content_type", contentType)
+	m.lo.Debug("detected media content type using mimetype lib", "detected_type", detectedType, "source_type", sourceContentType)
 
-	// Reset ptr.
-	if _, err := content.Seek(0, io.SeekStart); err != nil {
-		m.lo.Error("error seeking to start after content type detection", "error", err)
-		return "", envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUploading", "name", "{globals.terms.media}"), nil)
-	}
-
+	content.Seek(0, io.SeekStart)
 	return detectedType, nil
 }
