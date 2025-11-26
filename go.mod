@@ -1,6 +1,6 @@
 module github.com/abhinavxd/libredesk
 
-go 1.24.3
+go 1.25.0
 
 require (
 	github.com/casbin/casbin/v2 v2.99.0
@@ -10,6 +10,7 @@ require (
 	github.com/emersion/go-message v0.18.1
 	github.com/fasthttp/websocket v1.5.9
 	github.com/ferluci/fast-realip v1.0.1
+	github.com/gabriel-vasile/mimetype v1.4.11
 	github.com/google/uuid v1.6.0
 	github.com/jhillyerd/enmime v1.2.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -28,7 +29,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mr-karan/balance v0.0.0-20250317053523-d32c6ade6cf1
 	github.com/redis/go-redis/v9 v9.5.5
-	github.com/rhnvrm/simples3 v0.9.2
+	github.com/rhnvrm/simples3 v0.10.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.10.0
 	github.com/valyala/fasthttp v1.62.0
