@@ -109,6 +109,7 @@ func (m *Manager) Upload(fileName, contentType string, content io.ReadSeeker) (s
 	// Detect content type and override if needed.
 	contentType, err := m.detectContentType(contentType, content)
 	if err != nil {
+		m.lo.Error("error detecting content type", "error", err)
 		return "", "", err
 	}
 
