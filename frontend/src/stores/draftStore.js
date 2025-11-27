@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { useStorage } from '@vueuse/core'
 
 const STORAGE_KEY = 'libredesk-conversation-drafts'
+const MAX_ENTRIES = 10
 
 export const useDraftStore = defineStore('drafts', () => {
   // Reactive ref that auto-syncs with localStorage
@@ -31,6 +32,17 @@ export const useDraftStore = defineStore('drafts', () => {
       htmlContent,
       textContent,
       timestamp: Date.now()
+    }
+    
+    const keys = Object.keys(drafts.value)
+    if (keys.length > MAX_ENTRIES) {
+      const sorted = keys
+        .map(k => [k, drafts.value[k].timestamp])
+        .sort((a, b) => a[1] - b[1])
+      const removeCount = keys.length - MAX_ENTRIES
+      for (let i = 0; i < removeCount; i++) {
+        delete drafts.value[sorted[i][0]]
+      }
     }
   }
 
