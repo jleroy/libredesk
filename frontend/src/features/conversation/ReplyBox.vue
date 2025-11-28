@@ -106,7 +106,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { handleHTTPError } from '@/utils/http'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { useUserStore } from '@/stores/user'
-import { useDraftStore } from '@/stores/draftStore'
+import { useDraftManager } from '@/composables/useDraftManager'
 import api from '@/api'
 import { useI18n } from 'vue-i18n'
 import { useConversationStore } from '@/stores/conversation'
@@ -143,7 +143,6 @@ const formSchema = toTypedSchema(
 
 const { t } = useI18n()
 const conversationStore = useConversationStore()
-const draftStore = useDraftStore()
 const emitter = useEmitter()
 const userStore = useUserStore()
 
@@ -152,6 +151,15 @@ const { uploadingFiles, handleFileUpload, handleFileDelete, mediaFiles, clearMed
   useFileUpload({
     linkedModel: 'messages'
   })
+
+// Setup draft management composable
+const currentDraftKey = computed(() => conversationStore.current?.uuid || null)
+const {
+  htmlContent: localHtmlContent,
+  textContent: localTextContent,
+  isLoadingDraft,
+  clearDraft
+} = useDraftManager(currentDraftKey)
 
 // Rest of existing state
 const openAIKeyPrompt = ref(false)
@@ -165,33 +173,6 @@ const bcc = ref('')
 const showBcc = ref(false)
 const emailErrors = ref([])
 const aiPrompts = ref([])
-
-// Local state for draft content
-const localHtmlContent = ref('')
-const localTextContent = ref('')
-
-// Watch for conversation changes - save old draft, load new draft
-watch(
-  () => conversationStore.current?.uuid,
-  (newUuid, oldUuid) => {
-    if (oldUuid && (localHtmlContent.value || localTextContent.value)) {
-      draftStore.setDraft(oldUuid, localHtmlContent.value, localTextContent.value)
-    }
-    
-    const draft = draftStore.getDraft(newUuid)
-    localHtmlContent.value = draft.htmlContent
-    localTextContent.value = draft.textContent
-  },
-  { immediate: true }
-)
-
-// Sync local content to store as user types
-watch([localHtmlContent, localTextContent], () => {
-  const uuid = conversationStore.current?.uuid
-  if (uuid) {
-    draftStore.setDraft(uuid, localHtmlContent.value, localTextContent.value)
-  }
-})
 
 /**
  * Fetches AI prompts from the server.
@@ -322,12 +303,8 @@ const processSend = async () => {
   } finally {
     // If API has NOT errored clear state.
     if (hasMessageSendingErrored === false) {
-      const uuid = conversationStore.current?.uuid
-      if (uuid) {
-        draftStore.clearDraft(uuid)
-      }
-      localHtmlContent.value = ''
-      localTextContent.value = ''
+      // Clear draft using composable
+      clearDraft(currentDraftKey.value)
       
       // Clear macro.
       conversationStore.resetMacro('reply')
@@ -346,8 +323,11 @@ const processSend = async () => {
  */
 watch(
   () => conversationStore.getMacro('reply').id,
-  () => {
-    localHtmlContent.value = conversationStore.getMacro('reply').message_content
+  (newId, oldId) => {
+    // Only update if macro ID actually changed and is not undefined/0
+    if (newId && newId !== oldId && conversationStore.getMacro('reply').message_content) {
+      localHtmlContent.value = conversationStore.getMacro('reply').message_content
+    }
   },
   { deep: true }
 )
