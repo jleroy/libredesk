@@ -19,7 +19,6 @@ export const useDraftStore = defineStore('drafts', () => {
       write: (v) => JSON.stringify(v)
     }
   })
-
   const getDraft = (uuid) => {
     if (!uuid) return { htmlContent: '', textContent: '' }
     return drafts.value[uuid] || { htmlContent: '', textContent: '' }
@@ -28,12 +27,15 @@ export const useDraftStore = defineStore('drafts', () => {
   const setDraft = (uuid, htmlContent, textContent) => {
     if (!uuid) return
     
+    const isEmpty = (!htmlContent || htmlContent.trim() === '') &&
+                  (!textContent || textContent.trim() === '')
+
+  if (isEmpty) return
     drafts.value[uuid] = {
-      htmlContent,
-      textContent,
-      timestamp: Date.now()
-    }
-    
+    htmlContent,
+    textContent,
+    timestamp: Date.now()
+  }
     const keys = Object.keys(drafts.value)
     if (keys.length > MAX_ENTRIES) {
       const sorted = keys
