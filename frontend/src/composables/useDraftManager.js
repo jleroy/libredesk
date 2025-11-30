@@ -20,14 +20,14 @@ export function useDraftManager(conversationKey) {
     if (!key) return
     
     isLoadingDraft.value = true
-    const draft = draftStore.getDraft(key)
+  const draft = draftStore.getDraft(key)
     htmlContent.value = draft.htmlContent || ''
     textContent.value = draft.textContent || ''
     
     // Small delay to prevent race conditions with watchers
     setTimeout(() => {
       isLoadingDraft.value = false
-    }, 50)
+    }, 600)
   }
 
   /**
@@ -41,17 +41,17 @@ export function useDraftManager(conversationKey) {
   /**
    * Clear draft and local state
    */
- const clearDraft = (key) => {
-  if (!key) return
+  const clearDraft = (key) => {
+    if (!key) return
   
-  isLoadingDraft.value = true
-  draftStore.clearDraft(key)
-  htmlContent.value = ''
-  textContent.value = ''
+    isLoadingDraft.value = true
+    draftStore.clearDraft(key)
+    htmlContent.value = ''
+    textContent.value = ''
   
   setTimeout(() => {
     isLoadingDraft.value = false
-  }, 600)  // Change this line from 50 to 600
+  }, 600) 
 }
 
   /**
@@ -76,9 +76,13 @@ watch(
     } else if (!newKey && oldKey) {
       // Clear draft if switching to a NEW conversation
       isLoadingDraft.value = true
+      
+      htmlContent.value = ''
+      textContent.value = ''
+
       setTimeout(() => {
         isLoadingDraft.value = false
-      }, 50)
+      }, 600)
     }
   },
   { immediate: true }

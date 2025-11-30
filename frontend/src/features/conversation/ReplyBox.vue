@@ -102,7 +102,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { handleHTTPError } from '@/utils/http'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { useUserStore } from '@/stores/user'
@@ -188,6 +188,9 @@ const fetchAiPrompts = async () => {
     })
   }
 }
+
+// Call fetchAiPrompts immediately when component is set up
+fetchAiPrompts()
 
 /**
  * Handles the AI prompt selection event.

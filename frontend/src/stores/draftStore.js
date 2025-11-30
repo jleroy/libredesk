@@ -30,12 +30,12 @@ export const useDraftStore = defineStore('drafts', () => {
     const isEmpty = (!htmlContent || htmlContent.trim() === '') &&
                   (!textContent || textContent.trim() === '')
 
-  if (isEmpty) return
+    if (isEmpty) return
     drafts.value[uuid] = {
-    htmlContent,
-    textContent,
-    timestamp: Date.now()
-  }
+      htmlContent,
+      textContent,
+      timestamp: Date.now()
+    }
     const keys = Object.keys(drafts.value)
     if (keys.length > MAX_ENTRIES) {
       const sorted = keys
