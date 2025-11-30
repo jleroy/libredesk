@@ -93,7 +93,7 @@ func initConfig(ko *koanf.Koanf) {
 		Prefix: "LIBREDESK_",
 		TransformFunc: func(key, val string) (string, any) {
 			// Transform the key.
-			key = strings.ReplaceAll(strings.ToLower(strings.TrimPrefix(key, "LIBREDESK_")), "_", ".")
+			key = strings.ReplaceAll(strings.ToLower(strings.TrimPrefix(key, "LIBREDESK_")), "__", ".")
 			return key, val
 		},
 	}), nil)
