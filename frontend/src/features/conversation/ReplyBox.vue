@@ -53,8 +53,8 @@
           :isSending="isSending"
           :uploadingFiles="uploadingFiles"
           :uploadedFiles="mediaFiles"
-          v-model:htmlContent="localHtmlContent"
-          v-model:textContent="localTextContent"
+          v-model:htmlContent="htmlContent"
+          v-model:textContent="textContent"
           v-model:to="to"
           v-model:cc="cc"
           v-model:bcc="bcc"
@@ -83,8 +83,8 @@
         :isSending="isSending"
         :uploadingFiles="uploadingFiles"
         :uploadedFiles="mediaFiles"
-        v-model:htmlContent="localHtmlContent"
-        v-model:textContent="localTextContent"
+        v-model:htmlContent="htmlContent"
+        v-model:textContent="textContent"
         v-model:to="to"
         v-model:cc="cc"
         v-model:bcc="bcc"
@@ -155,8 +155,8 @@ const { uploadingFiles, handleFileUpload, handleFileDelete, mediaFiles, clearMed
 // Setup draft management composable
 const currentDraftKey = computed(() => conversationStore.current?.uuid || null)
 const {
-  htmlContent: localHtmlContent,
-  textContent: localTextContent,
+  htmlContent,
+  textContent,
   isLoadingDraft,
   clearDraft
 } = useDraftManager(currentDraftKey)
@@ -202,9 +202,9 @@ const handleAiPromptSelected = async (key) => {
   try {
     const resp = await api.aiCompletion({
       prompt_key: key,
-      content: localTextContent.value
+      content: textContent.value
     })
-    localHtmlContent.value = resp.data.data.replace(/\n/g, '<br>')
+    htmlContent.value = resp.data.data.replace(/\n/g, '<br>')
   } catch (error) {
     // Check if user needs to enter OpenAI API key and has permission to do so.
     if (error.response?.status === 400 && userStore.can('ai:manage')) {
@@ -245,7 +245,7 @@ const updateProvider = async (values) => {
  * Returns true if the editor has text content.
  */
 const hasTextContent = computed(() => {
-  return localTextContent.value.trim().length > 0
+  return textContent.value.trim().length > 0
 })
 
 /**
@@ -258,7 +258,7 @@ const processSend = async () => {
     isSending.value = true
     // Send message if there is text content in the editor or media files are attached.
     if (hasTextContent.value > 0 || mediaFiles.value.length > 0) {
-      const message = localHtmlContent.value
+      const message = htmlContent.value
       await api.sendMessage(conversationStore.current.uuid, {
         sender_type: UserTypeAgent,
         private: messageType.value === 'private_note',
@@ -329,7 +329,7 @@ watch(
   (newId, oldId) => {
     // Only update if macro ID actually changed and is not undefined/0
     if (newId && newId !== oldId && conversationStore.getMacro('reply').message_content) {
-      localHtmlContent.value = conversationStore.getMacro('reply').message_content
+      htmlContent.value = conversationStore.getMacro('reply').message_content
     }
   },
   { deep: true }
