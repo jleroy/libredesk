@@ -111,23 +111,30 @@ func (e *Email) processMailbox(ctx context.Context, scanInboxSince time.Duration
 }
 
 // searchMessages searches for messages in the specified time range.
+// Uses ESEARCH if supported by the server, otherwise falls back to standard SEARCH.
 func (e *Email) searchMessages(client *imapclient.Client, since time.Time) (*imap.SearchData, error) {
 	criteria := &imap.SearchCriteria{
 		Since: since,
 	}
 
-	// Only use ESEARCH options if server supports it
-	var opts *imap.SearchOptions
+	// Attempt ESEARCH if server supports it
 	if client.Caps().Has(imap.CapESearch) {
-		opts = &imap.SearchOptions{
+		opts := &imap.SearchOptions{
 			ReturnMin:   true,
 			ReturnMax:   true,
 			ReturnAll:   true,
 			ReturnCount: true,
 		}
+
+		result, err := client.Search(criteria, opts).Wait()
+		if err == nil {
+			return result, nil
+		}
+
+		e.lo.Warn("ESEARCH failed, falling back to standard SEARCH", "error", err, "inbox_id", e.Identifier())
 	}
 
-	return client.Search(criteria, opts).Wait()
+	return client.Search(criteria, nil).Wait()
 }
 
 // fetchAndProcessMessages fetches and processes messages based on the search results.
