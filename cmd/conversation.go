@@ -747,12 +747,12 @@ func handleCreateConversation(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.invalid", "name", "`initiator`"), nil, envelope.InputError)
 	}
 
-	// Assign the conversation to the agent or team.
-	if req.AssignedAgentID > 0 {
-		app.conversation.UpdateConversationUserAssignee(conversationUUID, req.AssignedAgentID, user)
-	}
+	// Assign the conversation to team/agent if provided, always assign team first as it clears assigned agent.
 	if req.AssignedTeamID > 0 {
 		app.conversation.UpdateConversationTeamAssignee(conversationUUID, req.AssignedTeamID, user)
+	}
+	if req.AssignedAgentID > 0 {
+		app.conversation.UpdateConversationUserAssignee(conversationUUID, req.AssignedAgentID, user)
 	}
 
 	// Trigger webhook event for conversation created.
