@@ -557,3 +557,18 @@ AND m.status = ANY($3)
 AND m.private = NOT $4
 ORDER BY m.created_at DESC
 LIMIT 1;
+
+-- name: upsert-conversation-draft
+INSERT INTO conversation_drafts (conversation_id, user_id, content, updated_at)
+VALUES ($1, $2, $3, NOW())
+ON CONFLICT (conversation_id, user_id)
+DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()
+RETURNING *;
+
+-- name: get-conversation-draft
+SELECT * FROM conversation_drafts
+WHERE conversation_id = $1 AND user_id = $2;
+
+-- name: delete-conversation-draft
+DELETE FROM conversation_drafts
+WHERE conversation_id = $1 AND user_id = $2;
