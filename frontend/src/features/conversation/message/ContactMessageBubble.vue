@@ -18,7 +18,7 @@
       </Avatar>
 
       <!-- Message Content -->
-      <div class="w-4/5">
+      <div class="w-4/5" :style="'contain: inline-size;'">
         <div
           class="flex flex-col justify-end message-bubble"
           :class="{
