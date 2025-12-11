@@ -725,6 +725,7 @@ func initI18n(fs stuffbin.FileSystem) *i18n.I18n {
 func initRedis() *redis.Client {
 	return redis.NewClient(&redis.Options{
 		Addr:     ko.MustString("redis.address"),
+		Username: ko.String("redis.user"),
 		Password: ko.String("redis.password"),
 		DB:       ko.Int("redis.db"),
 	})
