@@ -723,6 +723,16 @@ func initI18n(fs stuffbin.FileSystem) *i18n.I18n {
 
 // initRedis inits redis DB.
 func initRedis() *redis.Client {
+	// Load options from redis URL if set.
+	redisURL := ko.String("redis.url")
+	if redisURL != "" {
+		options, err := redis.ParseURL(redisURL)
+		if err != nil {
+			log.Fatalf("error parsing redis url: %v", err)
+		}
+		return redis.NewClient(options)
+	}
+	// Load from individual config options.
 	return redis.NewClient(&redis.Options{
 		Addr:     ko.MustString("redis.address"),
 		Username: ko.String("redis.user"),
