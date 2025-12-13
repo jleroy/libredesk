@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/email/oauth"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
@@ -30,7 +32,6 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 		req      OAuthCredentialsRequest
 	)
 
-	// Validate provider
 	if provider != string(oauth.ProviderGoogle) && provider != string(oauth.ProviderMicrosoft) {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest,
 			"Invalid provider. Supported providers: google, microsoft", nil, envelope.InputError)
@@ -44,8 +45,7 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 
 	// Validate credentials
 	if req.ClientID == "" || req.ClientSecret == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest,
-			"Client ID and Client Secret are required", nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.badRequest"), nil, envelope.InputError)
 	}
 
 	// Build redirect URI
@@ -187,7 +187,8 @@ func handleOAuthCallback(r *fastglue.Request) error {
 	}
 
 	// Exchange authorization code for tokens
-	tokenResp, err := oauth.ExchangeCodeForToken(
+	token, err := oauth.ExchangeCodeForToken(
+		context.Background(),
 		oauth.Provider(provider),
 		clientID,
 		clientSecret,
@@ -201,7 +202,7 @@ func handleOAuthCallback(r *fastglue.Request) error {
 	}
 
 	// Get user email from provider
-	userEmail, err := getUserEmailFromProvider(provider, tokenResp.AccessToken)
+	userEmail, err := getUserEmailFromProvider(provider, token.AccessToken)
 	if err != nil {
 		app.lo.Error("Failed to get user email from provider", "error", err)
 		return r.Redirect("/admin/inboxes?error=email_fetch_failed", fasthttp.StatusFound, nil, "")
@@ -253,9 +254,9 @@ func handleOAuthCallback(r *fastglue.Request) error {
 		// Update OAuth section with new tokens
 		oauthConfig := &imodels.OAuthConfig{
 			Provider:     provider,
-			AccessToken:  tokenResp.AccessToken,
-			RefreshToken: tokenResp.RefreshToken,
-			ExpiresAt:    oauth.CalculateExpiresAt(tokenResp.ExpiresIn),
+			AccessToken:  token.AccessToken,
+			RefreshToken: token.RefreshToken,
+			ExpiresAt:    token.Expiry,
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			TenantID:     tenantID,
@@ -270,11 +271,9 @@ func handleOAuthCallback(r *fastglue.Request) error {
 			return r.Redirect("/admin/inboxes?error=config_update_failed", fasthttp.StatusFound, nil, "")
 		}
 
-		// Update inbox
-		existingInbox.Config = json.RawMessage(configJSON)
-		_, err = app.inbox.Update(existingInbox.ID, *existingInbox)
-		if err != nil {
-			app.lo.Error("Failed to update inbox", "error", err)
+		// Update inbox config directly (bypasses preservation logic that could corrupt OAuth tokens)
+		if err := app.inbox.UpdateConfig(existingInbox.ID, json.RawMessage(configJSON)); err != nil {
+			app.lo.Error("Failed to update inbox config", "error", err)
 			return r.Redirect("/admin/inboxes?error=inbox_update_failed", fasthttp.StatusFound, nil, "")
 		}
 
@@ -292,9 +291,9 @@ func handleOAuthCallback(r *fastglue.Request) error {
 	// Create OAuth config for tokens
 	oauthConfig := &imodels.OAuthConfig{
 		Provider:     provider,
-		AccessToken:  tokenResp.AccessToken,
-		RefreshToken: tokenResp.RefreshToken,
-		ExpiresAt:    oauth.CalculateExpiresAt(tokenResp.ExpiresIn),
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		ExpiresAt:    token.Expiry,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		TenantID:     tenantID,
@@ -319,7 +318,7 @@ func handleOAuthCallback(r *fastglue.Request) error {
 	newInbox := imodels.Inbox{
 		Name:        fmt.Sprintf("%s Inbox", userEmail),
 		From:        userEmail,
-		Channel:     "email",
+		Channel:     inbox.ChannelEmail,
 		Enabled:     true,
 		CSATEnabled: false,
 		Config:      json.RawMessage(configJSON),
@@ -406,7 +405,6 @@ func getProviderDefaults(provider, emailAddr string) (imodels.SMTPConfig, imodel
 	smtp.Username = emailAddr
 	smtp.AuthProtocol = "login"
 	smtp.TLSSkipVerify = false
-	// SMTP pool options (from embedded smtppool.Opt)
 	smtp.MaxConns = 10
 	smtp.MaxMessageRetries = 2
 	smtp.IdleTimeout = "20s"
@@ -414,6 +412,7 @@ func getProviderDefaults(provider, emailAddr string) (imodels.SMTPConfig, imodel
 
 	imap.Username = emailAddr
 	imap.Mailbox = "INBOX"
+	// TODO: Set to bigger interval before taking this branch live
 	imap.ReadInterval = "10s"
 	imap.ScanInboxSince = "24h"
 	imap.TLSSkipVerify = false

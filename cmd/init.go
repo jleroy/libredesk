@@ -556,7 +556,7 @@ func initNotifier() *notifier.Service {
 	return notifier.NewService(notifierProviders, ko.MustInt("notification.concurrency"), ko.MustInt("notification.queue_size"), initLogger("notifier"))
 }
 
-// initEmailInbox initializes the email inbox.
+// initEmailInbox loads inbox config from DB and initializes the email inbox.
 func initEmailInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrStore inbox.UserStore, mgr *inbox.Manager) (inbox.Inbox, error) {
 	var config imodels.Config
 

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
@@ -15,6 +16,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-i18n"
@@ -351,10 +353,16 @@ func (m *Manager) Update(id int, inbox imodels.Inbox) (imodels.Inbox, error) {
 			}
 		}
 
-		// Preserve existing OAuth fields if update has empty fields
-		for k, v := range currentCfg.OAuth {
-			if updateCfg.OAuth[k] == "" { 
-				updateCfg.OAuth[k] = v
+		// Preserve existing OAuth fields if update has empty or dummy values
+		if currentCfg.OAuth != nil {
+			if updateCfg.OAuth == nil {
+				updateCfg.OAuth = make(map[string]string)
+			}
+			for k, v := range currentCfg.OAuth {
+				// Check if empty OR contains dummy password character 
+				if updateCfg.OAuth[k] == "" || strings.Contains(updateCfg.OAuth[k], stringutil.PasswordDummy) {
+					updateCfg.OAuth[k] = v
+				}
 			}
 		}
 

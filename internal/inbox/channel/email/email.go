@@ -11,6 +11,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/inbox/models"
 	"github.com/knadh/smtppool"
 	"github.com/zerodha/logf"
+	xoauth2 "golang.org/x/oauth2"
 )
 
 const (
@@ -155,7 +156,7 @@ func (e *Email) refreshOAuthIfNeeded() (*models.OAuthConfig, bool, error) {
 	oauthCopy := newOAuth
 	e.oauthMu.Unlock()
 
-	// Persist tokens via callback if available (outside lock to avoid deadlock)
+	// Persist tokens via callback if available.
 	if e.tokenRefreshCallback != nil {
 		updatedConfig := e.getCurrentConfig()
 		if err := e.tokenRefreshCallback(e.Identifier(), updatedConfig); err != nil {
@@ -183,7 +184,6 @@ func RefreshOAuthConfig(currentToken *models.OAuthConfig) (*models.OAuthConfig, 
 		return nil, fmt.Errorf("no refresh token available")
 	}
 
-	// Use OAuth credentials from the token config (stored per-inbox in database)
 	clientID := currentToken.ClientID
 	clientSecret := currentToken.ClientSecret
 	tenantID := currentToken.TenantID
@@ -192,14 +192,23 @@ func RefreshOAuthConfig(currentToken *models.OAuthConfig) (*models.OAuthConfig, 
 		return nil, fmt.Errorf("OAuth credentials missing for provider '%s'", currentToken.Provider)
 	}
 
-	// Refresh the token
-	tokenResp, err := oauth.RefreshToken(
+	cfg, err := oauth.GetOAuth2Config(
 		oauth.Provider(currentToken.Provider),
 		clientID,
 		clientSecret,
-		currentToken.RefreshToken,
+		"",
 		tenantID,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OAuth config: %w", err)
+	}
+
+	oldToken := &xoauth2.Token{
+		RefreshToken: currentToken.RefreshToken,
+	}
+
+	src := cfg.TokenSource(context.Background(), oldToken)
+	newToken, err := src.Token()
 	if err != nil {
 		return nil, fmt.Errorf("token refresh failed: %w", err)
 	}
@@ -207,11 +216,11 @@ func RefreshOAuthConfig(currentToken *models.OAuthConfig) (*models.OAuthConfig, 
 	// Create new OAuth config with refreshed tokens, preserving credentials
 	newOAuthConfig := &models.OAuthConfig{
 		Provider:     currentToken.Provider,
-		AccessToken:  tokenResp.AccessToken,
-		RefreshToken: tokenResp.RefreshToken,
-		ExpiresAt:    oauth.CalculateExpiresAt(tokenResp.ExpiresIn),
+		AccessToken:  newToken.AccessToken,
+		RefreshToken: newToken.RefreshToken,
+		ExpiresAt:    newToken.Expiry,
 		ClientID:     clientID,
-		ClientSecret: clientSecret, // Preserve client secret
+		ClientSecret: clientSecret,
 		TenantID:     tenantID,
 	}
 
