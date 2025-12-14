@@ -31,8 +31,8 @@ type Inbox struct {
 
 // Config holds the email inbox configuration with multiple SMTP servers and IMAP clients.
 type Config struct {
-	AuthType string       `json:"auth_type"`       // AuthTypePassword or AuthTypeOAuth2
-	OAuth    *OAuthConfig `json:"oauth,omitempty"` // OAuth config when auth_type is "oauth2"
+	AuthType string       `json:"auth_type"` // AuthTypePassword or AuthTypeOAuth2
+	OAuth    *OAuthConfig `json:"oauth"`     // OAuth config when auth_type is "oauth2"
 	SMTP     []SMTPConfig `json:"smtp"`
 	IMAP     []IMAPConfig `json:"imap"`
 	From     string       `json:"from"`
@@ -40,13 +40,13 @@ type Config struct {
 
 // OAuthConfig holds OAuth 2.0 authentication details.
 type OAuthConfig struct {
-	Provider     string    `json:"provider"`                // "microsoft" or "google"
-	AccessToken  string    `json:"access_token"`            // Current access token
-	RefreshToken string    `json:"refresh_token"`           // Refresh token for getting new access tokens
-	ExpiresAt    time.Time `json:"expires_at"`              // When the access token expires
-	ClientID     string    `json:"client_id,omitempty"`     // OAuth client ID
-	ClientSecret string    `json:"client_secret,omitempty"` // OAuth client secret
-	TenantID     string    `json:"tenant_id,omitempty"`     // Microsoft tenant ID
+	Provider     string    `json:"provider"`      // "microsoft" or "google"
+	AccessToken  string    `json:"access_token"`  // Current access token
+	RefreshToken string    `json:"refresh_token"` // Refresh token for getting new access tokens
+	ExpiresAt    time.Time `json:"expires_at"`    // When the access token expires
+	ClientID     string    `json:"client_id"`     // OAuth client ID
+	ClientSecret string    `json:"client_secret"` // OAuth client secret
+	TenantID     string    `json:"tenant_id"`     // Microsoft tenant ID
 }
 
 // SMTPConfig represents an SMTP server's credentials with the smtppool options.

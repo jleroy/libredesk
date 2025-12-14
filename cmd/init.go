@@ -654,7 +654,7 @@ func initEmailInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrS
 func makeInboxInitializer(mgr *inbox.Manager) func(imodels.Inbox, inbox.MessageStore, inbox.UserStore) (inbox.Inbox, error) {
 	return func(inboxR imodels.Inbox, msgStore inbox.MessageStore, usrStore inbox.UserStore) (inbox.Inbox, error) {
 		switch inboxR.Channel {
-		case "email":
+		case inbox.ChannelEmail:
 			return initEmailInbox(inboxR, msgStore, usrStore, mgr)
 		default:
 			return nil, fmt.Errorf("unknown inbox channel: %s", inboxR.Channel)

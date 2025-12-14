@@ -99,8 +99,3 @@ func BuildAuthorizationURL(provider Provider, clientID, redirectURI, state strin
 func IsTokenExpired(expiresAt time.Time) bool {
 	return time.Now().Add(5 * time.Minute).After(expiresAt)
 }
-
-// CalculateExpiresAt calculates the expiration time from expires_in seconds.
-func CalculateExpiresAt(expiresIn int) time.Time {
-	return time.Now().Add(time.Duration(expiresIn) * time.Second)
-}
