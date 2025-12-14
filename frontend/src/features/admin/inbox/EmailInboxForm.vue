@@ -591,6 +591,11 @@
             :disabled="isSubmittingOAuth"
           />
         </div>
+
+        <div v-if="selectedProvider === PROVIDER_MICROSOFT" class="space-y-2">
+          <label class="text-sm font-medium">Tenant ID</label>
+          <Input v-model="oauthCredentials.tenant_id" :disabled="isSubmittingOAuth" />
+        </div>
       </div>
 
       <DialogFooter>
@@ -685,7 +690,8 @@ const showOAuthModal = ref(false)
 const selectedProvider = ref('')
 const oauthCredentials = ref({
   client_id: '',
-  client_secret: ''
+  client_secret: '',
+  tenant_id: ''
 })
 const isSubmittingOAuth = ref(false)
 
@@ -773,6 +779,7 @@ const connectWithMicrosoft = () => {
 const reconnectOAuth = () => {
   const provider = form.values.oauth?.provider
   const clientId = form.values.oauth?.client_id
+  const tenantId = form.values.oauth?.tenant_id
 
   if (!provider) return
 
@@ -780,6 +787,7 @@ const reconnectOAuth = () => {
   selectedProvider.value = provider
   oauthCredentials.value.client_id = clientId || ''
   oauthCredentials.value.client_secret = '' // Always require user to re-enter secret
+  oauthCredentials.value.tenant_id = tenantId || ''
 
   // Show modal for user to edit credentials
   showOAuthModal.value = true
