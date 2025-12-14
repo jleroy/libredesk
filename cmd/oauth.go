@@ -370,8 +370,7 @@ func getProviderDefaults(provider, emailAddr string) (imodels.SMTPConfig, imodel
 
 	imap.Username = emailAddr
 	imap.Mailbox = "INBOX"
-	// TODO: Set to bigger interval before taking this branch live
-	imap.ReadInterval = "10s"
+	imap.ReadInterval = "5m"
 	imap.ScanInboxSince = "24h"
 	imap.TLSSkipVerify = false
 

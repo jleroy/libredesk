@@ -42,11 +42,7 @@
       </FormItem>
     </FormField>
 
-    <FormField
-      v-if="showFormFields"
-      v-slot="{ componentField, handleChange }"
-      name="csat_enabled"
-    >
+    <FormField v-if="showFormFields" v-slot="{ componentField, handleChange }" name="csat_enabled">
       <FormItem class="flex flex-row items-center justify-between box p-4">
         <div class="space-y-0.5">
           <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
@@ -530,7 +526,8 @@
     <DialogContent>
       <DialogHeader>
         <DialogTitle
-          >Connect {{ selectedProvider === PROVIDER_GOOGLE ? 'Google' : 'Microsoft' }} Account</DialogTitle
+          >Connect
+          {{ selectedProvider === PROVIDER_GOOGLE ? 'Google' : 'Microsoft' }} Account</DialogTitle
         >
         <DialogDescription>
           Follow the steps below to connect your email account
@@ -551,7 +548,9 @@
               class="text-primary underline"
             >
               {{
-                selectedProvider === PROVIDER_GOOGLE ? 'Google Cloud Console' : 'Microsoft Azure Portal'
+                selectedProvider === PROVIDER_GOOGLE
+                  ? 'Google Cloud Console'
+                  : 'Microsoft Azure Portal'
               }}
             </a>
           </p>
@@ -643,7 +642,12 @@ import { useI18n } from 'vue-i18n'
 import api from '@/api'
 import { useEmitter } from '@/composables/useEmitter'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
-import { AUTH_TYPE_PASSWORD, AUTH_TYPE_OAUTH2, PROVIDER_GOOGLE, PROVIDER_MICROSOFT } from '@/constants/auth.js'
+import {
+  AUTH_TYPE_PASSWORD,
+  AUTH_TYPE_OAUTH2,
+  PROVIDER_GOOGLE,
+  PROVIDER_MICROSOFT
+} from '@/constants/auth.js'
 import { handleHTTPError } from '@/utils/http'
 import { useAppSettingsStore } from '@/stores/appSettings'
 
@@ -700,7 +704,7 @@ const showFormFields = computed(
 )
 
 const form = useForm({
-  validationSchema: computed(() => toTypedSchema(createFormSchema(t, isOAuthInbox.value))),
+  validationSchema: computed(() => toTypedSchema(createFormSchema(t))),
   initialValues: {
     name: '',
     from: '',

@@ -533,7 +533,7 @@ func (m *Manager) encryptInboxConfig(config json.RawMessage) (json.RawMessage, e
 
 	// Encrypt OAuth fields if present
 	if oauthMap, ok := cfg["oauth"].(map[string]interface{}); ok {
-		fields := []string{"client_id", "client_secret", "access_token", "refresh_token"}
+		fields := []string{"client_secret", "access_token", "refresh_token"}
 		for _, fieldName := range fields {
 			if fieldValue, ok := oauthMap[fieldName].(string); ok && fieldValue != "" {
 				encrypted, err := crypto.Encrypt(fieldValue, m.encryptionKey)
@@ -596,7 +596,7 @@ func (m *Manager) decryptInboxConfig(config json.RawMessage) (json.RawMessage, e
 
 	// Decrypt OAuth fields if present
 	if oauthMap, ok := cfg["oauth"].(map[string]interface{}); ok {
-		fields := []string{"client_id", "client_secret", "access_token", "refresh_token"}
+		fields := []string{"client_secret", "access_token", "refresh_token"}
 		for _, fieldName := range fields {
 			if fieldValue, ok := oauthMap[fieldName].(string); ok && fieldValue != "" {
 				decrypted, err := crypto.Decrypt(fieldValue, m.encryptionKey)
