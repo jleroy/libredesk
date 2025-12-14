@@ -23,6 +23,7 @@ type Email struct {
 	id                   int
 	smtpPools            []*smtppool.Pool
 	smtpPoolsMu          sync.RWMutex
+	smtpPoolsToken       string
 	smtpCfg              []models.SMTPConfig
 	imapCfg              []models.IMAPConfig
 	oauth                *models.OAuthConfig
@@ -57,6 +58,11 @@ func New(store inbox.MessageStore, userStore inbox.UserStore, opts Opts) (*Email
 		return nil, err
 	}
 
+	var poolsToken string
+	if opts.Config.OAuth != nil {
+		poolsToken = opts.Config.OAuth.AccessToken
+	}
+
 	e := &Email{
 		id:                   opts.ID,
 		headers:              opts.Headers,
@@ -65,6 +71,7 @@ func New(store inbox.MessageStore, userStore inbox.UserStore, opts Opts) (*Email
 		imapCfg:              opts.Config.IMAP,
 		lo:                   opts.Lo,
 		smtpPools:            pools,
+		smtpPoolsToken:       poolsToken,
 		messageStore:         store,
 		userStore:            userStore,
 		oauth:                opts.Config.OAuth,
@@ -132,12 +139,12 @@ func (e *Email) refreshOAuthIfNeeded() (*models.OAuthConfig, bool, error) {
 	}
 
 	e.oauthMu.Lock()
+	defer e.oauthMu.Unlock()
 
 	// Check if token is expired
 	if !isTokenExpired(e.oauth.ExpiresAt) {
 		// Token is still valid, just copy and return
 		oauthCopy := e.oauth
-		e.oauthMu.Unlock()
 		return oauthCopy, false, nil
 	}
 
@@ -146,7 +153,6 @@ func (e *Email) refreshOAuthIfNeeded() (*models.OAuthConfig, bool, error) {
 	// Attempt to refresh the token
 	newOAuth, err := RefreshOAuthConfig(e.oauth)
 	if err != nil {
-		e.oauthMu.Unlock()
 		e.lo.Error("Failed to refresh OAuth token", "inbox_id", e.Identifier(), "error", err)
 		return nil, false, fmt.Errorf("OAuth token expired and refresh failed for inbox %d: %w", e.Identifier(), err)
 	}
@@ -154,7 +160,6 @@ func (e *Email) refreshOAuthIfNeeded() (*models.OAuthConfig, bool, error) {
 	// Update config with new tokens
 	e.oauth = newOAuth
 	oauthCopy := newOAuth
-	e.oauthMu.Unlock()
 
 	// Persist tokens via callback if available.
 	if e.tokenRefreshCallback != nil {

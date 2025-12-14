@@ -105,28 +105,35 @@ func NewSmtpPool(configs []imodels.SMTPConfig, oauth *imodels.OAuthConfig) ([]*s
 // Send sends an email using one of the configured SMTP servers.
 func (e *Email) Send(m models.Message) error {
 	// Refresh OAuth token if needed
-	oauthConfig, tokensRefreshed, err := e.refreshOAuthIfNeeded()
+	oauthConfig, _, err := e.refreshOAuthIfNeeded()
 	if err != nil {
 		return err
 	}
 
-	// If tokens were refreshed, recreate SMTP pools
-	if tokensRefreshed {
-		// Close existing pools
-		for _, p := range e.smtpPools {
-			p.Close()
-		}
+	// Recreate SMTP pools if token changed (handles both: we refreshed or IMAP refreshed)
+	if e.authType == imodels.AuthTypeOAuth2 && oauthConfig != nil {
+		e.smtpPoolsMu.Lock()
+		if e.smtpPoolsToken != oauthConfig.AccessToken {
+			// Close existing pools
+			for _, p := range e.smtpPools {
+				p.Close()
+			}
 
-		// Create new pools with refreshed tokens
-		newPools, err := NewSmtpPool(e.smtpCfg, oauthConfig)
-		if err != nil {
-			e.lo.Error("Failed to recreate SMTP pools after token refresh", "inbox_id", e.Identifier(), "error", err)
-			return fmt.Errorf("failed to recreate SMTP pools: %w", err)
+			// Create new pools with current token
+			newPools, err := NewSmtpPool(e.smtpCfg, oauthConfig)
+			if err != nil {
+				e.smtpPoolsMu.Unlock()
+				e.lo.Error("Failed to recreate SMTP pools after token refresh", "inbox_id", e.Identifier(), "error", err)
+				return fmt.Errorf("failed to recreate SMTP pools: %w", err)
+			}
+			e.smtpPools = newPools
+			e.smtpPoolsToken = oauthConfig.AccessToken
 		}
-		e.smtpPools = newPools
+		e.smtpPoolsMu.Unlock()
 	}
 
 	// Select a random SMTP server if there are multiple
+	e.smtpPoolsMu.RLock()
 	var (
 		serverCount = len(e.smtpPools)
 		server      *smtppool.Pool
@@ -136,6 +143,7 @@ func (e *Email) Send(m models.Message) error {
 	} else {
 		server = e.smtpPools[0]
 	}
+	e.smtpPoolsMu.RUnlock()
 
 	// Prepare attachments if there are any
 	var attachments []smtppool.Attachment

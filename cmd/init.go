@@ -569,38 +569,6 @@ func initEmailInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrS
 		return nil, fmt.Errorf("unmarshalling `%s` %s config: %w", inboxRecord.Channel, inboxRecord.Name, err)
 	}
 
-	configUpdated := false
-	if config.AuthType == imodels.AuthTypeOAuth2 {
-		if isTokenExpired(config.OAuth.ExpiresAt) {
-			log.Printf("refreshing expired OAuth token for SMTP config of inbox: %s", inboxRecord.Name)
-			newTokens, err := email.RefreshOAuthConfig(config.OAuth)
-			if err != nil {
-				log.Printf("ERROR: Failed to refresh OAuth token for SMTP: %v", err)
-				return nil, fmt.Errorf("refreshing SMTP OAuth token: %w", err)
-			}
-			config.OAuth = newTokens
-			configUpdated = true
-		}
-	}
-
-	// Save refreshed tokens to DB if they were updated
-	if configUpdated {
-		log.Printf("INFO: OAuth tokens refreshed for inbox: %s", inboxRecord.Name)
-
-		// Marshal updated config to JSON
-		updatedConfigJSON, err := json.Marshal(config)
-		if err != nil {
-			log.Printf("ERROR: Failed to marshal updated config for inbox %s: %v", inboxRecord.Name, err)
-		} else {
-			// Persist updated config to DB
-			if err := mgr.UpdateConfig(inboxRecord.ID, updatedConfigJSON); err != nil {
-				log.Printf("ERROR: Failed to persist refreshed tokens for inbox %s: %v", inboxRecord.Name, err)
-			} else {
-				log.Printf("INFO: Successfully persisted refreshed tokens for inbox: %s", inboxRecord.Name)
-			}
-		}
-	}
-
 	if len(config.SMTP) == 0 {
 		log.Printf("WARNING: Zero SMTP servers configured for `%s` inbox: Name: `%s`", inboxRecord.Channel, inboxRecord.Name)
 	}
@@ -986,10 +954,4 @@ func getLogLevel(lvl string) logf.Level {
 	default:
 		return logf.InfoLevel
 	}
-}
-
-// isTokenExpired checks if an OAuth token has expired or is about to expire.
-// Returns true if the token will expire in the next 5 minutes.
-func isTokenExpired(expiresAt time.Time) bool {
-	return time.Now().Add(5 * time.Minute).After(expiresAt)
 }
