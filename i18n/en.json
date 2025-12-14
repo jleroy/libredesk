@@ -259,6 +259,7 @@
   "globals.messages.no": "No {name}",
   "globals.messages.select": "Select {name}",
   "globals.messages.copied": "Copied to clipboard",
+  "globals.messages.errorCopying": "Error copying to clipboard",
   "globals.messages.search": "Search {name}",
   "globals.messages.type": "{name} type",
   "globals.messages.typeOf": "Type of {name}",

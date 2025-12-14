@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
@@ -58,23 +57,28 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.Ts("globals.messages.errorGenerating", "name", "state"), nil, envelope.GeneralError)
 	}
 
-	// Store state data and OAuth credentials in session
-	sessionData := map[string]any{
-		"oauth_state_" + state:         state,
-		"oauth_provider_" + state:      provider,
-		"oauth_redirect_uri_" + state:  redirectURI,
-		"oauth_client_id_" + state:     req.ClientID,
-		"oauth_client_secret_" + state: req.ClientSecret,
-		"oauth_timestamp_" + state:     strconv.FormatInt(time.Now().Unix(), 10),
+	// Store OAuth data in Redis with 15 min expiry
+	redisKey := "inbox_oauth:" + state
+	oauthData := map[string]any{
+		"provider":      provider,
+		"redirect_uri":  redirectURI,
+		"client_id":     req.ClientID,
+		"client_secret": req.ClientSecret,
 	}
 
 	// Add tenant ID for Microsoft if provided
 	if provider == string(oauth.ProviderMicrosoft) && req.TenantID != "" {
-		sessionData["oauth_tenant_id_"+state] = req.TenantID
+		oauthData["tenant_id"] = req.TenantID
 	}
 
-	if err := app.auth.SetSessionValues(r, sessionData); err != nil {
-		app.lo.Error("Failed to store OAuth state in session", "error", err)
+	if err := app.redis.HSet(ctx, redisKey, oauthData).Err(); err != nil {
+		app.lo.Error("Failed to store OAuth state in Redis", "error", err)
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to initialize OAuth flow", nil, envelope.GeneralError)
+	}
+
+	// Set 15 min expiry (auto-cleanup)
+	if err := app.redis.Expire(ctx, redisKey, 15*time.Minute).Err(); err != nil {
+		app.lo.Error("Failed to set expiry for OAuth state in Redis", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to initialize OAuth flow", nil, envelope.GeneralError)
 	}
 
@@ -115,75 +119,29 @@ func handleOAuthCallback(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Missing state parameter", nil, envelope.InputError)
 	}
 
-	// Retrieve and validate state from session
-	_, err := app.auth.GetSessionValue(r, "oauth_state_"+state)
-	if err != nil {
-		app.lo.Error("Invalid or expired OAuth state", "error", err)
+	// Retrieve OAuth data from Redis
+	redisKey := "inbox_oauth:" + state
+	oauthData, err := app.redis.HGetAll(ctx, redisKey).Result()
+	if err != nil || len(oauthData) == 0 {
+		app.lo.Error("Invalid or expired OAuth state", "error", err, "state", state)
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest,
 			"Invalid or expired state parameter", nil, envelope.InputError)
 	}
 
-	// Get individual session values
-	providerRaw, err := app.auth.GetSessionValue(r, "oauth_provider_"+state)
-	if err != nil {
-		app.lo.Error("Failed to get provider from session", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError,
-			"Failed to process OAuth callback", nil, envelope.GeneralError)
-	}
+	// Delete key after retrieval (one-time use)
+	app.redis.Del(ctx, redisKey)
 
-	redirectURIRaw, err := app.auth.GetSessionValue(r, "oauth_redirect_uri_"+state)
-	if err != nil {
-		app.lo.Error("Failed to get redirect URI from session", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError,
-			"Failed to process OAuth callback", nil, envelope.GeneralError)
-	}
-
-	sessionProvider := providerRaw.(string)
-	redirectURI := redirectURIRaw.(string)
+	// Extract values from Redis hash
+	storedProvider := oauthData["provider"]
+	redirectURI := oauthData["redirect_uri"]
+	clientID := oauthData["client_id"]
+	clientSecret := oauthData["client_secret"]
+	tenantID := oauthData["tenant_id"] // Empty string if not set
 
 	// Validate provider matches URL parameter
-	if sessionProvider != provider {
-		app.lo.Error("Provider mismatch", "session", sessionProvider, "url", provider)
+	if storedProvider != provider {
+		app.lo.Error("Provider mismatch", "stored", storedProvider, "url", provider)
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid provider in callback", nil, envelope.InputError)
-	}
-
-	// Validate OAuth flow timestamp (must be within 15 minutes)
-	timestampRaw, err := app.auth.GetSessionValue(r, "oauth_timestamp_"+state)
-	if err != nil {
-		app.lo.Error("Failed to get timestamp from session", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "OAuth flow expired or invalid", nil, envelope.InputError)
-	}
-	timestamp, _ := strconv.ParseInt(timestampRaw.(string), 10, 64)
-	if time.Now().Unix()-timestamp > 900 {
-		app.lo.Error("OAuth flow expired", "timestamp", timestamp)
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "OAuth flow expired. Please try again.", nil, envelope.InputError)
-	}
-
-	// Retrieve OAuth credentials from session
-	clientIDRaw, err := app.auth.GetSessionValue(r, "oauth_client_id_"+state)
-	if err != nil {
-		app.lo.Error("Failed to get client ID from session", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError,
-			"Failed to process OAuth callback", nil, envelope.GeneralError)
-	}
-
-	clientSecretRaw, err := app.auth.GetSessionValue(r, "oauth_client_secret_"+state)
-	if err != nil {
-		app.lo.Error("Failed to get client secret from session", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError,
-			"Failed to process OAuth callback", nil, envelope.GeneralError)
-	}
-
-	clientID := clientIDRaw.(string)
-	clientSecret := clientSecretRaw.(string)
-
-	// Get tenant ID for Microsoft if stored in session
-	var tenantID string
-	if provider == string(oauth.ProviderMicrosoft) {
-		tenantIDRaw, err := app.auth.GetSessionValue(r, "oauth_tenant_id_"+state)
-		if err == nil {
-			tenantID = tenantIDRaw.(string)
-		}
 	}
 
 	// Exchange authorization code for tokens

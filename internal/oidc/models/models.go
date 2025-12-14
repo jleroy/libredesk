@@ -9,7 +9,7 @@ import (
 
 // providerLogos holds known provider logos.
 var providerLogos = map[string]string{
-	"Google": "/images/google-logo.png",
+	"Google": "/images/google-logo.svg",
 	"Custom": "",
 }
 

@@ -28,6 +28,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/search"
 	"github.com/abhinavxd/libredesk/internal/sla"
 	"github.com/abhinavxd/libredesk/internal/view"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/abhinavxd/libredesk/internal/automation"
 	"github.com/abhinavxd/libredesk/internal/conversation"
@@ -64,6 +65,7 @@ var (
 
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
+	redis           *redis.Client
 	fs              stuffbin.FileSystem
 	consts          atomic.Value
 	auth            *auth_.Auth
@@ -223,6 +225,7 @@ func main() {
 
 	var app = &App{
 		lo:              lo,
+		redis:           rdb,
 		fs:              fs,
 		sla:             sla,
 		oidc:            oidc,
