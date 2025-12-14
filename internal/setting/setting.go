@@ -193,7 +193,14 @@ func (m *Manager) Get(key string) (types.JSONText, error) {
 					nil,
 				)
 			}
-			b, _ = json.Marshal(decrypted)
+			b, err = json.Marshal(decrypted)
+			if err != nil {
+				return b, envelope.NewError(
+					envelope.GeneralError,
+					"Error marshalling decrypted setting",
+					nil,
+				)
+			}
 		}
 	}
 
