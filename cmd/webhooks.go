@@ -99,11 +99,6 @@ func handleUpdateWebhook(r *fastglue.Request) error {
 		return r.SendEnvelope(err)
 	}
 
-	// If secret contains dummy characters, set to empty string to signal preservation
-	if strings.Contains(webhook.Secret, stringutil.PasswordDummy) {
-		webhook.Secret = ""
-	}
-
 	updatedWebhook, err := app.webhook.Update(id, webhook)
 	if err != nil {
 		return sendErrorEnvelope(r, err)

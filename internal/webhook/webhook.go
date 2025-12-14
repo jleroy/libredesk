@@ -171,7 +171,7 @@ func (m *Manager) Create(webhook models.Webhook) (models.Webhook, error) {
 func (m *Manager) Update(id int, webhook models.Webhook) (models.Webhook, error) {
 	var result models.Webhook
 
-	// If secret is empty, preserve the existing encrypted secret.
+	// Preserve the existing encrypted secret.
 	encryptedSecret := webhook.Secret
 	if webhook.Secret == "" {
 		var existingSecret string

@@ -27,7 +27,7 @@ type Opts struct {
 
 // New initializes a new Email sender.
 func New(smtpConfig []models.SMTPConfig, opts Opts) (*Email, error) {
-	pools, err := email.NewSmtpPool(smtpConfig, &models.OAuthConfig{})
+	pools, err := email.NewSmtpPool(smtpConfig, nil)
 	if err != nil {
 		return nil, err
 	}
