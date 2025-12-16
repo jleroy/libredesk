@@ -226,6 +226,11 @@ type queries struct {
 	RemoveConversationAssignee         *sqlx.Stmt `query:"remove-conversation-assignee"`
 	GetLatestMessage                   *sqlx.Stmt `query:"get-latest-message"`
 
+	// Draft queries.
+	UpsertConversationDraft            *sqlx.Stmt `query:"upsert-conversation-draft"`
+	GetConversationDraft    		   *sqlx.Stmt `query:"get-conversation-draft"`
+	DeleteConversationDraft 		   *sqlx.Stmt `query:"delete-conversation-draft"`
+
 	// Message queries.
 	GetMessage                         *sqlx.Stmt `query:"get-message"`
 	GetMessages                        string     `query:"get-messages"`
@@ -1065,6 +1070,40 @@ func (c *Manager) getConversationTags(uuid string) ([]string, error) {
 		return tags, envelope.NewError(envelope.GeneralError, c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.tag}"), nil)
 	}
 	return tags, nil
+}
+
+// UpsertConversationDraft saves or updates a draft for a conversation.
+func (m *Manager) UpsertConversationDraft(conversationID, userID int, content string) (models.ConversationDraft, error) {
+	var draft models.ConversationDraft
+
+	if err := m.q.UpsertConversationDraft.Get(&draft, conversationID, userID, content); err != nil {
+		m.lo.Error("error upserting conversation draft", "conversation_id", conversationID, "user_id", userID, "error", err)
+		return draft, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUpdating", "name", "draft"), nil)
+	}
+
+	return draft, nil
+}
+
+// GetConversationDraft retrieves a draft for a conversation.
+func (m *Manager) GetConversationDraft(conversationID, userID int) (models.ConversationDraft, error) {
+	var draft models.ConversationDraft
+
+	if err := m.q.GetConversationDraft.Get(&draft, conversationID, userID); err != nil {
+		m.lo.Error("error fetching conversation draft", "conversation_id", conversationID, "user_id", userID, "error", err)
+		return draft, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "draft"), nil)
+	}
+
+	return draft, nil
+}
+
+// DeleteConversationDraft deletes a draft for a conversation.
+func (m *Manager) DeleteConversationDraft(conversationID, userID int) error {
+	if _, err := m.q.DeleteConversationDraft.Exec(conversationID, userID); err != nil {
+		m.lo.Error("error deleting conversation draft", "conversation_id", conversationID, "user_id", userID, "error", err)
+		return envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorDeleting", "name", "draft"), nil)
+	}
+
+	return nil
 }
 
 // makeConversationsListQuery prepares a SQL query string for conversations list
