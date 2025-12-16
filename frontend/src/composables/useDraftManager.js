@@ -14,20 +14,24 @@ export function useDraftManager(conversationKey) {
   const isLoadingDraft = ref(false)
 
   /**
-   * Load draft from store for a given key
+   * Load draft from backend for a given key
    */
-  const loadDraft = (key) => {
+  const loadDraft = async (key) => {
     if (!key) return
     
     isLoadingDraft.value = true
-  const draft = draftStore.getDraft(key)
-    htmlContent.value = draft.htmlContent || ''
-    textContent.value = draft.textContent || ''
-    
-    // Small delay to prevent race conditions with watchers
-    setTimeout(() => {
-      isLoadingDraft.value = false
-    }, 600)
+    try {
+      const draft = await draftStore.getDraft(key) // Now async!
+      htmlContent.value = draft.htmlContent || ''
+      textContent.value = draft.textContent || ''
+    } catch (error) {
+      console.error('Failed to load draft:', error)
+    } finally {
+      // Small delay to prevent race conditions with watchers
+      setTimeout(() => {
+        isLoadingDraft.value = false
+      }, 600)
+    }
   }
 
   /**
@@ -49,10 +53,10 @@ export function useDraftManager(conversationKey) {
     htmlContent.value = ''
     textContent.value = ''
   
-  setTimeout(() => {
-    isLoadingDraft.value = false
-  }, 600) 
-}
+    setTimeout(() => {
+      isLoadingDraft.value = false
+    }, 600) 
+  }
 
   /**
    * Check if draft has content
@@ -61,32 +65,32 @@ export function useDraftManager(conversationKey) {
     return (htmlContent.value?.trim() || '') !== '' || (textContent.value?.trim() || '') !== ''
   }
 
-// Watch for conversation key changes
-watch(
-  conversationKey,
-  (newKey, oldKey) => {
-    // Save old draft BEFORE switching (whether going to new or existing conversation)
-    if (oldKey && hasDraftContent()) {
-      draftStore.setDraft(oldKey, htmlContent.value, textContent.value)
-    }
-    
-    // Only load draft if switching to an EXISTING conversation with a different key
-    if (newKey && newKey !== oldKey) {
-      loadDraft(newKey)
-    } else if (!newKey && oldKey) {
-      // Clear draft if switching to a NEW conversation
-      isLoadingDraft.value = true
+  // Watch for conversation key changes
+  watch(
+    conversationKey,
+    async (newKey, oldKey) => { // Made async!
+      // Save old draft BEFORE switching (whether going to new or existing conversation)
+      if (oldKey && hasDraftContent()) {
+        draftStore.setDraft(oldKey, htmlContent.value, textContent.value)
+      }
       
-      htmlContent.value = ''
-      textContent.value = ''
+      // Only load draft if switching to an EXISTING conversation with a different key
+      if (newKey && newKey !== oldKey) {
+        await loadDraft(newKey) // Now awaits!
+      } else if (!newKey && oldKey) {
+        // Clear draft if switching to a NEW conversation
+        isLoadingDraft.value = true
+        
+        htmlContent.value = ''
+        textContent.value = ''
 
-      setTimeout(() => {
-        isLoadingDraft.value = false
-      }, 600)
-    }
-  },
-  { immediate: true }
-)
+        setTimeout(() => {
+          isLoadingDraft.value = false
+        }, 600)
+      }
+    },
+    { immediate: true }
+  )
 
   // Auto-save draft when content changes (debounced to avoid excessive writes)
   watchDebounced(
