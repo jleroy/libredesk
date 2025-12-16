@@ -31,7 +31,7 @@ func (m *Manager) decryptWebhook(webhook *models.Webhook) error {
 func (m *Manager) decryptWebhooks(webhooks []models.Webhook) {
 	for i := range webhooks {
 		if err := m.decryptWebhook(&webhooks[i]); err != nil {
-			// Continue processing other webhooks even if one fails
+			m.lo.Error("error decrypting webhook secret", "webhook_id", webhooks[i].ID, "error", err)
 			continue
 		}
 	}

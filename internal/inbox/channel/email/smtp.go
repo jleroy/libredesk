@@ -34,7 +34,7 @@ func NewSmtpPool(configs []imodels.SMTPConfig, oauth *imodels.OAuthConfig) ([]*s
 		var auth smtp.Auth
 
 		// Check if OAuth authentication should be used
-		if oauth != nil {
+		if oauth != nil && oauth.AccessToken != "" {
 			auth = &XOAuth2SMTPAuth{
 				Username: cfg.Username,
 				Token:    oauth.AccessToken,

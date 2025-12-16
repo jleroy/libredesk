@@ -3,7 +3,6 @@ package email
 import (
 	"fmt"
 	"net/smtp"
-	"time"
 )
 
 // xoauth2IMAPClient implements SASL XOAUTH2 authentication for IMAP.
@@ -45,10 +44,4 @@ func (a *XOAuth2SMTPAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 		return nil, fmt.Errorf("unexpected server challenge in XOAUTH2")
 	}
 	return nil, nil
-}
-
-// isTokenExpired checks if an OAuth token has expired or is about to expire.
-// Returns true if the token will expire in the next 5 minutes.
-func isTokenExpired(expiresAt time.Time) bool {
-	return time.Now().Add(5 * time.Minute).After(expiresAt)
 }

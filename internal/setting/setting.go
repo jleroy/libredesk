@@ -254,7 +254,7 @@ func (m *Manager) decryptSettings(data []byte) ([]byte, error) {
 		if valueStr, ok := settings[key].(string); ok && valueStr != "" {
 			decrypted, err := m.decryptIfNeeded(key, valueStr)
 			if err != nil {
-				// Continue processing other settings even if one fails
+				m.lo.Error("error decrypting setting", "key", key, "error", err)
 				continue
 			}
 			if decrypted != valueStr {

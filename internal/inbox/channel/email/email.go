@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/email/oauth"
@@ -141,7 +142,7 @@ func (e *Email) refreshOAuthIfNeeded() (*models.OAuthConfig, bool, error) {
 	e.oauthMu.Lock()
 
 	// Check if token is expired
-	if !isTokenExpired(e.oauth.ExpiresAt) {
+	if !oauth.IsTokenExpired(e.oauth.ExpiresAt) {
 		// Token is still valid, just copy and return
 		oauthCopy := e.oauth
 		e.oauthMu.Unlock()
@@ -214,7 +215,10 @@ func RefreshOAuthConfig(currentToken *models.OAuthConfig) (*models.OAuthConfig, 
 		RefreshToken: currentToken.RefreshToken,
 	}
 
-	src := cfg.TokenSource(context.Background(), oldToken)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	src := cfg.TokenSource(ctx, oldToken)
 	newToken, err := src.Token()
 	if err != nil {
 		return nil, fmt.Errorf("token refresh failed: %w", err)
