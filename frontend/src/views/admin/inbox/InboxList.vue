@@ -53,18 +53,20 @@ onMounted(async () => {
       errorCode === 'oauth_denied'
         ? t('globals.messages.denied', { name: t('globals.terms.authorization') })
         : t('globals.messages.errorConnecting', { name: t('globals.terms.inbox') })
-    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      variant: 'destructive',
-      description: msg
-    })
-    router.replace({ name: 'inbox-list' })
+    setTimeout(() => {
+      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+        variant: 'destructive',
+        description: msg
+      })
+    }, 500)
   } else if (successCode) {
     const msg =
       successCode === 'oauth_reconnected'
         ? t('globals.messages.reconnectedSuccessfully', { name: t('globals.terms.inbox') })
         : t('globals.messages.connectedSuccessfully', { name: t('globals.terms.inbox') })
-    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, { description: msg })
-    router.replace({ name: 'inbox-list' })
+    setTimeout(() => {
+      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, { description: msg })
+    }, 500)
   }
 
   await getInboxes()
