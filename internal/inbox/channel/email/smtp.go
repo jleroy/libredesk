@@ -20,6 +20,7 @@ const (
 	headerReferences              = "References"
 	headerInReplyTo               = "In-Reply-To"
 	headerLibredeskLoopPrevention = "X-Libredesk-Loop-Prevention"
+	headerLibredeskConversationID = "X-Libredesk-Conversation-UUID"
 	headerAutoreply               = "X-Autoreply"
 	headerAutoSubmitted           = "Auto-Submitted"
 
@@ -205,8 +206,15 @@ func (e *Email) Send(m models.Message) error {
 	for _, ref := range m.References {
 		references += "<" + ref + "> "
 	}
-	e.lo.Debug("References header set", "references", references)
 	email.Headers.Set(headerReferences, references)
+
+	e.lo.Debug("References header set", "references", references)
+
+	// Set conversation uuid header
+	if m.ConversationUUID != "" {
+		email.Headers.Set(headerLibredeskConversationID, m.ConversationUUID)
+		e.lo.Debug("Conversation UUID header set", "conversation_uuid", m.ConversationUUID)
+	}
 
 	// Set email content
 	switch m.ContentType {

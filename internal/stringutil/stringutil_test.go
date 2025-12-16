@@ -101,3 +101,61 @@ func TestFormatDuration(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractReferenceNumber(t *testing.T) {
+	tests := []struct {
+		name     string
+		subject  string
+		expected string
+	}{
+		{
+			name:     "simple reference number",
+			subject:  "Test - #392",
+			expected: "392",
+		},
+		{
+			name:     "with RE prefix",
+			subject:  "RE: Test - #392",
+			expected: "392",
+		},
+		{
+			name:     "multiple hashes picks last",
+			subject:  "Order #123 - #392",
+			expected: "392",
+		},
+		{
+			name:     "no reference number",
+			subject:  "Just a regular subject",
+			expected: "",
+		},
+		{
+			name:     "hash without number",
+			subject:  "Test #abc",
+			expected: "",
+		},
+		{
+			name:     "empty string",
+			subject:  "",
+			expected: "",
+		},
+		{
+			name:     "number without hash",
+			subject:  "Test 392",
+			expected: "",
+		},
+		{
+			name:     "multiple RE prefixes",
+			subject:  "RE: RE: Test - #100",
+			expected: "100",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractReferenceNumber(tt.subject)
+			if result != tt.expected {
+				t.Errorf("ExtractReferenceNumber(%q) = %q, want %q", tt.subject, result, tt.expected)
+			}
+		})
+	}
+}

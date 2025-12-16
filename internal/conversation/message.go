@@ -192,7 +192,7 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 		return
 	}
 	if message.SenderID != systemUser.ID {
-		conversation, err := m.GetConversation(message.ConversationID, "")
+		conversation, err := m.GetConversation(message.ConversationID, "", "")
 		if err != nil {
 			m.lo.Error("error fetching conversation", "conversation_id", message.ConversationID, "error", err)
 			return
@@ -224,7 +224,7 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 func (m *Manager) RenderMessageInTemplate(channel string, message *models.Message) error {
 	switch channel {
 	case inbox.ChannelEmail:
-		conversation, err := m.GetConversation(0, message.ConversationUUID)
+		conversation, err := m.GetConversation(0, message.ConversationUUID, "")
 		if err != nil {
 			m.lo.Error("error fetching conversation", "uuid", message.ConversationUUID, "error", err)
 			return fmt.Errorf("fetching conversation: %w", err)
@@ -639,8 +639,8 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 	}
 	in.Message.SenderID = in.Contact.ID
 
-	// Conversation already exists for this message? Skip if it does.
-	conversationID, err := m.findConversationID([]string{in.Message.SourceID.String})
+	// Message exists by source ID?
+	conversationID, err := m.messageExistsBySourceID([]string{in.Message.SourceID.String})
 	if err != nil && err != errConversationNotFound {
 		return err
 	}
@@ -648,10 +648,33 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 		return nil
 	}
 
-	// Find or create new conversation.
-	isNewConversation, err := m.findOrCreateConversation(&in.Message, in.InboxID, in.Contact.ContactChannelID, in.Contact.ID)
-	if err != nil {
-		return err
+	var isNewConversation bool
+
+	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").
+	if refNum := stringutil.ExtractReferenceNumber(in.Message.Subject); refNum != "" {
+		conversation, err := m.GetConversation(0, "", refNum)
+		if err != nil {
+			envErr, ok := err.(envelope.Error)
+			if !ok || envErr.ErrorType != envelope.NotFoundError {
+				return fmt.Errorf("fetching conversation: %w", err)
+			}
+		}
+		if conversation.Contact.Email.String != "" && strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+			// Conversation found and contact email matches, use this conversation.
+			in.Message.ConversationID = conversation.ID
+			in.Message.ConversationUUID = conversation.UUID
+			m.lo.Debug("matched conversation by reference number in subject", "reference_number", refNum, "contact_email", in.Contact.Email.String)
+		} else {
+			m.lo.Debug("reference number found in subject but contact email did not match, skipping conversation match", "reference_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "message_contact_email", in.Contact.Email.String)
+		}
+	}
+
+	// If conversation not matched via reference number, find conversation using references and in-reply-to headers else create a new one.
+	if in.Message.ConversationID == 0 {
+		isNewConversation, err = m.findOrCreateConversation(&in.Message, in.InboxID, in.Contact.ContactChannelID, in.Contact.ID)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Upload message attachments, on failure delete the conversation if it was just created for this message.
@@ -673,7 +696,7 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 
 	// Evaluate automation rules & send webhook events.
 	if isNewConversation {
-		conversation, err := m.GetConversation(in.Message.ConversationID, "")
+		conversation, err := m.GetConversation(in.Message.ConversationID, "", "")
 		if err == nil {
 			m.webhookStore.TriggerEvent(wmodels.EventConversationCreated, conversation)
 			m.automation.EvaluateNewConversationRules(conversation)
@@ -697,7 +720,7 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 
 	// Create SLA event for next response if a SLA is applied and has next response time set, subsequent agent replies will mark this event as met.
 	// This cycle continues for next response time SLA metric.
-	conversation, err := m.GetConversation(in.Message.ConversationID, "")
+	conversation, err := m.GetConversation(in.Message.ConversationID, "", "")
 	if err != nil {
 		m.lo.Error("error fetching conversation", "conversation_id", in.Message.ConversationID, "error", err)
 	} else {
@@ -722,7 +745,7 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 
 // MessageExists checks if a message with the given messageID exists.
 func (m *Manager) MessageExists(messageID string) (bool, error) {
-	_, err := m.findConversationID([]string{messageID})
+	_, err := m.messageExistsBySourceID([]string{messageID})
 	if err != nil {
 		if errors.Is(err, errConversationNotFound) {
 			return false, nil
@@ -864,8 +887,10 @@ func (m *Manager) findOrCreateConversation(in *models.Message, inboxID, contactC
 	)
 
 	// Search for existing conversation using the in-reply-to and references.
+	m.lo.Debug("searching conversation using in-reply-to and references", "in_reply_to", in.InReplyTo, "references", in.References)
+
 	sourceIDs := append([]string{in.InReplyTo}, in.References...)
-	conversationID, err = m.findConversationID(sourceIDs)
+	conversationID, err = m.messageExistsBySourceID(sourceIDs)
 	if err != nil && err != errConversationNotFound {
 		return new, err
 	}
@@ -895,8 +920,8 @@ func (m *Manager) findOrCreateConversation(in *models.Message, inboxID, contactC
 	return new, nil
 }
 
-// findConversationID finds the conversation ID from the message source ID.
-func (m *Manager) findConversationID(messageSourceIDs []string) (int, error) {
+// messageExistsBySourceID returns conversation ID if a message with any of the given source IDs exists.
+func (m *Manager) messageExistsBySourceID(messageSourceIDs []string) (int, error) {
 	if len(messageSourceIDs) == 0 {
 		return 0, errConversationNotFound
 	}

@@ -21,8 +21,9 @@ const (
 )
 
 var (
-	regexpNonAlNum = regexp.MustCompile(`[^a-zA-Z0-9\-_\.]+`)
-	regexpSpaces   = regexp.MustCompile(`[\s]+`)
+	regexpNonAlNum     = regexp.MustCompile(`[^a-zA-Z0-9\-_\.]+`)
+	regexpSpaces       = regexp.MustCompile(`[\s]+`)
+	regexpRefNumber    = regexp.MustCompile(`#(\d+)`)
 )
 
 // HTML2Text converts HTML to text.
@@ -248,4 +249,19 @@ func ComputeRecipients(
 	finalBCC = []string{}
 
 	return
+}
+
+// ExtractReferenceNumber extracts the last reference number from a subject line.
+// For example, "RE: Test - #392" returns "392".
+// If multiple numbers exist (e.g., "Order #123 - #392"), returns the last one ("392").
+func ExtractReferenceNumber(subject string) string {
+	matches := regexpRefNumber.FindAllStringSubmatch(subject, -1)
+	if len(matches) > 0 {
+		// Return the last match's captured group.
+		lastMatch := matches[len(matches)-1]
+		if len(lastMatch) >= 2 {
+			return lastMatch[1]
+		}
+	}
+	return ""
 }

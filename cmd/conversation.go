@@ -597,7 +597,7 @@ func handleUpdateContactCustomAttributes(r *fastglue.Request) error {
 
 // enforceConversationAccess fetches the conversation and checks if the user has access to it.
 func enforceConversationAccess(app *App, uuid string, user umodels.User) (*cmodels.Conversation, error) {
-	conversation, err := app.conversation.GetConversation(0, uuid)
+	conversation, err := app.conversation.GetConversation(0, uuid, "")
 	if err != nil {
 		return nil, err
 	}
@@ -759,7 +759,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 	}
 
 	// Trigger webhook event for conversation created.
-	conversation, err := app.conversation.GetConversation(conversationID, "")
+	conversation, err := app.conversation.GetConversation(conversationID, "", "")
 	if err == nil {
 		app.webhook.TriggerEvent(wmodels.EventConversationCreated, conversation)
 	}
