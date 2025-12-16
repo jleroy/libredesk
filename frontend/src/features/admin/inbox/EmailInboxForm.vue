@@ -746,7 +746,7 @@ const form = useForm({
 
 // OAuth computed properties
 const oauthProvider = computed(() => {
-  const provider = form.values.imap?.oauth?.provider || form.values.smtp?.oauth?.provider
+  const provider = form.values.oauth?.provider
   return provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Unknown'
 })
 
@@ -755,7 +755,7 @@ const oauthEmail = computed(() => {
 })
 
 const oauthClientId = computed(() => {
-  return form.values.imap?.oauth?.client_id || form.values.smtp?.oauth?.client_id || ''
+  return form.values.oauth?.client_id || ''
 })
 
 const submitLabel = computed(() => {

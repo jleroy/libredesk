@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
@@ -14,6 +16,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
+	"golang.org/x/oauth2"
 )
 
 // OAuthCredentialsRequest represents the OAuth credentials from the request body.
@@ -160,7 +163,7 @@ func handleOAuthCallback(r *fastglue.Request) error {
 	}
 
 	// Get user email from provider
-	userEmail, err := getUserEmailFromProvider(provider, token.AccessToken)
+	userEmail, err := getUserEmailFromProvider(provider, token)
 	if err != nil {
 		app.lo.Error("Failed to get user email from provider", "error", err)
 		return r.Redirect("/admin/inboxes?error=email_fetch_failed", fasthttp.StatusFound, nil, "")
@@ -297,61 +300,54 @@ func handleOAuthCallback(r *fastglue.Request) error {
 }
 
 // getUserEmailFromProvider fetches the user's email from the OAuth provider.
-func getUserEmailFromProvider(provider, accessToken string) (string, error) {
-	var (
-		apiURL     string
-		emailField string
-	)
-
+func getUserEmailFromProvider(provider string, token *oauth2.Token) (string, error) {
 	switch provider {
-	case string(oauth.ProviderGoogle):
-		apiURL = "https://www.googleapis.com/oauth2/v2/userinfo"
-		emailField = "email"
 	case string(oauth.ProviderMicrosoft):
-		apiURL = "https://graph.microsoft.com/v1.0/me"
-		emailField = "mail" // Microsoft uses "mail" not "email"
-	default:
-		return "", fmt.Errorf("unsupported provider: %s", provider)
-	}
-
-	// Create HTTP request
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("creating request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	// Send request
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("fetching user info: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	// Parse response
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("parsing response: %w", err)
-	}
-
-	email, ok := result[emailField].(string)
-	if !ok || email == "" {
-		// For Microsoft, try "userPrincipalName" as fallback
-		if provider == string(oauth.ProviderMicrosoft) {
-			if upn, ok := result["userPrincipalName"].(string); ok {
-				return upn, nil
-			}
+		idToken, ok := token.Extra("id_token").(string)
+		if !ok {
+			return "", fmt.Errorf("no id_token")
 		}
-		return "", fmt.Errorf("email not found in response")
+
+		parts := strings.Split(idToken, ".")
+		if len(parts) < 2 {
+			return "", fmt.Errorf("invalid id_token")
+		}
+
+		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+		if err != nil {
+			return "", err
+		}
+
+		var claims map[string]any
+		json.Unmarshal(payload, &claims)
+
+		if email, ok := claims["email"].(string); ok && email != "" {
+			return email, nil
+		}
+		if upn, ok := claims["preferred_username"].(string); ok {
+			return upn, nil
+		}
+		return "", fmt.Errorf("email not found")
+	case string(oauth.ProviderGoogle):
+		req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+
+		resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+
+		var result map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&result)
+
+		if email, ok := result["email"].(string); ok {
+			return email, nil
+		}
+		return "", fmt.Errorf("email not found")
 	}
 
-	return email, nil
+	return "", fmt.Errorf("unsupported provider")
 }
 
 // getProviderDefaults returns provider-specific SMTP and IMAP configurations.

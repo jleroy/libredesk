@@ -25,6 +25,8 @@ var (
 		"https://outlook.office.com/IMAP.AccessAsUser.All",
 		"https://outlook.office.com/SMTP.Send",
 		"offline_access",
+		"openid",
+		"email",
 	}
 	GoogleScopes = []string{
 		"https://mail.google.com/",
