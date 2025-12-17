@@ -19,11 +19,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	FlowTypeNewInbox  = "new_inbox"
+	FlowTypeReconnect = "reconnect"
+)
+
 // OAuthCredentialsRequest represents the OAuth credentials from the request body.
 type OAuthCredentialsRequest struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	TenantID     string `json:"tenant_id,omitempty"` // Optional for Microsoft
+	FlowType     string `json:"flow_type,omitempty"` // "new_inbox" or "reconnect"
 }
 
 // handleOAuthAuthorize initiates the OAuth authorization flow for creating a new email inbox.
@@ -50,6 +56,10 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.badRequest"), nil, envelope.InputError)
 	}
 
+	if req.FlowType != FlowTypeNewInbox && req.FlowType != FlowTypeReconnect {
+		req.FlowType = FlowTypeNewInbox
+	}
+
 	// Build redirect URI
 	redirectURI := app.consts.Load().(*constants).AppBaseURL + "/api/v1/inboxes/oauth/" + provider + "/callback"
 
@@ -67,6 +77,7 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 		"redirect_uri":  redirectURI,
 		"client_id":     req.ClientID,
 		"client_secret": req.ClientSecret,
+		"flow_type":     req.FlowType,
 	}
 
 	// Add tenant ID for Microsoft if provided
@@ -140,6 +151,7 @@ func handleOAuthCallback(r *fastglue.Request) error {
 	clientID := oauthData["client_id"]
 	clientSecret := oauthData["client_secret"]
 	tenantID := oauthData["tenant_id"] // Empty string if not set
+	flowType := oauthData["flow_type"] // "new_inbox" or "reconnect"
 
 	// Validate provider matches URL parameter
 	if storedProvider != provider {
@@ -199,6 +211,19 @@ func handleOAuthCallback(r *fastglue.Request) error {
 			existingInbox = &existingInboxes[i]
 			break
 		}
+	}
+
+	// Validate flow type matches actual state
+	// New inbox flow: reject if inbox already exists
+	if flowType == FlowTypeNewInbox && existingInbox != nil {
+		app.lo.Error("Inbox already exists for email", "email", userEmail)
+		return r.Redirect("/admin/inboxes?error=inbox_already_exists", fasthttp.StatusFound, nil, "")
+	}
+
+	// Reconnect flow: reject if inbox doesn't exist
+	if flowType == FlowTypeReconnect && existingInbox == nil {
+		app.lo.Error("No existing inbox found for reconnect", "email", userEmail)
+		return r.Redirect("/admin/inboxes?error=inbox_not_found", fasthttp.StatusFound, nil, "")
 	}
 
 	// If inbox exists, update it with new OAuth tokens (reconnect flow)

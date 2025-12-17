@@ -688,6 +688,7 @@ const setupMethod = ref(null)
 // OAuth modal state
 const showOAuthModal = ref(false)
 const selectedProvider = ref('')
+const flowType = ref('new_inbox') // "new_inbox" or "reconnect"
 const oauthCredentials = ref({
   client_id: '',
   client_secret: '',
@@ -767,11 +768,13 @@ const onSubmit = form.handleSubmit(async (values) => {
 })
 
 const connectWithGoogle = () => {
+  flowType.value = 'new_inbox'
   selectedProvider.value = PROVIDER_GOOGLE
   showOAuthModal.value = true
 }
 
 const connectWithMicrosoft = () => {
+  flowType.value = 'new_inbox'
   selectedProvider.value = PROVIDER_MICROSOFT
   showOAuthModal.value = true
 }
@@ -782,6 +785,9 @@ const reconnectOAuth = () => {
   const tenantId = form.values.oauth?.tenant_id
 
   if (!provider) return
+
+  // Set flow type to reconnect
+  flowType.value = 'reconnect'
 
   // Set provider and pre-fill credentials
   selectedProvider.value = provider
@@ -804,7 +810,10 @@ const submitOAuthCredentials = async () => {
 
   try {
     isSubmittingOAuth.value = true
-    const response = await api.initiateOAuthFlow(selectedProvider.value, oauthCredentials.value)
+    const response = await api.initiateOAuthFlow(selectedProvider.value, {
+      ...oauthCredentials.value,
+      flow_type: flowType.value
+    })
     window.location.href = response.data.data
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {

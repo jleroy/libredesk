@@ -49,10 +49,16 @@ onMounted(async () => {
   const successCode = route.query.success
 
   if (errorCode) {
-    const msg =
-      errorCode === 'oauth_denied'
-        ? t('globals.messages.denied', { name: t('globals.terms.authorization') })
-        : t('globals.messages.errorConnecting', { name: t('globals.terms.inbox') })
+    let msg
+    if (errorCode === 'oauth_denied') {
+      msg = t('globals.messages.denied', { name: t('globals.terms.authorization') })
+    } else if (errorCode === 'inbox_already_exists') {
+      msg = t('inbox.oauthAlreadyExists')
+    } else if (errorCode === 'inbox_not_found') {
+      msg = t('inbox.oauthNotFound')
+    } else {
+      msg = t('globals.messages.errorConnecting', { name: t('globals.terms.inbox') })
+    }
     setTimeout(() => {
       emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
         variant: 'destructive',

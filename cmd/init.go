@@ -834,9 +834,10 @@ func initPriority(db *sqlx.DB, i18n *i18n.I18n) *priority.Manager {
 func initAI(db *sqlx.DB, i18n *i18n.I18n) *ai.Manager {
 	lo := initLogger("ai")
 	m, err := ai.New(ai.Opts{
-		DB:   db,
-		Lo:   lo,
-		I18n: i18n,
+		DB:            db,
+		Lo:            lo,
+		I18n:          i18n,
+		EncryptionKey: ko.MustString("app.encryption_key"),
 	})
 	if err != nil {
 		log.Fatalf("error initializing AI manager: %v", err)
