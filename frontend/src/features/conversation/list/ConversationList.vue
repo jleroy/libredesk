@@ -103,7 +103,8 @@
         <div
           v-if="!conversationStore.conversations.errorMessage"
           key="list"
-          class="divide-y border-b divide-gray-200 dark:divide-gray-700 dark:border-gray-700"
+          class="divide-y divide-gray-200 dark:divide-gray-700"
+          :class="{ 'border-b dark:border-gray-700': hasConversations }"
         >
           <ConversationListItem
             v-for="conversation in conversationStore.conversationsList"
