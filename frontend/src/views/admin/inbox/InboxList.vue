@@ -56,6 +56,8 @@ onMounted(async () => {
       msg = t('inbox.oauthAlreadyExists')
     } else if (errorCode === 'inbox_not_found') {
       msg = t('inbox.oauthNotFound')
+    } else if (errorCode === 'email_mismatch') {
+      msg = t('inbox.oauthEmailMismatch')
     } else {
       msg = t('globals.messages.errorConnecting', { name: t('globals.terms.inbox') })
     }

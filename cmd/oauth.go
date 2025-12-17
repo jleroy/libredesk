@@ -30,6 +30,7 @@ type OAuthCredentialsRequest struct {
 	ClientSecret string `json:"client_secret"`
 	TenantID     string `json:"tenant_id,omitempty"` // Optional for Microsoft
 	FlowType     string `json:"flow_type,omitempty"` // "new_inbox" or "reconnect"
+	InboxID      int    `json:"inbox_id,omitempty"`  // Required for reconnect flow
 }
 
 // handleOAuthAuthorize initiates the OAuth authorization flow for creating a new email inbox.
@@ -78,6 +79,7 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 		"client_id":     req.ClientID,
 		"client_secret": req.ClientSecret,
 		"flow_type":     req.FlowType,
+		"inbox_id":      req.InboxID,
 	}
 
 	// Add tenant ID for Microsoft if provided
@@ -150,8 +152,9 @@ func handleOAuthCallback(r *fastglue.Request) error {
 	redirectURI := oauthData["redirect_uri"]
 	clientID := oauthData["client_id"]
 	clientSecret := oauthData["client_secret"]
-	tenantID := oauthData["tenant_id"] // Empty string if not set
-	flowType := oauthData["flow_type"] // "new_inbox" or "reconnect"
+	tenantID := oauthData["tenant_id"]   // Empty string if not set
+	flowType := oauthData["flow_type"]   // "new_inbox" or "reconnect"
+	inboxIDStr := oauthData["inbox_id"]  // Inbox ID for reconnect flow
 
 	// Validate provider matches URL parameter
 	if storedProvider != provider {
@@ -220,10 +223,30 @@ func handleOAuthCallback(r *fastglue.Request) error {
 		return r.Redirect("/admin/inboxes?error=inbox_already_exists", fasthttp.StatusFound, nil, "")
 	}
 
-	// Reconnect flow: reject if inbox doesn't exist
-	if flowType == FlowTypeReconnect && existingInbox == nil {
-		app.lo.Error("No existing inbox found for reconnect", "email", userEmail)
-		return r.Redirect("/admin/inboxes?error=inbox_not_found", fasthttp.StatusFound, nil, "")
+	// Reconnect flow: validate inbox_id and email match
+	if flowType == FlowTypeReconnect {
+		// Find the target inbox by ID
+		var targetInbox *imodels.Inbox
+		for i, existing := range existingInboxes {
+			if fmt.Sprintf("%d", existing.ID) == inboxIDStr {
+				targetInbox = &existingInboxes[i]
+				break
+			}
+		}
+
+		if targetInbox == nil {
+			app.lo.Error("Target inbox not found for reconnect", "inbox_id", inboxIDStr)
+			return r.Redirect("/admin/inboxes?error=inbox_not_found", fasthttp.StatusFound, nil, "")
+		}
+
+		// Verify the authorized email matches the target inbox's email
+		targetEmailAddr, _ := stringutil.ExtractEmail(targetInbox.From)
+		if targetEmailAddr != userEmailAddr {
+			app.lo.Error("Email mismatch during reconnect", "target_email", targetEmailAddr, "authorized_email", userEmailAddr)
+			return r.Redirect("/admin/inboxes?error=email_mismatch", fasthttp.StatusFound, nil, "")
+		}
+
+		existingInbox = targetInbox
 	}
 
 	// If inbox exists, update it with new OAuth tokens (reconnect flow)

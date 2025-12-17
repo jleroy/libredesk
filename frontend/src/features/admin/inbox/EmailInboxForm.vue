@@ -810,10 +810,17 @@ const submitOAuthCredentials = async () => {
 
   try {
     isSubmittingOAuth.value = true
-    const response = await api.initiateOAuthFlow(selectedProvider.value, {
+    const payload = {
       ...oauthCredentials.value,
       flow_type: flowType.value
-    })
+    }
+
+    // Include inbox_id for reconnect flow (props.initialValues.id exists in edit mode)
+    if (flowType.value === 'reconnect' && props.initialValues?.id) {
+      payload.inbox_id = props.initialValues.id
+    }
+
+    const response = await api.initiateOAuthFlow(selectedProvider.value, payload)
     window.location.href = response.data.data
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
