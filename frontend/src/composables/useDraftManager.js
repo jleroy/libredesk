@@ -4,11 +4,10 @@ import { useDraftStore } from '@/stores/draftStore'
 
 /**
  * Composable for managing draft state and persistence
- * @param {Ref<string>} conversationKey - Reactive reference to current conversation UUID
+ * @param key - Reactive reference to current draft key
  */
-export function useDraftManager(conversationKey) {
+export function useDraftManager (key) {
   const draftStore = useDraftStore()
-  
   const htmlContent = ref('')
   const textContent = ref('')
   const isLoadingDraft = ref(false)
@@ -18,28 +17,19 @@ export function useDraftManager(conversationKey) {
    */
   const loadDraft = async (key) => {
     if (!key) return
-    
     isLoadingDraft.value = true
-    try {
-      const draft = await draftStore.getDraft(key) // Now async!
-      htmlContent.value = draft.htmlContent || ''
-      textContent.value = draft.textContent || ''
-    } catch (error) {
-      console.error('Failed to load draft:', error)
-    } finally {
-      // Small delay to prevent race conditions with watchers
-      setTimeout(() => {
-        isLoadingDraft.value = false
-      }, 600)
-    }
+    const draft = await draftStore.getDraft(key)
+    htmlContent.value = draft.htmlContent
+    textContent.value = draft.textContent
+    isLoadingDraft.value = false
   }
 
   /**
    * Save draft to store
    */
-  const saveDraft = (key) => {
+  const saveDraft = async (key) => {
     if (!key || isLoadingDraft.value) return
-    draftStore.setDraft(key, htmlContent.value, textContent.value)
+    await draftStore.setDraft(key, htmlContent.value, textContent.value)
   }
 
   /**
@@ -47,46 +37,38 @@ export function useDraftManager(conversationKey) {
    */
   const clearDraft = (key) => {
     if (!key) return
-  
     isLoadingDraft.value = true
     draftStore.clearDraft(key)
     htmlContent.value = ''
     textContent.value = ''
-  
-    setTimeout(() => {
-      isLoadingDraft.value = false
-    }, 600) 
+    isLoadingDraft.value = false
   }
 
   /**
    * Check if draft has content
    */
   const hasDraftContent = () => {
-    return (htmlContent.value?.trim() || '') !== '' || (textContent.value?.trim() || '') !== ''
+    return textContent.value?.trim() !== ""
   }
 
-  // Watch for conversation key changes
+  // Watch for key changes to save / load draft.
   watch(
-    conversationKey,
-    async (newKey, oldKey) => { // Made async!
-      // Save old draft BEFORE switching (whether going to new or existing conversation)
-      if (oldKey && hasDraftContent()) {
+    key,
+    async (newKey, oldKey) => {
+      // Save old draft first.
+      if (newKey != oldKey && hasDraftContent()) {
         draftStore.setDraft(oldKey, htmlContent.value, textContent.value)
       }
-      
-      // Only load draft if switching to an EXISTING conversation with a different key
+
+      // Load new draft.
       if (newKey && newKey !== oldKey) {
-        await loadDraft(newKey) // Now awaits!
+        await loadDraft(newKey)
       } else if (!newKey && oldKey) {
-        // Clear draft if switching to a NEW conversation
+        // Clear state.
         isLoadingDraft.value = true
-        
         htmlContent.value = ''
         textContent.value = ''
-
-        setTimeout(() => {
-          isLoadingDraft.value = false
-        }, 600)
+        isLoadingDraft.value = false
       }
     },
     { immediate: true }
@@ -95,9 +77,9 @@ export function useDraftManager(conversationKey) {
   // Auto-save draft when content changes (debounced to avoid excessive writes)
   watchDebounced(
     [htmlContent, textContent],
-    () => {
-      if (!isLoadingDraft.value && conversationKey.value) {
-        saveDraft(conversationKey.value)
+    async () => {
+      if (!isLoadingDraft.value && key.value) {
+        await saveDraft(key.value)
       }
     },
     { debounce: 500 }
