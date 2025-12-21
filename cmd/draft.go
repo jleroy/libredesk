@@ -64,13 +64,7 @@ func handleGetConversationDraft(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	// Check access to conversation.
-	conv, err := enforceConversationAccess(app, uuid, user)
-	if err != nil {
-		return sendErrorEnvelope(r, err)
-	}
-
-	draft, err := app.conversation.GetConversationDraft(conv.ID, user.ID)
+	draft, err := app.conversation.GetConversationDraft(0, uuid, user.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -91,13 +85,7 @@ func handleDeleteConversationDraft(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	// Check access to conversation.
-	conv, err := enforceConversationAccess(app, uuid, user)
-	if err != nil {
-		return sendErrorEnvelope(r, err)
-	}
-
-	if err := app.conversation.DeleteConversationDraft(conv.ID, user.ID); err != nil {
+	if err := app.conversation.DeleteConversationDraft(0, uuid, user.ID); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 

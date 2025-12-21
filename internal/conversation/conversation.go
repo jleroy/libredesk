@@ -1084,22 +1084,31 @@ func (m *Manager) UpsertConversationDraft(conversationID, userID int, content st
 	return draft, nil
 }
 
-// GetConversationDraft retrieves a draft for a conversation.
-func (m *Manager) GetConversationDraft(conversationID, userID int) (models.ConversationDraft, error) {
+// GetConversationDraft retrieves a draft for a conversation by ID or UUID.
+func (m *Manager) GetConversationDraft(conversationID int, uuid string, userID int) (models.ConversationDraft, error) {
 	var draft models.ConversationDraft
+	var uuidParam any
+	if uuid != "" {
+		uuidParam = uuid
+	}
 
-	if err := m.q.GetConversationDraft.Get(&draft, conversationID, userID); err != nil {
-		m.lo.Error("error fetching conversation draft", "conversation_id", conversationID, "user_id", userID, "error", err)
+	if err := m.q.GetConversationDraft.Get(&draft, conversationID, uuidParam, userID); err != nil {
+		m.lo.Error("error fetching conversation draft", "conversation_id", conversationID, "uuid", uuid, "user_id", userID, "error", err)
 		return draft, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "draft"), nil)
 	}
 
 	return draft, nil
 }
 
-// DeleteConversationDraft deletes a draft for a conversation.
-func (m *Manager) DeleteConversationDraft(conversationID, userID int) error {
-	if _, err := m.q.DeleteConversationDraft.Exec(conversationID, userID); err != nil {
-		m.lo.Error("error deleting conversation draft", "conversation_id", conversationID, "user_id", userID, "error", err)
+// DeleteConversationDraft deletes a draft for a conversation by ID or UUID.
+func (m *Manager) DeleteConversationDraft(conversationID int, uuid string, userID int) error {
+	var uuidParam any
+	if uuid != "" {
+		uuidParam = uuid
+	}
+
+	if _, err := m.q.DeleteConversationDraft.Exec(conversationID, uuidParam, userID); err != nil {
+		m.lo.Error("error deleting conversation draft", "conversation_id", conversationID, "uuid", uuid, "user_id", userID, "error", err)
 		return envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorDeleting", "name", "draft"), nil)
 	}
 

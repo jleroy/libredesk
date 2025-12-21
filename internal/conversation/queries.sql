@@ -566,9 +566,13 @@ DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()
 RETURNING *;
 
 -- name: get-conversation-draft
-SELECT * FROM conversation_drafts
-WHERE conversation_id = $1 AND user_id = $2;
+SELECT cd.* FROM conversation_drafts cd
+INNER JOIN conversations c ON cd.conversation_id = c.id
+WHERE (($1 > 0 AND c.id = $1) OR ($2::uuid IS NOT NULL AND c.uuid = $2::uuid)) AND cd.user_id = $3;
 
 -- name: delete-conversation-draft
 DELETE FROM conversation_drafts
-WHERE conversation_id = $1 AND user_id = $2;
+WHERE conversation_id IN (
+  SELECT id FROM conversations
+  WHERE ($1 > 0 AND id = $1) OR ($2::uuid IS NOT NULL AND uuid = $2::uuid)
+) AND user_id = $3;
