@@ -576,3 +576,7 @@ WHERE conversation_id IN (
   SELECT id FROM conversations
   WHERE ($1 > 0 AND id = $1) OR ($2::uuid IS NOT NULL AND uuid = $2::uuid)
 ) AND user_id = $3;
+
+-- name: delete-stale-drafts
+DELETE FROM conversation_drafts
+WHERE created_at < NOW() - $1::interval;

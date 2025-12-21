@@ -176,6 +176,7 @@ func main() {
 	var (
 		autoAssignInterval          = ko.MustDuration("autoassigner.autoassign_interval")
 		unsnoozeInterval            = ko.MustDuration("conversation.unsnooze_interval")
+		draftRetentionDuration      = ko.Duration("conversation.draft_retention_duration")
 		automationWorkers           = ko.MustInt("automation.worker_count")
 		messageOutgoingQWorkers     = ko.MustDuration("message.outgoing_queue_workers")
 		messageIncomingQWorkers     = ko.MustDuration("message.incoming_queue_workers")
@@ -217,6 +218,9 @@ func main() {
 	go sla.SendNotifications(ctx)
 	go media.DeleteUnlinkedMedia(ctx)
 	go user.MonitorAgentAvailability(ctx)
+	if draftRetentionDuration > 0 {
+		go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
+	}
 
 	var app = &App{
 		lo:              lo,

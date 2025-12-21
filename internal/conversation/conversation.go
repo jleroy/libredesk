@@ -227,9 +227,10 @@ type queries struct {
 	GetLatestMessage                   *sqlx.Stmt `query:"get-latest-message"`
 
 	// Draft queries.
-	UpsertConversationDraft            *sqlx.Stmt `query:"upsert-conversation-draft"`
-	GetConversationDraft    		   *sqlx.Stmt `query:"get-conversation-draft"`
-	DeleteConversationDraft 		   *sqlx.Stmt `query:"delete-conversation-draft"`
+	UpsertConversationDraft *sqlx.Stmt `query:"upsert-conversation-draft"`
+	GetConversationDraft    *sqlx.Stmt `query:"get-conversation-draft"`
+	DeleteConversationDraft *sqlx.Stmt `query:"delete-conversation-draft"`
+	DeleteStaleDrafts       *sqlx.Stmt `query:"delete-stale-drafts"`
 
 	// Message queries.
 	GetMessage                         *sqlx.Stmt `query:"get-message"`
@@ -1110,6 +1111,25 @@ func (m *Manager) DeleteConversationDraft(conversationID int, uuid string, userI
 	if _, err := m.q.DeleteConversationDraft.Exec(conversationID, uuidParam, userID); err != nil {
 		m.lo.Error("error deleting conversation draft", "conversation_id", conversationID, "uuid", uuid, "user_id", userID, "error", err)
 		return envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorDeleting", "name", "draft"), nil)
+	}
+
+	return nil
+}
+
+// DeleteStaleDrafts deletes drafts older than the specified retention period.
+func (m *Manager) DeleteStaleDrafts(ctx context.Context, retentionPeriod time.Duration) error {
+	// Format duration as PostgreSQL interval string
+	intervalStr := fmt.Sprintf("%d seconds", int(retentionPeriod.Seconds()))
+
+	res, err := m.q.DeleteStaleDrafts.ExecContext(ctx, intervalStr)
+	if err != nil {
+		m.lo.Error("error deleting stale drafts", "error", err)
+		return err
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected > 0 {
+		m.lo.Info("deleted stale drafts", "count", rowsAffected)
 	}
 
 	return nil
