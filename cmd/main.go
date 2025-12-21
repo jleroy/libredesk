@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log"
@@ -176,7 +177,7 @@ func main() {
 	var (
 		autoAssignInterval          = ko.MustDuration("autoassigner.autoassign_interval")
 		unsnoozeInterval            = ko.MustDuration("conversation.unsnooze_interval")
-		draftRetentionDuration      = ko.Duration("conversation.draft_retention_duration")
+		draftRetentionDuration      = cmp.Or(ko.Duration("conversation.draft_retention_duration"), 720*time.Hour)
 		automationWorkers           = ko.MustInt("automation.worker_count")
 		messageOutgoingQWorkers     = ko.MustDuration("message.outgoing_queue_workers")
 		messageIncomingQWorkers     = ko.MustDuration("message.incoming_queue_workers")
