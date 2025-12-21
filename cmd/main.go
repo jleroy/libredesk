@@ -219,9 +219,7 @@ func main() {
 	go sla.SendNotifications(ctx)
 	go media.DeleteUnlinkedMedia(ctx)
 	go user.MonitorAgentAvailability(ctx)
-	if draftRetentionDuration > 0 {
-		go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
-	}
+	go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
 
 	var app = &App{
 		lo:              lo,
