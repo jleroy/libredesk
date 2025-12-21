@@ -1094,6 +1094,9 @@ func (m *Manager) GetConversationDraft(conversationID int, uuid string, userID i
 	}
 
 	if err := m.q.GetConversationDraft.Get(&draft, conversationID, uuidParam, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return draft, nil
+		}
 		m.lo.Error("error fetching conversation draft", "conversation_id", conversationID, "uuid", uuid, "user_id", userID, "error", err)
 		return draft, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "draft"), nil)
 	}
