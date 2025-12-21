@@ -69,6 +69,10 @@ func handleGetConversationDraft(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
+	if draft.ID == 0 {
+		return r.SendEnvelope(nil)
+	}
+
 	return r.SendEnvelope(draft)
 }
 

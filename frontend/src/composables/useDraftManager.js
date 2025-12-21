@@ -11,6 +11,7 @@ export function useDraftManager (key) {
   const htmlContent = ref('')
   const textContent = ref('')
   const isLoadingDraft = ref(false)
+  const isDirty = ref(false)
 
   /**
    * Load draft from backend for a given key
@@ -21,6 +22,7 @@ export function useDraftManager (key) {
     const draft = await draftStore.getDraft(key)
     htmlContent.value = draft.htmlContent
     textContent.value = draft.textContent
+    isDirty.value = false
     isLoadingDraft.value = false
   }
 
@@ -30,6 +32,7 @@ export function useDraftManager (key) {
   const saveDraft = async (key) => {
     if (!key || isLoadingDraft.value) return
     await draftStore.setDraft(key, htmlContent.value, textContent.value)
+    isDirty.value = false
   }
 
   /**
@@ -41,6 +44,7 @@ export function useDraftManager (key) {
     draftStore.clearDraft(key)
     htmlContent.value = ''
     textContent.value = ''
+    isDirty.value = false
     isLoadingDraft.value = false
   }
 
@@ -55,9 +59,10 @@ export function useDraftManager (key) {
   watch(
     key,
     async (newKey, oldKey) => {
-      // Save old draft first.
-      if (newKey != oldKey && hasDraftContent()) {
+      // Save old draft first if content has changed.
+      if (newKey != oldKey && isDirty.value && hasDraftContent()) {
         draftStore.setDraft(oldKey, htmlContent.value, textContent.value)
+        isDirty.value = false
       }
 
       // Load new draft.
@@ -68,6 +73,7 @@ export function useDraftManager (key) {
         isLoadingDraft.value = true
         htmlContent.value = ''
         textContent.value = ''
+        isDirty.value = false
         isLoadingDraft.value = false
       }
     },
@@ -79,6 +85,7 @@ export function useDraftManager (key) {
     [htmlContent, textContent],
     async () => {
       if (!isLoadingDraft.value && key.value) {
+        isDirty.value = true
         await saveDraft(key.value)
       }
     },
