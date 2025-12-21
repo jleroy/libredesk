@@ -243,18 +243,17 @@ const editor = useEditor({
   }
 })
 
-// Watch htmlContent for external changes (like draft loading)
-watch(htmlContent, (newContent) => {
-  if (!isInternalUpdate.value && editor.value) {
-    const editorHTML = editor.value.getHTML()
-    
-    // Only update if content is actually different
-    if (newContent !== editorHTML) {
+watch(
+  htmlContent,
+  (newContent) => {
+    if (!isInternalUpdate.value && editor.value && newContent !== editor.value.getHTML()) {
       editor.value.commands.setContent(newContent || '', false)
       textContent.value = editor.value.getText()
+      editor.value.commands.focus()
     }
-  }
-})
+  },
+  { immediate: true }
+)
 
 // Insert content at cursor position when insertContent prop changes.
 watch(

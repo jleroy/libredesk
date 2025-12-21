@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,10 +12,10 @@ import (
 )
 
 // UpsertConversationDraft saves or updates a draft for a conversation.
-func (m *Manager) UpsertConversationDraft(conversationID, userID int, content string) (models.ConversationDraft, error) {
+func (m *Manager) UpsertConversationDraft(conversationID, userID int, content string, meta json.RawMessage) (models.ConversationDraft, error) {
 	var draft models.ConversationDraft
 
-	if err := m.q.UpsertConversationDraft.Get(&draft, conversationID, userID, content); err != nil {
+	if err := m.q.UpsertConversationDraft.Get(&draft, conversationID, userID, content, meta); err != nil {
 		m.lo.Error("error upserting conversation draft", "conversation_id", conversationID, "user_id", userID, "error", err)
 		return draft, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUpdating", "name", "draft"), nil)
 	}

@@ -14,3 +14,8 @@ export const CONVERSATION_DEFAULT_STATUSES = {
 }
 
 export const CONVERSATION_DEFAULT_STATUSES_LIST = Object.values(CONVERSATION_DEFAULT_STATUSES);
+
+export const MACRO_CONTEXT = {
+  REPLY: 'reply',
+  NEW_CONVERSATION: 'new-conversation'
+}

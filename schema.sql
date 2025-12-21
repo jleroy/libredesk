@@ -306,6 +306,7 @@ CREATE TABLE conversation_drafts (
     conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
     content TEXT NOT NULL,
+	meta JSONB DEFAULT '{}'::jsonb NOT NULL
 );
 CREATE UNIQUE INDEX index_uniq_conversation_drafts_on_conversation_id_and_user_id ON conversation_drafts (conversation_id, user_id);
 

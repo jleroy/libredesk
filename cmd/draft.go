@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
@@ -10,7 +11,8 @@ import (
 )
 
 type draftReq struct {
-	Content string `json:"content"`
+	Content string          `json:"content"`
+	Meta    json.RawMessage `json:"meta"`
 }
 
 // handleUpsertConversationDraft saves or updates a draft for a conversation.
@@ -43,7 +45,7 @@ func handleUpsertConversationDraft(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.invalid", "name", "content"), nil, envelope.InputError)
 	}
 
-	draft, err := app.conversation.UpsertConversationDraft(conv.ID, user.ID, req.Content)
+	draft, err := app.conversation.UpsertConversationDraft(conv.ID, user.ID, req.Content, req.Meta)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}

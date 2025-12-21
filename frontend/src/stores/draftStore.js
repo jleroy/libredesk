@@ -14,7 +14,8 @@ export const useDraftStore = defineStore('drafts', () => {
       return {
         htmlContent: draft.content || '',
         // We only store HTML in backend.
-        textContent: ''
+        textContent: '',
+        meta: draft.meta || {}
       }
     } catch (error) {
       return { htmlContent: '', textContent: '' }
@@ -24,14 +25,11 @@ export const useDraftStore = defineStore('drafts', () => {
   /**
    * Save draft to backend 
    */
-  const setDraft = async (uuid, htmlContent, textContent) => {
+  const setDraft = async (uuid, htmlContent, textContent, meta = {}) => {
     if (!uuid) return
 
-    if (!textContent || textContent.trim() === '') return
-    if (!htmlContent || htmlContent.trim() === '') return
-
     try {
-      await api.saveDraft(uuid, { content: htmlContent })
+      await api.saveDraft(uuid, { content: htmlContent, meta })
     } catch (error) {
       // pass
     }

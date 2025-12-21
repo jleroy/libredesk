@@ -559,10 +559,10 @@ ORDER BY m.created_at DESC
 LIMIT 1;
 
 -- name: upsert-conversation-draft
-INSERT INTO conversation_drafts (conversation_id, user_id, content, updated_at)
-VALUES ($1, $2, $3, NOW())
+INSERT INTO conversation_drafts (conversation_id, user_id, content, meta, updated_at)
+VALUES ($1, $2, $3, $4, NOW())
 ON CONFLICT (conversation_id, user_id)
-DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()
+DO UPDATE SET content = EXCLUDED.content, meta = EXCLUDED.meta, updated_at = NOW()
 RETURNING *;
 
 -- name: get-conversation-draft

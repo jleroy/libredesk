@@ -17,7 +17,7 @@ func V0_9_1(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
 			user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
 			content TEXT NOT NULL,
-			CONSTRAINT constraint_conversation_drafts_on_content CHECK (length(content) <= 10000)
+			meta JSONB DEFAULT '{}'::jsonb NOT NULL
 		);
 	`)
 	if err != nil {

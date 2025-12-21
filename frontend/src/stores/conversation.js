@@ -662,8 +662,15 @@ export const useConversationStore = defineStore('conversation', () => {
 
 
   /** Macros set for new conversation or an open conversation **/
-  async function setMacro (macro, context) {
+  function setMacro (macro, context) {
     macros.value[context] = macro
+  }
+
+  function setMacroActions (actions, context) {
+    if (!macros.value[context]) {
+      macros.value[context] = {}
+    }
+    macros.value[context].actions = actions
   }
 
   function getMacro (context) {
@@ -680,6 +687,7 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   return {
+    macros,
     conversations,
     conversation,
     messages,
@@ -721,6 +729,7 @@ export const useConversationStore = defineStore('conversation', () => {
     getMacro,
     setMacro,
     resetMacro,
+    setMacroActions,
     removeAssignee,
     getListSortField,
     getListStatus,

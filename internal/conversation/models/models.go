@@ -272,10 +272,11 @@ type Priority struct {
 
 // ConversationDraft represents a draft reply for a conversation.
 type ConversationDraft struct {
-	ID             int64     `db:"id" json:"id"`
-	ConversationID int64     `db:"conversation_id" json:"conversation_id"`
-	UserID         int64     `db:"user_id" json:"user_id"`
-	Content        string    `db:"content" json:"content"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+	ID             int64           `db:"id" json:"id"`
+	ConversationID int64           `db:"conversation_id" json:"conversation_id"`
+	UserID         int64           `db:"user_id" json:"user_id"`
+	Content        string          `db:"content" json:"content"`
+	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
+	Meta           json.RawMessage `db:"meta" json:"meta"`
 }
