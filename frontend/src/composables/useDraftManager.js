@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import { watchDebounced } from '@vueuse/core'
+import { watchDebounced, useStorage, useEventListener } from '@vueuse/core'
 import { useConversationStore } from '@/stores/conversation'
 import { MACRO_CONTEXT } from '@/constants/conversation'
 import api from '@/api'
@@ -35,6 +35,7 @@ const validateAttachments = (attachments) => {
 
 /**
  * Composable for managing draft state and persistence
+ * Saves to localStorage immediately, syncs to backend on conversation switch/send/unload
  * @param key - Reactive reference to current draft key
  * @param uploadedFiles - Optional reactive reference to uploaded files array
  */
@@ -44,8 +45,56 @@ export function useDraftManager (key, uploadedFiles = null) {
   const textContent = ref('')
   const isLoading = ref(false)
   const isDirty = ref(false)
+  const skipNextSave = ref(false)
   const loadedAttachments = ref([])
   const loadedMacroActions = ref([])
+
+  // Reactive localStorage for all drafts
+  const localDrafts = useStorage('libredesk_drafts', {})
+
+  /**
+   * Save draft to localStorage only
+   */
+  const saveDraftLocal = (draftKey) => {
+    if (!draftKey) return
+    const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
+    const draftMeta = {}
+    if (macroActions.length > 0) draftMeta.macro_actions = macroActions
+    if (uploadedFiles?.value?.length > 0) draftMeta.attachments = uploadedFiles.value
+
+    localDrafts.value[draftKey] = { content: htmlContent.value, meta: draftMeta }
+    isDirty.value = true
+  }
+
+  /**
+   * Get draft from localStorage
+   */
+  const getLocalDraft = (draftKey) => localDrafts.value[draftKey] || null
+
+  /**
+   * Remove draft from localStorage
+   */
+  const removeLocalDraft = (draftKey) => {
+    if (localDrafts.value[draftKey]) {
+      delete localDrafts.value[draftKey]
+    }
+  }
+
+  /**
+   * Sync localStorage draft to backend
+   */
+  const syncDraftToBackend = async (draftKey) => {
+    if (!draftKey || !isDirty.value) return
+    const localDraft = getLocalDraft(draftKey)
+    if (!localDraft) return
+
+    try {
+      await api.saveDraft(draftKey, localDraft)
+      isDirty.value = false
+    } catch (error) {
+      // Silent fail - will retry on next sync
+    }
+  }
 
   /**
    * Reset all draft state to initial values
@@ -60,13 +109,22 @@ export function useDraftManager (key, uploadedFiles = null) {
   }
 
   /**
-   * Load draft from backend for a given key
+   * Load draft from backend
    */
   const loadDraft = async (draftKey) => {
     if (!draftKey) return
     isLoading.value = true
     isDirty.value = false
+    skipNextSave.value = true
     try {
+      // Check if there's an unsynced localStorage draft (e.g., from page refresh)
+      const localDraft = getLocalDraft(draftKey)
+      if (localDraft) {
+        await api.saveDraft(draftKey, localDraft)
+        removeLocalDraft(draftKey)
+      }
+
+      // Load from backend (source of truth)
       const response = await api.getDraft(draftKey)
       const draft = response.data.data
       htmlContent.value = draft.content || ''
@@ -81,37 +139,17 @@ export function useDraftManager (key, uploadedFiles = null) {
   }
 
   /**
-   * Save draft to backend
-   */
-  const saveDraft = async (draftKey) => {
-    if (!draftKey || isLoading.value || !isDirty.value) return
-    try {
-      const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
-      const draftMeta = {}
-      if (macroActions.length > 0) {
-        draftMeta.macro_actions = macroActions
-      }
-      if (uploadedFiles?.value?.length > 0) {
-        draftMeta.attachments = uploadedFiles.value
-      }
-      await api.saveDraft(draftKey, { content: htmlContent.value, meta: draftMeta })
-      isDirty.value = false
-    } catch (error) {
-      // Silent fail for drafts
-    }
-  }
-
-  /**
-   * Clear draft and local state
+   * Clear draft from both localStorage and backend
    */
   const clearDraft = async (draftKey) => {
     if (!draftKey) return
+    removeLocalDraft(draftKey)
     isLoading.value = true
     try {
       await api.deleteDraft(draftKey)
       resetState()
     } catch (error) {
-      // Silent fail for drafts
+      // Silent fail
     } finally {
       isLoading.value = false
     }
@@ -124,16 +162,17 @@ export function useDraftManager (key, uploadedFiles = null) {
     return textContent.value?.trim() !== ''
   }
 
-  // Watch for key changes to save / load draft
+  // Watch for key changes - sync to backend before switching
   watch(
     key,
     async (newKey, oldKey) => {
-      // Save old draft if dirty
+      // Sync old draft to backend before switching
       if (newKey !== oldKey && isDirty.value && hasDraftContent()) {
-        await saveDraft(oldKey)
+        await syncDraftToBackend(oldKey)
+        removeLocalDraft(oldKey)
       }
 
-      // Load new draft or clear state
+      // Load new draft from backend
       if (newKey && newKey !== oldKey) {
         await loadDraft(newKey)
       } else if (!newKey && oldKey) {
@@ -143,7 +182,7 @@ export function useDraftManager (key, uploadedFiles = null) {
     { immediate: true }
   )
 
-  // Auto-save draft when content, macro, or uploaded files change (debounced)
+  // Debounced watcher - save to localStorage only
   const watchSources = [
     htmlContent,
     textContent,
@@ -155,14 +194,24 @@ export function useDraftManager (key, uploadedFiles = null) {
 
   watchDebounced(
     watchSources,
-    async () => {
+    () => {
+      if (skipNextSave.value) {
+        skipNextSave.value = false
+        return
+      }
       if (!isLoading.value && key.value) {
-        isDirty.value = true
-        await saveDraft(key.value)
+        saveDraftLocal(key.value)
       }
     },
     { debounce: 250, deep: true }
   )
+
+  // Sync to backend when page is hidden (tab switch)
+  useEventListener(document, 'visibilitychange', async () => {
+    if (document.visibilityState === 'hidden' && isDirty.value && key.value) {
+      await syncDraftToBackend(key.value)
+    }
+  })
 
   return {
     htmlContent,
