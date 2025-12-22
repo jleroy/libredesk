@@ -428,7 +428,19 @@ SELECT
     ARRAY(SELECT jsonb_array_elements_text(m.meta->'bcc')) AS bcc,
     ARRAY(SELECT jsonb_array_elements_text(m.meta->'to')) AS to,
     c.inbox_id,
-    c.subject
+    CASE
+        WHEN c.reference_number != ''
+             AND c.subject !~ ' - #\d+$'
+             AND NOT EXISTS (
+                 SELECT 1 FROM conversation_messages cm
+                 WHERE cm.conversation_id = c.id
+                 AND cm.type = 'outgoing'
+                 AND cm.status = 'sent'
+                 AND cm.private = false
+             )
+        THEN c.subject || ' - #' || c.reference_number
+        ELSE c.subject
+    END AS subject
 FROM conversation_messages m
 INNER JOIN conversations c ON c.id = m.conversation_id
 WHERE m.status = 'pending' AND m.type = 'outgoing' AND m.private = false

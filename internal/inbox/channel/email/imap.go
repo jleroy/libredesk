@@ -510,6 +510,14 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 	incomingMsg.Message.InReplyTo = inReplyTo
 	incomingMsg.Message.References = references
 
+	// Extract conversation UUID from plus-addressed recipient (e.g., inbox+conv-{uuid}@domain)
+	incomingMsg.ConversationUUIDFromReplyTo = extractConversationUUIDFromRecipient(envelope)
+	if incomingMsg.ConversationUUIDFromReplyTo != "" {
+		e.lo.Debug("extracted conversation UUID from plus-addressed recipient",
+			"conversation_uuid", incomingMsg.ConversationUUIDFromReplyTo,
+			"message_id", incomingMsg.Message.SourceID.String)
+	}
+
 	// Process attachments
 	for _, att := range envelope.Attachments {
 		incomingMsg.Message.Attachments = append(incomingMsg.Message.Attachments, attachment.Attachment{
@@ -607,4 +615,36 @@ func extractMessageIDFromHeaders(envelope *enmime.Envelope) string {
 		return strings.TrimSpace(strings.Trim(rawMessageID, "<>"))
 	}
 	return ""
+}
+
+// extractConversationUUIDFromRecipient extracts conversation UUID from plus-addressed recipient.
+// Checks Delivered-To, X-Original-To, and To headers for plus-addressing pattern.
+// e.g., support+conv-abc123-def456@company.com → abc123-def456
+func extractConversationUUIDFromRecipient(envelope *enmime.Envelope) string {
+	headers := []string{"Delivered-To", "X-Original-To", "To"}
+	for _, h := range headers {
+		addr := envelope.GetHeader(h)
+		if uuid := extractUUIDFromPlusAddress(addr); uuid != "" {
+			return uuid
+		}
+	}
+	return ""
+}
+
+// extractUUIDFromPlusAddress extracts UUID from plus-addressed email.
+// e.g., support+conv-abc123-def456@company.com → abc123-def456
+func extractUUIDFromPlusAddress(email string) string {
+	// Pattern: localpart+conv-{uuid}@domain
+	// UUID format: lowercase hex with dashes (e.g., abc123-def456-789...)
+	idx := strings.Index(email, "+conv-")
+	if idx == -1 {
+		return ""
+	}
+	// Extract from after "+conv-" to before "@"
+	start := idx + 6 // len("+conv-")
+	atIdx := strings.Index(email[start:], "@")
+	if atIdx == -1 {
+		return ""
+	}
+	return email[start : start+atIdx]
 }

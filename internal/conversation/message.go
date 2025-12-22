@@ -650,22 +650,45 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 
 	var isNewConversation bool
 
-	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").
-	if refNum := stringutil.ExtractReferenceNumber(in.Message.Subject); refNum != "" {
-		conversation, err := m.GetConversation(0, "", refNum)
-		if err != nil {
-			envErr, ok := err.(envelope.Error)
-			if !ok || envErr.ErrorType != envelope.NotFoundError {
-				return fmt.Errorf("fetching conversation: %w", err)
+	// Try to match by plus-addressed Reply-To (e.g., inbox+conv-{uuid}@domain)
+	if in.ConversationUUIDFromReplyTo != "" {
+		conversation, err := m.GetConversation(0, in.ConversationUUIDFromReplyTo, "")
+		if err == nil && conversation.ID > 0 {
+			// Verify sender email matches conversation contact
+			if strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+				in.Message.ConversationID = conversation.ID
+				in.Message.ConversationUUID = conversation.UUID
+				m.lo.Debug("matched conversation by plus-addressed Reply-To",
+					"conversation_uuid", conversation.UUID,
+					"contact_email", in.Contact.Email.String)
+			} else {
+				m.lo.Debug("plus-address UUID found but contact email mismatch, ignoring",
+					"conversation_uuid", in.ConversationUUIDFromReplyTo,
+					"conversation_contact", conversation.Contact.Email.String,
+					"message_contact", in.Contact.Email.String)
 			}
 		}
-		if conversation.Contact.Email.String != "" && strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-			// Conversation found and contact email matches, use this conversation.
-			in.Message.ConversationID = conversation.ID
-			in.Message.ConversationUUID = conversation.UUID
-			m.lo.Debug("matched conversation by reference number in subject", "reference_number", refNum, "contact_email", in.Contact.Email.String)
-		} else {
-			m.lo.Debug("reference number found in subject but contact email did not match, skipping conversation match", "reference_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "message_contact_email", in.Contact.Email.String)
+	}
+
+	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").
+	// Skip if already matched by plus-addressing above.
+	if in.Message.ConversationID == 0 {
+		if refNum := stringutil.ExtractReferenceNumber(in.Message.Subject); refNum != "" {
+			conversation, err := m.GetConversation(0, "", refNum)
+			if err != nil {
+				envErr, ok := err.(envelope.Error)
+				if !ok || envErr.ErrorType != envelope.NotFoundError {
+					return fmt.Errorf("fetching conversation: %w", err)
+				}
+			}
+			if conversation.Contact.Email.String != "" && strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+				// Conversation found and contact email matches, use this conversation.
+				in.Message.ConversationID = conversation.ID
+				in.Message.ConversationUUID = conversation.UUID
+				m.lo.Debug("matched conversation by reference number in subject", "reference_number", refNum, "contact_email", in.Contact.Email.String)
+			} else {
+				m.lo.Debug("reference number found in subject but contact email did not match, skipping conversation match", "reference_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "message_contact_email", in.Contact.Email.String)
+			}
 		}
 	}
 

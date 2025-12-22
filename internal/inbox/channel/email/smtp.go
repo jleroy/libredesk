@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/smtp"
 	"net/textproto"
+	"strings"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
@@ -179,6 +180,14 @@ func (e *Email) Send(m models.Message) error {
 	}
 	email.Headers.Set(headerLibredeskLoopPrevention, emailAddress)
 
+	// Set Reply-To with plus-addressing for conversation matching
+	// e.g., support@company.com → support+conv-{uuid}@company.com
+	if m.ConversationUUID != "" {
+		replyToAddr := buildPlusAddress(emailAddress, m.ConversationUUID)
+		email.Headers.Set("Reply-To", replyToAddr)
+		e.lo.Debug("Reply-To header set with plus-addressing", "reply_to", replyToAddr)
+	}
+
 	// Attach SMTP level headers
 	for key, value := range e.headers {
 		email.Headers.Set(key, value)
@@ -227,4 +236,14 @@ func (e *Email) Send(m models.Message) error {
 		}
 	}
 	return server.Send(email)
+}
+
+// buildPlusAddress creates a plus-addressed email for conversation matching.
+// e.g., support@company.com + uuid → support+conv-{uuid}@company.com
+func buildPlusAddress(email, conversationUUID string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return email // fallback to original if invalid format
+	}
+	return fmt.Sprintf("%s+conv-%s@%s", parts[0], conversationUUID, parts[1])
 }

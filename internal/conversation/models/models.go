@@ -251,10 +251,11 @@ func (m *Message) HasCSAT() bool {
 
 // IncomingMessage links a message with the contact information and inbox id.
 type IncomingMessage struct {
-	ConversationUUID string
-	Message          Message
-	Contact          umodels.User
-	InboxID          int
+	ConversationUUID            string
+	ConversationUUIDFromReplyTo string // UUID extracted from plus-addressed recipient (e.g., inbox+conv-{uuid}@domain)
+	Message                     Message
+	Contact                     umodels.User
+	InboxID                     int
 }
 
 type Status struct {
