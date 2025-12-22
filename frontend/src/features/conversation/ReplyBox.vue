@@ -167,9 +167,9 @@ const {
   htmlContent,
   textContent,
   isLoading: isDraftLoading,
-  meta: draftMeta,
   clearDraft,
-  loadedAttachments
+  loadedAttachments,
+  loadedMacroActions
 } = useDraftManager(currentDraftKey, mediaFiles)
 
 // Rest of existing state
@@ -200,7 +200,6 @@ const fetchAiPrompts = async () => {
   }
 }
 
-// Call fetchAiPrompts immediately when component is set up
 fetchAiPrompts()
 
 /**
@@ -351,16 +350,13 @@ watch(
 )
 
 /**
- * Watch changes in draft meta which has macro actions and update conversation store.
+ * Watch loaded macro actions from draft and update conversation store.
  */
 watch(
-  () => draftMeta,
-  (newMeta) => {
-    if (newMeta.value?.macro_actions) {
-      conversationStore.setMacroActions(
-        [...toRaw(newMeta.value.macro_actions)],
-        MACRO_CONTEXT.REPLY
-      )
+  loadedMacroActions,
+  (actions) => {
+    if (actions.length > 0) {
+      conversationStore.setMacroActions([...toRaw(actions)], MACRO_CONTEXT.REPLY)
     }
   },
   { deep: true }
@@ -371,9 +367,9 @@ watch(
  */
 watch(
   loadedAttachments,
-  (newAttachments) => {
-    if (newAttachments && newAttachments.length > 0) {
-      setMediaFiles([...newAttachments])
+  (attachments) => {
+    if (attachments.length > 0) {
+      setMediaFiles([...attachments])
     }
   },
   { deep: true }

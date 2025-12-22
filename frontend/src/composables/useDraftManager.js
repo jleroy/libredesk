@@ -1,8 +1,37 @@
 import { ref, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
-import { useDraftStore } from '@/stores/draftStore'
 import { useConversationStore } from '@/stores/conversation'
 import { MACRO_CONTEXT } from '@/constants/conversation'
+import api from '@/api'
+
+/**
+ * Validate macro actions have required structure
+ */
+const validateMacroActions = (actions) => {
+  if (!Array.isArray(actions)) return []
+  return actions.filter(action =>
+    action &&
+    'type' in action &&
+    'value' in action &&
+    Array.isArray(action.value) &&
+    'display_value' in action &&
+    Array.isArray(action.display_value)
+  )
+}
+
+/**
+ * Validate attachments have required structure
+ */
+const validateAttachments = (attachments) => {
+  if (!Array.isArray(attachments)) return []
+  return attachments.filter(attachment =>
+    attachment &&
+    'id' in attachment &&
+    'size' in attachment &&
+    'uuid' in attachment &&
+    'filename' in attachment
+  )
+}
 
 /**
  * Composable for managing draft state and persistence
@@ -10,14 +39,13 @@ import { MACRO_CONTEXT } from '@/constants/conversation'
  * @param uploadedFiles - Optional reactive reference to uploaded files array
  */
 export function useDraftManager (key, uploadedFiles = null) {
-  const draftStore = useDraftStore()
   const conversationStore = useConversationStore()
   const htmlContent = ref('')
   const textContent = ref('')
-  const meta = ref({})
   const isLoading = ref(false)
   const isDirty = ref(false)
   const loadedAttachments = ref([])
+  const loadedMacroActions = ref([])
 
   /**
    * Reset all draft state to initial values
@@ -25,26 +53,26 @@ export function useDraftManager (key, uploadedFiles = null) {
   const resetState = () => {
     htmlContent.value = ''
     textContent.value = ''
-    meta.value = {}
     isLoading.value = false
     isDirty.value = false
     loadedAttachments.value = []
+    loadedMacroActions.value = []
   }
 
   /**
    * Load draft from backend for a given key
    */
-  const loadDraft = async (key) => {
-    if (!key) return
+  const loadDraft = async (draftKey) => {
+    if (!draftKey) return
     isLoading.value = true
     isDirty.value = false
     try {
-      const draft = await draftStore.getDraft(key)
-      console.log("Loaded draft:", draft)
-      htmlContent.value = draft.htmlContent
-      textContent.value = draft.textContent
-      meta.value = draft.meta || {}
-      loadedAttachments.value = draft.meta?.attachments || []
+      const response = await api.getDraft(draftKey)
+      const draft = response.data.data
+      htmlContent.value = draft.content || ''
+      textContent.value = ''
+      loadedAttachments.value = validateAttachments(draft.meta?.attachments)
+      loadedMacroActions.value = validateMacroActions(draft.meta?.macro_actions)
     } catch (error) {
       resetState()
     } finally {
@@ -53,80 +81,63 @@ export function useDraftManager (key, uploadedFiles = null) {
   }
 
   /**
-   * Save draft to store
+   * Save draft to backend
    */
-  const saveDraft = async (key) => {
-    if (!key || isLoading.value) return
-    if (!isDirty.value) return
+  const saveDraft = async (draftKey) => {
+    if (!draftKey || isLoading.value || !isDirty.value) return
     try {
-      const macroActions = getCurrentMacroActions()
-      let meta = {}
+      const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
+      const draftMeta = {}
       if (macroActions.length > 0) {
-        meta.macro_actions = macroActions
+        draftMeta.macro_actions = macroActions
       }
-      if (uploadedFiles && uploadedFiles.value && uploadedFiles.value.length > 0) {
-        meta.attachments = uploadedFiles.value
+      if (uploadedFiles?.value?.length > 0) {
+        draftMeta.attachments = uploadedFiles.value
       }
-      await draftStore.setDraft(key, htmlContent.value, textContent.value, meta)
+      await api.saveDraft(draftKey, { content: htmlContent.value, meta: draftMeta })
       isDirty.value = false
     } catch (error) {
-      // pass
+      // Silent fail for drafts
     }
   }
 
   /**
    * Clear draft and local state
    */
-  const clearDraft = async (key) => {
-    if (!key) return
+  const clearDraft = async (draftKey) => {
+    if (!draftKey) return
     isLoading.value = true
     try {
-      await draftStore.clearDraft(key)
+      await api.deleteDraft(draftKey)
       resetState()
     } catch (error) {
-      // pass
+      // Silent fail for drafts
     } finally {
       isLoading.value = false
     }
   }
 
   /**
-   * Returns current set macro ID from draft meta
-   */
-  const getCurrentMacroActions = () => {
-    const macro = conversationStore.getMacro(MACRO_CONTEXT.REPLY)
-    return macro ? macro.actions : []
-  }
-
-  /**
    * Check if draft has content
    */
   const hasDraftContent = () => {
-    return textContent.value?.trim() !== ""
+    return textContent.value?.trim() !== ''
   }
 
-  // Watch for key changes to save / load draft.
+  // Watch for key changes to save / load draft
   watch(
     key,
     async (newKey, oldKey) => {
-      // Save old draft first if content has changed.
-      if (newKey != oldKey && isDirty.value && hasDraftContent()) {
-        try {
-          await saveDraft(oldKey)
-          isDirty.value = false
-        } catch (error) {
-          // pass
-        }
+      // Save old draft if dirty
+      if (newKey !== oldKey && isDirty.value && hasDraftContent()) {
+        await saveDraft(oldKey)
       }
 
-      // Load new draft.
+      // Load new draft or clear state
       if (newKey && newKey !== oldKey) {
         await loadDraft(newKey)
       } else if (!newKey && oldKey) {
-        // Clear state.
-        isLoading.value = true
         resetState()
-        isLoading.value = false
       }
     },
     { immediate: true }
@@ -154,14 +165,11 @@ export function useDraftManager (key, uploadedFiles = null) {
   )
 
   return {
-    meta,
     htmlContent,
     textContent,
     isLoading,
-    loadDraft,
-    saveDraft,
     clearDraft,
-    hasDraftContent,
-    loadedAttachments
+    loadedAttachments,
+    loadedMacroActions
   }
 }
