@@ -90,6 +90,7 @@
         :aiPrompts="aiPrompts"
         :insertContent="insertContent"
         :autoFocus="true"
+        :disabled="isDraftLoading"
         @aiPromptSelected="handleAiPromptSelected"
         @send="handleSend"
       />

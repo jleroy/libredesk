@@ -47,7 +47,7 @@ func handleUpsertConversationDraft(r *fastglue.Request) error {
 	}
 
 	// Validate content is not empty
-	if strings.TrimSpace(req.Content) == "" {
+	if strings.TrimSpace(req.Content) == "" && (len(req.Meta) == 0 || string(req.Meta) == "{}") {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.invalid", "name", "content"), nil, envelope.InputError)
 	}
 

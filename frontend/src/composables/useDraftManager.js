@@ -2,6 +2,7 @@ import { ref, watch } from 'vue'
 import { watchDebounced, useStorage, useEventListener } from '@vueuse/core'
 import { useConversationStore } from '@/stores/conversation'
 import { MACRO_CONTEXT } from '@/constants/conversation'
+import { getTextFromHTML } from '@/utils/strings'
 import api from '@/api'
 
 /**
@@ -29,13 +30,26 @@ const validateAttachments = (attachments) => {
     'id' in attachment &&
     'size' in attachment &&
     'uuid' in attachment &&
-    'filename' in attachment
+    'filename' in attachment &&
+    'content_type' in attachment
   )
+}
+
+/**
+ * Check if draft has no meaningful content
+ */
+const isDraftEmpty = (draft) => {
+  if (!draft) return true
+  const textContent = getTextFromHTML(draft.content || '')
+  const hasAttachments = draft.meta?.attachments?.length > 0
+  const hasMacroActions = draft.meta?.macro_actions?.length > 0
+  return textContent.length === 0 && !hasAttachments && !hasMacroActions
 }
 
 /**
  * Composable for managing draft state and persistence
  * Saves to localStorage immediately, syncs to backend on conversation switch/send/unload
+ * 
  * @param key - Reactive reference to current draft key
  * @param uploadedFiles - Optional reactive reference to uploaded files array
  */
@@ -43,6 +57,7 @@ export function useDraftManager (key, uploadedFiles = null) {
   const conversationStore = useConversationStore()
   const htmlContent = ref('')
   const textContent = ref('')
+  const draftMeta = ref({})
   const isLoading = ref(false)
   const isDirty = ref(false)
   const skipNextSave = ref(false)
@@ -58,11 +73,29 @@ export function useDraftManager (key, uploadedFiles = null) {
   const saveDraftLocal = (draftKey) => {
     if (!draftKey) return
     const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
-    const draftMeta = {}
-    if (macroActions.length > 0) draftMeta.macro_actions = macroActions
-    if (uploadedFiles?.value?.length > 0) draftMeta.attachments = uploadedFiles.value
+    if (macroActions.length > 0) {
+      draftMeta.value.macro_actions = macroActions
+    } else {
+      delete draftMeta.value.macro_actions
+    }
 
-    localDrafts.value[draftKey] = { content: htmlContent.value, meta: draftMeta }
+    // Set only required attachment fields
+    if (uploadedFiles?.value?.length > 0) {
+      draftMeta.value.attachments = uploadedFiles.value.map(file => ({
+        id: file.id,
+        size: file.size,
+        uuid: file.uuid,
+        filename: file.filename,
+        content_type: file.content_type
+      }))
+    } else {
+      delete draftMeta.value.attachments
+    }
+
+    // Save to localStorage
+    localDrafts.value[draftKey] = { content: htmlContent.value, meta: draftMeta.value }
+
+    // Mark as dirty for backend sync
     isDirty.value = true
   }
 
@@ -89,7 +122,15 @@ export function useDraftManager (key, uploadedFiles = null) {
     if (!localDraft) return
 
     try {
-      await api.saveDraft(draftKey, localDraft)
+      if (isDraftEmpty(localDraft)) {
+        // Empty draft - delete instead of save
+        await api.deleteDraft(draftKey)
+        conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: false })
+      } else {
+        // Has content - save draft
+        await api.saveDraft(draftKey, localDraft)
+        conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: true })
+      }
       isDirty.value = false
     } catch (error) {
       // Silent fail - will retry on next sync
@@ -119,18 +160,29 @@ export function useDraftManager (key, uploadedFiles = null) {
     try {
       // Check if there's an unsynced localStorage draft (e.g., from page refresh)
       const localDraft = getLocalDraft(draftKey)
-      if (localDraft) {
+      if (localDraft && !isDraftEmpty(localDraft)) {
         await api.saveDraft(draftKey, localDraft)
-        removeLocalDraft(draftKey)
       }
+      removeLocalDraft(draftKey)
 
       // Load from backend (source of truth)
       const response = await api.getDraft(draftKey)
       const draft = response.data.data
-      htmlContent.value = draft.content || ''
+      const content = draft.content || ''
+      const meta = draft.meta || {}
+
+      // Check if draft is empty - if so, delete it and return
+      if (isDraftEmpty({ content, meta })) {
+        await api.deleteDraft(draftKey)
+        conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: false })
+        resetState()
+        return
+      }
+
+      htmlContent.value = content
       textContent.value = ''
-      loadedAttachments.value = validateAttachments(draft.meta?.attachments)
-      loadedMacroActions.value = validateMacroActions(draft.meta?.macro_actions)
+      loadedAttachments.value = validateAttachments(meta.attachments)
+      loadedMacroActions.value = validateMacroActions(meta.macro_actions)
     } catch (error) {
       resetState()
     } finally {
@@ -144,30 +196,22 @@ export function useDraftManager (key, uploadedFiles = null) {
   const clearDraft = async (draftKey) => {
     if (!draftKey) return
     removeLocalDraft(draftKey)
-    isLoading.value = true
     try {
       await api.deleteDraft(draftKey)
+      conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: false })
       resetState()
     } catch (error) {
       // Silent fail
-    } finally {
-      isLoading.value = false
     }
   }
 
-  /**
-   * Check if draft has content
-   */
-  const hasDraftContent = () => {
-    return textContent.value?.trim() !== ''
-  }
 
   // Watch for key changes - sync to backend before switching
   watch(
     key,
     async (newKey, oldKey) => {
       // Sync old draft to backend before switching
-      if (newKey !== oldKey && isDirty.value && hasDraftContent()) {
+      if (newKey !== oldKey && isDirty.value) {
         await syncDraftToBackend(oldKey)
         removeLocalDraft(oldKey)
       }
@@ -182,7 +226,7 @@ export function useDraftManager (key, uploadedFiles = null) {
     { immediate: true }
   )
 
-  // Debounced watcher - save to localStorage only
+  // Watch changes in draft content/meta to save locally
   const watchSources = [
     htmlContent,
     textContent,
@@ -203,7 +247,7 @@ export function useDraftManager (key, uploadedFiles = null) {
         saveDraftLocal(key.value)
       }
     },
-    { debounce: 250, deep: true }
+    { debounce: 100, deep: true }
   )
 
   // Sync to backend when page is hidden (tab switch)

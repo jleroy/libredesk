@@ -81,6 +81,7 @@ type ConversationListItem struct {
 	AppliedSLAID       null.Int                `db:"applied_sla_id" json:"applied_sla_id"`
 	NextResponseDueAt  null.Time               `db:"next_response_deadline_at" json:"next_response_deadline_at"`
 	NextResponseMetAt  null.Time               `db:"next_response_met_at" json:"next_response_met_at"`
+	HasDraft           bool                    `db:"has_draft" json:"has_draft"`
 }
 
 // ConversationListContact represents contact info in conversation list views

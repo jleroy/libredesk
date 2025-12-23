@@ -23,9 +23,12 @@
       <div class="flex-1 min-w-0 space-y-2">
         <!-- Contact name and last message time -->
         <div class="flex items-center justify-between gap-2">
-          <h3 class="text-sm font-semibold truncate">
-            {{ contactFullName }}
-          </h3>
+          <div class="flex items-center gap-1.5 min-w-0">
+            <h3 class="text-sm font-semibold truncate">
+              {{ contactFullName }}
+            </h3>
+            <Pencil v-if="conversation.has_draft" class="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          </div>
           <span class="text-xs text-gray-400 whitespace-nowrap" v-if="conversation.last_message_at">
             {{ relativeLastMessageTime }}
           </span>
@@ -99,7 +102,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getRelativeTime } from '@/utils/datetime'
-import { Mail, Reply } from 'lucide-vue-next'
+import { Mail, Reply, Pencil } from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import SlaBadge from '@/features/sla/SlaBadge.vue'
 

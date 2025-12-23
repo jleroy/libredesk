@@ -73,7 +73,8 @@ SELECT
     as_latest.resolution_deadline_at,
     as_latest.id as applied_sla_id,
     nxt_resp_event.deadline_at AS next_response_deadline_at,
-    nxt_resp_event.met_at as next_response_met_at
+    nxt_resp_event.met_at as next_response_met_at,
+    (cd.id IS NOT NULL) as has_draft
     FROM conversations
     JOIN users ON contact_id = users.id
     JOIN inboxes ON inbox_id = inboxes.id  
@@ -93,6 +94,9 @@ SELECT
         ORDER BY se.created_at DESC
         LIMIT 1
     ) nxt_resp_event ON true
+    LEFT JOIN conversation_drafts cd
+        ON cd.conversation_id = conversations.id
+        AND cd.user_id = $1
 WHERE 1=1 %s
 
 -- name: get-conversation
