@@ -337,12 +337,12 @@ const processSend = async () => {
  */
 watch(
   () => conversationStore.getMacro('reply').id,
-  (newId, oldId) => {
+  (newId) => {
     // No macro set.
     if (!newId) return
 
-    // If macro ID has changed and there is message content, update editor content.
-    if (newId !== oldId && conversationStore.getMacro('reply').message_content) {
+    // If macro has message content, set it in the editor.
+    if (conversationStore.getMacro('reply').message_content) {
       htmlContent.value = conversationStore.getMacro('reply').message_content
     }
   },
