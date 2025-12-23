@@ -57,7 +57,6 @@ export function useDraftManager (key, uploadedFiles = null) {
   const conversationStore = useConversationStore()
   const htmlContent = ref('')
   const textContent = ref('')
-  const draftMeta = ref({})
   const isLoading = ref(false)
   const isDirty = ref(false)
   const skipNextSave = ref(false)
@@ -73,15 +72,16 @@ export function useDraftManager (key, uploadedFiles = null) {
   const saveDraftLocal = (draftKey) => {
     if (!draftKey) return
     const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
+    const draftMeta = {}
     if (macroActions.length > 0) {
-      draftMeta.value.macro_actions = macroActions
+      draftMeta.macro_actions = macroActions
     } else {
-      delete draftMeta.value.macro_actions
+      delete draftMeta.macro_actions
     }
 
     // Set only required attachment fields
     if (uploadedFiles?.value?.length > 0) {
-      draftMeta.value.attachments = uploadedFiles.value.map(file => ({
+      draftMeta.attachments = uploadedFiles.value.map(file => ({
         id: file.id,
         size: file.size,
         uuid: file.uuid,
@@ -89,11 +89,11 @@ export function useDraftManager (key, uploadedFiles = null) {
         content_type: file.content_type
       }))
     } else {
-      delete draftMeta.value.attachments
+      delete draftMeta.attachments
     }
 
     // Save to localStorage
-    localDrafts.value[draftKey] = { content: htmlContent.value, meta: draftMeta.value }
+    localDrafts.value[draftKey] = { content: htmlContent.value, meta: draftMeta }
 
     // Mark as dirty for backend sync
     isDirty.value = true
