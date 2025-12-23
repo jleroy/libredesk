@@ -371,6 +371,16 @@ const updateInbox = (id, data) =>
     }
   })
 const deleteInbox = (id) => http.delete(`/api/v1/inboxes/${id}`)
+const saveDraft = (uuid, data) =>
+  http.post(`/api/v1/conversations/${uuid}/draft`, data, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+
+const getDraft = (uuid) => http.get(`/api/v1/conversations/${uuid}/draft`)
+
+const deleteDraft = (uuid) => http.delete(`/api/v1/conversations/${uuid}/draft`)
 const getCurrentUserViews = () => http.get('/api/v1/views/me')
 const createView = (data) =>
   http.post('/api/v1/views/me', data, {
@@ -536,6 +546,9 @@ export default {
   getUsersCompact,
   getEmailNotificationSettings,
   updateEmailNotificationSettings,
+  saveDraft,
+  getDraft,
+  deleteDraft,
   getCurrentUserViews,
   createView,
   updateView,

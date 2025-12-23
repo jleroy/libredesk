@@ -226,6 +226,12 @@ type queries struct {
 	RemoveConversationAssignee         *sqlx.Stmt `query:"remove-conversation-assignee"`
 	GetLatestMessage                   *sqlx.Stmt `query:"get-latest-message"`
 
+	// Draft queries.
+	UpsertConversationDraft *sqlx.Stmt `query:"upsert-conversation-draft"`
+	GetConversationDraft    *sqlx.Stmt `query:"get-conversation-draft"`
+	DeleteConversationDraft *sqlx.Stmt `query:"delete-conversation-draft"`
+	DeleteStaleDrafts       *sqlx.Stmt `query:"delete-stale-drafts"`
+
 	// Message queries.
 	GetMessage                         *sqlx.Stmt `query:"get-message"`
 	GetMessages                        string     `query:"get-messages"`

@@ -121,6 +121,8 @@ timeout = "15s"
 [conversation]
 # How often to check for conversations to unsnooze
 unsnooze_interval = "5m"
+# How long to keep drafts before deleting them from the database. (e.g. "720h", "48h")
+draft_retention_period = "720h"
 
 [sla]
 # How often to evaluate SLA compliance for conversations

@@ -212,7 +212,7 @@ import { useMagicKeys } from '@vueuse/core'
 import { CalendarIcon } from 'lucide-vue-next'
 import { useConversationStore } from '@/stores/conversation'
 import { useMacroStore } from '@/stores/macro'
-import { CONVERSATION_DEFAULT_STATUSES } from '@/constants/conversation'
+import { CONVERSATION_DEFAULT_STATUSES, MACRO_CONTEXT } from '@/constants/conversation'
 import { Users, User, Pin, Rocket, Tags, Zap } from 'lucide-vue-next'
 import {
   CommandDialog,
@@ -269,9 +269,9 @@ function handleApplyMacro(macro) {
   // Create a deep copy.
   const plainMacro = JSON.parse(JSON.stringify(macro))
   if (nestedCommand.value === 'apply-macro-to-new-conversation') {
-    conversationStore.setMacro(plainMacro, 'new-conversation')
+    conversationStore.setMacro(plainMacro, MACRO_CONTEXT.NEW_CONVERSATION)
   } else {
-    conversationStore.setMacro(plainMacro, 'reply')
+    conversationStore.setMacro(plainMacro, MACRO_CONTEXT.REPLY)
   }
   toggleOpen()
 }

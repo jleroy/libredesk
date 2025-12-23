@@ -1,5 +1,5 @@
 <template>
-  <div class="editor-wrapper h-full overflow-y-auto">
+  <div class="editor-wrapper h-full overflow-y-auto" :class="{ 'pointer-events-none': disabled }">
     <BubbleMenu
       :editor="editor"
       :tippy-options="{ duration: 100 }"
@@ -76,9 +76,20 @@
       <DialogContent class="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {{ editor?.isActive('link')
-              ? $t('globals.messages.edit', { name: $t('globals.terms.link', 1).toLowerCase() + ' ' + $t('globals.terms.url', 1).toLowerCase() })
-              : $t('globals.messages.add', { name: $t('globals.terms.link', 1).toLowerCase() + ' ' + $t('globals.terms.url', 1).toLowerCase() })
+            {{
+              editor?.isActive('link')
+                ? $t('globals.messages.edit', {
+                    name:
+                      $t('globals.terms.link', 1).toLowerCase() +
+                      ' ' +
+                      $t('globals.terms.url', 1).toLowerCase()
+                  })
+                : $t('globals.messages.add', {
+                    name:
+                      $t('globals.terms.link', 1).toLowerCase() +
+                      ' ' +
+                      $t('globals.terms.url', 1).toLowerCase()
+                  })
             }}
           </DialogTitle>
           <DialogDescription></DialogDescription>
@@ -93,7 +104,12 @@
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" @click="unsetLink" v-if="editor?.isActive('link')">
+            <Button
+              type="button"
+              variant="outline"
+              @click="unsetLink"
+              v-if="editor?.isActive('link')"
+            >
               {{ $t('globals.messages.remove', { name: $t('globals.terms.link', 1) }) }}
             </Button>
             <Button type="submit">
@@ -116,7 +132,7 @@ import {
   Bot,
   List,
   ListOrdered,
-  Link as LinkIcon,
+  Link as LinkIcon
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -158,6 +174,10 @@ const props = defineProps({
   aiPrompts: {
     type: Array,
     default: () => []
+  },
+  disabled: {
+    type: Boolean,
+    default: false
   }
 })
 

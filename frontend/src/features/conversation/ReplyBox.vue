@@ -51,6 +51,7 @@
           :isFullscreen="true"
           :aiPrompts="aiPrompts"
           :isSending="isSending"
+          :isDraftLoading="isDraftLoading"
           :uploadingFiles="uploadingFiles"
           :uploadedFiles="mediaFiles"
           v-model:htmlContent="htmlContent"
@@ -81,6 +82,7 @@
         :isFullscreen="false"
         :aiPrompts="aiPrompts"
         :isSending="isSending"
+        :isDraftLoading="isDraftLoading"
         :uploadingFiles="uploadingFiles"
         :uploadedFiles="mediaFiles"
         v-model:htmlContent="htmlContent"
@@ -102,10 +104,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, watch, computed, toRaw } from 'vue'
 import { handleHTTPError } from '@/utils/http'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
+import { MACRO_CONTEXT } from '@/constants/conversation'
 import { useUserStore } from '@/stores/user'
+import { useDraftManager } from '@/composables/useDraftManager'
 import api from '@/api'
 import { useI18n } from 'vue-i18n'
 import { useConversationStore } from '@/stores/conversation'
@@ -146,10 +150,27 @@ const emitter = useEmitter()
 const userStore = useUserStore()
 
 // Setup file upload composable
-const { uploadingFiles, handleFileUpload, handleFileDelete, mediaFiles, clearMediaFiles } =
-  useFileUpload({
-    linkedModel: 'messages'
-  })
+const {
+  uploadingFiles,
+  handleFileUpload,
+  handleFileDelete,
+  mediaFiles,
+  clearMediaFiles,
+  setMediaFiles
+} = useFileUpload({
+  linkedModel: 'messages'
+})
+
+// Setup draft management composable
+const currentDraftKey = computed(() => conversationStore.current?.uuid || null)
+const {
+  htmlContent,
+  textContent,
+  isLoading: isDraftLoading,
+  clearDraft,
+  loadedAttachments,
+  loadedMacroActions
+} = useDraftManager(currentDraftKey, mediaFiles)
 
 // Rest of existing state
 const openAIKeyPrompt = ref(false)
@@ -163,12 +184,6 @@ const bcc = ref('')
 const showBcc = ref(false)
 const emailErrors = ref([])
 const aiPrompts = ref([])
-const htmlContent = ref('')
-const textContent = ref('')
-
-onMounted(async () => {
-  await fetchAiPrompts()
-})
 
 /**
  * Fetches AI prompts from the server.
@@ -184,6 +199,8 @@ const fetchAiPrompts = async () => {
     })
   }
 }
+
+fetchAiPrompts()
 
 /**
  * Handles the AI prompt selection event.
@@ -278,8 +295,8 @@ const processSend = async () => {
     }
 
     // Apply macro actions if any, for macro errors just show toast and clear the editor.
-    const macroID = conversationStore.getMacro('reply')?.id
-    const macroActions = conversationStore.getMacro('reply')?.actions || []
+    const macroID = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.id
+    const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
     if (macroID > 0 && macroActions.length > 0) {
       try {
         await api.applyMacro(conversationStore.current.uuid, macroID, macroActions)
@@ -299,8 +316,11 @@ const processSend = async () => {
   } finally {
     // If API has NOT errored clear state.
     if (hasMessageSendingErrored === false) {
-      // Clear macro.
-      conversationStore.resetMacro('reply')
+      // Clear draft from backend.
+      clearDraft(currentDraftKey.value)
+
+      // Clear macro for this conversation reply.
+      conversationStore.resetMacro(MACRO_CONTEXT.REPLY)
 
       // Clear media files.
       clearMediaFiles()
@@ -317,8 +337,40 @@ const processSend = async () => {
  */
 watch(
   () => conversationStore.getMacro('reply').id,
-  () => {
-    htmlContent.value = conversationStore.getMacro('reply').message_content
+  (newId) => {
+    // No macro set.
+    if (!newId) return
+
+    // If macro has message content, set it in the editor.
+    if (conversationStore.getMacro('reply').message_content) {
+      htmlContent.value = conversationStore.getMacro('reply').message_content
+    }
+  },
+  { deep: true }
+)
+
+/**
+ * Watch loaded macro actions from draft and update conversation store.
+ */
+watch(
+  loadedMacroActions,
+  (actions) => {
+    if (actions.length > 0) {
+      conversationStore.setMacroActions([...toRaw(actions)], MACRO_CONTEXT.REPLY)
+    }
+  },
+  { deep: true }
+)
+
+/**
+ * Watch for loaded attachments from draft and restore them to mediaFiles.
+ */
+watch(
+  loadedAttachments,
+  (attachments) => {
+    if (attachments.length > 0) {
+      setMediaFiles([...attachments])
+    }
   },
   { deep: true }
 )
@@ -351,5 +403,14 @@ watch(
     }
   },
   { deep: true, immediate: true }
+)
+
+// Clear media files and reset macro when conversation changes.
+watch(
+  () => conversationStore.current?.uuid,
+  () => {
+    clearMediaFiles()
+    conversationStore.resetMacro(MACRO_CONTEXT.REPLY)
+  }
 )
 </script>

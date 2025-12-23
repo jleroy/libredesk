@@ -90,6 +90,7 @@
         :aiPrompts="aiPrompts"
         :insertContent="insertContent"
         :autoFocus="true"
+        :disabled="isDraftLoading"
         @aiPromptSelected="handleAiPromptSelected"
         @send="handleSend"
       />
@@ -97,9 +98,9 @@
 
     <!-- Macro preview -->
     <MacroActionsPreview
-      v-if="conversationStore.getMacro('reply')?.actions?.length > 0"
-      :actions="conversationStore.getMacro('reply').actions"
-      :onRemove="(action) => conversationStore.removeMacroAction(action, 'reply')"
+      v-if="conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions?.length > 0"
+      :actions="conversationStore.getMacro(MACRO_CONTEXT.REPLY).actions"
+      :onRemove="(action) => conversationStore.removeMacroAction(action, MACRO_CONTEXT.REPLY)"
       class="mt-2"
     />
 
@@ -128,6 +129,7 @@
 <script setup>
 import { ref, computed, nextTick, watch } from 'vue'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
+import { MACRO_CONTEXT } from '@/constants/conversation'
 import { Maximize2, Minimize2 } from 'lucide-vue-next'
 import Editor from '@/components/editor/TextEditor.vue'
 import { useConversationStore } from '@/stores/conversation'
@@ -173,6 +175,11 @@ const props = defineProps({
     type: Array,
     required: false,
     default: () => []
+  },
+  isDraftLoading: {
+    type: Boolean,
+    required: false,
+    default: false
   }
 })
 
@@ -211,7 +218,7 @@ const enableSend = computed(() => {
       conversationStore.getMacro('reply')?.actions?.length > 0 ||
       props.uploadedFiles.length > 0) &&
     emailErrors.value.length === 0 &&
-    !props.uploadingFiles.length
+    !props.uploadingFiles.length && !props.isDraftLoading
   )
 })
 

@@ -189,6 +189,11 @@ func handleSendMessage(r *fastglue.Request) error {
 			app.lo.Error("error fetching media", "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.media}"), nil, envelope.GeneralError)
 		}
+		if m.ModelID.Int > 0 {
+			// Attachment is already associated with another model. Skip it.
+			app.lo.Warn("attachment already associated with another model, skipping", "media_id", m.ID, "model", m.Model.String, "model_id", m.ModelID.Int)
+			continue
+		}
 		media = append(media, m)
 	}
 
