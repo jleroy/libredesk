@@ -62,6 +62,7 @@ export function useDraftManager (key, uploadedFiles = null) {
   const skipNextSave = ref(false)
   const loadedAttachments = ref([])
   const loadedMacroActions = ref([])
+  const isTransitioning = ref(false)
 
   // Reactive localStorage for all drafts
   const localDrafts = useStorage('libredesk_drafts', {})
@@ -158,7 +159,7 @@ export function useDraftManager (key, uploadedFiles = null) {
     isDirty.value = false
     skipNextSave.value = true
     try {
-      // Check if there's an unsynced localStorage draft (e.g., from page refresh)
+      // Check if there's an unsynced localStorage draft.
       const localDraft = getLocalDraft(draftKey)
       if (localDraft && !isDraftEmpty(localDraft)) {
         await api.saveDraft(draftKey, localDraft)
@@ -210,6 +211,9 @@ export function useDraftManager (key, uploadedFiles = null) {
   watch(
     key,
     async (newKey, oldKey) => {
+      // Block saves during transition to prevent race
+      isTransitioning.value = true
+
       // Sync old draft to backend before switching
       if (newKey !== oldKey && isDirty.value) {
         await syncDraftToBackend(oldKey)
@@ -222,6 +226,11 @@ export function useDraftManager (key, uploadedFiles = null) {
       } else if (!newKey && oldKey) {
         resetState()
       }
+
+      // Allow saves after debounce window passes (200ms > 100ms debounce)
+      setTimeout(() => {
+        isTransitioning.value = false
+      }, 200)
     },
     { immediate: true }
   )
@@ -243,7 +252,9 @@ export function useDraftManager (key, uploadedFiles = null) {
         skipNextSave.value = false
         return
       }
-      if (!isLoading.value && key.value) {
+
+      // Need to make sure not loading or transitioning, as during transition the `key` will change
+      if (!isLoading.value && !isTransitioning.value && key.value) {
         saveDraftLocal(key.value)
       }
     },
