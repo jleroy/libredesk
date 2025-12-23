@@ -10,6 +10,8 @@ import (
 	"github.com/zerodha/fastglue"
 )
 
+const maxMetaSize = 32 * 1024 // 32KB
+
 type draftReq struct {
 	Content string          `json:"content"`
 	Meta    json.RawMessage `json:"meta"`
@@ -38,6 +40,10 @@ func handleUpsertConversationDraft(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		app.lo.Error("error decoding draft request", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.errorParsing", "name", "{globals.terms.request}"), nil, envelope.InputError)
+	}
+
+	if len(req.Meta) > maxMetaSize {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.invalid", "name", "meta"), nil, envelope.InputError)
 	}
 
 	// Validate content is not empty
