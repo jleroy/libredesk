@@ -79,4 +79,4 @@ test:
 	@echo "→ Running Go tests..."
 	go test -count=1 ./...
 	@echo "→ Running frontend tests..."
-	cd ${FRONTEND_DIR} && npx pnpm test:run
+	cd ${FRONTEND_DIR} && pnpm install --frozen-lockfile && pnpm test:run
