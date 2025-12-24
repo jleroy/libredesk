@@ -59,12 +59,11 @@ func handleUpsertConversationDraft(r *fastglue.Request) error {
 	return r.SendEnvelope(draft)
 }
 
-// handleGetConversationDraft retrieves a draft for a conversation.
-func handleGetConversationDraft(r *fastglue.Request) error {
+// handleGetAllDrafts retrieves all drafts for the current user.
+func handleGetAllDrafts(r *fastglue.Request) error {
 	var (
 		app   = r.Context.(*App)
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
-		uuid  = r.RequestCtx.UserValue("uuid").(string)
 	)
 
 	user, err := app.user.GetAgent(auser.ID, "")
@@ -72,16 +71,12 @@ func handleGetConversationDraft(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	draft, err := app.conversation.GetConversationDraft(0, uuid, user.ID)
+	drafts, err := app.conversation.GetAllUserDrafts(user.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
-	if draft.ID == 0 {
-		return r.SendEnvelope(nil)
-	}
-
-	return r.SendEnvelope(draft)
+	return r.SendEnvelope(drafts)
 }
 
 // handleDeleteConversationDraft deletes a draft for a conversation.

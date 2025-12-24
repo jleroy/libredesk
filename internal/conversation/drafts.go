@@ -2,7 +2,6 @@ package conversation
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -23,23 +22,14 @@ func (m *Manager) UpsertConversationDraft(conversationID, userID int, content st
 	return draft, nil
 }
 
-// GetConversationDraft retrieves a draft for a conversation by ID or UUID.
-func (m *Manager) GetConversationDraft(conversationID int, uuid string, userID int) (models.ConversationDraft, error) {
-	var draft models.ConversationDraft
-	var uuidParam any
-	if uuid != "" {
-		uuidParam = uuid
+// GetAllUserDrafts retrieves all drafts for a user.
+func (m *Manager) GetAllUserDrafts(userID int) ([]models.ConversationDraft, error) {
+	var drafts = make([]models.ConversationDraft, 0)
+	if err := m.q.GetAllUserDrafts.Select(&drafts, userID); err != nil {
+		m.lo.Error("error fetching user drafts", "user_id", userID, "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "drafts"), nil)
 	}
-
-	if err := m.q.GetConversationDraft.Get(&draft, conversationID, uuidParam, userID); err != nil {
-		if err == sql.ErrNoRows {
-			return draft, nil
-		}
-		m.lo.Error("error fetching conversation draft", "conversation_id", conversationID, "uuid", uuid, "user_id", userID, "error", err)
-		return draft, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "draft"), nil)
-	}
-
-	return draft, nil
+	return drafts, nil
 }
 
 // DeleteConversationDraft deletes a draft for a conversation by ID or UUID.

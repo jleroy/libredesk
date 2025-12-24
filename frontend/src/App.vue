@@ -186,6 +186,7 @@ const initStores = async () => {
     getUserViews(),
     conversationStore.fetchStatuses(),
     conversationStore.fetchPriorities(),
+    conversationStore.fetchAllDrafts(),
     usersStore.fetchUsers(),
     teamStore.fetchTeams(),
     inboxStore.fetchInboxes(),

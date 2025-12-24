@@ -17,6 +17,7 @@ export const useConversationStore = defineStore('conversation', () => {
   const currentBCC = ref([])
   const currentCC = ref([])
   const macros = ref({})
+  const drafts = ref(new Map())
 
   // Options for select fields
   const priorityOptions = computed(() => {
@@ -686,6 +687,49 @@ export const useConversationStore = defineStore('conversation', () => {
     macros.value = { ...macros.value, [context]: {} }
   }
 
+  // Fetch all drafts for the current user
+  async function fetchAllDrafts () {
+    try {
+      const resp = await api.getAllDrafts()
+      const newDrafts = new Map()
+      if (resp.data?.data) {
+        for (const draft of resp.data.data) {
+          newDrafts.set(draft.conversation_uuid, draft)
+        }
+      }
+      drafts.value = newDrafts
+    } catch (e) {
+      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+        variant: 'destructive',
+        description: handleHTTPError(e).message
+      })
+    }
+  }
+
+  // Get draft for a specific conversation
+  function getDraft (uuid) {
+    return drafts.value.get(uuid)
+  }
+
+  // Set draft for a specific conversation
+  function setDraft (uuid, draft) {
+    drafts.value.set(uuid, draft)
+    // Trigger reactivity
+    drafts.value = new Map(drafts.value)
+  }
+
+  // Remove draft for a specific conversation
+  function removeDraft (uuid) {
+    drafts.value.delete(uuid)
+    // Trigger reactivity
+    drafts.value = new Map(drafts.value)
+  }
+
+  // Check if a conversation has a draft
+  function hasDraft (uuid) {
+    return drafts.value.has(uuid)
+  }
+
   return {
     macros,
     conversations,
@@ -737,6 +781,12 @@ export const useConversationStore = defineStore('conversation', () => {
     priorities,
     priorityOptions,
     statusOptionsNoSnooze,
-    statusOptions
+    statusOptions,
+    drafts,
+    fetchAllDrafts,
+    getDraft,
+    setDraft,
+    removeDraft,
+    hasDraft
   }
 })

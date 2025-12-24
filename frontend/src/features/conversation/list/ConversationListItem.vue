@@ -27,7 +27,7 @@
             <h3 class="text-sm font-semibold truncate">
               {{ contactFullName }}
             </h3>
-            <Pencil v-if="conversation.has_draft" class="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            <Pencil v-if="hasDraftForConversation" class="w-3 h-3 text-muted-foreground flex-shrink-0" />
           </div>
           <span class="text-xs text-gray-400 whitespace-nowrap" v-if="conversation.last_message_at">
             {{ relativeLastMessageTime }}
@@ -105,11 +105,13 @@ import { getRelativeTime } from '@/utils/datetime'
 import { Mail, Reply, Pencil } from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import SlaBadge from '@/features/sla/SlaBadge.vue'
+import { useConversationStore } from '@/stores/conversation'
 
 let timer = null
 const now = ref(new Date())
 const router = useRouter()
 const route = useRoute()
+const conversationStore = useConversationStore()
 const frdStatus = ref('')
 const rdStatus = ref('')
 const nrdStatus = ref('')
@@ -157,5 +159,9 @@ const relativeLastMessageTime = computed(() => {
   return props.conversation.last_message_at
     ? getRelativeTime(props.conversation.last_message_at, now.value)
     : ''
+})
+
+const hasDraftForConversation = computed(() => {
+  return conversationStore.hasDraft(props.conversation.uuid)
 })
 </script>

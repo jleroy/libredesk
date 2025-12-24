@@ -73,8 +73,7 @@ SELECT
     as_latest.resolution_deadline_at,
     as_latest.id as applied_sla_id,
     nxt_resp_event.deadline_at AS next_response_deadline_at,
-    nxt_resp_event.met_at as next_response_met_at,
-    (cd.id IS NOT NULL) as has_draft
+    nxt_resp_event.met_at as next_response_met_at
     FROM conversations
     JOIN users ON contact_id = users.id
     JOIN inboxes ON inbox_id = inboxes.id  
@@ -94,9 +93,6 @@ SELECT
         ORDER BY se.created_at DESC
         LIMIT 1
     ) nxt_resp_event ON true
-    LEFT JOIN conversation_drafts cd
-        ON cd.conversation_id = conversations.id
-        AND cd.user_id = $1
 WHERE 1=1 %s
 
 -- name: get-conversation
@@ -569,10 +565,12 @@ ON CONFLICT (conversation_id, user_id)
 DO UPDATE SET content = EXCLUDED.content, meta = EXCLUDED.meta, updated_at = NOW()
 RETURNING *;
 
--- name: get-conversation-draft
-SELECT cd.* FROM conversation_drafts cd
+-- name: get-all-user-drafts
+SELECT cd.id, cd.conversation_id, cd.user_id, cd.content, cd.meta, cd.created_at, cd.updated_at, c.uuid as conversation_uuid
+FROM conversation_drafts cd
 INNER JOIN conversations c ON cd.conversation_id = c.id
-WHERE (($1 > 0 AND c.id = $1) OR ($2::uuid IS NOT NULL AND c.uuid = $2::uuid)) AND cd.user_id = $3;
+WHERE cd.user_id = $1
+ORDER BY cd.updated_at DESC;
 
 -- name: delete-conversation-draft
 DELETE FROM conversation_drafts

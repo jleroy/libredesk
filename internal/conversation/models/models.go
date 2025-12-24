@@ -81,7 +81,6 @@ type ConversationListItem struct {
 	AppliedSLAID       null.Int                `db:"applied_sla_id" json:"applied_sla_id"`
 	NextResponseDueAt  null.Time               `db:"next_response_deadline_at" json:"next_response_deadline_at"`
 	NextResponseMetAt  null.Time               `db:"next_response_met_at" json:"next_response_met_at"`
-	HasDraft           bool                    `db:"has_draft" json:"has_draft"`
 }
 
 // ConversationListContact represents contact info in conversation list views
@@ -271,11 +270,12 @@ type Priority struct {
 
 // ConversationDraft represents a draft reply for a conversation.
 type ConversationDraft struct {
-	ID             int64           `db:"id" json:"id"`
-	ConversationID int64           `db:"conversation_id" json:"conversation_id"`
-	UserID         int64           `db:"user_id" json:"user_id"`
-	Content        string          `db:"content" json:"content"`
-	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
-	Meta           json.RawMessage `db:"meta" json:"meta"`
+	ID               int64           `db:"id" json:"id"`
+	ConversationID   int64           `db:"conversation_id" json:"conversation_id"`
+	ConversationUUID string          `db:"conversation_uuid" json:"conversation_uuid"`
+	UserID           int64           `db:"user_id" json:"user_id"`
+	Content          string          `db:"content" json:"content"`
+	CreatedAt        time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt        time.Time       `db:"updated_at" json:"updated_at"`
+	Meta             json.RawMessage `db:"meta" json:"meta"`
 }

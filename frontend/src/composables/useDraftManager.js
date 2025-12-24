@@ -126,11 +126,11 @@ export function useDraftManager (key, uploadedFiles = null) {
       if (isDraftEmpty(localDraft)) {
         // Empty draft - delete instead of save
         await api.deleteDraft(draftKey)
-        conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: false })
+        conversationStore.removeDraft(draftKey)
       } else {
         // Has content - save draft
         await api.saveDraft(draftKey, localDraft)
-        conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: true })
+        conversationStore.setDraft(draftKey, localDraft)
       }
       isDirty.value = false
     } catch (error) {
@@ -151,7 +151,7 @@ export function useDraftManager (key, uploadedFiles = null) {
   }
 
   /**
-   * Load draft from backend
+   * Load draft from store (pre-fetched on app init)
    */
   const loadDraft = async (draftKey) => {
     if (!draftKey) return
@@ -159,23 +159,28 @@ export function useDraftManager (key, uploadedFiles = null) {
     isDirty.value = false
     skipNextSave.value = true
     try {
-      // Check if there's an unsynced localStorage draft.
+      // Check if there's an unsynced localStorage draft - sync it first
       const localDraft = getLocalDraft(draftKey)
       if (localDraft && !isDraftEmpty(localDraft)) {
         await api.saveDraft(draftKey, localDraft)
+        conversationStore.setDraft(draftKey, localDraft)
       }
       removeLocalDraft(draftKey)
 
-      // Load from backend (source of truth)
-      const response = await api.getDraft(draftKey)
-      const draft = response.data.data
+      // Load from store (drafts pre-fetched on app init)
+      const draft = conversationStore.getDraft(draftKey)
+      if (!draft) {
+        resetState()
+        return
+      }
+
       const content = draft.content || ''
       const meta = draft.meta || {}
 
       // Check if draft is empty - if so, delete it and return
       if (isDraftEmpty({ content, meta })) {
         await api.deleteDraft(draftKey)
-        conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: false })
+        conversationStore.removeDraft(draftKey)
         resetState()
         return
       }
@@ -199,7 +204,7 @@ export function useDraftManager (key, uploadedFiles = null) {
     removeLocalDraft(draftKey)
     try {
       await api.deleteDraft(draftKey)
-      conversationStore.updateConversationProp({ uuid: draftKey, prop: 'has_draft', value: false })
+      conversationStore.removeDraft(draftKey)
       resetState()
     } catch (error) {
       // Silent fail

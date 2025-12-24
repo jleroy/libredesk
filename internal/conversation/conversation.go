@@ -228,7 +228,7 @@ type queries struct {
 
 	// Draft queries.
 	UpsertConversationDraft *sqlx.Stmt `query:"upsert-conversation-draft"`
-	GetConversationDraft    *sqlx.Stmt `query:"get-conversation-draft"`
+	GetAllUserDrafts        *sqlx.Stmt `query:"get-all-user-drafts"`
 	DeleteConversationDraft *sqlx.Stmt `query:"delete-conversation-draft"`
 	DeleteStaleDrafts       *sqlx.Stmt `query:"delete-stale-drafts"`
 

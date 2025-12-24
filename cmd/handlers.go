@@ -67,8 +67,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.PUT("/api/v1/conversations/{uuid}/custom-attributes", auth(handleUpdateConversationCustomAttributes))
 	g.PUT("/api/v1/conversations/{uuid}/contacts/custom-attributes", auth(handleUpdateContactCustomAttributes))
 	// Draft endpoints
+	g.GET("/api/v1/drafts", auth(handleGetAllDrafts))
 	g.POST("/api/v1/conversations/{uuid}/draft", auth(handleUpsertConversationDraft))
-	g.GET("/api/v1/conversations/{uuid}/draft", auth(handleGetConversationDraft))
 	g.DELETE("/api/v1/conversations/{uuid}/draft", auth(handleDeleteConversationDraft))
 
 	// Search.
