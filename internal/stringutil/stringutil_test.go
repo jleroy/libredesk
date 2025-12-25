@@ -160,6 +160,79 @@ func TestStripConvUUID(t *testing.T) {
 	}
 }
 
+func TestExtractConvUUID(t *testing.T) {
+	tests := []struct {
+		name     string
+		email    string
+		expected string
+	}{
+		{
+			name:     "valid UUID v4",
+			email:    "support+conv-13216cf7-6626-4b0d-a938-46ce65a20701@domain.com",
+			expected: "13216cf7-6626-4b0d-a938-46ce65a20701",
+		},
+		{
+			name:     "uppercase UUID v4",
+			email:    "support+conv-13216CF7-6626-4B0D-A938-46CE65A20701@domain.com",
+			expected: "13216CF7-6626-4B0D-A938-46CE65A20701",
+		},
+		{
+			name:     "no plus addressing",
+			email:    "support@domain.com",
+			expected: "",
+		},
+		{
+			name:     "non-conv plus addressing",
+			email:    "support+other@domain.com",
+			expected: "",
+		},
+		{
+			name:     "short non-UUID (user email)",
+			email:    "support+conv-21321@domain.com",
+			expected: "",
+		},
+		{
+			name:     "invalid UUID format",
+			email:    "support+conv-abc123-def456@domain.com",
+			expected: "",
+		},
+		{
+			name:     "missing 4 in UUID (invalid v4)",
+			email:    "support+conv-13216cf7-6626-ab0d-a938-46ce65a20701@domain.com",
+			expected: "",
+		},
+		{
+			name:     "empty string",
+			email:    "",
+			expected: "",
+		},
+		{
+			name:     "missing @ symbol",
+			email:    "support+conv-13216cf7-6626-4b0d-a938-46ce65a20701",
+			expected: "",
+		},
+		{
+			name:     "UUID with extra chars",
+			email:    "support+conv-13216cf7-6626-4b0d-a938-46ce65a20701-extra@domain.com",
+			expected: "",
+		},
+		{
+			name:     "valid UUID different local part",
+			email:    "inbox+conv-a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d@example.org",
+			expected: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractConvUUID(tt.email)
+			if result != tt.expected {
+				t.Errorf("ExtractConvUUID(%q) = %q, want %q", tt.email, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestDedupAndExcludePlusVariants(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -220,6 +220,18 @@ func StripConvUUID(email string) string {
 	return regexpConvUUID.ReplaceAllString(email, "@")
 }
 
+// ExtractConvUUID extracts the conversation UUID from a plus-addressed email.
+// e.g., support+conv-abc12345-1234-4123-1234-123456789abc@domain.com -> abc12345-1234-4123-1234-123456789abc
+// Returns empty string if no valid UUIDv4 found.
+func ExtractConvUUID(email string) string {
+	match := regexpConvUUID.FindString(email)
+	if match == "" {
+		return ""
+	}
+	// match is "+conv-{uuid}@", extract just the UUID (skip "+conv-" prefix and "@" suffix)
+	return match[6 : len(match)-1]
+}
+
 // DedupAndExcludePlusVariants deduplicates and excludes inbox email and its plus-addressed variants.
 func DedupAndExcludePlusVariants(list []string, inboxEmail string) []string {
 	seen := make(map[string]struct{}, len(list))

@@ -624,27 +624,9 @@ func extractConversationUUIDFromRecipient(envelope *enmime.Envelope) string {
 	headers := []string{"Delivered-To", "X-Original-To", "To"}
 	for _, h := range headers {
 		addr := envelope.GetHeader(h)
-		if uuid := extractUUIDFromPlusAddress(addr); uuid != "" {
+		if uuid := stringutil.ExtractConvUUID(addr); uuid != "" {
 			return uuid
 		}
 	}
 	return ""
-}
-
-// extractUUIDFromPlusAddress extracts UUID from plus-addressed email.
-// e.g., support+conv-abc123-def456@company.com → abc123-def456
-func extractUUIDFromPlusAddress(email string) string {
-	// Pattern: localpart+conv-{uuid}@domain
-	// UUID format: lowercase hex with dashes (e.g., abc123-def456-789...)
-	idx := strings.Index(email, "+conv-")
-	if idx == -1 {
-		return ""
-	}
-	// Extract from after "+conv-" to before "@"
-	start := idx + 6 // len("+conv-")
-	atIdx := strings.Index(email[start:], "@")
-	if atIdx == -1 {
-		return ""
-	}
-	return email[start : start+atIdx]
 }
