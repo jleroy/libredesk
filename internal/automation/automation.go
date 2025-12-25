@@ -26,7 +26,7 @@ var (
 	//go:embed queries.sql
 	efs embed.FS
 	// MaxQueueSize is the maximum size of the task queue.
-	MaxQueueSize = 5000
+	MaxQueueSize = 10000
 )
 
 // TaskType represents the type of conversation task.
