@@ -354,6 +354,9 @@ const uploadMedia = (data) =>
 const getOverviewCounts = () => http.get('/api/v1/reports/overview/counts')
 const getOverviewCharts = (params) => http.get('/api/v1/reports/overview/charts', { params })
 const getOverviewSLA = (params) => http.get('/api/v1/reports/overview/sla', { params })
+const getOverviewCSAT = (params) => http.get('/api/v1/reports/overview/csat', { params })
+const getOverviewMessageVolume = (params) => http.get('/api/v1/reports/overview/messages', { params })
+const getOverviewTagDistribution = (params) => http.get('/api/v1/reports/overview/tags', { params })
 const getLanguage = (lang) => http.get(`/api/v1/lang/${lang}`)
 const createInbox = (data) =>
   http.post('/api/v1/inboxes', data, {
@@ -488,6 +491,9 @@ export default {
   getOverviewCharts,
   getOverviewCounts,
   getOverviewSLA,
+  getOverviewCSAT,
+  getOverviewMessageVolume,
+  getOverviewTagDistribution,
   getConversationParticipants,
   getConversationMessage,
   getConversationMessages,
