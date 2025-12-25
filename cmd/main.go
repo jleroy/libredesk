@@ -63,6 +63,10 @@ var (
 	versionString string
 )
 
+const (
+	sampleEncKey = "your-32-char-random-string-here!"
+)
+
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
 	redis           *redis.Client
@@ -165,6 +169,9 @@ func main() {
 	// Load app settings from DB into the Koanf instance.
 	settings := initSettings(db)
 	loadSettings(settings)
+
+	// Validate config.
+	validateConfig(ko)
 
 	// Fallback for config typo. Logs a warning but continues to work with the incorrect key.
 	// Uses 'message.message_outgoing_scan_interval' (correct key) as default key, falls back to the common typo.

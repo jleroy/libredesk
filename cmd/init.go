@@ -99,6 +99,20 @@ func initConfig(ko *koanf.Koanf) {
 	}), nil)
 }
 
+// validateConfig logs warnings/fatals for invalid config values.
+func validateConfig(ko *koanf.Koanf) {
+	encKey := ko.MustString("app.encryption_key")
+
+	if len(encKey) != 32 {
+		log.Fatalf("encryption_key must be exactly 32 characters, got %d", len(encKey))
+	}
+
+	// Warn if using sample config value.
+	if encKey == sampleEncKey {
+		colorlog.Red("WARNING: You are using the sample encryption_key from config.sample.toml. Change it immediately. Generate a secure key with `openssl rand -hex 16`")
+	}
+}
+
 // initFlags initializes the commandline flags.
 func initFlags() {
 	f := flag.NewFlagSet("config", flag.ContinueOnError)

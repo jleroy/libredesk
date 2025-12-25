@@ -47,14 +47,16 @@
         <div class="space-y-0.5">
           <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
           <FormDescription>
-            {{ $t('admin.inbox.csatSurveys.description_1') }}<br />
-            {{ $t('admin.inbox.csatSurveys.description_2') }}
+            {{ $t('admin.inbox.csatSurveys.description_1') }}
           </FormDescription>
         </div>
         <FormControl>
           <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
         </FormControl>
       </FormItem>
+      <FormDescription class="!mt-2">
+        {{ $t('admin.inbox.csatSurveys.description_2') }}
+      </FormDescription>
     </FormField>
 
     <FormField v-if="setupMethod" v-slot="{ componentField }" name="auth_type">
@@ -72,28 +74,28 @@
     <!-- Setup Method Selection -->
     <div v-show="!isOAuthInbox && setupMethod === null" class="space-y-4">
       <div class="space-y-2">
-        <h3 class="font-semibold text-lg">Choose Setup Method</h3>
+        <h3 class="font-semibold text-lg">{{ $t('admin.inbox.oauth.chooseSetupMethod') }}</h3>
         <p class="text-sm text-muted-foreground">
-          Select how you want to connect your email account
+          {{ $t('admin.inbox.oauth.selectConnectionMethod') }}
         </p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MenuCard
-          title="Google"
-          subTitle="Connect with Google Workspace or Gmail"
+          :title="$t('globals.terms.google')"
+          :subTitle="$t('admin.inbox.oauth.googleDescription')"
           icon="/images/google-logo.svg"
           @click="connectWithGoogle()"
         />
         <MenuCard
-          title="Microsoft"
-          subTitle="Connect with Microsoft 365 or Outlook"
+          :title="$t('globals.terms.microsoft')"
+          :subTitle="$t('admin.inbox.oauth.microsoftDescription')"
           icon="/images/microsoft-logo.svg"
           @click="connectWithMicrosoft()"
         />
         <MenuCard
-          title="Other Provider"
-          subTitle="Configure IMAP and SMTP manually"
+          :title="$t('admin.inbox.oauth.otherProvider')"
+          :subTitle="$t('admin.inbox.oauth.otherProviderDescription')"
           :icon="Mail"
           @click="setupMethod = 'manual'"
         />
@@ -110,14 +112,14 @@
           <CheckCircle2 class="w-5 h-5 text-green-600 flex-shrink-0" />
           <div class="flex-1">
             <p class="font-semibold text-green-900 dark:text-green-100">
-              Connected via OAuth - {{ oauthProvider }}
+              {{ $t('admin.inbox.oauth.connectedVia', { provider: oauthProvider }) }}
             </p>
             <p class="text-sm text-green-700 dark:text-green-300">{{ oauthEmail }}</p>
             <p
               v-show="oauthClientId"
               class="text-xs text-green-600 dark:text-green-400 font-mono mt-1"
             >
-              Client ID: {{ oauthClientId.substring(0, 20) }}...{{ oauthClientId.slice(-8) }}
+              {{ $t('globals.terms.clientID') }}: {{ oauthClientId.substring(0, 20) }}...{{ oauthClientId.slice(-8) }}
             </p>
           </div>
         </div>
@@ -131,7 +133,7 @@
           class="ml-2 flex-shrink-0"
         >
           <RefreshCw class="w-4 h-4 mr-1" />
-          Reconnect
+          {{ $t('globals.terms.reconnect') }}
         </Button>
       </div>
     </div>
@@ -241,7 +243,7 @@
 
       <FormField v-slot="{ componentField }" name="imap.host">
         <FormItem>
-          <FormLabel>Host</FormLabel>
+          <FormLabel>{{ $t('globals.terms.host') }}</FormLabel>
           <FormControl>
             <Input type="text" placeholder="imap.gmail.com" v-bind="componentField" />
           </FormControl>
@@ -294,7 +296,7 @@
 
       <FormField v-slot="{ componentField }" name="imap.tls_type">
         <FormItem>
-          <FormLabel>TLS</FormLabel>
+          <FormLabel>{{ $t('globals.terms.tls') }}</FormLabel>
           <FormControl>
             <Select v-bind="componentField">
               <SelectTrigger>
@@ -453,7 +455,7 @@
           <FormControl>
             <Select v-bind="componentField">
               <SelectTrigger>
-                <SelectValue placeholder="Select protocol" />
+                <SelectValue :placeholder="t('globals.messages.select', { name: t('globals.terms.protocol') })" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="login">Login</SelectItem>
@@ -474,7 +476,7 @@
           <FormControl>
             <Select v-bind="componentField">
               <SelectTrigger>
-                <SelectValue placeholder="Select TLS" />
+                <SelectValue :placeholder="t('globals.messages.selectTLS')" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">OFF</SelectItem>
@@ -525,19 +527,18 @@
   <Dialog v-model:open="showOAuthModal">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle
-          >Connect
-          {{ selectedProvider === PROVIDER_GOOGLE ? 'Google' : 'Microsoft' }} Account</DialogTitle
-        >
+        <DialogTitle>
+          {{ $t('admin.inbox.oauth.connectAccount', { provider: selectedProvider === PROVIDER_GOOGLE ? $t('globals.terms.google') : $t('globals.terms.microsoft') }) }}
+        </DialogTitle>
         <DialogDescription>
-          Follow the steps below to connect your email account
+          {{ $t('admin.inbox.oauth.followSteps') }}
         </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4">
         <div class="space-y-3">
           <p class="text-sm">
-            1. Create OAuth app at
+            {{ $t('admin.inbox.oauth.step1CreateApp') }}
             <a
               :href="
                 selectedProvider === PROVIDER_GOOGLE
@@ -549,14 +550,14 @@
             >
               {{
                 selectedProvider === PROVIDER_GOOGLE
-                  ? 'Google Cloud Console'
-                  : 'Microsoft Azure Portal'
+                  ? $t('admin.inbox.oauth.googleCloudConsole')
+                  : $t('admin.inbox.oauth.microsoftAzurePortal')
               }}
             </a>
           </p>
 
           <div class="space-y-1">
-            <p class="text-sm">2. Add this callback URL:</p>
+            <p class="text-sm">{{ $t('admin.inbox.oauth.step2AddCallback') }}</p>
             <div class="flex items-center gap-2">
               <Input :model-value="callbackUrl" readonly class="font-mono text-xs" />
               <Button
@@ -565,45 +566,45 @@
                 size="sm"
                 @click="copyToClipboard(callbackUrl)"
               >
-                Copy
+                {{ $t('globals.terms.copy') }}
               </Button>
             </div>
           </div>
 
-          <p class="text-sm">3. Enter your credentials below:</p>
+          <p class="text-sm">{{ $t('admin.inbox.oauth.step3EnterCredentials') }}</p>
         </div>
 
         <div class="space-y-2">
-          <label class="text-sm font-medium">Client ID</label>
+          <label class="text-sm font-medium">{{ $t('globals.terms.clientID') }}</label>
           <Input
             v-model="oauthCredentials.client_id"
-            placeholder="Enter your OAuth Client ID"
+            :placeholder="t('admin.inbox.oauth.enterClientID')"
             :disabled="isSubmittingOAuth"
           />
         </div>
 
         <div class="space-y-2">
-          <label class="text-sm font-medium">Client Secret</label>
+          <label class="text-sm font-medium">{{ $t('globals.terms.clientSecret') }}</label>
           <Input
             v-model="oauthCredentials.client_secret"
             type="password"
-            placeholder="Enter your OAuth Client Secret"
+            :placeholder="t('admin.inbox.oauth.enterClientSecret')"
             :disabled="isSubmittingOAuth"
           />
         </div>
 
         <div v-if="selectedProvider === PROVIDER_MICROSOFT" class="space-y-2">
-          <label class="text-sm font-medium">Tenant ID</label>
+          <label class="text-sm font-medium">{{ $t('globals.terms.tenantID') }}</label>
           <Input v-model="oauthCredentials.tenant_id" :disabled="isSubmittingOAuth" />
         </div>
       </div>
 
       <DialogFooter>
         <Button variant="outline" @click="showOAuthModal = false" :disabled="isSubmittingOAuth">
-          Cancel
+          {{ $t('globals.messages.cancel') }}
         </Button>
         <Button @click="submitOAuthCredentials" :disabled="isSubmittingOAuth">
-          {{ isSubmittingOAuth ? 'Connecting...' : 'Continue' }}
+          {{ isSubmittingOAuth ? $t('globals.messages.connecting') : $t('globals.messages.continue') }}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -803,7 +804,7 @@ const submitOAuthCredentials = async () => {
   if (!oauthCredentials.value.client_id || !oauthCredentials.value.client_secret) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
-      description: 'Please provide both Client ID and Client Secret'
+      description: t('admin.inbox.oauth.clientIDSecretRequired')
     })
     return
   }
