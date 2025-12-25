@@ -827,8 +827,6 @@ const submitOAuthCredentials = async () => {
       variant: 'destructive',
       description: handleHTTPError(error).message
     })
-  } finally {
-    isSubmittingOAuth.value = false
   }
 }
 
