@@ -259,16 +259,16 @@ func (c *Manager) CreateConversation(contactID, contactChannelID, inboxID int, l
 }
 
 // GetConversation retrieves a conversation by its ID or UUID.
-func (c *Manager) GetConversation(id int, uuid string) (models.Conversation, error) {
+func (c *Manager) GetConversation(id int, uuid, refNum string) (models.Conversation, error) {
 	var conversation models.Conversation
 	var uuidParam any
 	if uuid != "" {
 		uuidParam = uuid
 	}
 
-	if err := c.q.GetConversation.Get(&conversation, id, uuidParam); err != nil {
+	if err := c.q.GetConversation.Get(&conversation, id, uuidParam, refNum); err != nil {
 		if err == sql.ErrNoRows {
-			return conversation, envelope.NewError(envelope.InputError,
+			return conversation, envelope.NewError(envelope.NotFoundError,
 				c.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.conversation}"), nil)
 		}
 		c.lo.Error("error fetching conversation", "error", err)
@@ -505,7 +505,7 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	})
 
 	// Refetch the conversation to get the updated details.
-	conversation, err := c.GetConversation(0, uuid)
+	conversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		return err
 	}
@@ -528,7 +528,7 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 // UpdateConversationTeamAssignee sets the assignee of a conversation to a specific team and sets the assigned user id to NULL.
 func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor umodels.User) error {
 	// Store previously assigned team ID to apply SLA policy if team has changed.
-	conversation, err := c.GetConversation(0, uuid)
+	conversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		return err
 	}
@@ -554,7 +554,7 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 			return nil
 		}
 		// Fetch the conversation again to get the updated details.
-		conversation, err := c.GetConversation(0, uuid)
+		conversation, err := c.GetConversation(0, uuid, "")
 		if err != nil {
 			return nil
 		}
@@ -614,7 +614,7 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 	}
 
 	// Evaluate automation rules for conversation priority change.
-	conversation, err := c.GetConversation(0, uuid)
+	conversation, err := c.GetConversation(0, uuid, "")
 	if err == nil {
 		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange)
 	}
@@ -653,7 +653,7 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 		snoozeUntil = time.Now().Add(duration)
 	}
 
-	conversationBeforeChange, err := c.GetConversation(0, uuid)
+	conversationBeforeChange, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		c.lo.Error("error fetching conversation before status change", "uuid", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.conversation}"), nil)
@@ -694,7 +694,7 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	c.BroadcastConversationUpdate(uuid, "status", status)
 
 	// Evaluate automation rules.
-	conversation, err := c.GetConversation(0, uuid)
+	conversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		c.lo.Error("error fetching conversation after status change", "uuid", uuid, "error", err)
 	} else {

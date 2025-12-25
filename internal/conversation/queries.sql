@@ -178,6 +178,8 @@ WHERE
   ($1 > 0 AND c.id = $1)
   OR 
   ($2::uuid IS NOT NULL AND c.uuid = $2::uuid)
+  OR
+  ($3::TEXT != '' AND c.reference_number = $3::TEXT)
 
 
 -- name: get-conversations-created-after

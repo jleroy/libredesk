@@ -28,6 +28,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/search"
 	"github.com/abhinavxd/libredesk/internal/sla"
 	"github.com/abhinavxd/libredesk/internal/view"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/abhinavxd/libredesk/internal/automation"
 	"github.com/abhinavxd/libredesk/internal/conversation"
@@ -62,8 +63,13 @@ var (
 	versionString string
 )
 
+const (
+	sampleEncKey = "your-32-char-random-string-here!"
+)
+
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
+	redis           *redis.Client
 	fs              stuffbin.FileSystem
 	consts          atomic.Value
 	auth            *auth_.Auth
@@ -164,6 +170,9 @@ func main() {
 	settings := initSettings(db)
 	loadSettings(settings)
 
+	// Validate config.
+	validateConfig(ko)
+
 	// Fallback for config typo. Logs a warning but continues to work with the incorrect key.
 	// Uses 'message.message_outgoing_scan_interval' (correct key) as default key, falls back to the common typo.
 	msgOutgoingScanIntervalKey := "message.message_outgoing_scan_interval"
@@ -223,6 +232,7 @@ func main() {
 
 	var app = &App{
 		lo:              lo,
+		redis:           rdb,
 		fs:              fs,
 		sla:             sla,
 		oidc:            oidc,

@@ -5,8 +5,15 @@
     </template>
 
     <template #help>
-      <p>Add email inboxes by configuring IMAP and SMTP settings.</p>
-      <p>Each added inbox creates a new email channel for receiving customer emails.</p>
+      <div class="native-html">
+        <p>Connect your email account directly via Google or Microsoft, or configure IMAP and SMTP settings manually.</p>
+        <p>Each added inbox creates a new email channel for receiving customer emails.</p>
+        <p>
+          <a href="https://docs.libredesk.io/configuration/connecting-inboxes" target="_blank">
+            Learn more
+          </a>
+        </p>
+      </div>
     </template>
   </AdminPageWithHelp>
 </template>

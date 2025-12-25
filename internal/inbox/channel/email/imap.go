@@ -11,6 +11,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/attachment"
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/emersion/go-imap/v2"
@@ -25,7 +26,7 @@ const (
 )
 
 // ReadIncomingMessages reads and processes incoming messages from an IMAP server based on the provided configuration.
-func (e *Email) ReadIncomingMessages(ctx context.Context, cfg IMAPConfig) error {
+func (e *Email) ReadIncomingMessages(ctx context.Context, cfg imodels.IMAPConfig) error {
 	readInterval, err := time.ParseDuration(cfg.ReadInterval)
 	if err != nil {
 		e.lo.Warn("could not parse IMAP read interval, using the default read interval of 5 minutes", "interval", cfg.ReadInterval, "inbox_id", e.Identifier(), "error", err)
@@ -61,7 +62,7 @@ func (e *Email) ReadIncomingMessages(ctx context.Context, cfg IMAPConfig) error 
 }
 
 // processMailbox processes emails in the specified mailbox.
-func (e *Email) processMailbox(ctx context.Context, scanInboxSince time.Duration, cfg IMAPConfig) error {
+func (e *Email) processMailbox(ctx context.Context, scanInboxSince time.Duration, cfg imodels.IMAPConfig) error {
 	var (
 		client *imapclient.Client
 		err    error
@@ -88,8 +89,27 @@ func (e *Email) processMailbox(ctx context.Context, scanInboxSince time.Duration
 	}
 
 	defer client.Logout()
-	if err := client.Login(cfg.Username, cfg.Password).Wait(); err != nil {
-		return fmt.Errorf("error logging in to the IMAP server: %w", err)
+
+	// Authenticate based on auth type
+	if e.authType == imodels.AuthTypeOAuth2 && e.oauth != nil {
+		// Refresh OAuth token if needed
+		oauthConfig, _, err := e.refreshOAuthIfNeeded()
+		if err != nil {
+			return err
+		}
+
+		// Use XOAUTH2 authentication
+		saslClient := &xoauth2IMAPClient{
+			username: cfg.Username,
+			token:    oauthConfig.AccessToken,
+		}
+		if err := client.Authenticate(saslClient); err != nil {
+			return fmt.Errorf("error authenticating with OAuth to IMAP server: %w", err)
+		}
+	} else {
+		if err := client.Login(cfg.Username, cfg.Password).Wait(); err != nil {
+			return fmt.Errorf("error logging in to the IMAP server: %w", err)
+		}
 	}
 
 	if _, err := client.Select(cfg.Mailbox, &imap.SelectOptions{ReadOnly: true}).Wait(); err != nil {
@@ -490,6 +510,14 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 	incomingMsg.Message.InReplyTo = inReplyTo
 	incomingMsg.Message.References = references
 
+	// Extract conversation UUID from plus-addressed recipient (e.g., inbox+conv-{uuid}@domain)
+	incomingMsg.ConversationUUIDFromReplyTo = extractConversationUUIDFromRecipient(envelope)
+	if incomingMsg.ConversationUUIDFromReplyTo != "" {
+		e.lo.Debug("extracted conversation UUID from plus-addressed recipient",
+			"conversation_uuid", incomingMsg.ConversationUUIDFromReplyTo,
+			"message_id", incomingMsg.Message.SourceID.String)
+	}
+
 	// Process attachments
 	for _, att := range envelope.Attachments {
 		incomingMsg.Message.Attachments = append(incomingMsg.Message.Attachments, attachment.Attachment{
@@ -585,6 +613,20 @@ func extractAllHTMLParts(part *enmime.Part) []string {
 func extractMessageIDFromHeaders(envelope *enmime.Envelope) string {
 	if rawMessageID := envelope.GetHeader(headerMessageID); rawMessageID != "" {
 		return strings.TrimSpace(strings.Trim(rawMessageID, "<>"))
+	}
+	return ""
+}
+
+// extractConversationUUIDFromRecipient extracts conversation UUID from plus-addressed recipient.
+// Checks Delivered-To, X-Original-To, and To headers for plus-addressing pattern.
+// e.g., support+conv-abc123-def456@company.com → abc123-def456
+func extractConversationUUIDFromRecipient(envelope *enmime.Envelope) string {
+	headers := []string{"Delivered-To", "X-Original-To", "To"}
+	for _, h := range headers {
+		addr := envelope.GetHeader(h)
+		if uuid := stringutil.ExtractConvUUID(addr); uuid != "" {
+			return uuid
+		}
 	}
 	return ""
 }
