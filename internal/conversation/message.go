@@ -653,21 +653,27 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 	// Try to match by plus-addressed Reply-To (e.g., inbox+conv-{uuid}@domain)
 	if in.ConversationUUIDFromReplyTo != "" {
 		conversation, err := m.GetConversation(0, in.ConversationUUIDFromReplyTo, "")
-		if err == nil && conversation.ID > 0 {
-			// Verify sender email matches conversation contact
-			if strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-				in.Message.ConversationID = conversation.ID
-				in.Message.ConversationUUID = conversation.UUID
-				m.lo.Debug("matched conversation by plus-addressed Reply-To",
-					"conversation_uuid", conversation.UUID,
-					"contact_email", in.Contact.Email.String)
-			} else {
-				m.lo.Debug("plus-address UUID found but contact email mismatch, ignoring",
-					"conversation_uuid", in.ConversationUUIDFromReplyTo,
-					"conversation_contact", conversation.Contact.Email.String,
-					"message_contact", in.Contact.Email.String)
+		if err != nil {
+			envErr, ok := err.(envelope.Error)
+			if !ok || envErr.ErrorType != envelope.NotFoundError {
+				return fmt.Errorf("fetching conversation: %w", err)
 			}
 		}
+
+		// Verify sender email matches conversation contact
+		if strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+			in.Message.ConversationID = conversation.ID
+			in.Message.ConversationUUID = conversation.UUID
+			m.lo.Debug("matched conversation by plus-addressed Reply-To",
+				"conversation_uuid", conversation.UUID,
+				"contact_email", in.Contact.Email.String)
+		} else {
+			m.lo.Debug("plus-address UUID found but contact email mismatch, ignoring",
+				"conversation_uuid", in.ConversationUUIDFromReplyTo,
+				"conversation_contact", conversation.Contact.Email.String,
+				"message_contact", in.Contact.Email.String)
+		}
+		
 	}
 
 	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").
