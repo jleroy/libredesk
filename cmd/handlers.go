@@ -182,6 +182,9 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/reports/overview/sla", perm(handleOverviewSLA, "reports:manage"))
 	g.GET("/api/v1/reports/overview/counts", perm(handleOverviewCounts, "reports:manage"))
 	g.GET("/api/v1/reports/overview/charts", perm(handleOverviewCharts, "reports:manage"))
+	g.GET("/api/v1/reports/overview/csat", perm(handleOverviewCSAT, "reports:manage"))
+	g.GET("/api/v1/reports/overview/messages", perm(handleOverviewMessageVolume, "reports:manage"))
+	g.GET("/api/v1/reports/overview/tags", perm(handleOverviewTagDistribution, "reports:manage"))
 
 	// Templates.
 	g.GET("/api/v1/templates", perm(handleGetTemplates, "templates:manage"))
