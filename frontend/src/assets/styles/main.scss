@@ -200,27 +200,51 @@
 }
 
 // Scrollbar start
-::-webkit-scrollbar {
-  width: 8px; /* Adjust width */
-  height: 8px; /* Adjust height */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: theme('colors.gray.300') transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  background-color: #888;
-  border-radius: 3px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+.dark * {
+  scrollbar-color: theme('colors.gray.600') transparent;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background-color: #555; /* Hover effect */
-}
+@supports selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: initial;
+    scrollbar-color: initial;
+  }
 
-::-webkit-scrollbar-track {
-  background: #f0f0f0;
-  border-radius: 3px;
+  .dark * {
+    scrollbar-color: initial;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+
+  .dark *::-webkit-scrollbar-thumb {
+    @apply bg-gray-600;
+  }
+
+  .dark *::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
 }
-// End Scrollbar
+// Scrollbar end
 
 .show-quoted-text {
   blockquote {

@@ -1,6 +1,5 @@
 {
   "name": "libredesk",
-  "version": "0.8.0-beta",
   "private": true,
   "type": "module",
   "scripts": {
