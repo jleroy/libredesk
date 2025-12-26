@@ -195,7 +195,7 @@ const viewToDelete = ref(null)
     <template
       v-if="route.matched.some((record) => record.name && record.name.startsWith('contact'))"
     >
-      <Sidebar collapsible="offcanvas" class="border-r ml-12">
+      <Sidebar collapsible="offcanvas" class="sidebar-secondary">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -235,7 +235,7 @@ const viewToDelete = ref(null)
         route.matched.some((record) => record.name && record.name.startsWith('reports'))
       "
     >
-      <Sidebar collapsible="offcanvas" class="border-r ml-12">
+      <Sidebar collapsible="offcanvas" class="sidebar-secondary">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -266,7 +266,7 @@ const viewToDelete = ref(null)
 
     <!-- Admin Sidebar -->
     <template v-if="route.matched.some((record) => record.name && record.name.startsWith('admin'))">
-      <Sidebar collapsible="offcanvas" class="border-r ml-12">
+      <Sidebar collapsible="offcanvas" class="sidebar-secondary">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -332,7 +332,7 @@ const viewToDelete = ref(null)
 
     <!-- Account sidebar -->
     <template v-if="isActiveParent('/account')">
-      <Sidebar collapsible="offcanvas" class="border-r ml-12">
+      <Sidebar collapsible="offcanvas" class="sidebar-secondary">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -366,7 +366,7 @@ const viewToDelete = ref(null)
 
     <!-- Inbox sidebar -->
     <template v-if="route.path && isInboxRoute(route.path)">
-      <Sidebar collapsible="offcanvas" class="border-r ml-12">
+      <Sidebar collapsible="offcanvas" class="sidebar-secondary">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -546,7 +546,7 @@ const viewToDelete = ref(null)
     </template>
 
     <!-- Main Content Area -->
-    <SidebarInset>
+    <SidebarInset class="bg-canvas !min-h-0 !h-full">
       <slot></slot>
     </SidebarInset>
   </SidebarProvider>
@@ -569,3 +569,19 @@ const viewToDelete = ref(null)
     </AlertDialogContent>
   </AlertDialog>
 </template>
+
+<style scoped>
+:deep(.sidebar-secondary) {
+  @apply border ml-[3.2rem] rounded-lg overflow-hidden;
+  top: 0.40rem !important;
+  bottom: 0.35rem !important;
+  height: auto !important;
+}
+
+/* Override SidebarProvider height */
+:deep(.group\/sidebar-wrapper) {
+  min-height: auto !important;
+  height: 100%;
+}
+
+</style>

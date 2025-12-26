@@ -2,7 +2,7 @@
   <div
     class="group relative px-4 p-4 transition-all duration-200 ease-in-out cursor-pointer hover:bg-accent/20 dark:hover:bg-accent/60"
     :class="{
-      'bg-accent/60 border-l-4': conversation.uuid === currentConversation?.uuid
+      'bg-accent/60': conversation.uuid === currentConversation?.uuid
     }"
     @click="navigateToConversation(conversation.uuid)"
   >

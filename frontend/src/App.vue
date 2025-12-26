@@ -1,8 +1,8 @@
 <template>
-  <div class="flex w-full h-screen text-foreground">
+  <div class="flex w-full h-screen text-foreground bg-canvas p-1.5">
     <!-- Icon sidebar always visible -->
     <SidebarProvider style="--sidebar-width: 3rem" class="w-auto z-50">
-      <ShadcnSidebar collapsible="none" class="border-r">
+      <ShadcnSidebar collapsible="none" class="border rounded-lg overflow-hidden">
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent>
@@ -87,7 +87,7 @@
         @delete-view="deleteView"
         @create-conversation="() => (openCreateConversationDialog = true)"
       >
-        <div class="flex flex-col h-screen">
+        <div class="flex flex-col h-full rounded-lg overflow-hidden bg-background">
           <!-- Show admin banner only in admin routes -->
           <AdminBanner v-if="route.path.startsWith('/admin')" />
 
@@ -253,3 +253,10 @@ const refreshViews = (data) => {
   }
 }
 </script>
+
+<style scoped>
+:deep(.group\/sidebar-wrapper) {
+  min-height: auto !important;
+  height: 100%;
+}
+</style>

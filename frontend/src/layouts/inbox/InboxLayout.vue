@@ -8,7 +8,7 @@
     <!-- Conversation List Panel -->
     <ResizablePanel
       :default-size="panelSizes[0]"
-      :min-size="15"
+      :min-size="25"
       :max-size="35"
       class="overflow-y-auto"
     >
