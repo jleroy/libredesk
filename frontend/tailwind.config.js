@@ -73,7 +73,8 @@ module.exports = {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))'
-        }
+        },
+        private: 'hsl(var(--private))'
       },
       borderRadius: {
         xl: 'calc(var(--radius) + 4px)',

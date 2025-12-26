@@ -317,6 +317,7 @@ const unsetLink = () => {
   color: #adb5bd;
   pointer-events: none;
   height: 0;
+  font-size: 0.875rem;
 }
 
 // Ensure the parent div has a proper height

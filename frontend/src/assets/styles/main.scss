@@ -80,14 +80,14 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 240 3% 6%;
+    --sidebar-foreground: 220 11% 94%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 240 3% 10%;
+    --sidebar-accent-foreground: 220 11% 94%;
+    --sidebar-border: 240 3% 14%;
+    --sidebar-ring: 217 91% 60%;
   }
 
   :root {
@@ -131,36 +131,38 @@
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
+    --private: 35 90% 94%;
   }
 
   .dark {
-    --background: 240 5.9% 10%;
-    --foreground: 0 0% 98%;
+    --background: 240 3% 6%;
+    --foreground: 220 11% 94%;
 
-    --card: 240 5.9% 10%;
-    --card-foreground: 0 0% 98%;
+    --card: 240 3% 8%;
+    --card-foreground: 220 11% 94%;
 
-    --popover: 240 5.9% 10%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 240 3% 10%;
+    --popover-foreground: 220 11% 94%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 220 11% 94%;
+    --primary-foreground: 240 3% 6%;
 
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 240 3% 12%;
+    --secondary-foreground: 220 11% 94%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 240 3% 12%;
+    --muted-foreground: 220 5% 60%;
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 240 3% 12%;
+    --accent-foreground: 220 11% 94%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --border: 240 3% 16%;
+    --input: 240 3% 12%;
+    --ring: 220 10% 70%;
+    --private: 30 35% 18%;
   }
 }
 

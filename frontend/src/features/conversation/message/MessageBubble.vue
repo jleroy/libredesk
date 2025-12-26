@@ -177,7 +177,7 @@ const nonInlineAttachments = computed(() =>
 // Bubble classes - conditional based on direction
 const bubbleClasses = computed(() => ({
   // Outgoing-specific: private message styling
-  'bg-[#FEF1E1] dark:bg-[#4C3A24]': isOutgoing.value && props.message.private,
+  'bg-private': isOutgoing.value && props.message.private,
   'border border-border': isOutgoing.value && !props.message.private,
   'opacity-50 animate-pulse': isOutgoing.value && props.message.status === 'pending',
   'border-red-400': isOutgoing.value && props.message.status === 'failed',
