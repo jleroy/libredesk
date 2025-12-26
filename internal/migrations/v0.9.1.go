@@ -27,5 +27,16 @@ func V0_9_1(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
+	// Add conversations:read_team_all permission to Admin and Agent roles
+	_, err = db.Exec(`
+		UPDATE roles
+		SET permissions = array_append(permissions, 'conversations:read_team_all')
+		WHERE name IN ('Admin')
+		AND NOT ('conversations:read_team_all' = ANY(permissions));
+	`)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

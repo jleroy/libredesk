@@ -5,6 +5,7 @@ export const permissions = {
   CONVERSATIONS_READ_ALL: 'conversations:read_all',
   CONVERSATIONS_READ_UNASSIGNED: 'conversations:read_unassigned',
   CONVERSATIONS_READ_TEAM_INBOX: 'conversations:read_team_inbox',
+  CONVERSATIONS_READ_TEAM_ALL: 'conversations:read_team_all',
   CONVERSATIONS_UPDATE_USER_ASSIGNEE: 'conversations:update_user_assignee',
   CONVERSATIONS_UPDATE_TEAM_ASSIGNEE: 'conversations:update_team_assignee',
   CONVERSATIONS_UPDATE_PRIORITY: 'conversations:update_priority',

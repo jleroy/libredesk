@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strconv"
 	"time"
 
@@ -174,6 +175,7 @@ func handleGetViewConversations(r *fastglue.Request) error {
 
 	// Prepare lists user has access to based on user permissions, internally this prepares the SQL query.
 	lists := []string{}
+	hasTeamAll := slices.Contains(user.Permissions, authzModels.PermConversationsReadTeamAll)
 	for _, perm := range user.Permissions {
 		if perm == authzModels.PermConversationsReadAll {
 			// No further lists required as user has access to all conversations.
@@ -186,8 +188,12 @@ func handleGetViewConversations(r *fastglue.Request) error {
 		if perm == authzModels.PermConversationsReadAssigned {
 			lists = append(lists, cmodels.AssignedConversations)
 		}
-		if perm == authzModels.PermConversationsReadTeamInbox {
+		// Skip TeamUnassignedConversations if user has TeamAllConversations (superset).
+		if perm == authzModels.PermConversationsReadTeamInbox && !hasTeamAll {
 			lists = append(lists, cmodels.TeamUnassignedConversations)
+		}
+		if perm == authzModels.PermConversationsReadTeamAll {
+			lists = append(lists, cmodels.TeamAllConversations)
 		}
 	}
 

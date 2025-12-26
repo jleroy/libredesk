@@ -122,6 +122,10 @@ const permissions = ref([
         label: t('admin.role.conversations.readTeamInbox')
       },
       {
+        name: perms.CONVERSATIONS_READ_TEAM_ALL,
+        label: t('admin.role.conversations.readTeamAll')
+      },
+      {
         name: perms.CONVERSATIONS_UPDATE_USER_ASSIGNEE,
         label: t('admin.role.conversations.updateUserAssignee')
       },

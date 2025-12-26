@@ -6,6 +6,7 @@ const (
 	PermConversationsReadUnassigned     = "conversations:read_unassigned"
 	PermConversationsReadAssigned       = "conversations:read_assigned"
 	PermConversationsReadTeamInbox      = "conversations:read_team_inbox"
+	PermConversationsReadTeamAll        = "conversations:read_team_all"
 	PermConversationsRead               = "conversations:read"
 	PermConversationsUpdateUserAssignee = "conversations:update_user_assignee"
 	PermConversationsUpdateTeamAssignee = "conversations:update_team_assignee"
@@ -94,6 +95,7 @@ var validPermissions = map[string]struct{}{
 	PermConversationsReadUnassigned:     {},
 	PermConversationsReadAssigned:       {},
 	PermConversationsReadTeamInbox:      {},
+	PermConversationsReadTeamAll:        {},
 	PermConversationsRead:               {},
 	PermConversationsUpdateUserAssignee: {},
 	PermConversationsUpdateTeamAssignee: {},

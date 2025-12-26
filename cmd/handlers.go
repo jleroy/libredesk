@@ -201,7 +201,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.DELETE("/api/v1/business-hours/{id}", perm(handleDeleteBusinessHour, "business_hours:manage"))
 
 	// SLAs.
-	g.GET("/api/v1/sla", perm(handleGetSLAs, "sla:manage"))
+	g.GET("/api/v1/sla", auth(handleGetSLAs))
 	g.GET("/api/v1/sla/{id}", perm(handleGetSLA, "sla:manage"))
 	g.POST("/api/v1/sla", perm(handleCreateSLA, "sla:manage"))
 	g.PUT("/api/v1/sla/{id}", perm(handleUpdateSLA, "sla:manage"))

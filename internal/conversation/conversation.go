@@ -1146,6 +1146,15 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 			for _, id := range teamIDs {
 				qArgs = append(qArgs, id)
 			}
+		case models.TeamAllConversations:
+			placeholders := make([]string, len(teamIDs))
+			for i := range teamIDs {
+				placeholders[i] = fmt.Sprintf("$%d", len(qArgs)+i+1)
+			}
+			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s))", strings.Join(placeholders, ",")))
+			for _, id := range teamIDs {
+				qArgs = append(qArgs, id)
+			}
 		case models.AllConversations:
 			// No conditions needed for all conversations.
 		default:

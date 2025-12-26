@@ -26,6 +26,7 @@ var (
 	AssignedConversations       = "assigned"
 	UnassignedConversations     = "unassigned"
 	TeamUnassignedConversations = "team_unassigned"
+	TeamAllConversations        = "team_all"
 
 	MessageIncoming = "incoming"
 	MessageOutgoing = "outgoing"
