@@ -163,6 +163,7 @@ type PreviousConversation struct {
 	CreatedAt     time.Time                   `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time                   `db:"updated_at" json:"updated_at"`
 	UUID          string                      `db:"uuid" json:"uuid"`
+	Subject       string                      `db:"subject" json:"subject"`
 	Contact       PreviousConversationContact `db:"contact" json:"contact"`
 	LastMessage   null.String                 `db:"last_message" json:"last_message"`
 	LastMessageAt null.Time                   `db:"last_message_at" json:"last_message_at"`

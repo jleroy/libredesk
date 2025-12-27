@@ -195,6 +195,7 @@ SELECT
     c.created_at,
     c.updated_at,
     c.uuid,
+    c.subject,
     u.first_name AS "contact.first_name",
     u.last_name AS "contact.last_name",
     u.avatar_url AS "contact.avatar_url",
