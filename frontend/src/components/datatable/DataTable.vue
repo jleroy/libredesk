@@ -4,7 +4,13 @@
       <Table>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-            <TableHead v-for="header in headerGroup.headers" :key="header.id" class="font-semibold">
+            <TableHead
+              v-for="header in headerGroup.headers"
+              :key="header.id"
+              class="font-semibold"
+              :class="{ 'cursor-pointer select-none': header.column.getCanSort() }"
+              @click="header.column.getToggleSortingHandler()?.($event)"
+            >
               <FlexRender
                 v-if="!header.isPlaceholder"
                 :render="header.column.columnDef.header"
@@ -40,9 +46,9 @@
 </template>
 
 <script setup>
-import { FlexRender, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
+import { FlexRender, getCoreRowModel, getSortedRowModel, useVueTable } from '@tanstack/vue-table'
 import { useI18n } from 'vue-i18n'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import {
   Table,
@@ -72,6 +78,8 @@ const emptyText = computed(
     })
 )
 
+const sorting = ref([])
+
 const table = useVueTable({
   get data() {
     return props.data
@@ -79,6 +87,16 @@ const table = useVueTable({
   get columns() {
     return props.columns
   },
-  getCoreRowModel: getCoreRowModel()
+  state: {
+    get sorting() {
+      return sorting.value
+    }
+  },
+  onSortingChange: (updaterOrValue) => {
+    sorting.value =
+      typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue
+  },
+  getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel()
 })
 </script>
