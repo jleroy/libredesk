@@ -273,3 +273,12 @@
     @apply text-blue-500 hover:underline;
   }
 }
+
+/* Fix collapsed sidebar visibility in padding gap.
+ * The sidebar is position:fixed and slides to left:-14rem when collapsed,
+ * but ml-[3.2rem] offset causes part to remain visible in the app's padding gap.
+ * Push it further left to fully hide it.
+ */
+[data-state="collapsed"][data-collapsible="offcanvas"] .sidebar-secondary {
+  left: calc((var(--sidebar-width) + 3.5rem) * -1.4) !important;
+}

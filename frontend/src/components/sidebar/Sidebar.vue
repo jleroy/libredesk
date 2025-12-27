@@ -19,8 +19,7 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubItem,
-  SidebarProvider,
-  SidebarRail
+  SidebarProvider
 } from '@/components/ui/sidebar'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import {
@@ -227,7 +226,6 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarRail />
       </Sidebar>
     </template>
 
@@ -263,7 +261,6 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarRail />
       </Sidebar>
     </template>
 
@@ -329,7 +326,6 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarRail />
       </Sidebar>
     </template>
 
@@ -363,7 +359,6 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarRail />
       </Sidebar>
     </template>
 
