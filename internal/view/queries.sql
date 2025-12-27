@@ -20,7 +20,7 @@ ORDER BY name ASC;
 SELECT id, created_at, updated_at, name, filters, visibility, user_id, team_id
 FROM views
 WHERE visibility != 'user'
-ORDER BY visibility ASC, updated_at DESC;
+ORDER BY updated_at DESC;
 
 -- name: insert-view
 INSERT INTO views (name, filters, visibility, user_id, team_id)
