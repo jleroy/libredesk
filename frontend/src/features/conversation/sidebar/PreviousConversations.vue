@@ -25,7 +25,7 @@
         <div class="flex flex-col flex-1 min-w-[120px]">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span class="font-medium text-sm truncate max-w-[150px]">
+              <span class="font-medium text-sm truncate max-w-[300px]">
                 {{ conversation.subject }}
               </span>
             </TooltipTrigger>
@@ -33,7 +33,7 @@
               {{ conversation.subject }}
             </TooltipContent>
           </Tooltip>
-          <span class="text-xs text-muted-foreground truncate max-w-[200px]">
+          <span class="text-xs text-muted-foreground truncate max-w-[400px]">
             {{ conversation.last_message }}
           </span>
         </div>
