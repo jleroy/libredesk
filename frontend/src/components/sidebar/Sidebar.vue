@@ -49,6 +49,7 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { filterNavItems } from '@/utils/nav-permissions'
+import { permissions } from '@/constants/permissions'
 import { useStorage } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -57,7 +58,8 @@ import { useConversationStore } from '@/stores/conversation'
 
 defineProps({
   userTeams: { type: Array, default: () => [] },
-  userViews: { type: Array, default: () => [] }
+  userViews: { type: Array, default: () => [] },
+  sharedViews: { type: Array, default: () => [] }
 })
 const userStore = useUserStore()
 const conversationStore = useConversationStore()
@@ -176,6 +178,7 @@ watch(
 const sidebarOpen = useStorage('mainSidebarOpen', true)
 const teamInboxOpen = useStorage('teamInboxOpen', true)
 const viewInboxOpen = useStorage('viewInboxOpen', true)
+const sharedViewInboxOpen = useStorage('sharedViewInboxOpen', true)
 
 // Track which view is being hovered for ellipsis menu visibility
 const hoveredViewId = ref(null)
@@ -315,7 +318,7 @@ const viewToDelete = ref(null)
                       <SidebarMenuSubItem v-for="child in item.children" :key="child.titleKey">
                         <SidebarMenuButton size="sm" :isActive="isActiveParent(child.href)" asChild>
                           <router-link :to="child.href">
-                            <span>{{ t(child.titleKey) }}</span>
+                            <span>{{ t(child.titleKey, child.isTitleKeyPlural === true ? 2 : 1) }}</span>
                           </router-link>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
@@ -472,7 +475,7 @@ const viewToDelete = ref(null)
               </Collapsible>
 
               <!-- Views -->
-              <Collapsible class="group/collapsible" defaultOpen v-model:open="viewInboxOpen">
+              <Collapsible class="group/collapsible" defaultOpen v-model:open="viewInboxOpen" v-if="userStore.can(permissions.VIEW_MANAGE)">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton asChild>
@@ -532,6 +535,47 @@ const viewToDelete = ref(null)
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </SidebarMenuAction>
+                          </a>
+                        </SidebarMenuButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              <!-- Shared Views -->
+              <Collapsible
+                class="group/collapsible"
+                defaultOpen
+                v-model:open="sharedViewInboxOpen"
+                v-if="sharedViews.length"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton asChild>
+                      <router-link to="#" class="group/item !p-2">
+                        <span>
+                          {{ t('globals.terms.sharedView', 2) }}
+                        </span>
+                        <ChevronRight
+                          class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+                        />
+                      </router-link>
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+
+                  <CollapsibleContent>
+                    <SidebarMenuSub v-for="view in sharedViews" :key="view.id">
+                      <SidebarMenuSubItem>
+                        <SidebarMenuButton
+                          size="sm"
+                          :isActive="route.params.viewID == view.id"
+                          asChild
+                        >
+                          <a href="#" @click.prevent="navigateToViewInbox(view.id)">
+                            <span class="break-words w-32 truncate" :title="view.name">{{
+                              view.name
+                            }}</span>
                           </a>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>

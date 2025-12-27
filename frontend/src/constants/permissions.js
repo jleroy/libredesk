@@ -15,6 +15,7 @@ export const permissions = {
   MESSAGES_WRITE: 'messages:write',
   MESSAGES_WRITE_AS_CONTACT: 'messages:write_as_contact',
   VIEW_MANAGE: 'view:manage',
+  SHARED_VIEWS_MANAGE: 'shared_views:manage',
   GENERAL_SETTINGS_MANAGE: 'general_settings:manage',
   NOTIFICATION_SETTINGS_MANAGE: 'notification_settings:manage',
   STATUS_MANAGE: 'status:manage',

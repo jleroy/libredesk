@@ -82,6 +82,14 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.PUT("/api/v1/views/me/{id}", perm(handleUpdateUserView, "view:manage"))
 	g.DELETE("/api/v1/views/me/{id}", perm(handleDeleteUserView, "view:manage"))
 
+	g.GET("/api/v1/views/shared", auth(handleGetSharedViews))
+
+	g.GET("/api/v1/shared-views", perm(handleGetAllSharedViews, "shared_views:manage"))
+	g.GET("/api/v1/shared-views/{id}", perm(handleGetSharedView, "shared_views:manage"))
+	g.POST("/api/v1/shared-views", perm(handleCreateSharedView, "shared_views:manage"))
+	g.PUT("/api/v1/shared-views/{id}", perm(handleUpdateSharedView, "shared_views:manage"))
+	g.DELETE("/api/v1/shared-views/{id}", perm(handleDeleteSharedView, "shared_views:manage"))
+
 	// Status and priority.
 	g.GET("/api/v1/statuses", auth(handleGetStatuses))
 	g.POST("/api/v1/statuses", perm(handleCreateStatus, "status:manage"))

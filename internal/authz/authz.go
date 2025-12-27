@@ -110,6 +110,13 @@ func (e *Enforcer) InvalidateUserCache(userID int) {
 	e.permsCacheMu.Unlock()
 }
 
+// InvalidateAllCache clears the entire permissions cache.
+func (e *Enforcer) InvalidateAllCache() {
+	e.permsCacheMu.Lock()
+	defer e.permsCacheMu.Unlock()
+	e.permsCache = make(map[int][]string)
+}
+
 // Enforce checks if a user has permission to perform an action on an object.
 func (e *Enforcer) Enforce(user umodels.User, obj, act string) (bool, error) {
 	// Load permissions before enforcing as user perjissions might have changed.

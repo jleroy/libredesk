@@ -13,6 +13,7 @@ import (
 	medModels "github.com/abhinavxd/libredesk/internal/media/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
+	vmodels "github.com/abhinavxd/libredesk/internal/view/models"
 	wmodels "github.com/abhinavxd/libredesk/internal/webhook/models"
 	"github.com/valyala/fasthttp"
 	"github.com/volatiletech/null/v9"
@@ -164,13 +165,26 @@ func handleGetViewConversations(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	if view.UserID != auser.ID {
-		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("conversation.viewPermissionDenied"), nil, envelope.PermissionError)
-	}
 
 	user, err := app.user.GetAgent(auser.ID, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
+	}
+
+	hasAccess := false
+	switch view.Visibility {
+	case vmodels.VisibilityUser:
+		hasAccess = view.UserID != nil && *view.UserID == auser.ID
+	case vmodels.VisibilityAll:
+		hasAccess = true
+	case vmodels.VisibilityTeam:
+		if view.TeamID != nil {
+			hasAccess = slices.Contains(user.Teams.IDs(), *view.TeamID)
+		}
+	}
+
+	if !hasAccess {
+		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("conversation.viewPermissionDenied"), nil, envelope.PermissionError)
 	}
 
 	// Prepare lists user has access to based on user permissions, internally this prepares the SQL query.

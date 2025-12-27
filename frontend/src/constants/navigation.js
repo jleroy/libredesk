@@ -41,6 +41,12 @@ export const adminNavItems = [
         permission: 'macros:manage'
       },
       {
+        titleKey: 'globals.terms.sharedView',
+        href: '/admin/conversations/shared-views',
+        permission: 'shared_views:manage',
+        isTitleKeyPlural: true
+      },
+      {
         titleKey: 'globals.terms.status',
         href: '/admin/conversations/statuses',
         permission: 'status:manage'

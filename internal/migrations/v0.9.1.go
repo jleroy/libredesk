@@ -38,5 +38,98 @@ func V0_9_1(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
-	return nil
+	_, err = db.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'view_visibility') THEN
+				CREATE TYPE view_visibility AS ENUM ('all', 'team', 'user');
+			END IF;
+		END$$;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE views
+		ADD COLUMN IF NOT EXISTS visibility view_visibility NOT NULL DEFAULT 'user';
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE views
+		ADD COLUMN IF NOT EXISTS team_id BIGINT REFERENCES teams(id) ON DELETE CASCADE ON UPDATE CASCADE NULL;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE views
+		ALTER COLUMN user_id DROP NOT NULL;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM pg_constraint WHERE conname = 'constraint_views_visibility_user'
+			) THEN
+				ALTER TABLE views ADD CONSTRAINT constraint_views_visibility_user
+					CHECK (visibility != 'user' OR user_id IS NOT NULL);
+			END IF;
+		END$$;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM pg_constraint WHERE conname = 'constraint_views_visibility_team'
+			) THEN
+				ALTER TABLE views ADD CONSTRAINT constraint_views_visibility_team
+					CHECK (visibility != 'team' OR team_id IS NOT NULL);
+			END IF;
+		END$$;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS index_views_on_visibility ON views(visibility);
+		CREATE INDEX IF NOT EXISTS index_views_on_team_id ON views(team_id);
+	`)
+	if err != nil {
+		return err
+	}
+
+	// Add shared_views:manage permission to Admin role
+	_, err = db.Exec(`
+		UPDATE roles
+		SET permissions = array_append(permissions, 'shared_views:manage')
+		WHERE name = 'Admin'
+		AND NOT ('shared_views:manage' = ANY(permissions));
+	`)
+	if err != nil {
+		return err
+	}
+
+	// Add agent_password_set to activity_log_type enum.
+	_, err = db.Exec(`ALTER TYPE activity_log_type ADD VALUE IF NOT EXISTS 'agent_password_set';`)
+	if err != nil {
+		return err
+	}
+
+	// Add agent_role_permissions_changed to activity_log_type enum.
+	_, err = db.Exec(`ALTER TYPE activity_log_type ADD VALUE IF NOT EXISTS 'agent_role_permissions_changed';`)
+	return err
 }

@@ -398,6 +398,24 @@ const updateView = (id, data) =>
     }
   })
 const deleteView = (id) => http.delete(`/api/v1/views/me/${id}`)
+
+const getSharedViews = () => http.get('/api/v1/views/shared')
+const getAllSharedViews = () => http.get('/api/v1/shared-views')
+const getSharedView = (id) => http.get(`/api/v1/shared-views/${id}`)
+const createSharedView = (data) =>
+  http.post('/api/v1/shared-views', data, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+const updateSharedView = (id, data) =>
+  http.put(`/api/v1/shared-views/${id}`, data, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+const deleteSharedView = (id) => http.delete(`/api/v1/shared-views/${id}`)
+
 const getAiPrompts = () => http.get('/api/v1/ai/prompts')
 const aiCompletion = (data) => http.post('/api/v1/ai/completion', data, {
   headers: {
@@ -566,6 +584,12 @@ export default {
   createView,
   updateView,
   deleteView,
+  getSharedViews,
+  getAllSharedViews,
+  getSharedView,
+  createSharedView,
+  updateSharedView,
+  deleteSharedView,
   getAiPrompts,
   aiCompletion,
   searchConversations,

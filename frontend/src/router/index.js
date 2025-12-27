@@ -483,6 +483,31 @@ const routes = [
                     meta: { title: 'Edit Macro' }
                   }
                 ]
+              },
+              {
+                path: 'shared-views',
+                component: () => import('@/views/admin/shared-views/SharedViews.vue'),
+                meta: { title: 'Shared views' },
+                children: [
+                  {
+                    path: '',
+                    name: 'shared-view-list',
+                    component: () => import('@/views/admin/shared-views/SharedViewList.vue')
+                  },
+                  {
+                    path: 'new',
+                    name: 'new-shared-view',
+                    component: () => import('@/views/admin/shared-views/CreateSharedView.vue'),
+                    meta: { title: 'Create shared view' }
+                  },
+                  {
+                    path: ':id/edit',
+                    props: true,
+                    name: 'edit-shared-view',
+                    component: () => import('@/views/admin/shared-views/EditSharedView.vue'),
+                    meta: { title: 'Edit shared view' }
+                  }
+                ]
               }
             ]
           }

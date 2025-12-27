@@ -82,6 +82,7 @@
       <Sidebar
         :userTeams="userStore.teams"
         :userViews="userViews"
+        :sharedViews="sharedViewStore.sharedViewList"
         @create-view="openCreateViewForm = true"
         @edit-view="editView"
         @delete-view="deleteView"
@@ -123,6 +124,7 @@ import { useUsersStore } from '@/stores/users'
 import { useTeamStore } from '@/stores/team'
 import { useSlaStore } from '@/stores/sla'
 import { useMacroStore } from '@/stores/macro'
+import { useSharedViewStore } from '@/stores/sharedView'
 import { useTagStore } from '@/stores/tag'
 import { useCustomAttributeStore } from '@/stores/customAttributes'
 import { useIdleDetection } from '@/composables/useIdleDetection'
@@ -160,6 +162,7 @@ const teamStore = useTeamStore()
 const inboxStore = useInboxStore()
 const slaStore = useSlaStore()
 const macroStore = useMacroStore()
+const sharedViewStore = useSharedViewStore()
 const tagStore = useTagStore()
 const customAttributeStore = useCustomAttributeStore()
 const userViews = ref([])
@@ -184,6 +187,7 @@ const initStores = async () => {
   }
   await Promise.allSettled([
     getUserViews(),
+    sharedViewStore.loadSharedViews(),
     conversationStore.fetchStatuses(),
     conversationStore.fetchPriorities(),
     conversationStore.fetchAllDrafts(),
