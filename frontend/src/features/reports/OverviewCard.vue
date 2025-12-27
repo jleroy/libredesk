@@ -45,8 +45,8 @@ const gridClass = computed(() => {
 
 const valueClass = computed(() => {
   const sizes = {
-    default: 'text-3xl font-bold',
-    large: 'text-4xl font-bold tracking-tight'
+    default: 'text-2xl font-bold',
+    large: 'text-3xl font-bold tracking-tight'
   }
   return sizes[props.size] || sizes.default
 })

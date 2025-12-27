@@ -47,7 +47,9 @@
                 <span class="metric-label">{{ $t('report.csat.responseRate') }}</span>
               </div>
               <div class="metric-item">
-                <span class="metric-value">{{ formatCompactNumber(csatData.total_responses || 0) }}</span>
+                <span class="metric-value">{{
+                  formatCompactNumber(csatData.total_responses || 0)
+                }}</span>
                 <span class="metric-label">{{ $t('report.csat.responses') }}</span>
               </div>
             </div>
@@ -56,24 +58,34 @@
           <!-- Message Volume Card -->
           <div class="flex-1 box p-5">
             <div class="flex justify-between items-center mb-4">
-              <p class="card-title">{{ $t('report.messages.cardTitle', { days: messageVolumeDays }) }}</p>
+              <p class="card-title">
+                {{ $t('report.messages.cardTitle', { days: messageVolumeDays }) }}
+              </p>
               <DateFilter @filter-change="handleMessageVolumeFilterChange" :label="''" />
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div class="metric-item">
-                <span class="metric-value">{{ formatCompactNumber(messageVolumeData.total_messages || 0) }}</span>
+                <span class="metric-value">{{
+                  formatCompactNumber(messageVolumeData.total_messages || 0)
+                }}</span>
                 <span class="metric-label">{{ $t('report.messages.total') }}</span>
               </div>
               <div class="metric-item">
-                <span class="metric-value">{{ formatCompactNumber(messageVolumeData.incoming_messages || 0) }}</span>
+                <span class="metric-value">{{
+                  formatCompactNumber(messageVolumeData.incoming_messages || 0)
+                }}</span>
                 <span class="metric-label">{{ $t('report.messages.incoming') }}</span>
               </div>
               <div class="metric-item">
-                <span class="metric-value">{{ formatCompactNumber(messageVolumeData.outgoing_messages || 0) }}</span>
+                <span class="metric-value">{{
+                  formatCompactNumber(messageVolumeData.outgoing_messages || 0)
+                }}</span>
                 <span class="metric-label">{{ $t('report.messages.outgoing') }}</span>
               </div>
               <div class="metric-item">
-                <span class="metric-value">{{ messageVolumeData.messages_per_conversation || 0 }}</span>
+                <span class="metric-value">{{
+                  messageVolumeData.messages_per_conversation || 0
+                }}</span>
                 <span class="metric-label">{{ $t('report.messages.perConversation') }}</span>
               </div>
             </div>
@@ -92,21 +104,29 @@
             <div class="space-y-4">
               <p class="section-title">{{ $t('report.sla.firstResponse') }}</p>
               <div class="metric-item">
-                <span class="metric-value-xl text-green-600">{{ slaCounts.first_response_compliance_percent || 0 }}%</span>
+                <span class="metric-value text-green-600"
+                  >{{ slaCounts.first_response_compliance_percent || 0 }}%</span
+                >
                 <span class="metric-label">{{ $t('report.sla.compliance') }}</span>
               </div>
               <div class="grid grid-cols-2 gap-4 text-center pt-2">
                 <div>
-                  <span class="text-2xl font-semibold text-green-600">{{ slaCounts.first_response_met_count || 0 }}</span>
+                  <span class="text-2xl font-semibold text-green-600">{{
+                    slaCounts.first_response_met_count || 0
+                  }}</span>
                   <p class="metric-label">{{ $t('report.sla.met') }}</p>
                 </div>
                 <div>
-                  <span class="text-2xl font-semibold text-red-600">{{ slaCounts.first_response_breached_count || 0 }}</span>
+                  <span class="text-2xl font-semibold text-red-600">{{
+                    slaCounts.first_response_breached_count || 0
+                  }}</span>
                   <p class="metric-label">{{ $t('report.sla.breached') }}</p>
                 </div>
               </div>
               <div class="text-center pt-2">
-                <span class="text-lg font-medium">{{ formattedSlaCounts.avg_first_response_time_sec }}</span>
+                <span class="text-lg font-medium">{{
+                  formattedSlaCounts.avg_first_response_time_sec
+                }}</span>
                 <p class="text-xs text-muted-foreground">{{ $t('report.sla.avgFirstResp') }}</p>
               </div>
             </div>
@@ -115,21 +135,29 @@
             <div class="space-y-4 border-l border-r px-8">
               <p class="section-title">{{ $t('report.sla.nextResponse') }}</p>
               <div class="metric-item">
-                <span class="metric-value-xl text-green-600">{{ slaCounts.next_response_compliance_percent || 0 }}%</span>
+                <span class="metric-value text-green-600"
+                  >{{ slaCounts.next_response_compliance_percent || 0 }}%</span
+                >
                 <span class="metric-label">{{ $t('report.sla.compliance') }}</span>
               </div>
               <div class="grid grid-cols-2 gap-4 text-center pt-2">
                 <div>
-                  <span class="text-2xl font-semibold text-green-600">{{ slaCounts.next_response_met_count || 0 }}</span>
+                  <span class="text-2xl font-semibold text-green-600">{{
+                    slaCounts.next_response_met_count || 0
+                  }}</span>
                   <p class="metric-label">{{ $t('report.sla.met') }}</p>
                 </div>
                 <div>
-                  <span class="text-2xl font-semibold text-red-600">{{ slaCounts.next_response_breached_count || 0 }}</span>
+                  <span class="text-2xl font-semibold text-red-600">{{
+                    slaCounts.next_response_breached_count || 0
+                  }}</span>
                   <p class="metric-label">{{ $t('report.sla.breached') }}</p>
                 </div>
               </div>
               <div class="text-center pt-2">
-                <span class="text-lg font-medium">{{ formattedSlaCounts.avg_next_response_time_sec }}</span>
+                <span class="text-lg font-medium">{{
+                  formattedSlaCounts.avg_next_response_time_sec
+                }}</span>
                 <p class="text-xs text-muted-foreground">{{ $t('report.sla.avgNextResp') }}</p>
               </div>
             </div>
@@ -138,21 +166,29 @@
             <div class="space-y-4">
               <p class="section-title">{{ $t('report.sla.resolution') }}</p>
               <div class="metric-item">
-                <span class="metric-value-xl text-green-600">{{ slaCounts.resolution_compliance_percent || 0 }}%</span>
+                <span class="metric-value text-green-600"
+                  >{{ slaCounts.resolution_compliance_percent || 0 }}%</span
+                >
                 <span class="metric-label">{{ $t('report.sla.compliance') }}</span>
               </div>
               <div class="grid grid-cols-2 gap-4 text-center pt-2">
                 <div>
-                  <span class="text-2xl font-semibold text-green-600">{{ slaCounts.resolution_met_count || 0 }}</span>
+                  <span class="text-2xl font-semibold text-green-600">{{
+                    slaCounts.resolution_met_count || 0
+                  }}</span>
                   <p class="metric-label">{{ $t('report.sla.met') }}</p>
                 </div>
                 <div>
-                  <span class="text-2xl font-semibold text-red-600">{{ slaCounts.resolution_breached_count || 0 }}</span>
+                  <span class="text-2xl font-semibold text-red-600">{{
+                    slaCounts.resolution_breached_count || 0
+                  }}</span>
                   <p class="metric-label">{{ $t('report.sla.breached') }}</p>
                 </div>
               </div>
               <div class="text-center pt-2">
-                <span class="text-lg font-medium">{{ formattedSlaCounts.avg_resolution_time_sec }}</span>
+                <span class="text-lg font-medium">{{
+                  formattedSlaCounts.avg_resolution_time_sec
+                }}</span>
                 <p class="text-xs text-muted-foreground">{{ $t('report.sla.avgResolution') }}</p>
               </div>
             </div>
@@ -162,17 +198,23 @@
         <!-- Row 4: Tag Distribution -->
         <div class="w-full rounded box p-5">
           <div class="flex justify-between items-center mb-4">
-            <p class="card-title">{{ $t('report.tags.cardTitle', { days: tagDistributionDays }) }}</p>
+            <p class="card-title">
+              {{ $t('report.tags.cardTitle', { days: tagDistributionDays }) }}
+            </p>
             <DateFilter @filter-change="handleTagDistributionFilterChange" :label="''" />
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Tagged percentage metric -->
             <div class="metric-item justify-center p-4">
-              <span class="metric-value-xl">{{ tagDistributionData.tagged_percentage || 0 }}%</span>
+              <span class="metric-value">{{ tagDistributionData.tagged_percentage || 0 }}%</span>
               <span class="metric-label mt-2">{{ $t('report.tags.tagged') }}</span>
               <span class="text-sm text-muted-foreground mt-1">
-                {{ tagDistributionData.tagged_conversations || 0 }} / {{ (tagDistributionData.tagged_conversations || 0) + (tagDistributionData.untagged_conversations || 0) }}
+                {{ tagDistributionData.tagged_conversations || 0 }} /
+                {{
+                  (tagDistributionData.tagged_conversations || 0) +
+                  (tagDistributionData.untagged_conversations || 0)
+                }}
               </span>
             </div>
 
@@ -188,7 +230,11 @@
                 <span class="text-sm font-semibold">{{ formatCompactNumber(tag.count) }}</span>
               </div>
               <p v-if="!tagDistributionData.top_tags?.length" class="text-sm text-muted-foreground">
-                No tags found
+                {{
+                  $t('globals.messages.noResults', {
+                    item: $t('globals.terms.tags').toLowerCase()
+                  })
+                }}
               </p>
             </div>
           </div>
@@ -292,7 +338,9 @@ const formatPercent = (value) => {
 
 const formatCompactNumber = (value) => {
   if (!value || value < 1000) return value
-  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(
+    value
+  )
 }
 
 const formattedSlaCounts = computed(() => ({
@@ -517,11 +565,11 @@ onUnmounted(() => {
 
 <style scoped>
 .metric-value {
-  @apply text-4xl font-bold tracking-tight;
+  @apply text-3xl font-bold tracking-tight;
 }
 
-.metric-value-xl {
-  @apply text-5xl font-bold tracking-tight;
+.metric-value {
+  @apply text-3xl font-bold tracking-tight;
 }
 
 .metric-label {
