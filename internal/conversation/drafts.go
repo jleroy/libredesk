@@ -3,7 +3,6 @@ package conversation
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
@@ -49,10 +48,8 @@ func (m *Manager) DeleteConversationDraft(conversationID int, uuid string, userI
 
 // DeleteStaleDrafts deletes drafts older than the specified retention period.
 func (m *Manager) DeleteStaleDrafts(ctx context.Context, retentionPeriod time.Duration) error {
-	// Format duration as PostgreSQL interval string
-	intervalStr := fmt.Sprintf("%d seconds", int(retentionPeriod.Seconds()))
-
-	res, err := m.q.DeleteStaleDrafts.ExecContext(ctx, intervalStr)
+	cutoff := time.Now().Add(-retentionPeriod)
+	res, err := m.q.DeleteStaleDrafts.ExecContext(ctx, cutoff)
 	if err != nil {
 		m.lo.Error("error deleting stale drafts", "error", err)
 		return err

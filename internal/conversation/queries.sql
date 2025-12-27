@@ -584,4 +584,4 @@ WHERE conversation_id IN (
 
 -- name: delete-stale-drafts
 DELETE FROM conversation_drafts
-WHERE created_at < NOW() - $1::interval;
+WHERE created_at < $1;
