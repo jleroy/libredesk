@@ -54,9 +54,9 @@
           <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
         </FormControl>
       </FormItem>
-      <FormDescription class="!mt-2">
+      <p class="!mt-2 text-muted-foreground text-sm">
         {{ $t('admin.inbox.csatSurveys.description_2') }}
-      </FormDescription>
+      </p>
     </FormField>
 
     <FormField v-if="setupMethod" v-slot="{ componentField }" name="auth_type">
@@ -718,6 +718,7 @@ const form = useForm({
     from: '',
     enabled: true,
     csat_enabled: false,
+    auth_type: AUTH_TYPE_PASSWORD,
     imap: {
       host: 'imap.gmail.com',
       port: 993,
@@ -845,14 +846,6 @@ const copyToClipboard = async (text) => {
   }
 }
 
-// Detect OAuth mode from form values
-watch(
-  () => form.values?.config?.auth_type,
-  (authType) => {
-    isOAuthInbox.value = authType === AUTH_TYPE_OAUTH2
-  },
-  { immediate: true }
-)
 
 watch(
   () => props.initialValues,
@@ -860,7 +853,11 @@ watch(
     if (Object.keys(newValues).length === 0) {
       return
     }
-    if (Object.keys(newValues?.imap || {}).length > 0) {
+    if (newValues.config?.auth_type === AUTH_TYPE_OAUTH2) {
+      isOAuthInbox.value = true
+      setupMethod.value = 'oauth'
+    } else {
+      isOAuthInbox.value = false
       setupMethod.value = 'manual'
     }
     form.setValues(newValues)
