@@ -516,6 +516,8 @@
   "admin.inbox.oauth.enterClientID": "Enter your OAuth client ID",
   "admin.inbox.oauth.enterClientSecret": "Enter your OAuth client secret",
   "admin.inbox.oauth.clientIDSecretRequired": "Please provide both client ID and client secret",
+  "admin.inbox.oauth.reconnectAccount": "Reconnect {provider} account",
+  "admin.inbox.oauth.reconnectDescription": "Re-enter your credentials to refresh the OAuth connection",
   "admin.agent.deleteConfirmation": "This will permanently delete the agent. Consider disabling the account instead.",
   "admin.agent.apiKey.description": "Generate API keys for this agent to access libredesk programmatically.",
   "admin.agent.apiKey.noKey": "No API key has been generated for this agent.",

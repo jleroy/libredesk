@@ -528,22 +528,30 @@
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {{ $t('admin.inbox.oauth.connectAccount', { provider: selectedProvider === PROVIDER_GOOGLE ? $t('globals.terms.google') : $t('globals.terms.microsoft') }) }}
+          {{
+            flowType === 'reconnect'
+              ? $t('admin.inbox.oauth.reconnectAccount', { provider: selectedProvider === PROVIDER_GOOGLE ? $t('globals.terms.google') : $t('globals.terms.microsoft') })
+              : $t('admin.inbox.oauth.connectAccount', { provider: selectedProvider === PROVIDER_GOOGLE ? $t('globals.terms.google') : $t('globals.terms.microsoft') })
+          }}
         </DialogTitle>
         <DialogDescription>
-          {{ $t('admin.inbox.oauth.followSteps') }}
+          {{
+            flowType === 'reconnect'
+              ? $t('admin.inbox.oauth.reconnectDescription')
+              : $t('admin.inbox.oauth.followSteps')
+          }}
         </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4">
-        <div class="space-y-3">
+        <div v-if="flowType === 'new_inbox'" class="space-y-4">
           <p class="text-sm">
             {{ $t('admin.inbox.oauth.step1CreateApp') }}
             <a
               :href="
                 selectedProvider === PROVIDER_GOOGLE
                   ? 'https://console.cloud.google.com/apis/credentials'
-                  : 'https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade'
+                  : 'https://entra.microsoft.com/'
               "
               target="_blank"
               class="text-primary underline"
