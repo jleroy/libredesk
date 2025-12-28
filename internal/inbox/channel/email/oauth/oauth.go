@@ -93,7 +93,7 @@ func BuildAuthorizationURL(provider Provider, clientID, redirectURI, state strin
 		return "", err
 	}
 	cfg.ClientID = clientID
-	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce), nil
+	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account")), nil
 }
 
 // IsTokenExpired checks if an access token has expired or is about to expire.
