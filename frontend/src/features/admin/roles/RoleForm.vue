@@ -102,6 +102,7 @@ const submitLabel = computed(() => {
   return props.submitLabel || t('globals.messages.save')
 })
 
+// TODO: Prepare this by fetching all perms from the file, so we don't have to update this manually.
 const permissions = ref([
   {
     name: t('globals.terms.conversation'),
@@ -172,7 +173,8 @@ const permissions = ref([
       { name: perms.AI_MANAGE, label: t('admin.role.ai.manage') },
       { name: perms.CUSTOM_ATTRIBUTES_MANAGE, label: t('admin.role.customAttributes.manage') },
       { name: perms.ACTIVITY_LOGS_MANAGE, label: t('admin.role.activityLog.manage') },
-      { name: perms.WEBHOOKS_MANAGE, label: t('admin.role.webhooks.manage') }
+      { name: perms.WEBHOOKS_MANAGE, label: t('admin.role.webhooks.manage') },
+      { name: perms.SHARED_VIEWS_MANAGE, label: t('admin.role.sharedViews.manage') }
     ]
   },
   {
