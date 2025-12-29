@@ -541,7 +541,7 @@
   "admin.role.messages.write": "Send messages in conversations",
   "admin.role.messages.writeAsContact": "Send messages as contact",
   "admin.role.view.manage": "Create and manage conversation views",
-  "admin.role.sharedViews.manage": "Manage shared views",
+  "admin.role.sharedViews.manage": "Manage Shared Views",
   "admin.role.generalSettings.manage": "Manage General Settings",
   "admin.role.notificationSettings.manage": "Manage Notification Settings",
   "admin.role.status.manage": "Manage Conversation Statuses",
