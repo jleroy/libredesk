@@ -93,6 +93,11 @@ func BuildAuthorizationURL(provider Provider, clientID, redirectURI, state strin
 		return "", err
 	}
 	cfg.ClientID = clientID
+
+	// Google requires prompt=consent to issue a refresh token on re-authentication.
+	if provider == ProviderGoogle {
+		return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce), nil
+	}
 	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account")), nil
 }
 
