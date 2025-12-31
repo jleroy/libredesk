@@ -240,6 +240,9 @@ CREATE TABLE conversations (
 	last_message_at TIMESTAMPTZ NULL,
 	last_message TEXT NULL,
 	last_message_sender message_sender_type NULL,
+	last_interaction TEXT NULL,
+	last_interaction_sender message_sender_type NULL,
+	last_interaction_at TIMESTAMPTZ NULL,
 	next_sla_deadline_at TIMESTAMPTZ NULL,
 	snoozed_until TIMESTAMPTZ NULL
 );
@@ -252,6 +255,7 @@ CREATE INDEX index_conversations_on_status_id ON conversations (status_id);
 CREATE INDEX index_conversations_on_priority_id ON conversations (priority_id);
 CREATE INDEX index_conversations_on_created_at ON conversations (created_at);
 CREATE INDEX index_conversations_on_last_message_at ON conversations (last_message_at);
+CREATE INDEX index_conversations_on_last_interaction_at ON conversations (last_interaction_at);
 CREATE INDEX index_conversations_on_next_sla_deadline_at ON conversations (next_sla_deadline_at);
 CREATE INDEX index_conversations_on_waiting_since ON conversations (waiting_since);
 

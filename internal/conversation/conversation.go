@@ -45,8 +45,9 @@ var (
 	//go:embed queries.sql
 	efs                             embed.FS
 	errConversationNotFound         = errors.New("conversation not found")
-	conversationsAllowedFields      = []string{"status_id", "priority_id", "assigned_team_id", "assigned_user_id", "inbox_id", "last_message_at", "created_at", "waiting_since", "next_sla_deadline_at", "priority_id"}
+	conversationsAllowedFields      = []string{"status_id", "priority_id", "assigned_team_id", "assigned_user_id", "inbox_id", "last_message_at", "last_interaction_at", "created_at", "waiting_since", "next_sla_deadline_at", "priority_id"}
 	conversationStatusAllowedFields = []string{"id", "name"}
+	usersAllowedFields              = []string{"email"}
 	csatReplyMessage                = "Please rate your experience with us: <a href=\"%s\">Rate now</a>"
 )
 
@@ -435,8 +436,9 @@ func (c *Manager) ActiveUserConversationsCount(userID int) (int, error) {
 }
 
 // UpdateConversationLastMessage updates the last message details for a conversation.
-func (c *Manager) UpdateConversationLastMessage(conversation int, conversationUUID, lastMessage, lastMessageSenderType string, lastMessageAt time.Time) error {
-	if _, err := c.q.UpdateConversationLastMessage.Exec(conversation, conversationUUID, lastMessage, lastMessageSenderType, lastMessageAt); err != nil {
+// Also conditionally updates last_interaction fields if messageType != 'activity' and !private.
+func (c *Manager) UpdateConversationLastMessage(conversation int, conversationUUID, lastMessage, lastMessageSenderType, messageType string, private bool, lastMessageAt time.Time) error {
+	if _, err := c.q.UpdateConversationLastMessage.Exec(conversation, conversationUUID, lastMessage, lastMessageSenderType, lastMessageAt, messageType, private); err != nil {
 		c.lo.Error("error updating conversation last message", "error", err)
 		return err
 	}
@@ -1224,5 +1226,6 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 	}, filtersJSON, dbutil.AllowedFields{
 		"conversations":         conversationsAllowedFields,
 		"conversation_statuses": conversationStatusAllowedFields,
+		"users":                 usersAllowedFields,
 	})
 }

@@ -22,6 +22,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { h } from 'vue'
+import { RouterLink } from 'vue-router'
 import InboxDataTableDropDown from '@/features/admin/inbox/InboxDataTableDropDown.vue'
 import { handleHTTPError } from '@/utils/http'
 import { Button } from '@/components/ui/button'
@@ -103,7 +104,15 @@ const columns = [
       return h('div', { class: 'text-center' }, t('globals.terms.name'))
     },
     cell: function ({ row }) {
-      return h('div', { class: 'text-center' }, row.getValue('name'))
+      return h('div', { class: 'text-center' },
+        h(RouterLink,
+          {
+            to: { name: 'edit-inbox', params: { id: row.original.id } },
+            class: 'text-primary hover:underline'
+          },
+          () => row.getValue('name')
+        )
+      )
     }
   },
   {

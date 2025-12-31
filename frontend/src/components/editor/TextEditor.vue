@@ -307,6 +307,13 @@ const unsetLink = () => {
   editor.value?.chain().focus().unsetLink().run()
   showLinkDialog.value = false
 }
+
+// Expose focus method for parent components
+const focus = () => {
+  editor.value?.commands.focus()
+}
+
+defineExpose({ focus })
 </script>
 
 <style lang="scss">

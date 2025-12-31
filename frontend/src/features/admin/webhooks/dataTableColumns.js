@@ -1,4 +1,5 @@
 import { h } from 'vue'
+import { RouterLink } from 'vue-router'
 import dropdown from './dataTableDropdown.vue'
 import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +11,15 @@ export const createColumns = (t) => [
       return h('div', { class: 'text-center' }, t('globals.terms.name'))
     },
     cell: function ({ row }) {
-      return h('div', { class: 'text-center' }, row.getValue('name'))
+      return h('div', { class: 'text-center' },
+        h(RouterLink,
+          {
+            to: { name: 'edit-webhook', params: { id: row.original.id } },
+            class: 'text-primary hover:underline'
+          },
+          () => row.getValue('name')
+        )
+      )
     }
   },
   {

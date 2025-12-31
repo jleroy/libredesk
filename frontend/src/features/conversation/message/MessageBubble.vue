@@ -2,7 +2,14 @@
   <div class="flex flex-col text-left" :class="isOutgoing ? 'items-end' : 'items-start'">
     <!-- Sender Name -->
     <div class="mb-1" :class="isOutgoing ? 'pr-[47px]' : 'pl-[47px]'">
-      <p class="text-muted-foreground text-sm font-medium">
+      <router-link
+        v-if="!isOutgoing"
+        :to="{ name: 'contact-detail', params: { id: message.author?.id } }"
+        class="text-muted-foreground text-sm font-medium hover:underline hover:text-primary"
+      >
+        {{ getFullName }}
+      </router-link>
+      <p v-else class="text-muted-foreground text-sm font-medium">
         {{ getFullName }}
       </p>
     </div>
@@ -10,12 +17,18 @@
     <!-- Message Bubble -->
     <div class="flex flex-row gap-2 w-full" :class="{ 'justify-end': isOutgoing }">
       <!-- Avatar (left for incoming) -->
-      <Avatar v-if="!isOutgoing" class="cursor-pointer w-8 h-8">
-        <AvatarImage :src="getAvatar" />
-        <AvatarFallback class="font-medium">
-          {{ avatarFallback }}
-        </AvatarFallback>
-      </Avatar>
+      <router-link
+        v-if="!isOutgoing"
+        :to="{ name: 'contact-detail', params: { id: message.author?.id } }"
+        class="flex-shrink-0"
+      >
+        <Avatar class="cursor-pointer w-8 h-8 hover:opacity-80 transition-opacity">
+          <AvatarImage :src="getAvatar" />
+          <AvatarFallback class="font-medium">
+            {{ avatarFallback }}
+          </AvatarFallback>
+        </Avatar>
+      </router-link>
 
       <!-- Bubble Wrapper with max 80% width -->
       <div
@@ -133,23 +146,20 @@ const { t } = useI18n()
 // Direction helpers
 const isOutgoing = computed(() => props.direction === 'outgoing')
 
-// Participant info
-const participant = computed(() => {
-  return convStore.conversation?.participants?.[props.message.sender_id] ?? {}
-})
-
+// Author info from message
 const getFullName = computed(() => {
-  const firstName = participant.value?.first_name ?? 'User'
-  const lastName = participant.value?.last_name ?? ''
-  return `${firstName} ${lastName}`
+  const author = props.message.author ?? {}
+  const firstName = author.first_name ?? 'User'
+  const lastName = author.last_name ?? ''
+  return `${firstName} ${lastName}`.trim()
 })
 
 const getAvatar = computed(() => {
-  return participant.value?.avatar_url || ''
+  return props.message.author?.avatar_url || ''
 })
 
 const avatarFallback = computed(() => {
-  const firstName = participant.value?.first_name ?? (isOutgoing.value ? 'A' : 'U')
+  const firstName = props.message.author?.first_name ?? (isOutgoing.value ? 'A' : 'U')
   return firstName.toUpperCase().substring(0, 2)
 })
 
