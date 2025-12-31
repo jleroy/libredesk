@@ -1,10 +1,10 @@
 <template>
-  <div
-    class="group relative px-4 p-4 transition-all duration-200 ease-in-out cursor-pointer hover:bg-accent/20 dark:hover:bg-accent/60"
+  <router-link
+    :to="conversationRoute"
+    class="group relative block px-4 p-4 transition-all duration-200 ease-in-out cursor-pointer hover:bg-accent/20 dark:hover:bg-accent/60"
     :class="{
       'bg-accent/60': conversation.uuid === currentConversation?.uuid
     }"
-    @click="navigateToConversation(conversation.uuid)"
   >
     <div class="flex items-start gap-4">
       <!-- Avatar -->
@@ -95,7 +95,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </router-link>
 </template>
 
 <script setup>
@@ -122,21 +122,21 @@ const props = defineProps({
   contactFullName: String
 })
 
-const navigateToConversation = (uuid) => {
+const conversationRoute = computed(() => {
   const baseRoute = route.name.includes('team')
     ? 'team-inbox-conversation'
     : route.name.includes('view')
       ? 'view-inbox-conversation'
       : 'inbox-conversation'
-  router.push({
+  return {
     name: baseRoute,
     params: {
-      uuid,
+      uuid: props.conversation.uuid,
       ...(baseRoute === 'team-inbox-conversation' && { teamID: route.params.teamID }),
       ...(baseRoute === 'view-inbox-conversation' && { viewID: route.params.viewID })
     }
-  })
-}
+  }
+})
 
 onMounted(() => {
   timer = setInterval(() => {

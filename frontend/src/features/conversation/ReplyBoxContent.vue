@@ -84,6 +84,7 @@
     <!-- Main tiptap editor -->
     <div class="flex-grow flex flex-col overflow-hidden">
       <Editor
+        ref="editorRef"
         v-model:htmlContent="htmlContent"
         v-model:textContent="textContent"
         :placeholder="t('editor.newLine') + t('editor.send') + t('editor.ctrlK')"
@@ -196,6 +197,7 @@ const conversationStore = useConversationStore()
 const emitter = useEmitter()
 const { t } = useI18n()
 const insertContent = ref(null)
+const editorRef = ref(null)
 
 const toggleBcc = async () => {
   showBcc.value = !showBcc.value
@@ -280,13 +282,23 @@ const handleAiPromptSelected = (key) => {
 // Watch and update macro view based on message type this filters our macros.
 watch(
   messageType,
-  (newType) => {
+  (newType, oldType) => {
     if (newType === 'reply') {
       macroStore.setCurrentView('replying')
     } else if (newType === 'private_note') {
       macroStore.setCurrentView('adding_private_note')
     }
+    // Focus editor on tab change
+    setTimeout(() => {
+      editorRef.value?.focus()
+    }, 50)
   },
   { immediate: true }
 )
+
+// Expose focus method for parent components
+const focus = () => {
+  editorRef.value?.focus()
+}
+defineExpose({ focus })
 </script>

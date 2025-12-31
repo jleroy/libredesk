@@ -401,32 +401,32 @@ const viewToDelete = ref(null)
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/assigned')">
-                  <a href="#" @click.prevent="navigateToInbox('assigned')">
+                  <router-link :to="{ name: 'inbox', params: { type: 'assigned' } }">
                     <User />
                     <span>{{ t('globals.terms.myInbox') }}</span>
-                  </a>
+                  </router-link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/unassigned')">
-                  <a href="#" @click.prevent="navigateToInbox('unassigned')">
+                  <router-link :to="{ name: 'inbox', params: { type: 'unassigned' } }">
                     <CircleDashed />
                     <span>
                       {{ t('globals.terms.unassigned') }}
                     </span>
-                  </a>
+                  </router-link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/all')">
-                  <a href="#" @click.prevent="navigateToInbox('all')">
+                  <router-link :to="{ name: 'inbox', params: { type: 'all' } }">
                     <List />
                     <span>
                       {{ t('globals.messages.all') }}
                     </span>
-                  </a>
+                  </router-link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -459,9 +459,9 @@ const viewToDelete = ref(null)
                           :is-active="route.params.teamID == team.id"
                           asChild
                         >
-                          <a href="#" @click.prevent="navigateToTeamInbox(team.id)">
+                          <router-link :to="{ name: 'team-inbox', params: { teamID: team.id } }">
                             {{ team.emoji }}<span>{{ team.name }}</span>
-                          </a>
+                          </router-link>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
@@ -505,7 +505,7 @@ const viewToDelete = ref(null)
                           :isActive="route.params.viewID == view.id"
                           asChild
                         >
-                          <a href="#" @click.prevent="navigateToViewInbox(view.id)">
+                          <router-link :to="{ name: 'view-inbox', params: { viewID: view.id } }">
                             <span class="break-words w-32 truncate" :title="view.name">{{ view.name }}</span>
                             <SidebarMenuAction
                               @click.stop
@@ -530,7 +530,7 @@ const viewToDelete = ref(null)
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </SidebarMenuAction>
-                          </a>
+                          </router-link>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
@@ -567,11 +567,11 @@ const viewToDelete = ref(null)
                           :isActive="route.params.viewID == view.id"
                           asChild
                         >
-                          <a href="#" @click.prevent="navigateToViewInbox(view.id)">
+                          <router-link :to="{ name: 'view-inbox', params: { viewID: view.id } }">
                             <span class="break-words w-32 truncate" :title="view.name">{{
                               view.name
                             }}</span>
-                          </a>
+                          </router-link>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>

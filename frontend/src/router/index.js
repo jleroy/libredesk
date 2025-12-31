@@ -286,6 +286,7 @@ const routes = [
                   {
                     path: ':id/edit',
                     props: true,
+                    name: 'edit-agent',
                     component: () => import('@/views/admin/agents/EditAgent.vue'),
                     meta: { title: 'Edit agent' }
                   }

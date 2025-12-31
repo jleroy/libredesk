@@ -493,8 +493,8 @@ func (m *Manager) InsertMessage(message *models.Message) error {
 		lastMessage = "Please rate your experience with us"
 	}
 
-	// Update conversation last message details in conversation.
-	m.UpdateConversationLastMessage(message.ConversationID, message.ConversationUUID, lastMessage, message.SenderType, message.CreatedAt)
+	// Update conversation last message details (also conditionally updates last_interaction if not activity/private).
+	m.UpdateConversationLastMessage(message.ConversationID, message.ConversationUUID, lastMessage, message.SenderType, message.Type, message.Private, message.CreatedAt)
 
 	// Broadcast new message.
 	m.BroadcastNewMessage(message)

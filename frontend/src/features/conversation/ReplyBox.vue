@@ -79,6 +79,7 @@
       v-if="!isEditorFullscreen"
     >
       <ReplyBoxContent
+        ref="replyBoxContentRef"
         :isFullscreen="false"
         :aiPrompts="aiPrompts"
         :isSending="isSending"
@@ -184,6 +185,7 @@ const bcc = ref('')
 const showBcc = ref(false)
 const emailErrors = ref([])
 const aiPrompts = ref([])
+const replyBoxContentRef = ref(null)
 
 /**
  * Fetches AI prompts from the server.
@@ -411,6 +413,10 @@ watch(
   () => {
     clearMediaFiles()
     conversationStore.resetMacro(MACRO_CONTEXT.REPLY)
+    // Focus editor on conversation change
+    setTimeout(() => {
+      replyBoxContentRef.value?.focus()
+    }, 100)
   }
 )
 </script>

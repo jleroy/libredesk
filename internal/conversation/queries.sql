@@ -52,6 +52,9 @@ SELECT
     conversations.last_message,
     conversations.last_message_at,
     conversations.last_message_sender,
+    conversations.last_interaction,
+    conversations.last_interaction_at,
+    conversations.last_interaction_sender,
     conversations.next_sla_deadline_at,
     conversations.priority_id,
     (
@@ -125,6 +128,9 @@ SELECT
    c.last_message_at,
    c.last_message_sender,
    c.last_message,
+   c.last_interaction,
+   c.last_interaction_at,
+   c.last_interaction_sender,
    c.custom_attributes,
    (SELECT COALESCE(
        (SELECT json_agg(t.name)
@@ -247,7 +253,16 @@ ON CONFLICT (conversation_id, user_id)
 DO UPDATE SET last_seen_at = NOW(), updated_at = NOW();
 
 -- name: update-conversation-last-message
-UPDATE conversations SET last_message = $3, last_message_sender = $4, last_message_at = $5, updated_at = NOW() WHERE CASE 
+-- $1=id, $2=uuid, $3=content, $4=sender_type, $5=timestamp, $6=message_type, $7=private
+UPDATE conversations SET
+    last_message = $3,
+    last_message_sender = $4,
+    last_message_at = $5,
+    last_interaction = CASE WHEN $6 != 'activity' AND $7 = false THEN $3 ELSE last_interaction END,
+    last_interaction_sender = CASE WHEN $6 != 'activity' AND $7 = false THEN $4 ELSE last_interaction_sender END,
+    last_interaction_at = CASE WHEN $6 != 'activity' AND $7 = false THEN $5 ELSE last_interaction_at END,
+    updated_at = NOW()
+WHERE CASE
     WHEN $1 > 0 THEN id = $1
     ELSE uuid = $2
 END
@@ -452,6 +467,10 @@ SELECT
     m.sender_id,
     m.meta,
     c.uuid as conversation_uuid,
+    u.id AS "author.id",
+    u.first_name AS "author.first_name",
+    u.last_name AS "author.last_name",
+    u.avatar_url AS "author.avatar_url",
     COALESCE(
         json_agg(
             json_build_object(
@@ -467,10 +486,12 @@ SELECT
     ) AS attachments
 FROM conversation_messages m
 INNER JOIN conversations c ON c.id = m.conversation_id
+JOIN users u ON m.sender_id = u.id
 LEFT JOIN media ON media.model_type = 'messages' AND media.model_id = m.id
 WHERE m.uuid = $1
-GROUP BY 
-    m.id, m.created_at, m.updated_at, m.status, m.type, m.content, m.uuid, m.private, m.sender_type, c.uuid
+GROUP BY
+    m.id, m.created_at, m.updated_at, m.status, m.type, m.content, m.uuid, m.private, m.sender_type, c.uuid,
+    u.id, u.first_name, u.last_name, u.avatar_url
 ORDER BY m.created_at;
 
 -- name: get-messages
@@ -480,7 +501,7 @@ SELECT
    m.created_at,
    m.updated_at,
    m.status,
-   m.type, 
+   m.type,
    m.content,
    m.text_content,
    m.content_type,
@@ -491,20 +512,25 @@ SELECT
    m.sender_type,
    m.meta,
    $1::uuid AS conversation_uuid,
+   u.id AS "author.id",
+   u.first_name AS "author.first_name",
+   u.last_name AS "author.last_name",
+   u.avatar_url AS "author.avatar_url",
    COALESCE(
      (SELECT json_agg(
        json_build_object(
          'name', filename,
-         'content_type', content_type, 
+         'content_type', content_type,
          'uuid', uuid,
          'size', size,
          'content_id', content_id,
          'disposition', disposition
        ) ORDER BY filename
-     ) FROM media 
+     ) FROM media
      WHERE model_type = 'messages' AND model_id = m.id),
    '[]'::json) AS attachments
 FROM conversation_messages m
+JOIN users u ON m.sender_id = u.id
 WHERE m.conversation_id = (
    SELECT id FROM conversations WHERE uuid = $1 LIMIT 1
 )

@@ -562,6 +562,12 @@ export const useConversationStore = defineStore('conversation', () => {
       listConversation.last_message = message.content
       listConversation.last_message_at = message.created_at
       listConversation.last_message_sender = message.sender_type
+      // Update last interaction only for non-private, non-activity messages
+      if (message.type !== 'activity' && !message.private) {
+        listConversation.last_interaction = message.content
+        listConversation.last_interaction_at = message.created_at
+        listConversation.last_interaction_sender = message.sender_type
+      }
       if (listConversation.uuid !== conversation?.data?.uuid) {
         listConversation.unread_message_count += 1
       }
