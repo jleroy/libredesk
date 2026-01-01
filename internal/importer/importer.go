@@ -90,3 +90,31 @@ func (i *Importer) cleanUp() {
 		i.mu.Unlock()
 	}
 }
+
+// AddLog appends a log message to the job status
+func (i *Importer) AddLog(namespace, message string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	if status, exists := i.jobs[namespace]; exists {
+		status.Logs = append(status.Logs, message)
+	}
+}
+
+// UpdateCounts updates the success/error counts and total
+func (i *Importer) UpdateCounts(namespace string, total, success, errors int) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	if status, exists := i.jobs[namespace]; exists {
+		if total > 0 {
+			status.Total = total
+		}
+		if success > 0 {
+			status.Success += success
+		}
+		if errors > 0 {
+			status.Errors += errors
+		}
+	}
+}
