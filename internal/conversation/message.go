@@ -286,13 +286,19 @@ func (m *Manager) RenderMessageInTemplate(channel string, message *models.Messag
 }
 
 // GetConversationMessages retrieves messages for a specific conversation.
-func (m *Manager) GetConversationMessages(conversationUUID string, page, pageSize int) ([]models.Message, int, error) {
+func (m *Manager) GetConversationMessages(conversationUUID string, page, pageSize int, private *bool, msgTypes []string) ([]models.Message, int, error) {
 	var (
 		messages = make([]models.Message, 0)
-		qArgs    []interface{}
+		qArgs    []any
 	)
 
-	qArgs = append(qArgs, conversationUUID)
+	// Convert msgTypes slice to pq.StringArray for PostgreSQL
+	var typesArg any
+	if len(msgTypes) > 0 {
+		typesArg = pq.StringArray(msgTypes)
+	}
+
+	qArgs = append(qArgs, conversationUUID, private, typesArg)
 	query, pageSize, qArgs, err := m.generateMessagesQuery(m.q.GetMessages, qArgs, page, pageSize)
 	if err != nil {
 		m.lo.Error("error generating messages query", "error", err)

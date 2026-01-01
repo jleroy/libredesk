@@ -28,13 +28,26 @@ type messageReq struct {
 // handleGetMessages returns messages for a conversation.
 func handleGetMessages(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		uuid        = r.RequestCtx.UserValue("uuid").(string)
-		auser       = r.RequestCtx.UserValue("user").(amodels.User)
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		total       = 0
+		app      = r.Context.(*App)
+		uuid     = r.RequestCtx.UserValue("uuid").(string)
+		auser    = r.RequestCtx.UserValue("user").(amodels.User)
+		page, _  = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
+		pageSize = r.RequestCtx.QueryArgs().GetUintOrZero("page_size")
+		total    = 0
+		private  *bool
 	)
+
+	// Parse optional private filter (null = no filter)
+	if r.RequestCtx.QueryArgs().Has("private") {
+		p := r.RequestCtx.QueryArgs().GetBool("private")
+		private = &p
+	}
+
+	// Parse repeated type params: ?type=incoming&type=outgoing
+	var msgTypes []string
+	for _, v := range r.RequestCtx.QueryArgs().PeekMulti("type") {
+		msgTypes = append(msgTypes, string(v))
+	}
 
 	user, err := app.user.GetAgent(auser.ID, "")
 	if err != nil {
@@ -47,7 +60,7 @@ func handleGetMessages(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	messages, pageSize, err := app.conversation.GetConversationMessages(uuid, page, pageSize)
+	messages, pageSize, err := app.conversation.GetConversationMessages(uuid, page, pageSize, private, msgTypes)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}

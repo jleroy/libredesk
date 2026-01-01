@@ -547,6 +547,8 @@ JOIN users u ON m.sender_id = u.id
 WHERE m.conversation_id = (
    SELECT id FROM conversations WHERE uuid = $1 LIMIT 1
 )
+AND ($2::boolean IS NULL OR m.private = $2)
+AND ($3::text[] IS NULL OR m.type::text = ANY($3))
 ORDER BY m.created_at DESC %s
 
 -- name: insert-message
