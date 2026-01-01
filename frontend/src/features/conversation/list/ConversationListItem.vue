@@ -134,7 +134,10 @@ const conversationRoute = computed(() => {
       uuid: props.conversation.uuid,
       ...(baseRoute === 'team-inbox-conversation' && { teamID: route.params.teamID }),
       ...(baseRoute === 'view-inbox-conversation' && { viewID: route.params.viewID })
-    }
+    },
+    query: props.conversation.mentioned_message_uuid
+      ? { scrollTo: props.conversation.mentioned_message_uuid }
+      : {}
   }
 })
 

@@ -449,6 +449,14 @@ export const useConversationStore = defineStore('conversation', () => {
           order_by: sortFieldMap[conversations.sortField].model + "." + sortFieldMap[conversations.sortField].field,
           order: sortFieldMap[conversations.sortField].order
         })
+      case CONVERSATION_LIST_TYPE.MENTIONED:
+        return await api.getMentionedConversations({
+          page: page,
+          page_size: CONV_LIST_PAGE_SIZE,
+          order_by: sortFieldMap[conversations.sortField].model + "." + sortFieldMap[conversations.sortField].field,
+          order: sortFieldMap[conversations.sortField].order,
+          filters
+        })
       default:
         throw new Error('Invalid conversation list type: ' + listType)
     }

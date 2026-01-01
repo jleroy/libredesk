@@ -115,7 +115,7 @@ const routes = [
         meta: { title: 'Search', hidePageHeader: true }
       },
       {
-        path: '/inboxes/:type(assigned|unassigned|all)?',
+        path: '/inboxes/:type(assigned|unassigned|all|mentioned)?',
         name: 'inboxes',
         redirect: '/inboxes/assigned',
         component: InboxLayout,
@@ -128,7 +128,11 @@ const routes = [
             component: () => import('@/views/inbox/InboxView.vue'),
             meta: {
               title: 'Inbox',
-              type: (route) => (route.params.type === 'assigned' ? 'My inbox' : route.params.type)
+              type: (route) => {
+                if (route.params.type === 'assigned') return 'My inbox'
+                if (route.params.type === 'mentioned') return 'Mentions'
+                return route.params.type
+              }
             },
             children: [
               {
@@ -138,8 +142,11 @@ const routes = [
                 props: true,
                 meta: {
                   title: 'Inbox',
-                  type: (route) =>
-                    route.params.type === 'assigned' ? 'My inbox' : route.params.type,
+                  type: (route) => {
+                    if (route.params.type === 'assigned') return 'My inbox'
+                    if (route.params.type === 'mentioned') return 'Mentions'
+                    return route.params.type
+                  },
                   hidePageHeader: true
                 }
               }

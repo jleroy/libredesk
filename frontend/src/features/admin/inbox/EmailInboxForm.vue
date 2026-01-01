@@ -80,20 +80,23 @@
         </p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="flex flex-wrap gap-2">
         <MenuCard
+          class="shrink-0 w-92 max-w-none"
           :title="$t('globals.terms.google')"
           :subTitle="$t('admin.inbox.oauth.googleDescription')"
           icon="/images/google-logo.svg"
           @click="connectWithGoogle()"
         />
         <MenuCard
+          class="shrink-0 w-92 max-w-none"
           :title="$t('globals.terms.microsoft')"
           :subTitle="$t('admin.inbox.oauth.microsoftDescription')"
           icon="/images/microsoft-logo.svg"
           @click="connectWithMicrosoft()"
         />
         <MenuCard
+          class="shrink-0 w-92 max-w-none"
           :title="$t('admin.inbox.oauth.otherProvider')"
           :subTitle="$t('admin.inbox.oauth.otherProviderDescription')"
           :icon="Mail"

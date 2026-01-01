@@ -100,6 +100,7 @@ type priorityStore interface {
 type teamStore interface {
 	Get(int) (tmodels.Team, error)
 	UserBelongsToTeam(userID, teamID int) (bool, error)
+	GetMembers(int) ([]tmodels.TeamMember, error)
 }
 
 type userStore interface {
@@ -243,6 +244,9 @@ type queries struct {
 	UpdateMessageStatus                *sqlx.Stmt `query:"update-message-status"`
 	MessageExistsBySourceID            *sqlx.Stmt `query:"message-exists-by-source-id"`
 	GetConversationByMessageID         *sqlx.Stmt `query:"get-conversation-by-message-id"`
+
+	// Mention queries.
+	InsertMention *sqlx.Stmt `query:"insert-mention"`
 }
 
 // CreateConversation creates a new conversation and returns its ID and UUID.
@@ -369,6 +373,32 @@ func (c *Manager) GetUnassignedConversationsList(viewingUserID int, order, order
 // GetTeamUnassignedConversationsList retrieves conversations assigned to a team with optional filtering, ordering, and pagination.
 func (c *Manager) GetTeamUnassignedConversationsList(viewingUserID, teamID int, order, orderBy, filters string, page, pageSize int) ([]models.ConversationListItem, error) {
 	return c.GetConversations(viewingUserID, 0, []int{teamID}, []string{models.TeamUnassignedConversations}, order, orderBy, filters, page, pageSize)
+}
+
+// GetMentionedConversationsList retrieves conversations where the user is mentioned (directly or via team).
+func (c *Manager) GetMentionedConversationsList(viewingUserID int, order, orderBy, filters string, page, pageSize int) ([]models.ConversationListItem, error) {
+	return c.GetConversations(viewingUserID, 0, []int{}, []string{models.MentionedConversations}, order, orderBy, filters, page, pageSize)
+}
+
+// InsertMentions inserts mentions for a message.
+func (c *Manager) InsertMentions(conversationID, messageID, mentionedByUserID int, mentions []models.MentionInput) error {
+	for _, mention := range mentions {
+		var userID, teamID any
+		switch mention.Type {
+		case models.MentionTypeAgent:
+			userID = mention.ID
+		case models.MentionTypeTeam:
+			teamID = mention.ID
+		default:
+			c.lo.Warn("invalid mention type, skipping", "type", mention.Type)
+			continue
+		}
+
+		if _, err := c.q.InsertMention.Exec(conversationID, messageID, userID, teamID, mentionedByUserID); err != nil {
+			c.lo.Error("error inserting mention", "error", err)
+		}
+	}
+	return nil
 }
 
 func (c *Manager) GetViewConversationsList(viewingUserID, userID int, teamIDs []int, listType []string, order, orderBy, filters string, page, pageSize int) ([]models.ConversationListItem, error) {
@@ -856,6 +886,99 @@ func (m *Manager) SendAssignedConversationEmail(userIDs []int, conversation mode
 	return nil
 }
 
+// SendMentionNotificationEmail sends email notifications for mentions.
+// For team mentions, expands to all team members.
+func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID string, mentions []models.MentionInput, mentionedByUserID int) {
+	conversation, err := m.GetConversation(0, conversationUUID, "")
+	if err != nil {
+		m.lo.Error("error fetching conversation for mention notification", "uuid", conversationUUID, "error", err)
+		return
+	}
+
+	// Get the user who made the mention.
+	author, err := m.userStore.GetAgent(mentionedByUserID, "")
+	if err != nil {
+		m.lo.Error("error fetching author for mention notification", "user_id", mentionedByUserID, "error", err)
+		return
+	}
+
+	// Collect all user IDs to notify (avoid duplicates).
+	recipientIDs := make(map[int]struct{})
+
+	for _, mention := range mentions {
+		if mention.Type == models.MentionTypeAgent {
+			// Direct user mention.
+			recipientIDs[mention.ID] = struct{}{}
+		} else if mention.Type == models.MentionTypeTeam {
+			// Team mention - expand to all team members.
+			members, err := m.teamStore.GetMembers(mention.ID)
+			if err != nil {
+				m.lo.Error("error fetching team members for mention notification", "team_id", mention.ID, "error", err)
+				continue
+			}
+			for _, member := range members {
+				recipientIDs[member.ID] = struct{}{}
+			}
+		}
+	}
+
+	// Don't notify the person who made the mention.
+	delete(recipientIDs, mentionedByUserID)
+
+	// Send email to each recipient.
+	for userID := range recipientIDs {
+		recipient, err := m.userStore.GetAgent(userID, "")
+		if err != nil {
+			m.lo.Error("error fetching recipient for mention notification", "user_id", userID, "error", err)
+			continue
+		}
+
+		if recipient.Email.String == "" {
+			m.lo.Warn("recipient has no email, skipping mention notification", "user_id", userID)
+			continue
+		}
+
+		content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplMentioned,
+			map[string]any{
+				"Conversation": map[string]any{
+					"ReferenceNumber": conversation.ReferenceNumber,
+					"Subject":         conversation.Subject.String,
+					"Priority":        conversation.Priority.String,
+					"UUID":            conversation.UUID,
+				},
+				"Author": map[string]any{
+					"FirstName": author.FirstName,
+					"LastName":  author.LastName,
+					"FullName":  author.FullName(),
+					"Email":     author.Email.String,
+				},
+				"Recipient": map[string]any{
+					"FirstName": recipient.FirstName,
+					"LastName":  recipient.LastName,
+					"FullName":  recipient.FullName(),
+					"Email":     recipient.Email.String,
+				},
+				"Message": map[string]any{
+					"UUID": messageUUID,
+				},
+			})
+		if err != nil {
+			m.lo.Error("error rendering mention notification template", "conversation_uuid", conversationUUID, "error", err)
+			continue
+		}
+
+		nm := notifier.Message{
+			RecipientEmails: []string{recipient.Email.String},
+			Subject:         subject,
+			Content:         content,
+			Provider:        notifier.ProviderEmail,
+		}
+		if err := m.notifier.Send(nm); err != nil {
+			m.lo.Error("error sending mention notification", "conversation_uuid", conversationUUID, "recipient", recipient.Email.String, "error", err)
+		}
+	}
+}
+
 // UnassignOpen unassigns all open conversations belonging to a user.
 // i.e conversations without status `Closed` and `Resolved`.
 func (m *Manager) UnassignOpen(userID int) error {
@@ -930,7 +1053,7 @@ func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversatio
 		}
 		return m.UpdateConversationStatus(conv.UUID, statusID, "", "", user)
 	case amodels.ActionSendPrivateNote:
-		_, err := m.SendPrivateNote([]mmodels.Media{}, user.ID, conv.UUID, action.Value[0])
+		_, err := m.SendPrivateNote([]mmodels.Media{}, user.ID, conv.UUID, action.Value[0], nil)
 		if err != nil {
 			return fmt.Errorf("sending private note: %w", err)
 		}
@@ -1075,8 +1198,10 @@ func (c *Manager) getConversationTags(uuid string) ([]string, error) {
 
 // makeConversationsListQuery prepares a SQL query string for conversations list
 // viewingUserID is used as $1 for per-agent unread count calculation
+// $2 is includeMentions bool for conditional mentioned_message_uuid column
 func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs []int, listTypes []string, baseQuery, order, orderBy string, page, pageSize int, filtersJSON string) (string, []interface{}, error) {
-	qArgs := []any{viewingUserID}
+	includeMentions := slices.Contains(listTypes, models.MentionedConversations)
+	qArgs := []any{viewingUserID, includeMentions}
 
 	// Set defaults
 	if orderBy == "" {
@@ -1159,6 +1284,17 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 			}
 		case models.AllConversations:
 			// No conditions needed for all conversations.
+		case models.MentionedConversations:
+			// Filter to only conversations where user is mentioned (directly or via team)
+			conditions = append(conditions, `conversations.id IN (
+				SELECT DISTINCT cm.conversation_id
+				FROM conversation_mentions cm
+				WHERE cm.mentioned_user_id = $1
+				   OR EXISTS(
+					   SELECT 1 FROM team_members tm
+					   WHERE tm.team_id = cm.mentioned_team_id AND tm.user_id = $1
+				   )
+			)`)
 		default:
 			return "", nil, fmt.Errorf("unknown conversation type: %s", lt)
 		}

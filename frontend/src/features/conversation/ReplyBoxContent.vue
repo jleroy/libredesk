@@ -92,8 +92,11 @@
         :insertContent="insertContent"
         :autoFocus="true"
         :disabled="isDraftLoading"
+        :enableMentions="messageType === 'private_note'"
+        :getSuggestions="getSuggestions"
         @aiPromptSelected="handleAiPromptSelected"
         @send="handleSend"
+        @mentionsChanged="handleMentionsChanged"
       />
     </div>
 
@@ -144,6 +147,8 @@ import ReplyBoxMenuBar from '@/features/conversation/ReplyBoxMenuBar.vue'
 import { useI18n } from 'vue-i18n'
 import { validateEmail } from '@/utils/strings'
 import { useMacroStore } from '@/stores/macro'
+import { useUsersStore } from '@/stores/users'
+import { useTeamStore } from '@/stores/team'
 
 const messageType = defineModel('messageType', { default: 'reply' })
 const to = defineModel('to', { default: '' })
@@ -153,7 +158,48 @@ const showBcc = defineModel('showBcc', { default: false })
 const emailErrors = defineModel('emailErrors', { default: () => [] })
 const htmlContent = defineModel('htmlContent', { default: '' })
 const textContent = defineModel('textContent', { default: '' })
+const mentions = defineModel('mentions', { default: () => [] })
 const macroStore = useMacroStore()
+const usersStore = useUsersStore()
+const teamStore = useTeamStore()
+
+// Get suggestions for the mention dropdown
+const getSuggestions = async (query) => {
+  // Only show suggestions in private note mode
+  if (messageType.value !== 'private_note') {
+    return []
+  }
+
+  await Promise.all([usersStore.fetchUsers(), teamStore.fetchTeams()])
+
+  const q = query.toLowerCase()
+
+  const users = usersStore.users
+    .filter((u) => u.enabled)
+    .filter((u) => `${u.first_name} ${u.last_name}`.toLowerCase().includes(q))
+    .map((u) => ({
+      id: u.id,
+      type: 'agent',
+      label: `${u.first_name} ${u.last_name}`.trim(),
+      avatar_url: u.avatar_url
+    }))
+
+  const teams = teamStore.teams
+    .filter((t) => t.name.toLowerCase().includes(q))
+    .map((t) => ({
+      id: t.id,
+      type: 'team',
+      label: t.name,
+      emoji: t.emoji
+    }))
+
+  return [...users, ...teams].slice(0, 10)
+}
+
+// Handle mentions changed from editor
+const handleMentionsChanged = (newMentions) => {
+  mentions.value = newMentions
+}
 
 const props = defineProps({
   isFullscreen: {

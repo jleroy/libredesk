@@ -357,7 +357,7 @@ func (m *Manager) MarkMessageAsPending(uuid string) error {
 }
 
 // SendPrivateNote inserts a private message in a conversation.
-func (m *Manager) SendPrivateNote(media []mmodels.Media, senderID int, conversationUUID, content string) (models.Message, error) {
+func (m *Manager) SendPrivateNote(media []mmodels.Media, senderID int, conversationUUID, content string, mentions []models.MentionInput) (models.Message, error) {
 	message := models.Message{
 		ConversationUUID: conversationUUID,
 		SenderID:         senderID,
@@ -372,6 +372,15 @@ func (m *Manager) SendPrivateNote(media []mmodels.Media, senderID int, conversat
 	if err := m.InsertMessage(&message); err != nil {
 		return models.Message{}, err
 	}
+
+	// Insert mentions if any.
+	if len(mentions) > 0 {
+		if err := m.InsertMentions(message.ConversationID, message.ID, senderID, mentions); err != nil {
+			m.lo.Error("error inserting mentions", "error", err)
+		}
+		go m.SendMentionNotificationEmail(conversationUUID, message.UUID, mentions, senderID)
+	}
+
 	return message, nil
 }
 
@@ -673,7 +682,6 @@ func (m *Manager) processIncomingMessage(in models.IncomingMessage) error {
 				"conversation_contact", conversation.Contact.Email.String,
 				"message_contact", in.Contact.Email.String)
 		}
-		
 	}
 
 	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").

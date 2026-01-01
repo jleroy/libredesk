@@ -29,7 +29,8 @@ import {
   Search,
   Plus,
   CircleDashed,
-  List
+  List,
+  AtSign
 } from 'lucide-vue-next'
 import {
   DropdownMenu,
@@ -405,6 +406,17 @@ const viewToDelete = ref(null)
                     <User />
                     <span>{{ t('globals.terms.myInbox') }}</span>
                   </router-link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/mentioned')">
+                  <a href="#" @click.prevent="navigateToInbox('mentioned')">
+                    <AtSign />
+                    <span>
+                      {{ t('globals.terms.mention', 2) }}
+                    </span>
+                  </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
