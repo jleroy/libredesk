@@ -249,8 +249,9 @@ func initConversations(
 	automationEngine *automation.Engine,
 	template *tmpl.Manager,
 	webhook *webhook.Manager,
+	userNotification *notifier.UserNotificationManager,
 ) *conversation.Manager {
-	c, err := conversation.New(hub, i18n, notif, sla, status, priority, inboxStore, userStore, teamStore, mediaStore, settings, csat, automationEngine, template, webhook, conversation.Opts{
+	c, err := conversation.New(hub, i18n, notif, sla, status, priority, inboxStore, userStore, teamStore, mediaStore, settings, csat, automationEngine, template, webhook, userNotification, conversation.Opts{
 		DB:                       db,
 		Lo:                       initLogger("conversation_manager"),
 		OutgoingMessageQueueSize: ko.MustInt("message.outgoing_queue_size"),
@@ -319,13 +320,13 @@ func initBusinessHours(db *sqlx.DB, i18n *i18n.I18n) *businesshours.Manager {
 }
 
 // initSLA inits SLA manager.
-func initSLA(db *sqlx.DB, teamManager *team.Manager, settings *setting.Manager, businessHours *businesshours.Manager, notifier *notifier.Service, template *tmpl.Manager, userManager *user.Manager, i18n *i18n.I18n) *sla.Manager {
+func initSLA(db *sqlx.DB, teamManager *team.Manager, settings *setting.Manager, businessHours *businesshours.Manager, notifier *notifier.Service, template *tmpl.Manager, userManager *user.Manager, i18n *i18n.I18n, userNotification *notifier.UserNotificationManager) *sla.Manager {
 	var lo = initLogger("sla")
 	m, err := sla.New(sla.Opts{
 		DB:   db,
 		Lo:   lo,
 		I18n: i18n,
-	}, teamManager, settings, businessHours, notifier, template, userManager)
+	}, teamManager, settings, businessHours, notifier, template, userManager, userNotification)
 	if err != nil {
 		log.Fatalf("error initializing SLA manager: %v", err)
 	}
@@ -929,6 +930,20 @@ func initWebhook(db *sqlx.DB, i18n *i18n.I18n) *webhook.Manager {
 	})
 	if err != nil {
 		log.Fatalf("error initializing webhook manager: %v", err)
+	}
+	return m
+}
+
+// initUserNotification inits user notification manager.
+func initUserNotification(db *sqlx.DB, i18n *i18n.I18n) *notifier.UserNotificationManager {
+	var lo = initLogger("user-notification")
+	m, err := notifier.NewUserNotificationManager(notifier.UserNotificationOpts{
+		DB:   db,
+		Lo:   lo,
+		I18n: i18n,
+	})
+	if err != nil {
+		log.Fatalf("error initializing user notification manager: %v", err)
 	}
 	return m
 }

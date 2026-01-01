@@ -716,5 +716,8 @@
   "contact.notes.help": "Add note for this contact to keep track of important information and conversations.",
   "setup.completeYourSetup": "Complete your setup",
   "setup.createFirstInbox": "Create your first inbox",
-  "setup.inviteTeammates": "Invite teammates"
+  "setup.inviteTeammates": "Invite teammates",
+  "notifications.markAllAsRead": "Mark all as read",
+  "notifications.empty": "No notifications",
+  "notifications.loadMore": "Load more"
 }

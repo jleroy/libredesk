@@ -27,6 +27,7 @@ import (
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	mmodels "github.com/abhinavxd/libredesk/internal/media/models"
 	notifier "github.com/abhinavxd/libredesk/internal/notification"
+	nmodels "github.com/abhinavxd/libredesk/internal/notification/models"
 	slaModels "github.com/abhinavxd/libredesk/internal/sla/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	tmodels "github.com/abhinavxd/libredesk/internal/team/models"
@@ -68,6 +69,7 @@ type Manager struct {
 	settingsStore              settingsStore
 	csatStore                  csatStore
 	webhookStore               webhookStore
+	userNotificationStore      userNotificationStore
 	notifier                   *notifier.Service
 	lo                         *logf.Logger
 	db                         *sqlx.DB
@@ -136,6 +138,10 @@ type webhookStore interface {
 	TriggerEvent(event wmodels.WebhookEvent, data any)
 }
 
+type userNotificationStore interface {
+	Create(userID int, notificationType nmodels.NotificationType, title string, body null.String, conversationID, messageID, actorID null.Int, meta json.RawMessage) (nmodels.UserNotification, error)
+}
+
 // Opts holds the options for creating a new Manager.
 type Opts struct {
 	DB                       *sqlx.DB
@@ -161,6 +167,7 @@ func New(
 	automation *automation.Engine,
 	template *template.Manager,
 	webhook webhookStore,
+	userNotification userNotificationStore,
 	opts Opts) (*Manager, error) {
 
 	var q queries
@@ -180,6 +187,7 @@ func New(
 		settingsStore:              settingsStore,
 		csatStore:                  csatStore,
 		webhookStore:               webhook,
+		userNotificationStore:      userNotification,
 		slaStore:                   slaStore,
 		statusStore:                statusStore,
 		priorityStore:              priorityStore,
@@ -841,6 +849,27 @@ func (m *Manager) SendAssignedConversationEmail(userIDs []int, conversation mode
 		return fmt.Errorf("fetching agent: %w", err)
 	}
 
+	// Create in-app notification for the assigned agent.
+	notificationTitle := fmt.Sprintf("Conversation assigned to you #%s", conversation.ReferenceNumber)
+	notification, err := m.userNotificationStore.Create(
+		agent.ID,
+		nmodels.NotificationTypeAssignment,
+		notificationTitle,
+		null.StringFrom(conversation.Subject.String),
+		null.IntFrom(conversation.ID),
+		null.Int{},
+		null.Int{},
+		nil,
+	)
+	if err != nil {
+		m.lo.Error("error creating assignment notification", "user_id", agent.ID, "error", err)
+	} else {
+		// Broadcast notification via WebSocket.
+		notification.ConversationUUID = null.StringFrom(conversation.UUID)
+		m.BroadcastNotification([]int{agent.ID}, notification)
+	}
+
+	// Send email notification.
 	content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplConversationAssigned,
 		map[string]any{
 			"Conversation": map[string]any{
@@ -888,7 +917,7 @@ func (m *Manager) SendAssignedConversationEmail(userIDs []int, conversation mode
 
 // SendMentionNotificationEmail sends email notifications for mentions.
 // For team mentions, expands to all team members.
-func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID string, mentions []models.MentionInput, mentionedByUserID int) {
+func (m *Manager) SendMentionNotificationEmail(conversationUUID string, message models.Message, mentions []models.MentionInput, mentionedByUserID int) {
 	conversation, err := m.GetConversation(0, conversationUUID, "")
 	if err != nil {
 		m.lo.Error("error fetching conversation for mention notification", "uuid", conversationUUID, "error", err)
@@ -904,6 +933,7 @@ func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID str
 
 	// Collect all user IDs to notify (avoid duplicates).
 	recipientIDs := make(map[int]struct{})
+	notificationType := nmodels.NotificationTypeMention
 
 	for _, mention := range mentions {
 		if mention.Type == models.MentionTypeAgent {
@@ -925,7 +955,7 @@ func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID str
 	// Don't notify the person who made the mention.
 	delete(recipientIDs, mentionedByUserID)
 
-	// Send email to each recipient.
+	// Send email and DB notification to each recipient.
 	for userID := range recipientIDs {
 		recipient, err := m.userStore.GetAgent(userID, "")
 		if err != nil {
@@ -933,8 +963,31 @@ func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID str
 			continue
 		}
 
+		// Create in-app notification.
+		notificationTitle := fmt.Sprintf("%s mentioned you in #%s", author.FullName(), conversation.ReferenceNumber)
+		notification, err := m.userNotificationStore.Create(
+			userID,
+			notificationType,
+			notificationTitle,
+			null.StringFrom(message.TextContent),
+			null.IntFrom(conversation.ID),
+			null.IntFrom(message.ID),
+			null.IntFrom(mentionedByUserID),
+			nil,
+		)
+		if err != nil {
+			m.lo.Error("error creating mention notification", "user_id", userID, "error", err)
+		} else {
+			// Broadcast notification via WebSocket.
+			notification.ConversationUUID = null.StringFrom(conversation.UUID)
+			notification.ActorFirstName = null.StringFrom(author.FirstName)
+			notification.ActorLastName = null.StringFrom(author.LastName)
+			m.BroadcastNotification([]int{userID}, notification)
+		}
+
+		// Send email notification.
 		if recipient.Email.String == "" {
-			m.lo.Warn("recipient has no email, skipping mention notification", "user_id", userID)
+			m.lo.Warn("recipient has no email, skipping mention email notification", "user_id", userID)
 			continue
 		}
 
@@ -959,7 +1012,7 @@ func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID str
 					"Email":     recipient.Email.String,
 				},
 				"Message": map[string]any{
-					"UUID": messageUUID,
+					"UUID": message.UUID,
 				},
 			})
 		if err != nil {

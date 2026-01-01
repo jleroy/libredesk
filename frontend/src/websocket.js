@@ -1,4 +1,5 @@
 import { useConversationStore } from './stores/conversation'
+import { useNotificationStore } from './stores/notification'
 import { WS_EVENT } from './constants/websocket'
 
 export class WebSocketClient {
@@ -13,6 +14,7 @@ export class WebSocketClient {
     this.pingInterval = null
     this.lastPong = Date.now()
     this.convStore = useConversationStore()
+    this.notificationStore = useNotificationStore()
   }
 
   init () {
@@ -61,7 +63,8 @@ export class WebSocketClient {
           this.convStore.updateConversationMessage(data.data)
         },
         [WS_EVENT.MESSAGE_PROP_UPDATE]: () => this.convStore.updateMessageProp(data.data),
-        [WS_EVENT.CONVERSATION_PROP_UPDATE]: () => this.convStore.updateConversationProp(data.data)
+        [WS_EVENT.CONVERSATION_PROP_UPDATE]: () => this.convStore.updateConversationProp(data.data),
+        [WS_EVENT.NEW_NOTIFICATION]: () => this.notificationStore.addNotification(data.data)
       }
 
       const handler = handlers[data.type]

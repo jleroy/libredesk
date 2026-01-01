@@ -471,6 +471,14 @@ const initiateOAuthFlow = (provider, data) =>
     }
   })
 
+// User notifications (in-app)
+const getNotifications = (params) => http.get('/api/v1/notifications', { params })
+const getNotificationStats = () => http.get('/api/v1/notifications/stats')
+const markNotificationAsRead = (id) => http.put(`/api/v1/notifications/${id}/read`)
+const markAllNotificationsAsRead = () => http.put('/api/v1/notifications/read-all')
+const deleteNotification = (id) => http.delete(`/api/v1/notifications/${id}`)
+const deleteAllNotifications = () => http.delete('/api/v1/notifications')
+
 export default {
   login,
   deleteUser,
@@ -621,5 +629,11 @@ export default {
   testWebhook,
   generateAPIKey,
   revokeAPIKey,
-  initiateOAuthFlow
+  initiateOAuthFlow,
+  getNotifications,
+  getNotificationStats,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotifications
 }

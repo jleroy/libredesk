@@ -21,6 +21,7 @@ DROP TYPE IF EXISTS "sla_metric" CASCADE; CREATE TYPE "sla_metric" AS ENUM ('fir
 DROP TYPE IF EXISTS "sla_notification_type" CASCADE; CREATE TYPE "sla_notification_type" AS ENUM ('warning', 'breach');
 DROP TYPE IF EXISTS "activity_log_type" CASCADE; CREATE TYPE "activity_log_type" AS ENUM ('agent_login', 'agent_logout', 'agent_away', 'agent_away_reassigned', 'agent_online', 'agent_password_set', 'agent_role_permissions_changed');
 DROP TYPE IF EXISTS "macro_visible_when" CASCADE; CREATE TYPE "macro_visible_when" AS ENUM ('replying', 'starting_conversation', 'adding_private_note');
+DROP TYPE IF EXISTS "user_notification_type" CASCADE; CREATE TYPE "user_notification_type" AS ENUM ('mention', 'assignment', 'sla_warning', 'sla_breach');
 DROP TYPE IF EXISTS "webhook_event" CASCADE; CREATE TYPE webhook_event AS ENUM (
 	'conversation.created',
 	'conversation.status_changed',
@@ -650,6 +651,28 @@ CREATE TABLE webhooks (
 	CONSTRAINT constraint_webhooks_on_secret CHECK (length(secret) <= 255),
 	CONSTRAINT constraint_webhooks_on_events_not_empty CHECK (array_length(events, 1) > 0)
 );
+
+DROP TABLE IF EXISTS user_notifications CASCADE;
+CREATE TABLE user_notifications (
+	id BIGSERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ DEFAULT NOW(),
+	updated_at TIMESTAMPTZ DEFAULT NOW(),
+	user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+	notification_type user_notification_type NOT NULL,
+	title TEXT NOT NULL,
+	body TEXT NULL,
+	is_read BOOLEAN DEFAULT FALSE NOT NULL,
+	conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	message_id BIGINT REFERENCES conversation_messages(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	actor_id BIGINT REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+	meta JSONB DEFAULT '{}'::jsonb NOT NULL,
+	CONSTRAINT constraint_user_notifications_on_title CHECK (length(title) <= 500),
+	CONSTRAINT constraint_user_notifications_on_body CHECK (length(body) <= 2000)
+);
+CREATE INDEX index_user_notifications_on_user_id ON user_notifications(user_id);
+CREATE INDEX index_user_notifications_on_user_id_is_read ON user_notifications(user_id, is_read);
+CREATE INDEX index_user_notifications_on_created_at ON user_notifications(created_at);
+CREATE INDEX index_user_notifications_on_conversation_id ON user_notifications(conversation_id);
 
 INSERT INTO ai_providers
 ("name", provider, config, is_default)

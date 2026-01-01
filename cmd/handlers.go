@@ -231,6 +231,14 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Actvity logs.
 	g.GET("/api/v1/activity-logs", perm(handleGetActivityLogs, "activity_logs:manage"))
 
+	// User notifications.
+	g.GET("/api/v1/notifications", auth(handleGetUserNotifications))
+	g.GET("/api/v1/notifications/stats", auth(handleGetUserNotificationStats))
+	g.PUT("/api/v1/notifications/{id}/read", auth(handleMarkNotificationAsRead))
+	g.PUT("/api/v1/notifications/read-all", auth(handleMarkAllNotificationsAsRead))
+	g.DELETE("/api/v1/notifications/{id}", auth(handleDeleteNotification))
+	g.DELETE("/api/v1/notifications", auth(handleDeleteAllNotifications))
+
 	// WebSocket.
 	g.GET("/ws", auth(func(r *fastglue.Request) error {
 		return handleWS(r, hub)

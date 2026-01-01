@@ -378,7 +378,7 @@ func (m *Manager) SendPrivateNote(media []mmodels.Media, senderID int, conversat
 		if err := m.InsertMentions(message.ConversationID, message.ID, senderID, mentions); err != nil {
 			m.lo.Error("error inserting mentions", "error", err)
 		}
-		go m.SendMentionNotificationEmail(conversationUUID, message.UUID, mentions, senderID)
+		go m.SendMentionNotificationEmail(conversationUUID, message, mentions, senderID)
 	}
 
 	return message, nil

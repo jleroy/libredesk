@@ -72,7 +72,21 @@
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarNavUser />
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <NotificationBell />
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{{ t('globals.terms.notification', 2) }}</p>
+                </TooltipContent>
+              </Tooltip>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarNavUser />
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
       </ShadcnSidebar>
     </SidebarProvider>
@@ -152,6 +166,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import SidebarNavUser from '@/components/sidebar/SidebarNavUser.vue'
+import NotificationBell from '@/components/sidebar/NotificationBell.vue'
 
 const route = useRoute()
 const emitter = useEmitter()

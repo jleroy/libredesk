@@ -17,6 +17,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	notifier "github.com/abhinavxd/libredesk/internal/notification"
+	nmodels "github.com/abhinavxd/libredesk/internal/notification/models"
 	"github.com/abhinavxd/libredesk/internal/sla/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	tmodels "github.com/abhinavxd/libredesk/internal/team/models"
@@ -54,17 +55,18 @@ var metricLabels = map[string]string{
 }
 
 type Manager struct {
-	q                queries
-	lo               *logf.Logger
-	i18n             *i18n.I18n
-	teamStore        teamStore
-	userStore        userStore
-	appSettingsStore appSettingsStore
-	businessHrsStore businessHrsStore
-	notifier         *notifier.Service
-	template         *template.Manager
-	wg               sync.WaitGroup
-	opts             Opts
+	q                     queries
+	lo                    *logf.Logger
+	i18n                  *i18n.I18n
+	teamStore             teamStore
+	userStore             userStore
+	appSettingsStore      appSettingsStore
+	businessHrsStore      businessHrsStore
+	notifier              *notifier.Service
+	template              *template.Manager
+	userNotificationStore userNotificationStore
+	wg                    sync.WaitGroup
+	opts                  Opts
 }
 
 // Opts defines the options for creating SLA manager.
@@ -104,6 +106,10 @@ type businessHrsStore interface {
 	Get(id int) (bmodels.BusinessHours, error)
 }
 
+type userNotificationStore interface {
+	Create(userID int, notificationType nmodels.NotificationType, title string, body null.String, conversationID, messageID, actorID null.Int, meta json.RawMessage) (nmodels.UserNotification, error)
+}
+
 // queries hold prepared SQL queries.
 type queries struct {
 	GetSLAPolicy                      *sqlx.Stmt `query:"get-sla-policy"`
@@ -138,6 +144,7 @@ func New(
 	notifier *notifier.Service,
 	template *template.Manager,
 	userStore userStore,
+	userNotificationStore userNotificationStore,
 ) (*Manager, error) {
 	var q queries
 	if err := dbutil.ScanSQLFile(
@@ -149,16 +156,17 @@ func New(
 		return nil, err
 	}
 	return &Manager{
-		q:                q,
-		lo:               opts.Lo,
-		i18n:             opts.I18n,
-		teamStore:        teamStore,
-		appSettingsStore: appSettingsStore,
-		businessHrsStore: businessHrsStore,
-		notifier:         notifier,
-		template:         template,
-		userStore:        userStore,
-		opts:             opts,
+		q:                     q,
+		lo:                    opts.Lo,
+		i18n:                  opts.I18n,
+		teamStore:             teamStore,
+		appSettingsStore:      appSettingsStore,
+		businessHrsStore:      businessHrsStore,
+		notifier:              notifier,
+		template:              template,
+		userStore:             userStore,
+		userNotificationStore: userNotificationStore,
+		opts:                  opts,
 	}, nil
 }
 
@@ -705,6 +713,39 @@ func (m *Manager) SendNotification(scheduledNotification models.ScheduledSLANoti
 			Provider: notifier.ProviderEmail,
 		}); err != nil {
 			m.lo.Error("error sending email notification", "error", err)
+		}
+
+		// Create in-app notification.
+		if m.userNotificationStore != nil {
+			var notifType nmodels.NotificationType
+			if scheduledNotification.NotificationType == NotificationTypeBreach {
+				notifType = nmodels.NotificationTypeSLABreach
+			} else {
+				notifType = nmodels.NotificationTypeSLAWarning
+			}
+
+			notificationTitle := fmt.Sprintf("SLA %s: %s for #%s",
+				scheduledNotification.NotificationType, metricLabel, appliedSLA.ConversationReferenceNumber)
+
+			var notificationBody string
+			if scheduledNotification.NotificationType == NotificationTypeBreach {
+				notificationBody = fmt.Sprintf("Overdue by %s", overdueBy)
+			} else {
+				notificationBody = fmt.Sprintf("Due in %s", dueIn)
+			}
+
+			if _, err := m.userNotificationStore.Create(
+				recipientID,
+				notifType,
+				notificationTitle,
+				null.StringFrom(notificationBody),
+				null.IntFrom(appliedSLA.ConversationID),
+				null.Int{},
+				null.Int{},
+				nil,
+			); err != nil {
+				m.lo.Error("error creating SLA in-app notification", "recipient_id", recipientID, "error", err)
+			}
 		}
 
 		// Mark the notification as processed.
