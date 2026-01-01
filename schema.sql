@@ -808,3 +808,23 @@ VALUES (
   'Urgent: SLA Breach for Conversation {{ .Conversation.ReferenceNumber }} for {{ .SLA.Metric }}',
   true
 );
+
+INSERT INTO templates
+("type", body, is_default, "name", subject, is_builtin)
+VALUES (
+  'email_notification'::template_type,
+  '<p>{{ .Author.FullName }} mentioned you in a private note on conversation #{{ .Conversation.ReferenceNumber }}.</p>
+
+<p>
+<a href="{{ RootURL }}/inboxes/mentioned/conversation/{{ .Conversation.UUID }}?scrollTo={{ .Message.UUID }}">View Conversation</a>
+</p>
+
+<p>
+Best regards,<br>
+Libredesk
+</p>',
+  false,
+  'Mentioned in conversation',
+  '{{ .Author.FullName }} mentioned you in conversation #{{ .Conversation.ReferenceNumber }}',
+  true
+);

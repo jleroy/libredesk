@@ -25,11 +25,11 @@ func V0_10_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		CREATE TABLE IF NOT EXISTS conversation_mentions (
 			id BIGSERIAL PRIMARY KEY,
 			created_at TIMESTAMPTZ DEFAULT NOW(),
-			conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE NOT NULL,
-			message_id BIGINT REFERENCES conversation_messages(id) ON DELETE CASCADE NOT NULL,
-			mentioned_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-			mentioned_team_id INT REFERENCES teams(id) ON DELETE CASCADE,
-			mentioned_by_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+			conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+			message_id BIGINT REFERENCES conversation_messages(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+			mentioned_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+			mentioned_team_id INT REFERENCES teams(id) ON DELETE CASCADE ON UPDATE CASCADE,
+			mentioned_by_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
 			CONSTRAINT constraint_mention_target CHECK (
 				(mentioned_user_id IS NOT NULL AND mentioned_team_id IS NULL) OR
 				(mentioned_user_id IS NULL AND mentioned_team_id IS NOT NULL)
