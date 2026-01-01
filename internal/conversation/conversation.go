@@ -946,7 +946,14 @@ func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID str
 					"Priority":        conversation.Priority.String,
 					"UUID":            conversation.UUID,
 				},
+				// Automated messages do not have an author.
 				"Author": map[string]any{
+					"FirstName": "",
+					"LastName":  "",
+					"FullName":  "",
+					"Email":     "",
+				},
+				"MentionedBy": map[string]any{
 					"FirstName": author.FirstName,
 					"LastName":  author.LastName,
 					"FullName":  author.FullName(),

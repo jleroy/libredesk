@@ -813,7 +813,7 @@ INSERT INTO templates
 ("type", body, is_default, "name", subject, is_builtin)
 VALUES (
   'email_notification'::template_type,
-  '<p>{{ .Author.FullName }} mentioned you in a private note on conversation #{{ .Conversation.ReferenceNumber }}.</p>
+  '<p>{{ .MentionedBy.FullName }} mentioned you in a private note on conversation #{{ .Conversation.ReferenceNumber }}.</p>
 
 <p>
 <a href="{{ RootURL }}/inboxes/mentioned/conversation/{{ .Conversation.UUID }}?scrollTo={{ .Message.UUID }}">View Conversation</a>
@@ -825,6 +825,6 @@ Libredesk
 </p>',
   false,
   'Mentioned in conversation',
-  '{{ .Author.FullName }} mentioned you in conversation #{{ .Conversation.ReferenceNumber }}',
+  '{{ .MentionedBy.FullName }} mentioned you in conversation #{{ .Conversation.ReferenceNumber }}',
   true
 );
