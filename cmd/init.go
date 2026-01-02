@@ -480,6 +480,11 @@ func initMedia(db *sqlx.DB, i18n *i18n.I18n, settings *setting.Manager) *media.M
 			log.Fatalf("error initializing s3 media store: %v", err)
 		}
 	case "fs":
+		// Default expiry to 4h if not set.
+		fsExpiry := ko.Duration("upload.fs.expiry")
+		if fsExpiry == 0 {
+			fsExpiry = 4 * time.Hour
+		}
 		store, err = fs.New(fs.Opts{
 			UploadURI:  "/uploads",
 			UploadPath: filepath.Clean(ko.String("upload.fs.upload_path")),
@@ -491,6 +496,8 @@ func initMedia(db *sqlx.DB, i18n *i18n.I18n, settings *setting.Manager) *media.M
 				}
 				return rootURL
 			},
+			SigningKey: ko.MustString("app.encryption_key"),
+			Expiry:     fsExpiry,
 		})
 		if err != nil {
 			log.Fatalf("error initializing fs media store: %v", err)

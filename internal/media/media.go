@@ -37,6 +37,9 @@ type Store interface {
 	GetURL(name, disposition, fileName string) string
 	GetBlob(name string) ([]byte, error)
 	Name() string
+	// SignedURLValidator returns a validator function if the store supports signed URLs.
+	// Returns nil if the store doesn't use signed URLs (e.g., S3 handles validation itself).
+	SignedURLValidator() func(name, sig string, exp int64) bool
 }
 
 type Manager struct {
@@ -173,6 +176,12 @@ func (m *Manager) GetURL(uuid, contentType, fileName string) string {
 		disposition = "inline"
 	}
 	return m.store.GetURL(uuid, disposition, fileName)
+}
+
+// SignedURLValidator returns the store's signature validator if available.
+// Returns nil if the store doesn't support signed URL validation.
+func (m *Manager) SignedURLValidator() func(name, sig string, exp int64) bool {
+	return m.store.SignedURLValidator()
 }
 
 // Attach associates a media file with a specific model by its ID and model name.

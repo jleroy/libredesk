@@ -148,12 +148,21 @@ func handleMediaUpload(r *fastglue.Request) error {
 }
 
 // handleServeMedia serves uploaded media.
+// Supports both authenticated access (with permission checks) and signed URL access (no permission checks).
 func handleServeMedia(r *fastglue.Request) error {
 	var (
-		app   = r.Context.(*App)
-		auser = r.RequestCtx.UserValue("user").(amodels.User)
-		uuid  = r.RequestCtx.UserValue("uuid").(string)
+		app        = r.Context.(*App)
+		uuid       = r.RequestCtx.UserValue("uuid").(string)
+		authMethod = r.RequestCtx.UserValue("auth_method")
 	)
+
+	// If accessed via signed URL, skip permission checks and serve file directly.
+	if authMethod == "signed_url" {
+		return serveMediaFile(r, app, uuid)
+	}
+
+	// Session/API key authenticated - perform full permission check.
+	auser := r.RequestCtx.UserValue("user").(amodels.User)
 
 	user, err := app.user.GetAgent(auser.ID, "")
 	if err != nil {
@@ -187,6 +196,18 @@ func handleServeMedia(r *fastglue.Request) error {
 	if !allowed {
 		return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.Ts("globals.messages.denied", "name", "{globals.terms.permission}"), nil, envelope.UnauthorizedError)
 	}
+
+	return serveMediaFile(r, app, uuid)
+}
+
+// serveMediaFile serves the actual file content based on the storage provider.
+func serveMediaFile(r *fastglue.Request, app *App, uuid string) error {
+	// Fetch media metadata from DB.
+	media, err := app.media.Get(0, strings.TrimPrefix(uuid, image.ThumbPrefix))
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
 	consts := app.consts.Load().(*constants)
 	switch consts.UploadProvider {
 	case "fs":

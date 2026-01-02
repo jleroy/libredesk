@@ -1,10 +1,14 @@
 package fs
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/abhinavxd/libredesk/internal/media"
 )
@@ -14,6 +18,8 @@ type Opts struct {
 	UploadPath string
 	UploadURI  string
 	RootURL    func() string
+	SigningKey string        // HMAC signing key for generating signed URLs.
+	Expiry     time.Duration // URL expiry duration.
 }
 
 // Client implements `media.Store`
@@ -48,8 +54,49 @@ func (c *Client) Put(filename string, cType string, src io.ReadSeeker) (string, 
 }
 
 // GetURL accepts a filename and retrieves the full URL for file.
+// If a signing key is configured, returns a signed URL with expiry.
 func (c *Client) GetURL(name, _, _ string) string {
-	return fmt.Sprintf("%s%s/%s", c.opts.RootURL(), c.opts.UploadURI, name)
+	// If no signing key configured, return unsigned URL.
+	if c.opts.SigningKey == "" {
+		return fmt.Sprintf("%s%s/%s", c.opts.RootURL(), c.opts.UploadURI, name)
+	}
+	return c.signURL(name)
+}
+
+// signURL generates a signed URL with expiry timestamp.
+func (c *Client) signURL(name string) string {
+	exp := time.Now().Add(c.opts.Expiry).Unix()
+	sig := c.generateSignature(name, exp)
+	return fmt.Sprintf("%s%s/%s?sig=%s&exp=%d", c.opts.RootURL(), c.opts.UploadURI, name, sig, exp)
+}
+
+// generateSignature creates HMAC-SHA256 signature for the given name and expiry.
+func (c *Client) generateSignature(name string, exp int64) string {
+	message := fmt.Sprintf("%s:%d", name, exp)
+	h := hmac.New(sha256.New, []byte(c.opts.SigningKey))
+	h.Write([]byte(message))
+	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+// ValidateSignature verifies the signature and expiry of a signed URL.
+// Returns true if the signature is valid and the URL has not expired.
+func (c *Client) ValidateSignature(name, sig string, exp int64) bool {
+	// Check expiry first.
+	if time.Now().Unix() > exp {
+		return false
+	}
+	// Verify signature using constant-time comparison.
+	expectedSig := c.generateSignature(name, exp)
+	return hmac.Equal([]byte(sig), []byte(expectedSig))
+}
+
+// SignedURLValidator returns a validator function if the store supports signed URLs.
+// Returns nil if the store doesn't use signed URLs (no signing key configured).
+func (c *Client) SignedURLValidator() func(name, sig string, exp int64) bool {
+	if c.opts.SigningKey == "" {
+		return nil
+	}
+	return c.ValidateSignature
 }
 
 // GetBlob accepts a URL, reads the file, and returns the blob.
