@@ -1,6 +1,8 @@
 <template>
   <div>
-    <Button @click="showDialog = true">Import Agents</Button>
+    <Button variant="secondary" @click="showDialog = true">
+      Import Agents
+    </Button>
 
     <Dialog v-model:open="showDialog">
       <DialogContent class="sm:max-w-[600px]">
@@ -12,64 +14,83 @@
           <!-- File Upload Section -->
           <div v-if="!importing && !complete" class="space-y-4">
             <div class="space-y-2">
-              <label class="text-sm font-medium">Select CSV File</label>
-              <Input 
+              <label class="text-sm font-medium">Select CSV file</label>
+              <div 
+                @click="$refs.fileInput.click()"
+                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+              >
+                <span class="flex-1 truncate" :class="!file && 'text-muted-foreground'">
+                  {{ file ? file.name : 'Choose a CSV file...' }}
+                </span>
+                <svg 
+                  class="h-5 w-5 text-muted-foreground" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    stroke-linecap="round" ``
+                    stroke-linejoin="round" 
+                    stroke-width="2" 
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
+              </div>
+              <input 
                 type="file" 
                 accept=".csv"
                 @change="onFileSelect"
                 ref="fileInput"
+                class="hidden"
               />
             </div>
 
-            <Card v-if="file" class="p-3">
-              <p class="text-sm"><strong>File:</strong> {{ file.name }}</p>
-            </Card>
-
+            <AlertTitle>Required CSV format</AlertTitle>
             <Alert>
-              <AlertTitle>Required CSV Format</AlertTitle>
               <AlertDescription>
-                <code class="text-xs">first_name, last_name, email, roles, teams</code>
-                <p class="text-xs mt-1">Roles and teams must match exactly (case-sensitive)</p>
+                <p class="text-xs mb-2">Example CSV:</p>
+                <div class="bg-muted p-2 rounded text-xs font-mono overflow-x-auto">
+                  <div>first_name,last_name,email,roles,teams</div>
+                  <div>John,Doe,john@example.com,Agent,Sales</div>
+                  <div>Jane,Smith,jane@example.com,Admin,Support</div>
+                  <div>Bob,Test,bob@example.com,"Agent,Admin",Support</div>
+                </div>
+                <p class="text-xs mt-2 text-muted-foreground">
+                  Roles and teams must match database values exactly (case-sensitive)
+                </p>
               </AlertDescription>
             </Alert>
 
-            <Button @click="startImport" :disabled="!file" class="w-full">
+            <Button 
+              @click="startImport" 
+              :disabled="!file" 
+              class="w-full"
+            >
               Start Import
             </Button>
           </div>
 
           <!-- Progress Section -->
           <div v-if="status" class="space-y-4">
-            <div class="flex gap-4 justify-center">
-              <div class="text-center">
-                <p class="text-xs text-muted-foreground mb-1">Total</p>
-                <Badge variant="outline" class="text-lg px-3 py-1">{{ status.total }}</Badge>
-              </div>
-              <div class="text-center">
-                <p class="text-xs text-muted-foreground mb-1">Success</p>
-                <Badge class="text-lg px-3 py-1 bg-green-500">{{ status.success }}</Badge>
-              </div>
-              <div class="text-center">
-                <p class="text-xs text-muted-foreground mb-1">Errors</p>
-                <Badge variant="destructive" class="text-lg px-3 py-1">{{ status.errors }}</Badge>
-              </div>
-            </div>
-
-            <Separator />
-
             <div v-if="importing" class="flex items-center gap-2">
               <Spinner class="h-4 w-4" />
               <span class="text-sm">Importing agents...</span>
             </div>
 
-            <Alert v-if="complete" class="bg-green-50 dark:bg-green-950 border-green-200">
+            <Alert 
+              v-if="complete" 
+              class="bg-green-50 dark:bg-green-950 border-green-200"
+            >
               <AlertTitle class="text-green-600">Success!</AlertTitle>
-              <AlertDescription class="text-green-600">Import completed successfully</AlertDescription>
+              <AlertDescription class="text-green-600">
+                Import completed: {{ status.success }} successful, 
+                {{ status.errors }} failed out of {{ status.total }} total
+              </AlertDescription>
             </Alert>
 
             <!-- Logs -->
             <div>
-              <p class="text-sm font-medium mb-2">Import Logs</p>
+              <p class="text-sm font-medium mb-2">Import logs</p>
               <Card class="p-3">
                 <div class="bg-black text-white p-3 rounded-md text-xs font-mono max-h-60 overflow-y-auto space-y-1">
                   <div v-for="(log, idx) in status.logs" :key="idx">
@@ -87,8 +108,14 @@
         </div>
 
         <DialogFooter>
-          <Button v-if="complete" @click="resetAndClose">Done</Button>
-          <Button variant="outline" @click="closeDialog" :disabled="importing">
+          <Button v-if="complete" @click="resetAndClose">
+            Done
+          </Button>
+          <Button 
+            variant="outline" 
+            @click="closeDialog" 
+            :disabled="importing"
+          >
             Cancel
           </Button>
         </DialogFooter>
@@ -102,11 +129,15 @@ import { ref, onBeforeUnmount } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
 import { Spinner } from '@/components/ui/spinner'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '@/components/ui/dialog'
 import axios from 'axios'
 
 const showDialog = ref(false)
