@@ -89,10 +89,10 @@
             </Alert>
 
             <!-- Logs -->
-            <div>
+           <div>
               <p class="text-sm font-medium mb-2">Import logs</p>
               <Card class="p-3">
-                <div class="bg-black text-white p-3 rounded-md text-xs font-mono max-h-60 overflow-y-auto space-y-1">
+                <div class="bg-black text-white p-3 rounded-md text-xs font-mono max-h-60 overflow-y-auto space-y-1 logs-scroll-container">
                   <div v-for="(log, idx) in status.logs" :key="idx">
                     {{ log }}
                   </div>
@@ -172,6 +172,15 @@ const startImport = async () => {
 
   error.value = ''
   importing.value = true
+  
+  // Initialize empty status to show logs area immediately
+  status.value = {
+    running: true,
+    logs: ['Uploading CSV file...'],
+    total: 0,
+    success: 0,
+    errors: 0
+  }
 
   const formData = new FormData()
   formData.append('file', file.value)
@@ -184,21 +193,23 @@ const startImport = async () => {
       }
     })
 
+    // Update log after successful upload
+    status.value.logs.push('CSV uploaded successfully, starting import...')
     startPolling()
   } catch (err) {
     error.value = err.response?.data?.message || err.message || 'Upload failed'
     importing.value = false
+    status.value = null
   }
-}
-
-const startPolling = () => {
-  pollInterval.value = setInterval(fetchStatus, 1000)
 }
 
 const fetchStatus = async () => {
   try {
     const res = await axios.get('/api/v1/agents/import/status')
     status.value = res.data.data
+
+    // Auto-scroll logs to bottom
+    scrollLogsToBottom()
 
     if (!status.value.running) {
       stopPolling()
@@ -210,6 +221,22 @@ const fetchStatus = async () => {
       console.error('Poll error:', err)
     }
   }
+}
+
+const scrollLogsToBottom = () => {
+  // Use nextTick to ensure DOM is updated before scrolling
+  import('vue').then(({ nextTick }) => {
+    nextTick(() => {
+      const logsContainer = document.querySelector('.logs-scroll-container')
+      if (logsContainer) {
+        logsContainer.scrollTop = logsContainer.scrollHeight
+      }
+    })
+  })
+}
+
+const startPolling = () => {
+  pollInterval.value = setInterval(fetchStatus, 1000)
 }
 
 const stopPolling = () => {
