@@ -553,9 +553,9 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	// Evaluate automation rules.
 	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned)
 
-	// Send email to assignee.
-	if err := c.SendAssignedConversationEmail([]int{assigneeID}, conversation); err != nil {
-		c.lo.Error("error sending assigned conversation email", "error", err)
+	// Send notifications to assignee.
+	if err := c.NotifyAssignment([]int{assigneeID}, conversation); err != nil {
+		c.lo.Error("error sending assignment notification", "error", err)
 	}
 
 	if err := c.RecordAssigneeUserChange(uuid, assigneeID, actor); err != nil {
@@ -841,8 +841,8 @@ func (m *Manager) GetMessageSourceIDs(conversationID, limit int) ([]string, erro
 	return refs, nil
 }
 
-// SendAssignedConversationEmail sends a email for an assigned conversation to the passed user ids.
-func (m *Manager) SendAssignedConversationEmail(userIDs []int, conversation models.Conversation) error {
+// NotifyAssignment sends notifications (in-app, WebSocket, email) for an assigned conversation.
+func (m *Manager) NotifyAssignment(userIDs []int, conversation models.Conversation) error {
 	agent, err := m.userStore.GetAgent(userIDs[0], "")
 	if err != nil {
 		m.lo.Error("error fetching agent", "user_id", userIDs[0], "error", err)
@@ -915,9 +915,9 @@ func (m *Manager) SendAssignedConversationEmail(userIDs []int, conversation mode
 	return nil
 }
 
-// SendMentionNotificationEmail sends email notifications for mentions.
+// NotifyMention sends notifications (in-app, WebSocket, email) for mentions.
 // For team mentions, expands to all team members.
-func (m *Manager) SendMentionNotificationEmail(conversationUUID string, message models.Message, mentions []models.MentionInput, mentionedByUserID int) {
+func (m *Manager) NotifyMention(conversationUUID string, message models.Message, mentions []models.MentionInput, mentionedByUserID int) {
 	conversation, err := m.GetConversation(0, conversationUUID, "")
 	if err != nil {
 		m.lo.Error("error fetching conversation for mention notification", "uuid", conversationUUID, "error", err)
