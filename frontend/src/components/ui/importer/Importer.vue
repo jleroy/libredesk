@@ -60,9 +60,7 @@
                 </p>
               </AlertDescription>
             </Alert>
-
-            <Button 
-              @click="startImport" 
+            <Button @click="startImport"
               :disabled="!file" 
               class="w-full"
             >
@@ -76,7 +74,6 @@
               <Spinner class="h-4 w-4" />
               <span class="text-sm">Importing agents...</span>
             </div>
-
             <Alert 
               v-if="complete" 
               class="bg-green-50 dark:bg-green-950 border-green-200"
@@ -88,16 +85,28 @@
               </AlertDescription>
             </Alert>
 
-            <!-- Logs -->
-           <div>
+            <div>
               <p class="text-sm font-medium mb-2">Import logs</p>
               <Card class="p-3">
-                <div class="bg-black text-white p-3 rounded-md text-xs font-mono max-h-60 overflow-y-auto space-y-1 logs-scroll-container">
-                  <div v-for="(log, idx) in status.logs" :key="idx">
-                    {{ log }}
+                <div class="relative">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-foreground z-10"
+                   @click="copyLogs"
+                  >
+                    <Check v-if="copied" class="h-4 w-4 text-green-500" />
+                    <Copy v-else class="h-4 w-4" />
+                  </Button>
+                 <div
+                    class="bg-black text-white p-3 pt-8 rounded-md text-xs font-mono max-h-60 overflow-y-auto space-y-1 logs-scroll-container"
+                  >
+                    <div v-for="(log, idx) in status.logs" :key="idx">
+                      {{ log }}
+                    </div>
                   </div>
-                </div>
-              </Card>
+               </div>
+              </Card> 
             </div>
           </div>
 
@@ -139,11 +148,13 @@ import {
   DialogFooter 
 } from '@/components/ui/dialog'
 import axios from 'axios'
+import { Copy, Check } from "lucide-vue-next"
 
 const showDialog = ref(false)
 const file = ref(null)
 const importing = ref(false)
 const complete = ref(false)
+const copied = ref(false)
 const status = ref(null)
 const error = ref('')
 const pollInterval = ref(null)
@@ -271,4 +282,16 @@ const resetState = () => {
 onBeforeUnmount(() => {
   stopPolling()
 })
+const copyLogs = async () => {
+  if (!status.value?.logs?.length) return
+
+  await navigator.clipboard.writeText(
+    status.value.logs.join("\n")
+  )
+
+  copied.value = true
+  setTimeout(() => {
+    copied.value = false
+  }, 1500)
+}
 </script>
