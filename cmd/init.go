@@ -480,10 +480,10 @@ func initMedia(db *sqlx.DB, i18n *i18n.I18n, settings *setting.Manager) *media.M
 			log.Fatalf("error initializing s3 media store: %v", err)
 		}
 	case "fs":
-		// Default expiry to 4h if not set.
+		// Default expiry to 1h if not set.
 		fsExpiry := ko.Duration("upload.fs.expiry")
 		if fsExpiry == 0 {
-			fsExpiry = 4 * time.Hour
+			fsExpiry = 1 * time.Hour
 		}
 		store, err = fs.New(fs.Opts{
 			UploadURI:  "/uploads",

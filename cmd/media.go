@@ -13,6 +13,7 @@ import (
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/image"
+	mmodels "github.com/abhinavxd/libredesk/internal/media/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
@@ -151,14 +152,14 @@ func handleMediaUpload(r *fastglue.Request) error {
 // Supports both authenticated access (with permission checks) and signed URL access (no permission checks).
 func handleServeMedia(r *fastglue.Request) error {
 	var (
-		app        = r.Context.(*App)
-		uuid       = r.RequestCtx.UserValue("uuid").(string)
+		app  = r.Context.(*App)
+		uuid = r.RequestCtx.UserValue("uuid").(string)
 		authMethod = r.RequestCtx.UserValue("auth_method")
 	)
 
 	// If accessed via signed URL, skip permission checks and serve file directly.
 	if authMethod == "signed_url" {
-		return serveMediaFile(r, app, uuid)
+		return serveMediaFile(r, app, uuid, nil)
 	}
 
 	// Session/API key authenticated - perform full permission check.
@@ -170,7 +171,7 @@ func handleServeMedia(r *fastglue.Request) error {
 	}
 
 	// Fetch media from DB.
-	media, err := app.media.Get(0, strings.TrimPrefix(uuid, image.ThumbPrefix))
+	media, err := getMediaByUUID(app, uuid)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -197,15 +198,19 @@ func handleServeMedia(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.Ts("globals.messages.denied", "name", "{globals.terms.permission}"), nil, envelope.UnauthorizedError)
 	}
 
-	return serveMediaFile(r, app, uuid)
+	return serveMediaFile(r, app, uuid, &media)
 }
 
 // serveMediaFile serves the actual file content based on the storage provider.
-func serveMediaFile(r *fastglue.Request, app *App, uuid string) error {
-	// Fetch media metadata from DB.
-	media, err := app.media.Get(0, strings.TrimPrefix(uuid, image.ThumbPrefix))
-	if err != nil {
-		return sendErrorEnvelope(r, err)
+// If media is nil, it will be fetched from DB.
+func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.Media) error {
+	// Fetch media metadata from DB if not provided.
+	if media == nil {
+		m, err := getMediaByUUID(app, uuid)
+		if err != nil {
+			return sendErrorEnvelope(r, err)
+		}
+		media = &m
 	}
 
 	consts := app.consts.Load().(*constants)
@@ -233,4 +238,9 @@ func serveMediaFile(r *fastglue.Request, app *App, uuid string) error {
 // bytesToMegabytes converts bytes to megabytes.
 func bytesToMegabytes(bytes int64) float64 {
 	return float64(bytes) / 1024 / 1024
+}
+
+// getMediaByUUID fetches media metadata from DB, handling thumbnail prefix.
+func getMediaByUUID(app *App, uuid string) (mmodels.Media, error) {
+	return app.media.Get(0, strings.TrimPrefix(uuid, image.ThumbPrefix))
 }
