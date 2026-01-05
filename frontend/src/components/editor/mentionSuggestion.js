@@ -36,7 +36,9 @@ export default {
         popup = document.createElement('div')
         popup.style.position = 'fixed'
         popup.style.zIndex = '9999'
-        popup.appendChild(component.element)
+        if (component.element) {
+          popup.appendChild(component.element)
+        }
         document.body.appendChild(popup)
 
         // Position the popup
