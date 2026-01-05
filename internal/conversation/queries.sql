@@ -30,6 +30,7 @@ RETURNING id, uuid;
 
 -- name: get-conversations
 -- $1 = viewing user ID for per-agent unread count
+-- $2 = include mentioned message UUID (true for mentioned inbox, false otherwise)
 SELECT
     COUNT(*) OVER() as total,
     conversations.id,
@@ -76,7 +77,19 @@ SELECT
     as_latest.resolution_deadline_at,
     as_latest.id as applied_sla_id,
     nxt_resp_event.deadline_at AS next_response_deadline_at,
-    nxt_resp_event.met_at as next_response_met_at
+    nxt_resp_event.met_at as next_response_met_at,
+    CASE WHEN $2 = true THEN (
+        SELECT msg.uuid
+        FROM conversation_mentions cm2
+        JOIN conversation_messages msg ON msg.id = cm2.message_id
+        WHERE cm2.conversation_id = conversations.id
+          AND (cm2.mentioned_user_id = $1 OR EXISTS(
+              SELECT 1 FROM team_members tm2
+              WHERE tm2.team_id = cm2.mentioned_team_id AND tm2.user_id = $1
+          ))
+        ORDER BY cm2.created_at DESC
+        LIMIT 1
+    ) ELSE NULL END as mentioned_message_uuid
     FROM conversations
     JOIN users ON contact_id = users.id
     JOIN inboxes ON inbox_id = inboxes.id  
@@ -611,3 +624,7 @@ WHERE conversation_id IN (
 -- name: delete-stale-drafts
 DELETE FROM conversation_drafts
 WHERE created_at < $1;
+
+-- name: insert-mention
+INSERT INTO conversation_mentions (conversation_id, message_id, mentioned_user_id, mentioned_team_id, mentioned_by_user_id)
+VALUES ($1, $2, $3, $4, $5);

@@ -343,6 +343,8 @@ const getAssignedConversations = (params) => http.get('/api/v1/conversations/ass
 const getUnassignedConversations = (params) =>
   http.get('/api/v1/conversations/unassigned', { params })
 const getAllConversations = (params) => http.get('/api/v1/conversations/all', { params })
+const getMentionedConversations = (params) =>
+  http.get('/api/v1/conversations/mentioned', { params })
 const getViewConversations = (id, params) =>
   http.get(`/api/v1/views/${id}/conversations`, { params })
 const uploadMedia = (data) =>
@@ -504,6 +506,7 @@ export default {
   getAssignedConversations,
   getUnassignedConversations,
   getAllConversations,
+  getMentionedConversations,
   getTeamUnassignedConversations,
   getViewConversations,
   getOverviewCharts,

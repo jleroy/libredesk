@@ -27,6 +27,7 @@ var (
 	UnassignedConversations     = "unassigned"
 	TeamUnassignedConversations = "team_unassigned"
 	TeamAllConversations        = "team_all"
+	MentionedConversations      = "mentioned"
 
 	MessageIncoming = "incoming"
 	MessageOutgoing = "outgoing"
@@ -34,6 +35,9 @@ var (
 
 	SenderTypeAgent   = "agent"
 	SenderTypeContact = "contact"
+
+	MentionTypeAgent = "agent"
+	MentionTypeTeam  = "team"
 
 	MessageStatusPending  = "pending"
 	MessageStatusSent     = "sent"
@@ -85,6 +89,7 @@ type ConversationListItem struct {
 	AppliedSLAID          null.Int                `db:"applied_sla_id" json:"applied_sla_id"`
 	NextResponseDueAt     null.Time               `db:"next_response_deadline_at" json:"next_response_deadline_at"`
 	NextResponseMetAt     null.Time               `db:"next_response_met_at" json:"next_response_met_at"`
+	MentionedMessageUUID  null.String             `db:"mentioned_message_uuid" json:"mentioned_message_uuid,omitempty"`
 }
 
 // ConversationListContact represents contact info in conversation list views
@@ -295,4 +300,10 @@ type ConversationDraft struct {
 	CreatedAt        time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt        time.Time       `db:"updated_at" json:"updated_at"`
 	Meta             json.RawMessage `db:"meta" json:"meta"`
+}
+
+// MentionInput represents a mention in a private note from frontend.
+type MentionInput struct {
+	Type string `json:"type"` // "agent" or "team"
+	ID   int    `json:"id"`
 }

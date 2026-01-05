@@ -62,6 +62,7 @@
           v-model:emailErrors="emailErrors"
           v-model:messageType="messageType"
           v-model:showBcc="showBcc"
+          v-model:mentions="mentions"
           @toggleFullscreen="isEditorFullscreen = !isEditorFullscreen"
           @send="processSend"
           @fileUpload="handleFileUpload"
@@ -94,6 +95,7 @@
         v-model:emailErrors="emailErrors"
         v-model:messageType="messageType"
         v-model:showBcc="showBcc"
+        v-model:mentions="mentions"
         @toggleFullscreen="isEditorFullscreen = !isEditorFullscreen"
         @send="processSend"
         @fileUpload="handleFileUpload"
@@ -106,6 +108,7 @@
 
 <script setup>
 import { ref, watch, computed, toRaw } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { handleHTTPError } from '@/utils/http'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { MACRO_CONTEXT } from '@/constants/conversation'
@@ -178,7 +181,7 @@ const openAIKeyPrompt = ref(false)
 const isOpenAIKeyUpdating = ref(false)
 const isEditorFullscreen = ref(false)
 const isSending = ref(false)
-const messageType = ref('reply')
+const messageType = useStorage('replyBoxMessageType', 'reply')
 const to = ref('')
 const cc = ref('')
 const bcc = ref('')
@@ -186,6 +189,7 @@ const showBcc = ref(false)
 const emailErrors = ref([])
 const aiPrompts = ref([])
 const replyBoxContentRef = ref(null)
+const mentions = ref([])
 
 /**
  * Fetches AI prompts from the server.
@@ -276,6 +280,8 @@ const processSend = async () => {
         private: messageType.value === 'private_note',
         message: message,
         attachments: mediaFiles.value.map((file) => file.id),
+        // Include mentions only for private notes
+        mentions: messageType.value === 'private_note' ? mentions.value : [],
         // Convert email addresses to array and remove empty strings.
         cc: cc.value
           .split(',')
@@ -329,6 +335,9 @@ const processSend = async () => {
 
       // Clear any email errors.
       emailErrors.value = []
+
+      // Clear mentions.
+      mentions.value = []
     }
     isSending.value = false
   }

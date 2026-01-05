@@ -15,13 +15,14 @@ import (
 )
 
 type messageReq struct {
-	Attachments []int    `json:"attachments"`
-	Message     string   `json:"message"`
-	Private     bool     `json:"private"`
-	To          []string `json:"to"`
-	CC          []string `json:"cc"`
-	BCC         []string `json:"bcc"`
-	SenderType  string   `json:"sender_type"`
+	Attachments []int                  `json:"attachments"`
+	Message     string                 `json:"message"`
+	Private     bool                   `json:"private"`
+	To          []string               `json:"to"`
+	CC          []string               `json:"cc"`
+	BCC         []string               `json:"bcc"`
+	SenderType  string                 `json:"sender_type"`
+	Mentions    []cmodels.MentionInput `json:"mentions"`
 }
 
 // handleGetMessages returns messages for a conversation.
@@ -208,7 +209,7 @@ func handleSendMessage(r *fastglue.Request) error {
 
 	// Send private note.
 	if req.Private {
-		message, err := app.conversation.SendPrivateNote(media, user.ID, cuuid, req.Message)
+		message, err := app.conversation.SendPrivateNote(media, user.ID, cuuid, req.Message, req.Mentions)
 		if err != nil {
 			return sendErrorEnvelope(r, err)
 		}

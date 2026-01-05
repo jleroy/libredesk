@@ -144,6 +144,36 @@ func handleGetUnassignedConversations(r *fastglue.Request) error {
 	})
 }
 
+// handleGetMentionedConversations retrieves conversations where the current user is mentioned.
+func handleGetMentionedConversations(r *fastglue.Request) error {
+	var (
+		app         = r.Context.(*App)
+		user        = r.RequestCtx.UserValue("user").(amodels.User)
+		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
+		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
+		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
+		total       = 0
+	)
+
+	conversations, err := app.conversation.GetMentionedConversationsList(user.ID, order, orderBy, filters, page, pageSize)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	if len(conversations) > 0 {
+		total = conversations[0].Total
+	}
+
+	return r.SendEnvelope(envelope.PageResults{
+		Results:    conversations,
+		Total:      total,
+		PerPage:    pageSize,
+		TotalPages: (total + pageSize - 1) / pageSize,
+		Page:       page,
+	})
+}
+
 // handleGetViewConversations retrieves conversations for a view.
 func handleGetViewConversations(r *fastglue.Request) error {
 	var (

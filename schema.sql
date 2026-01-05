@@ -343,6 +343,24 @@ CREATE TABLE conversation_participants (
 );
 CREATE UNIQUE INDEX index_unique_conversation_participants_on_conversation_id_and_user_id ON conversation_participants (conversation_id, user_id);
 
+DROP TABLE IF EXISTS conversation_mentions CASCADE;
+CREATE TABLE conversation_mentions (
+	id BIGSERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ DEFAULT NOW(),
+	conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+	message_id BIGINT REFERENCES conversation_messages(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+	mentioned_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	mentioned_team_id INT REFERENCES teams(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	mentioned_by_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+	CONSTRAINT constraint_mention_target CHECK (
+		(mentioned_user_id IS NOT NULL AND mentioned_team_id IS NULL) OR
+		(mentioned_user_id IS NULL AND mentioned_team_id IS NOT NULL)
+	)
+);
+CREATE INDEX index_conversation_mentions_on_mentioned_user_id ON conversation_mentions(mentioned_user_id);
+CREATE INDEX index_conversation_mentions_on_mentioned_team_id ON conversation_mentions(mentioned_team_id);
+CREATE INDEX index_conversation_mentions_on_conversation_id ON conversation_mentions(conversation_id);
+
 DROP TABLE IF EXISTS conversation_last_seen CASCADE;
 CREATE TABLE conversation_last_seen (
 	id BIGSERIAL PRIMARY KEY,
@@ -788,5 +806,25 @@ VALUES (
   false,
   'SLA breached',
   'Urgent: SLA Breach for Conversation {{ .Conversation.ReferenceNumber }} for {{ .SLA.Metric }}',
+  true
+);
+
+INSERT INTO templates
+("type", body, is_default, "name", subject, is_builtin)
+VALUES (
+  'email_notification'::template_type,
+  '<p>{{ .MentionedBy.FullName }} mentioned you in a private note on conversation #{{ .Conversation.ReferenceNumber }}.</p>
+
+<p>
+<a href="{{ RootURL }}/inboxes/mentioned/conversation/{{ .Conversation.UUID }}?scrollTo={{ .Message.UUID }}">View Conversation</a>
+</p>
+
+<p>
+Best regards,<br>
+Libredesk
+</p>',
+  false,
+  'Mentioned in conversation',
+  '{{ .MentionedBy.FullName }} mentioned you in conversation #{{ .Conversation.ReferenceNumber }}',
   true
 );

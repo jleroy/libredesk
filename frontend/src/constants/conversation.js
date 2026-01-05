@@ -3,7 +3,8 @@ export const CONVERSATION_LIST_TYPE = {
   UNASSIGNED: 'unassigned',
   TEAM_UNASSIGNED: 'team_unassigned',
   VIEW: 'view',
-  ALL: 'all'
+  ALL: 'all',
+  MENTIONED: 'mentioned'
 }
 
 export const CONVERSATION_DEFAULT_STATUSES = {

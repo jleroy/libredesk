@@ -91,6 +91,7 @@
   "globals.terms.open": "Open",
   "globals.terms.awaitingResponse": "Awaiting Response",
   "globals.terms.unassigned": "Unassigned",
+  "globals.terms.mention": "Mention | Mentions",
   "globals.terms.pending": "Pending",
   "globals.terms.active": "Active",
   "globals.terms.url": "URL | URLs",
