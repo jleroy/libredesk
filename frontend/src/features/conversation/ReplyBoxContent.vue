@@ -193,7 +193,7 @@ const getSuggestions = async (query) => {
       emoji: t.emoji
     }))
 
-  return [...users, ...teams].slice(0, 10)
+  return [...users, ...teams].slice(0, 25)
 }
 
 // Handle mentions changed from editor
