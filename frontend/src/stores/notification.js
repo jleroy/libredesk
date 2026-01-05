@@ -54,9 +54,8 @@ export const useNotificationStore = defineStore('notification', () => {
         unreadCount.value = stats.unread_count || 0
         totalCount.value = stats.total_count || 0
       }
-    } catch (error) {
-      // Silently fail for stats fetch
-      console.error('Failed to fetch notification stats:', error)
+    } catch {
+      // pass
     }
   }
 
