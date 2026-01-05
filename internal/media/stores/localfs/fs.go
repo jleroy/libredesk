@@ -81,11 +81,9 @@ func (c *Client) generateSignature(name string, exp int64) string {
 // ValidateSignature verifies the signature and expiry of a signed URL.
 // Returns true if the signature is valid and the URL has not expired.
 func (c *Client) ValidateSignature(name, sig string, exp int64) bool {
-	// Check expiry first.
 	if time.Now().Unix() > exp {
 		return false
 	}
-	// Verify signature using constant-time comparison.
 	expectedSig := c.generateSignature(name, exp)
 	return hmac.Equal([]byte(sig), []byte(expectedSig))
 }

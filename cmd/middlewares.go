@@ -230,7 +230,7 @@ func authOrSignedURL(handler fastglue.FastRequestHandler) fastglue.FastRequestHa
 
 		// First, try to authenticate normally.
 		user, err := authenticateUser(r, app)
-		if err == nil {
+		if err == nil && user.ID > 0 {
 			// User is authenticated, set user context and proceed.
 			r.RequestCtx.SetUserValue("user", amodels.User{
 				ID:        user.ID,
