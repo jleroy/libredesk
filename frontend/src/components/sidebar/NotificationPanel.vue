@@ -8,17 +8,18 @@
           v-if="notificationStore.unreadCount > 0"
           variant="ghost"
           size="sm"
-          class="h-7 text-xs"
+          class="h-7 px-2"
+          :title="t('globals.messages.markAllAsRead')"
           @click="handleMarkAllAsRead"
         >
-          <CheckCheck class="h-3.5 w-3.5 mr-1" />
-          {{ t('notifications.markAllAsRead') }}
+          <CheckCheck class="h-3.5 w-3.5" />
         </Button>
         <Button
           v-if="notificationStore.notifications.length > 0"
           variant="ghost"
           size="sm"
           class="h-7 px-2"
+          :title="t('globals.messages.deleteAll')"
           @click="handleDeleteAll"
         >
           <Trash2 class="h-3.5 w-3.5" />
@@ -47,7 +48,7 @@
         class="flex flex-col items-center justify-center py-8 text-muted-foreground"
       >
         <BellOff class="h-8 w-8 mb-2" />
-        <p class="text-sm">{{ t('notifications.empty') }}</p>
+        <p class="text-sm">{{ t('globals.messages.noResults', { name: t('globals.terms.notification', 2) }) }}</p>
       </div>
 
       <!-- Notifications -->
@@ -114,7 +115,7 @@
           :disabled="notificationStore.isLoading"
           @click="notificationStore.loadMore"
         >
-          {{ notificationStore.isLoading ? t('globals.messages.loading') : t('notifications.loadMore') }}
+          {{ notificationStore.isLoading ? t('globals.messages.loading') : t('globals.terms.loadMore') }}
         </Button>
       </div>
     </div>
@@ -186,7 +187,8 @@ const handleNotificationClick = async (notification) => {
       params: {
         type: 'mentioned',
         uuid: notification.conversation_uuid
-      }
+      },
+      query: notification.message_uuid ? { scrollTo: notification.message_uuid } : {}
     })
   }
 }

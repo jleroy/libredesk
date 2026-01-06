@@ -37,6 +37,7 @@ type UserNotification struct {
 	ActorLastName    null.String `db:"actor_last_name" json:"actor_last_name"`
 	ActorAvatarURL   null.String `db:"actor_avatar_url" json:"actor_avatar_url"`
 	ConversationUUID null.String `db:"conversation_uuid" json:"conversation_uuid"`
+	MessageUUID      null.String `db:"message_uuid" json:"message_uuid"`
 }
 
 // NotificationStats holds notification statistics for a user.

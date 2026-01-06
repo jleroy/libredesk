@@ -271,6 +271,8 @@
   "globals.messages.adding": "Adding {name}",
   "globals.messages.starting": "Starting {name}",
   "globals.messages.all": "All {name}",
+  "globals.messages.deleteAll": "Delete all",
+  "globals.messages.markAllAsRead": "Mark all as read",
   "globals.messages.denied": "{name} denied",
   "globals.messages.noResults": "No {name} found",
   "globals.messages.enter": "Enter {name}",
@@ -716,8 +718,5 @@
   "contact.notes.help": "Add note for this contact to keep track of important information and conversations.",
   "setup.completeYourSetup": "Complete your setup",
   "setup.createFirstInbox": "Create your first inbox",
-  "setup.inviteTeammates": "Invite teammates",
-  "notifications.markAllAsRead": "Mark all as read",
-  "notifications.empty": "No notifications",
-  "notifications.loadMore": "Load more"
+  "setup.inviteTeammates": "Invite teammates"
 }
