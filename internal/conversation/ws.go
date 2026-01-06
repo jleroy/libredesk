@@ -63,12 +63,3 @@ func (m *Manager) broadcastToUsers(userIDs []int, message wsmodels.Message) {
 		Users: userIDs,
 	})
 }
-
-// BroadcastNotification broadcasts a notification to specific users.
-func (m *Manager) BroadcastNotification(userIDs []int, notification interface{}) {
-	message := wsmodels.Message{
-		Type: wsmodels.MessageTypeNewNotification,
-		Data: notification,
-	}
-	m.broadcastToUsers(userIDs, message)
-}

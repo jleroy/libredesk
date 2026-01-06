@@ -69,34 +69,34 @@ const (
 
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
-	redis           *redis.Client
-	fs              stuffbin.FileSystem
-	consts          atomic.Value
-	auth            *auth_.Auth
-	authz           *authz.Enforcer
-	i18n            *i18n.I18n
-	lo              *logf.Logger
-	oidc            *oidc.Manager
-	media           *media.Manager
-	setting         *setting.Manager
-	role            *role.Manager
-	user            *user.Manager
-	team            *team.Manager
-	status          *status.Manager
-	priority        *priority.Manager
-	tag             *tag.Manager
-	inbox           *inbox.Manager
-	tmpl            *template.Manager
-	macro           *macro.Manager
-	conversation    *conversation.Manager
-	automation      *automation.Engine
-	businessHours   *businesshours.Manager
-	sla             *sla.Manager
-	csat            *csat.Manager
-	view            *view.Manager
-	ai              *ai.Manager
-	search          *search.Manager
-	activityLog     *activitylog.Manager
+	redis            *redis.Client
+	fs               stuffbin.FileSystem
+	consts           atomic.Value
+	auth             *auth_.Auth
+	authz            *authz.Enforcer
+	i18n             *i18n.I18n
+	lo               *logf.Logger
+	oidc             *oidc.Manager
+	media            *media.Manager
+	setting          *setting.Manager
+	role             *role.Manager
+	user             *user.Manager
+	team             *team.Manager
+	status           *status.Manager
+	priority         *priority.Manager
+	tag              *tag.Manager
+	inbox            *inbox.Manager
+	tmpl             *template.Manager
+	macro            *macro.Manager
+	conversation     *conversation.Manager
+	automation       *automation.Engine
+	businessHours    *businesshours.Manager
+	sla              *sla.Manager
+	csat             *csat.Manager
+	view             *view.Manager
+	ai               *ai.Manager
+	search           *search.Manager
+	activityLog      *activitylog.Manager
 	notifier         *notifier.Service
 	userNotification *notifier.UserNotificationManager
 	customAttribute  *customAttribute.Manager
@@ -212,9 +212,10 @@ func main() {
 		wsHub                       = initWS(user)
 		notifier                    = initNotifier()
 		userNotification            = initUserNotification(db, i18n)
+		notifDispatcher             = initNotifDispatcher(userNotification, notifier, wsHub)
 		automation                  = initAutomationEngine(db, i18n)
-		sla                         = initSLA(db, team, settings, businessHours, notifier, template, user, i18n, userNotification)
-		conversation                = initConversations(i18n, sla, status, priority, wsHub, notifier, db, inbox, user, team, media, settings, csat, automation, template, webhook, userNotification)
+		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
+		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)
 		autoassigner                = initAutoAssigner(team, user, conversation)
 	)
 	automation.SetConversationStore(conversation)

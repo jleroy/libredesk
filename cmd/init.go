@@ -238,7 +238,6 @@ func initConversations(
 	status *status.Manager,
 	priority *priority.Manager,
 	hub *ws.Hub,
-	notif *notifier.Service,
 	db *sqlx.DB,
 	inboxStore *inbox.Manager,
 	userStore *user.Manager,
@@ -249,9 +248,9 @@ func initConversations(
 	automationEngine *automation.Engine,
 	template *tmpl.Manager,
 	webhook *webhook.Manager,
-	userNotification *notifier.UserNotificationManager,
+	dispatcher *notifier.Dispatcher,
 ) *conversation.Manager {
-	c, err := conversation.New(hub, i18n, notif, sla, status, priority, inboxStore, userStore, teamStore, mediaStore, settings, csat, automationEngine, template, webhook, userNotification, conversation.Opts{
+	c, err := conversation.New(hub, i18n, sla, status, priority, inboxStore, userStore, teamStore, mediaStore, settings, csat, automationEngine, template, webhook, dispatcher, conversation.Opts{
 		DB:                       db,
 		Lo:                       initLogger("conversation_manager"),
 		OutgoingMessageQueueSize: ko.MustInt("message.outgoing_queue_size"),
@@ -320,13 +319,13 @@ func initBusinessHours(db *sqlx.DB, i18n *i18n.I18n) *businesshours.Manager {
 }
 
 // initSLA inits SLA manager.
-func initSLA(db *sqlx.DB, teamManager *team.Manager, settings *setting.Manager, businessHours *businesshours.Manager, notifier *notifier.Service, template *tmpl.Manager, userManager *user.Manager, i18n *i18n.I18n, userNotification *notifier.UserNotificationManager) *sla.Manager {
+func initSLA(db *sqlx.DB, teamManager *team.Manager, settings *setting.Manager, businessHours *businesshours.Manager, template *tmpl.Manager, userManager *user.Manager, i18n *i18n.I18n, dispatcher *notifier.Dispatcher) *sla.Manager {
 	var lo = initLogger("sla")
 	m, err := sla.New(sla.Opts{
 		DB:   db,
 		Lo:   lo,
 		I18n: i18n,
-	}, teamManager, settings, businessHours, notifier, template, userManager, userNotification)
+	}, teamManager, settings, businessHours, template, userManager, dispatcher)
 	if err != nil {
 		log.Fatalf("error initializing SLA manager: %v", err)
 	}
@@ -946,6 +945,16 @@ func initUserNotification(db *sqlx.DB, i18n *i18n.I18n) *notifier.UserNotificati
 		log.Fatalf("error initializing user notification manager: %v", err)
 	}
 	return m
+}
+
+// initNotifDispatcher initializes the notification dispatcher.
+func initNotifDispatcher(userNotification *notifier.UserNotificationManager, outbound *notifier.Service, wsHub *ws.Hub) *notifier.Dispatcher {
+	return notifier.NewDispatcher(notifier.DispatcherOpts{
+		InApp:    userNotification,
+		Outbound: outbound,
+		WSHub:    wsHub,
+		Lo:       initLogger("notification-dispatcher"),
+	})
 }
 
 // initLogger initializes a logf logger.
