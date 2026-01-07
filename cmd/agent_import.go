@@ -15,13 +15,11 @@ import (
 func handleImportAgents(r *fastglue.Request) error {
 	var app = r.Context.(*App)
 
-	// Get file from form
 	file, err := r.RequestCtx.FormFile("file")
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "No file provided", nil, envelope.InputError)
 	}
 
-	// Open file
 	fileContent, err := file.Open()
 	if err != nil {
 		app.lo.Error("error opening uploaded file", "error", err)
@@ -29,7 +27,6 @@ func handleImportAgents(r *fastglue.Request) error {
 	}
 	defer fileContent.Close()
 
-	// Parse CSV
 	reader := csv.NewReader(fileContent)
 	reader.TrimLeadingSpace = true
 	records, err := reader.ReadAll()
@@ -38,11 +35,10 @@ func handleImportAgents(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid CSV format", nil, envelope.InputError)
 	}
 
-	if len(records) == 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Empty CSV file", nil, envelope.InputError)
+	if len(records) < 2 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "CSV must contain headers and at least one data row", nil, envelope.InputError)
 	}
 
-	// Submit import job
 	err = app.importer.Submit("agents", func() error {
 		return processAgentImport(app, records)
 	})
@@ -68,40 +64,50 @@ func handleGetAgentImportStatus(r *fastglue.Request) error {
 	return r.SendEnvelope(status)
 }
 
-// processAgentImport processes CSV records and creates agents
 func processAgentImport(app *App, records [][]string) error {
-	if len(records) < 2 {
-		return fmt.Errorf("CSV must have headers and at least one data row")
-	}
-
 	// Parse headers
-	headers := records[0]
 	headerMap := make(map[string]int)
-	for i, h := range headers {
+	for i, h := range records[0] {
 		headerMap[strings.TrimSpace(strings.ToLower(h))] = i
 	}
 
 	// Validate required columns
 	required := []string{"first_name", "last_name", "email", "roles", "teams"}
-	for _, r := range required {
-		if _, ok := headerMap[r]; !ok {
-			return fmt.Errorf("missing required column: %s", r)
+	for _, col := range required {
+		if _, ok := headerMap[col]; !ok {
+			return fmt.Errorf("missing required column: %s", col)
 		}
 	}
 
-	// Set total count
+	// Fetch valid teams and roles once
+	allTeams, err := app.team.GetAll()
+	if err != nil {
+		return fmt.Errorf("failed to fetch teams: %v", err)
+	}
+
+	allRoles, err := app.role.GetAll()
+	if err != nil {
+		return fmt.Errorf("failed to fetch roles: %v", err)
+	}
+
+	validTeams := make(map[string]bool)
+	for _, t := range allTeams {
+		validTeams[t.Name] = true
+	}
+
+	validRoles := make(map[string]bool)
+	for _, r := range allRoles {
+		validRoles[r.Name] = true
+	}
+
+	// Initialize import
 	total := len(records) - 1
 	app.importer.UpdateCounts("agents", total, 0, 0)
 	app.importer.AddLog("agents", fmt.Sprintf("Starting import of %d agents", total))
 
 	// Process each row
 	for i, record := range records[1:] {
-		rowNum := i + 2 // +2 for header and 1-based indexing
-
-		// Skip empty rows
-		if len(record) == 0 || (len(record) == 1 && strings.TrimSpace(record[0]) == "") {
-			continue
-		}
+		rowNum := i + 2
 
 		// Parse fields
 		firstName := getField(record, headerMap, "first_name")
@@ -113,46 +119,44 @@ func processAgentImport(app *App, records [][]string) error {
 		// Validate required fields
 		if firstName == "" || lastName == "" || email == "" || rolesStr == "" || teamsStr == "" {
 			app.importer.UpdateCounts("agents", 0, 0, 1)
-			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Missing required fields", rowNum))
+			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - missing required fields", rowNum))
 			continue
 		}
 
-		// Validate email
+		// Validate email format
 		if !stringutil.ValidEmail(email) {
 			app.importer.UpdateCounts("agents", 0, 0, 1)
-			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Invalid email format - %s", rowNum, email))
+			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - invalid email format", rowNum))
 			continue
 		}
 
-		// Parse roles (comma or semicolon separated)
-		rolesStr = strings.ReplaceAll(rolesStr, ";", ",")
-		rolesParts := strings.Split(rolesStr, ",")
-		var roles []string
-		for _, role := range rolesParts {
-			if r := strings.TrimSpace(role); r != "" {
-				roles = append(roles, r)
-			}
-		}
-
+		// Parse and validate roles
+		roles := parseList(rolesStr)
 		if len(roles) == 0 {
 			app.importer.UpdateCounts("agents", 0, 0, 1)
-			app.importer.AddLog("agents", fmt.Sprintf("Row %d: At least one role is required", rowNum))
+			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - at least one role required", rowNum))
 			continue
 		}
 
-		// Parse teams (comma or semicolon separated)
-		teamsStr = strings.ReplaceAll(teamsStr, ";", ",")
-		teamsParts := strings.Split(teamsStr, ",")
-		var teams []string
-		for _, team := range teamsParts {
-			if t := strings.TrimSpace(team); t != "" {
-				teams = append(teams, t)
-			}
+		invalidRoles := findInvalid(roles, validRoles)
+		if len(invalidRoles) > 0 {
+			app.importer.UpdateCounts("agents", 0, 0, 1)
+			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - invalid role(s): %s", rowNum, strings.Join(invalidRoles, ", ")))
+			continue
 		}
 
+		// Parse and validate teams
+		teams := parseList(teamsStr)
 		if len(teams) == 0 {
 			app.importer.UpdateCounts("agents", 0, 0, 1)
-			app.importer.AddLog("agents", fmt.Sprintf("Row %d: At least one team is required", rowNum))
+			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - at least one team required", rowNum))
+			continue
+		}
+
+		invalidTeams := findInvalid(teams, validTeams)
+		if len(invalidTeams) > 0 {
+			app.importer.UpdateCounts("agents", 0, 0, 1)
+			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - invalid team(s): %s", rowNum, strings.Join(invalidTeams, ", ")))
 			continue
 		}
 
@@ -160,24 +164,23 @@ func processAgentImport(app *App, records [][]string) error {
 		agent, err := app.user.CreateAgent(firstName, lastName, email, roles)
 		if err != nil {
 			app.importer.UpdateCounts("agents", 0, 0, 1)
-			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Failed to create - %v", rowNum, err))
+			if strings.Contains(strings.ToLower(err.Error()), "email") && strings.Contains(strings.ToLower(err.Error()), "exists") {
+				app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - email already exists", rowNum))
+			} else {
+				app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - failed to create agent", rowNum))
+			}
 			continue
 		}
 
 		// Assign teams
 		if err := app.team.UpsertUserTeams(agent.ID, teams); err != nil {
 			app.importer.UpdateCounts("agents", 0, 0, 1)
-			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Created agent but failed to assign teams - %v", rowNum, err))
+			app.importer.AddLog("agents", fmt.Sprintf("Row %d: Error - team assignment failed", rowNum))
 			continue
 		}
 
 		app.importer.UpdateCounts("agents", 0, 1, 0)
-		app.importer.AddLog("agents", fmt.Sprintf("Row %d: Created agent %s (%s) with teams", rowNum, agent.FullName(), agent.Email.String))
-
-		// Log progress every 10 records
-		if (i+1)%10 == 0 {
-			app.importer.AddLog("agents", fmt.Sprintf("Progress: %d/%d processed", i+1, total))
-		}
+		app.importer.AddLog("agents", fmt.Sprintf("Row %d: Created agent %s (%s)", rowNum, agent.FullName(), agent.Email.String))
 	}
 
 	// Final summary
@@ -188,10 +191,31 @@ func processAgentImport(app *App, records [][]string) error {
 	return nil
 }
 
-// getField safely retrieves a field from CSV record
 func getField(record []string, headerMap map[string]int, name string) string {
 	if idx, ok := headerMap[name]; ok && idx < len(record) {
 		return strings.TrimSpace(record[idx])
 	}
 	return ""
+}
+
+func parseList(s string) []string {
+	s = strings.ReplaceAll(s, ";", ",")
+	parts := strings.Split(s, ",")
+	var result []string
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+func findInvalid(items []string, validMap map[string]bool) []string {
+	var invalid []string
+	for _, item := range items {
+		if !validMap[item] {
+			invalid = append(invalid, item)
+		}
+	}
+	return invalid
 }
