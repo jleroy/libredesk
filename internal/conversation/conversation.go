@@ -957,12 +957,6 @@ func (m *Manager) NotifyMention(conversationUUID string, message models.Message,
 						"Priority":        conversation.Priority.String,
 						"UUID":            conversation.UUID,
 					},
-					"Author": map[string]any{
-						"FirstName": author.FirstName,
-						"LastName":  author.LastName,
-						"FullName":  author.FullName(),
-						"Email":     author.Email.String,
-					},
 					"Recipient": map[string]any{
 						"FirstName": recipient.FirstName,
 						"LastName":  recipient.LastName,
@@ -971,6 +965,19 @@ func (m *Manager) NotifyMention(conversationUUID string, message models.Message,
 					},
 					"Message": map[string]any{
 						"UUID": message.UUID,
+					},
+					"MentionedBy": map[string]any{
+						"FirstName": author.FirstName,
+						"LastName":  author.LastName,
+						"FullName":  author.FullName(),
+						"Email":     author.Email.String,
+					},
+					// Automated messages do not have an author.
+					"Author": map[string]any{
+						"FirstName": "",
+						"LastName":  "",
+						"FullName":  "",
+						"Email":     "",
 					},
 				})
 			if err != nil {
