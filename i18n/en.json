@@ -696,6 +696,7 @@
   "conversation.tryAdjustingFilters": "Try adjusting filters",
   "conversation.couldNotFetch": "Could not fetch conversations",
   "conversation.allLoaded": "All conversations loaded",
+  "conversation.markAsUnread": "Mark as unread",
   "conversation.showQuotedText": "Show quoted text",
   "conversation.hideQuotedText": "Hide quoted text",
   "conversation.sidebar.information": "Information",

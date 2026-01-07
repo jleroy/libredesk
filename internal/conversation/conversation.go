@@ -210,6 +210,7 @@ type queries struct {
 	UpdateConversationLastReplyAt      *sqlx.Stmt `query:"update-conversation-last-reply-at"`
 	UpdateConversationWaitingSince     *sqlx.Stmt `query:"update-conversation-waiting-since"`
 	UpsertUserLastSeen                 *sqlx.Stmt `query:"upsert-user-last-seen"`
+	MarkConversationUnread             *sqlx.Stmt `query:"mark-conversation-unread"`
 	UpdateConversationAssignedUser     *sqlx.Stmt `query:"update-conversation-assigned-user"`
 	UpdateConversationAssignedTeam     *sqlx.Stmt `query:"update-conversation-assigned-team"`
 	UpdateConversationCustomAttributes *sqlx.Stmt `query:"update-conversation-custom-attributes"`
@@ -316,6 +317,15 @@ func (c *Manager) GetConversationsCreatedAfter(time time.Time) ([]models.Convers
 func (c *Manager) UpdateUserLastSeen(uuid string, userID int) error {
 	if _, err := c.q.UpsertUserLastSeen.Exec(userID, uuid); err != nil {
 		c.lo.Error("error upserting user last seen", "user_id", userID, "conversation_uuid", uuid, "error", err)
+		return envelope.NewError(envelope.GeneralError, c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.conversation}"), nil)
+	}
+	return nil
+}
+
+// MarkAsUnread marks a conversation as unread for a specific user by setting last_seen to before the last message.
+func (c *Manager) MarkAsUnread(uuid string, userID int) error {
+	if _, err := c.q.MarkConversationUnread.Exec(userID, uuid); err != nil {
+		c.lo.Error("error marking conversation as unread", "user_id", userID, "conversation_uuid", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.conversation}"), nil)
 	}
 	return nil

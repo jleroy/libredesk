@@ -217,6 +217,18 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
+  async function markAsUnread (uuid) {
+    try {
+      await api.markConversationAsUnread(uuid)
+      const index = conversations.data.findIndex(conv => conv.uuid === uuid)
+      if (index !== -1) {
+        conversations.data[index].unread_message_count = 1
+      }
+    } catch (err) {
+      handleHTTPError(err)
+    }
+  }
+
   const currentContactName = computed(() => {
     if (!conversation.data?.contact) return ''
     return conversation.data?.contact.first_name + ' ' + conversation.data?.contact.last_name
@@ -767,6 +779,7 @@ export const useConversationStore = defineStore('conversation', () => {
     fetchNextConversations,
     updateMessageProp,
     updateAssigneeLastSeen,
+    markAsUnread,
     updateConversationMessage,
     snoozeConversation,
     fetchConversation,

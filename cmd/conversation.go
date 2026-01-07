@@ -353,6 +353,28 @@ func handleUpdateConversationAssigneeLastSeen(r *fastglue.Request) error {
 	return r.SendEnvelope(true)
 }
 
+// handleMarkConversationAsUnread marks a conversation as unread for the current user.
+func handleMarkConversationAsUnread(r *fastglue.Request) error {
+	var (
+		app   = r.Context.(*App)
+		uuid  = r.RequestCtx.UserValue("uuid").(string)
+		auser = r.RequestCtx.UserValue("user").(amodels.User)
+	)
+	user, err := app.user.GetAgent(auser.ID, "")
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	_, err = enforceConversationAccess(app, uuid, user)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	if err = app.conversation.MarkAsUnread(uuid, auser.ID); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(true)
+}
+
 // handleGetConversationParticipants retrieves participants of a conversation.
 func handleGetConversationParticipants(r *fastglue.Request) error {
 	var (

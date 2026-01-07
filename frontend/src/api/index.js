@@ -302,6 +302,7 @@ const updateConversationPriority = (uuid, data) =>
     }
   })
 const updateAssigneeLastSeen = (uuid) => http.put(`/api/v1/conversations/${uuid}/last-seen`)
+const markConversationAsUnread = (uuid) => http.put(`/api/v1/conversations/${uuid}/mark-unread`)
 const getConversationMessage = (cuuid, uuid) =>
   http.get(`/api/v1/conversations/${cuuid}/messages/${uuid}`)
 const retryMessage = (cuuid, uuid) =>
@@ -543,6 +544,7 @@ export default {
   updateContactCustomAttribute,
   uploadMedia,
   updateAssigneeLastSeen,
+  markConversationAsUnread,
   updateUser,
   updateCurrentUserAvailability,
   updateAutomationRule,

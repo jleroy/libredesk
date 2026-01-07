@@ -628,3 +628,19 @@ WHERE created_at < $1;
 -- name: insert-mention
 INSERT INTO conversation_mentions (conversation_id, message_id, mentioned_user_id, mentioned_team_id, mentioned_by_user_id)
 VALUES ($1, $2, $3, $4, $5);
+
+-- name: mark-conversation-unread
+INSERT INTO conversation_last_seen (user_id, conversation_id, last_seen_at)
+VALUES (
+    $1,
+    (SELECT id FROM conversations WHERE uuid = $2),
+    (SELECT created_at - INTERVAL '1 second' FROM conversation_messages
+     WHERE conversation_id = (SELECT id FROM conversations WHERE uuid = $2)
+     ORDER BY created_at DESC LIMIT 1)
+)
+ON CONFLICT (conversation_id, user_id)
+DO UPDATE SET
+    last_seen_at = (SELECT created_at - INTERVAL '1 second' FROM conversation_messages
+                    WHERE conversation_id = (SELECT id FROM conversations WHERE uuid = $2)
+                    ORDER BY created_at DESC LIMIT 1),
+    updated_at = NOW();
