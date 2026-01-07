@@ -22,7 +22,7 @@ export const useNotificationStore = defineStore('notification', () => {
   )
 
   // Fetch notifications with pagination
-  const fetchNotifications = async (limit = 20, offset = 0, append = false) => {
+  const fetchNotifications = async (limit = 30, offset = 0, append = false) => {
     isLoading.value = true
     try {
       const response = await api.getNotifications({ limit, offset })
@@ -139,7 +139,7 @@ export const useNotificationStore = defineStore('notification', () => {
   // Load more notifications (for infinite scroll / load more button)
   const loadMore = async () => {
     if (!hasMore.value || isLoading.value) return
-    await fetchNotifications(20, notifications.value.length, true)
+    await fetchNotifications(30, notifications.value.length, true)
   }
 
   return {
