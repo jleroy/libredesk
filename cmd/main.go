@@ -69,38 +69,39 @@ const (
 
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
-	redis           *redis.Client
-	fs              stuffbin.FileSystem
-	consts          atomic.Value
-	auth            *auth_.Auth
-	authz           *authz.Enforcer
-	i18n            *i18n.I18n
-	lo              *logf.Logger
-	oidc            *oidc.Manager
-	media           *media.Manager
-	setting         *setting.Manager
-	role            *role.Manager
-	user            *user.Manager
-	team            *team.Manager
-	status          *status.Manager
-	priority        *priority.Manager
-	tag             *tag.Manager
-	inbox           *inbox.Manager
-	tmpl            *template.Manager
-	macro           *macro.Manager
-	conversation    *conversation.Manager
-	automation      *automation.Engine
-	businessHours   *businesshours.Manager
-	sla             *sla.Manager
-	csat            *csat.Manager
-	view            *view.Manager
-	ai              *ai.Manager
-	search          *search.Manager
-	activityLog     *activitylog.Manager
-	notifier        *notifier.Service
-	customAttribute *customAttribute.Manager
-	report          *report.Manager
-	webhook         *webhook.Manager
+	redis            *redis.Client
+	fs               stuffbin.FileSystem
+	consts           atomic.Value
+	auth             *auth_.Auth
+	authz            *authz.Enforcer
+	i18n             *i18n.I18n
+	lo               *logf.Logger
+	oidc             *oidc.Manager
+	media            *media.Manager
+	setting          *setting.Manager
+	role             *role.Manager
+	user             *user.Manager
+	team             *team.Manager
+	status           *status.Manager
+	priority         *priority.Manager
+	tag              *tag.Manager
+	inbox            *inbox.Manager
+	tmpl             *template.Manager
+	macro            *macro.Manager
+	conversation     *conversation.Manager
+	automation       *automation.Engine
+	businessHours    *businesshours.Manager
+	sla              *sla.Manager
+	csat             *csat.Manager
+	view             *view.Manager
+	ai               *ai.Manager
+	search           *search.Manager
+	activityLog      *activitylog.Manager
+	notifier         *notifier.Service
+	userNotification *notifier.UserNotificationManager
+	customAttribute  *customAttribute.Manager
+	report           *report.Manager
+	webhook          *webhook.Manager
 
 	// Global state that stores data on an available app update.
 	update *AppUpdate
@@ -210,9 +211,11 @@ func main() {
 		user                        = initUser(i18n, db)
 		wsHub                       = initWS(user)
 		notifier                    = initNotifier()
+		userNotification            = initUserNotification(db, i18n)
+		notifDispatcher             = initNotifDispatcher(userNotification, notifier, wsHub)
 		automation                  = initAutomationEngine(db, i18n)
-		sla                         = initSLA(db, team, settings, businessHours, notifier, template, user, i18n)
-		conversation                = initConversations(i18n, sla, status, priority, wsHub, notifier, db, inbox, user, team, media, settings, csat, automation, template, webhook)
+		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
+		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)
 		autoassigner                = initAutoAssigner(team, user, conversation)
 	)
 	automation.SetConversationStore(conversation)
@@ -229,40 +232,42 @@ func main() {
 	go media.DeleteUnlinkedMedia(ctx)
 	go user.MonitorAgentAvailability(ctx)
 	go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
+	go userNotification.RunNotificationCleaner(ctx)
 
 	var app = &App{
-		lo:              lo,
-		redis:           rdb,
-		fs:              fs,
-		sla:             sla,
-		oidc:            oidc,
-		i18n:            i18n,
-		auth:            auth,
-		media:           media,
-		setting:         settings,
-		inbox:           inbox,
-		user:            user,
-		team:            team,
-		status:          status,
-		priority:        priority,
-		tmpl:            template,
-		notifier:        notifier,
-		consts:          atomic.Value{},
-		conversation:    conversation,
-		automation:      automation,
-		businessHours:   businessHours,
-		activityLog:     initActivityLog(db, i18n),
-		customAttribute: initCustomAttribute(db, i18n),
-		authz:           initAuthz(i18n),
-		view:            initView(db, i18n),
-		report:          initReport(db, i18n),
-		csat:            initCSAT(db, i18n),
-		search:          initSearch(db, i18n),
-		role:            initRole(db, i18n),
-		tag:             initTag(db, i18n),
-		macro:           initMacro(db, i18n),
-		ai:              initAI(db, i18n),
-		webhook:         webhook,
+		lo:               lo,
+		redis:            rdb,
+		fs:               fs,
+		sla:              sla,
+		oidc:             oidc,
+		i18n:             i18n,
+		auth:             auth,
+		media:            media,
+		setting:          settings,
+		inbox:            inbox,
+		user:             user,
+		team:             team,
+		status:           status,
+		priority:         priority,
+		tmpl:             template,
+		notifier:         notifier,
+		userNotification: userNotification,
+		consts:           atomic.Value{},
+		conversation:     conversation,
+		automation:       automation,
+		businessHours:    businessHours,
+		activityLog:      initActivityLog(db, i18n),
+		customAttribute:  initCustomAttribute(db, i18n),
+		authz:            initAuthz(i18n),
+		view:             initView(db, i18n),
+		report:           initReport(db, i18n),
+		csat:             initCSAT(db, i18n),
+		search:           initSearch(db, i18n),
+		role:             initRole(db, i18n),
+		tag:              initTag(db, i18n),
+		macro:            initMacro(db, i18n),
+		ai:               initAI(db, i18n),
+		webhook:          webhook,
 	}
 	app.consts.Store(constants)
 

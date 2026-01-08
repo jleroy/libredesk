@@ -27,6 +27,7 @@ import (
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	mmodels "github.com/abhinavxd/libredesk/internal/media/models"
 	notifier "github.com/abhinavxd/libredesk/internal/notification"
+	nmodels "github.com/abhinavxd/libredesk/internal/notification/models"
 	slaModels "github.com/abhinavxd/libredesk/internal/sla/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	tmodels "github.com/abhinavxd/libredesk/internal/team/models"
@@ -68,7 +69,7 @@ type Manager struct {
 	settingsStore              settingsStore
 	csatStore                  csatStore
 	webhookStore               webhookStore
-	notifier                   *notifier.Service
+	dispatcher                 *notifier.Dispatcher
 	lo                         *logf.Logger
 	db                         *sqlx.DB
 	i18n                       *i18n.I18n
@@ -148,7 +149,6 @@ type Opts struct {
 func New(
 	wsHub *ws.Hub,
 	i18n *i18n.I18n,
-	notifier *notifier.Service,
 	slaStore slaStore,
 	statusStore statusStore,
 	priorityStore priorityStore,
@@ -161,6 +161,7 @@ func New(
 	automation *automation.Engine,
 	template *template.Manager,
 	webhook webhookStore,
+	dispatcher *notifier.Dispatcher,
 	opts Opts) (*Manager, error) {
 
 	var q queries
@@ -172,7 +173,7 @@ func New(
 		q:                          q,
 		wsHub:                      wsHub,
 		i18n:                       i18n,
-		notifier:                   notifier,
+		dispatcher:                 dispatcher,
 		inboxStore:                 inboxStore,
 		userStore:                  userStore,
 		teamStore:                  teamStore,
@@ -209,6 +210,7 @@ type queries struct {
 	UpdateConversationLastReplyAt      *sqlx.Stmt `query:"update-conversation-last-reply-at"`
 	UpdateConversationWaitingSince     *sqlx.Stmt `query:"update-conversation-waiting-since"`
 	UpsertUserLastSeen                 *sqlx.Stmt `query:"upsert-user-last-seen"`
+	MarkConversationUnread             *sqlx.Stmt `query:"mark-conversation-unread"`
 	UpdateConversationAssignedUser     *sqlx.Stmt `query:"update-conversation-assigned-user"`
 	UpdateConversationAssignedTeam     *sqlx.Stmt `query:"update-conversation-assigned-team"`
 	UpdateConversationCustomAttributes *sqlx.Stmt `query:"update-conversation-custom-attributes"`
@@ -315,6 +317,15 @@ func (c *Manager) GetConversationsCreatedAfter(time time.Time) ([]models.Convers
 func (c *Manager) UpdateUserLastSeen(uuid string, userID int) error {
 	if _, err := c.q.UpsertUserLastSeen.Exec(userID, uuid); err != nil {
 		c.lo.Error("error upserting user last seen", "user_id", userID, "conversation_uuid", uuid, "error", err)
+		return envelope.NewError(envelope.GeneralError, c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.conversation}"), nil)
+	}
+	return nil
+}
+
+// MarkAsUnread marks a conversation as unread for a specific user by setting last_seen to before the last message.
+func (c *Manager) MarkAsUnread(uuid string, userID int) error {
+	if _, err := c.q.MarkConversationUnread.Exec(userID, uuid); err != nil {
+		c.lo.Error("error marking conversation as unread", "user_id", userID, "conversation_uuid", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.conversation}"), nil)
 	}
 	return nil
@@ -545,9 +556,9 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	// Evaluate automation rules.
 	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned)
 
-	// Send email to assignee.
-	if err := c.SendAssignedConversationEmail([]int{assigneeID}, conversation); err != nil {
-		c.lo.Error("error sending assigned conversation email", "error", err)
+	// Send notifications to assignee.
+	if err := c.NotifyAssignment([]int{assigneeID}, conversation); err != nil {
+		c.lo.Error("error sending assignment notification", "error", err)
 	}
 
 	if err := c.RecordAssigneeUserChange(uuid, assigneeID, actor); err != nil {
@@ -833,14 +844,15 @@ func (m *Manager) GetMessageSourceIDs(conversationID, limit int) ([]string, erro
 	return refs, nil
 }
 
-// SendAssignedConversationEmail sends a email for an assigned conversation to the passed user ids.
-func (m *Manager) SendAssignedConversationEmail(userIDs []int, conversation models.Conversation) error {
+// NotifyAssignment sends notifications (in-app, WebSocket, email) for an assigned conversation.
+func (m *Manager) NotifyAssignment(userIDs []int, conversation models.Conversation) error {
 	agent, err := m.userStore.GetAgent(userIDs[0], "")
 	if err != nil {
 		m.lo.Error("error fetching agent", "user_id", userIDs[0], "error", err)
 		return fmt.Errorf("fetching agent: %w", err)
 	}
 
+	// Render email template.
 	content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplConversationAssigned,
 		map[string]any{
 			"Conversation": map[string]any{
@@ -873,22 +885,28 @@ func (m *Manager) SendAssignedConversationEmail(userIDs []int, conversation mode
 		m.lo.Error("error rendering template", "template", template.TmplConversationAssigned, "conversation_uuid", conversation.UUID, "error", err)
 		return fmt.Errorf("rendering template: %w", err)
 	}
-	nm := notifier.Message{
-		RecipientEmails: []string{agent.Email.String},
-		Subject:         subject,
-		Content:         content,
-		Provider:        notifier.ProviderEmail,
-	}
-	if err := m.notifier.Send(nm); err != nil {
-		m.lo.Error("error sending notification message", "template", template.TmplConversationAssigned, "conversation_uuid", conversation.UUID, "error", err)
-		return fmt.Errorf("sending notification message with template %s: %w", template.TmplConversationAssigned, err)
-	}
+
+	// Send notification.
+	m.dispatcher.Send(notifier.Notification{
+		Type:             nmodels.NotificationTypeAssignment,
+		RecipientIDs:     []int{agent.ID},
+		Title:            fmt.Sprintf("Conversation assigned to you #%s", conversation.ReferenceNumber),
+		Body:             conversation.Subject,
+		ConversationID:   null.IntFrom(conversation.ID),
+		ConversationUUID: conversation.UUID,
+		// Parms required for email
+		Email: &notifier.EmailNotification{
+			Recipients: []string{agent.Email.String},
+			Subject:    subject,
+			Content:    content,
+		},
+	})
 	return nil
 }
 
-// SendMentionNotificationEmail sends email notifications for mentions.
+// NotifyMention sends notifications (in-app, WebSocket, email) for mentions.
 // For team mentions, expands to all team members.
-func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID string, mentions []models.MentionInput, mentionedByUserID int) {
+func (m *Manager) NotifyMention(conversationUUID string, message models.Message, mentions []models.MentionInput, mentionedByUserID int) {
 	conversation, err := m.GetConversation(0, conversationUUID, "")
 	if err != nil {
 		m.lo.Error("error fetching conversation for mention notification", "uuid", conversationUUID, "error", err)
@@ -903,12 +921,12 @@ func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID str
 	}
 
 	// Collect all user IDs to notify (avoid duplicates).
-	recipientIDs := make(map[int]struct{})
+	recipientIDMap := make(map[int]struct{})
 
 	for _, mention := range mentions {
 		if mention.Type == models.MentionTypeAgent {
 			// Direct user mention.
-			recipientIDs[mention.ID] = struct{}{}
+			recipientIDMap[mention.ID] = struct{}{}
 		} else if mention.Type == models.MentionTypeTeam {
 			// Team mention - expand to all team members.
 			members, err := m.teamStore.GetMembers(mention.ID)
@@ -917,73 +935,91 @@ func (m *Manager) SendMentionNotificationEmail(conversationUUID, messageUUID str
 				continue
 			}
 			for _, member := range members {
-				recipientIDs[member.ID] = struct{}{}
+				recipientIDMap[member.ID] = struct{}{}
 			}
 		}
 	}
 
 	// Don't notify the person who made the mention.
-	delete(recipientIDs, mentionedByUserID)
+	delete(recipientIDMap, mentionedByUserID)
 
-	// Send email to each recipient.
-	for userID := range recipientIDs {
+	// Build recipient list and personalized emails.
+	var recipientIDs []int
+	var emails []notifier.EmailNotification
+
+	for userID := range recipientIDMap {
 		recipient, err := m.userStore.GetAgent(userID, "")
 		if err != nil {
 			m.lo.Error("error fetching recipient for mention notification", "user_id", userID, "error", err)
 			continue
 		}
 
-		if recipient.Email.String == "" {
-			m.lo.Warn("recipient has no email, skipping mention notification", "user_id", userID)
-			continue
-		}
+		recipientIDs = append(recipientIDs, userID)
 
-		content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplMentioned,
-			map[string]any{
-				"Conversation": map[string]any{
-					"ReferenceNumber": conversation.ReferenceNumber,
-					"Subject":         conversation.Subject.String,
-					"Priority":        conversation.Priority.String,
-					"UUID":            conversation.UUID,
-				},
-				// Automated messages do not have an author.
-				"Author": map[string]any{
-					"FirstName": "",
-					"LastName":  "",
-					"FullName":  "",
-					"Email":     "",
-				},
-				"MentionedBy": map[string]any{
-					"FirstName": author.FirstName,
-					"LastName":  author.LastName,
-					"FullName":  author.FullName(),
-					"Email":     author.Email.String,
-				},
-				"Recipient": map[string]any{
-					"FirstName": recipient.FirstName,
-					"LastName":  recipient.LastName,
-					"FullName":  recipient.FullName(),
-					"Email":     recipient.Email.String,
-				},
-				"Message": map[string]any{
-					"UUID": messageUUID,
-				},
-			})
-		if err != nil {
-			m.lo.Error("error rendering mention notification template", "conversation_uuid", conversationUUID, "error", err)
-			continue
+		// Render personalized email for this recipient.
+		var email notifier.EmailNotification
+		if recipient.Email.String != "" {
+			content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplMentioned,
+				map[string]any{
+					"Conversation": map[string]any{
+						"ReferenceNumber": conversation.ReferenceNumber,
+						"Subject":         conversation.Subject.String,
+						"Priority":        conversation.Priority.String,
+						"UUID":            conversation.UUID,
+					},
+					"Recipient": map[string]any{
+						"FirstName": recipient.FirstName,
+						"LastName":  recipient.LastName,
+						"FullName":  recipient.FullName(),
+						"Email":     recipient.Email.String,
+					},
+					"Message": map[string]any{
+						"UUID": message.UUID,
+					},
+					"MentionedBy": map[string]any{
+						"FirstName": author.FirstName,
+						"LastName":  author.LastName,
+						"FullName":  author.FullName(),
+						"Email":     author.Email.String,
+					},
+					// Automated messages do not have an author.
+					"Author": map[string]any{
+						"FirstName": "",
+						"LastName":  "",
+						"FullName":  "",
+						"Email":     "",
+					},
+				})
+			if err != nil {
+				m.lo.Error("error rendering mention notification template", "conversation_uuid", conversationUUID, "error", err)
+			} else {
+				email = notifier.EmailNotification{
+					Recipients: []string{recipient.Email.String},
+					Subject:    subject,
+					Content:    content,
+				}
+			}
 		}
-
-		nm := notifier.Message{
-			RecipientEmails: []string{recipient.Email.String},
-			Subject:         subject,
-			Content:         content,
-			Provider:        notifier.ProviderEmail,
-		}
-		if err := m.notifier.Send(nm); err != nil {
-			m.lo.Error("error sending mention notification", "conversation_uuid", conversationUUID, "recipient", recipient.Email.String, "error", err)
-		}
+		emails = append(emails, email)
 	}
+
+	if len(recipientIDs) == 0 {
+		return
+	}
+
+	// Send notification via dispatcher (handles in-app, WebSocket, and email).
+	m.dispatcher.SendWithEmails(notifier.Notification{
+		Type:             nmodels.NotificationTypeMention,
+		RecipientIDs:     recipientIDs,
+		Title:            fmt.Sprintf("%s mentioned you in #%s", author.FullName(), conversation.ReferenceNumber),
+		Body:             null.StringFrom(message.TextContent),
+		ConversationID:   null.IntFrom(conversation.ID),
+		MessageID:        null.IntFrom(message.ID),
+		ActorID:          null.IntFrom(mentionedByUserID),
+		ConversationUUID: conversation.UUID,
+		ActorFirstName:   author.FirstName,
+		ActorLastName:    author.LastName,
+	}, emails)
 }
 
 // UnassignOpen unassigns all open conversations belonging to a user.

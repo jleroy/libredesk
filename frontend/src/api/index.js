@@ -302,6 +302,7 @@ const updateConversationPriority = (uuid, data) =>
     }
   })
 const updateAssigneeLastSeen = (uuid) => http.put(`/api/v1/conversations/${uuid}/last-seen`)
+const markConversationAsUnread = (uuid) => http.put(`/api/v1/conversations/${uuid}/mark-unread`)
 const getConversationMessage = (cuuid, uuid) =>
   http.get(`/api/v1/conversations/${cuuid}/messages/${uuid}`)
 const retryMessage = (cuuid, uuid) =>
@@ -471,6 +472,14 @@ const initiateOAuthFlow = (provider, data) =>
     }
   })
 
+// User notifications (in-app)
+const getNotifications = (params) => http.get('/api/v1/notifications', { params })
+const getNotificationStats = () => http.get('/api/v1/notifications/stats')
+const markNotificationAsRead = (id) => http.put(`/api/v1/notifications/${id}/read`)
+const markAllNotificationsAsRead = () => http.put('/api/v1/notifications/read-all')
+const deleteNotification = (id) => http.delete(`/api/v1/notifications/${id}`)
+const deleteAllNotifications = () => http.delete('/api/v1/notifications')
+
 export default {
   login,
   deleteUser,
@@ -535,6 +544,7 @@ export default {
   updateContactCustomAttribute,
   uploadMedia,
   updateAssigneeLastSeen,
+  markConversationAsUnread,
   updateUser,
   updateCurrentUserAvailability,
   updateAutomationRule,
@@ -621,5 +631,11 @@ export default {
   testWebhook,
   generateAPIKey,
   revokeAPIKey,
-  initiateOAuthFlow
+  initiateOAuthFlow,
+  getNotifications,
+  getNotificationStats,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotifications
 }
