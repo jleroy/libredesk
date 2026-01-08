@@ -108,7 +108,7 @@
     <ContextMenuContent>
       <ContextMenuItem @click="handleMarkAsUnread">
         <MailOpen class="w-4 h-4 mr-2" />
-        {{ $t('conversation.markAsUnread') }}
+        {{ $t('globals.messages.markAsUnread') }}
       </ContextMenuItem>
     </ContextMenuContent>
   </ContextMenu>
