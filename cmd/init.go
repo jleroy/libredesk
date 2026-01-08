@@ -26,6 +26,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/conversation/status"
 	"github.com/abhinavxd/libredesk/internal/csat"
 	customAttribute "github.com/abhinavxd/libredesk/internal/custom_attribute"
+	"github.com/abhinavxd/libredesk/internal/importer"
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/email"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
@@ -952,6 +953,14 @@ func initUserNotification(db *sqlx.DB, i18n *i18n.I18n) *notifier.UserNotificati
 		log.Fatalf("error initializing user notification manager: %v", err)
 	}
 	return m
+}
+
+// initImporter inits the importer manager.
+func initImporter(i18n *i18n.I18n) *importer.Importer {
+	return importer.New(importer.Opts{
+		Lo:   initLogger("importer"),
+		I18n: i18n,
+	})
 }
 
 // initNotifDispatcher initializes the notification dispatcher.
