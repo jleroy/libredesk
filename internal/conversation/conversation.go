@@ -1330,7 +1330,7 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 		case models.MentionedConversations:
 			// Filter to only conversations where user is mentioned (directly or via team)
 			conditions = append(conditions, `conversations.id IN (
-				SELECT DISTINCT cm.conversation_id
+				SELECT cm.conversation_id
 				FROM conversation_mentions cm
 				WHERE cm.mentioned_user_id = $1
 				   OR EXISTS(

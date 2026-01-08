@@ -162,3 +162,9 @@ func (c *Client) makeFileURL(name string) string {
 func (c *Client) Name() string {
 	return "s3"
 }
+
+// SignedURLValidator returns nil as S3 handles its own presigned URL validation.
+// The S3 service validates presigned URLs when they are accessed.
+func (c *Client) SignedURLValidator() func(name, sig string, exp int64) bool {
+	return nil
+}

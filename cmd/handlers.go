@@ -26,8 +26,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Public config for app initialization.
 	g.GET("/api/v1/config", handleGetConfig)
 
-	// Media.
-	g.GET("/uploads/{uuid}", auth(handleServeMedia))
+	// Media - supports both authenticated access and signed URLs.
+	g.GET("/uploads/{uuid}", authOrSignedURL(handleServeMedia))
 	g.POST("/api/v1/media", auth(handleMediaUpload))
 
 	// Settings.
