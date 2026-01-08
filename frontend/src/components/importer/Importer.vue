@@ -47,7 +47,7 @@
                   <div>Bob,Test,bob@example.com,"Agent,Admin",Support</div>
                 </div>
                 <p class="text-xs mt-2 text-muted-foreground">
-                  {{ $t('importer.caseSensitiveNote') }}
+                  {{ $t('importer.agentCaseSensitiveNote') }}
                 </p>
               </AlertDescription>
             </Alert>

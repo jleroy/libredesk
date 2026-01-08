@@ -728,5 +728,5 @@
   "importer.importCompleted": "Import completed: {success} of {total} successful, {errors} failed",
   "importer.csvMustContainHeadersAndData": "CSV must contain headers and at least one data row",
   "importer.importAlreadyInProgress": "Import already in progress",
-  "importer.caseSensitiveNote": "Roles and teams must match exactly (case-sensitive)"
+  "importer.agentCaseSensitiveNote": "Roles and teams must match exactly (case-sensitive)"
 }
