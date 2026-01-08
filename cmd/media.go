@@ -13,15 +13,12 @@ import (
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/image"
+	mmodels "github.com/abhinavxd/libredesk/internal/media/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/fastglue"
-)
-
-const (
-	thumbPrefix = "thumb_"
 )
 
 // handleMediaUpload handles media uploads.
@@ -70,6 +67,12 @@ func handleMediaUpload(r *fastglue.Request) error {
 	srcFileSize := fileHeader.Size
 	srcExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(srcFileName)), ".")
 
+	// Check if file is empty
+	if srcFileSize == 0 {
+		app.lo.Error("error: uploaded file is empty (0 bytes)")
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("media.fileEmpty"), nil, envelope.InputError)
+	}
+
 	// Check file size
 	consts := app.consts.Load().(*constants)
 	if bytesToMegabytes(srcFileSize) > float64(consts.MaxFileUploadSizeMB) {
@@ -88,7 +91,7 @@ func handleMediaUpload(r *fastglue.Request) error {
 
 	// Delete files on any error.
 	var uuid = uuid.New()
-	thumbName := thumbPrefix + uuid.String()
+	thumbName := image.ThumbPrefix + uuid.String()
 	defer func() {
 		if cleanUp {
 			app.media.Delete(uuid.String())
@@ -105,7 +108,7 @@ func handleMediaUpload(r *fastglue.Request) error {
 			app.lo.Error("error creating thumb image", "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.Ts("globals.messages.errorCreating", "name", "{globals.terms.thumbnail}"), nil, envelope.GeneralError)
 		}
-		thumbName, err = app.media.Upload(thumbName, srcContentType, thumbFile)
+		thumbName, _, err = app.media.Upload(thumbName, srcContentType, thumbFile)
 		if err != nil {
 			return sendErrorEnvelope(r, err)
 		}
@@ -124,8 +127,11 @@ func handleMediaUpload(r *fastglue.Request) error {
 		})
 	}
 
+	// Reset ptr.
 	file.Seek(0, 0)
-	_, err = app.media.Upload(uuid.String(), srcContentType, file)
+
+	// Override content type after upload (in case it was detected incorrectly).
+	_, srcContentType, err = app.media.Upload(uuid.String(), srcContentType, file)
 	if err != nil {
 		cleanUp = true
 		app.lo.Error("error uploading file", "error", err)
@@ -143,12 +149,21 @@ func handleMediaUpload(r *fastglue.Request) error {
 }
 
 // handleServeMedia serves uploaded media.
+// Supports both authenticated access (with permission checks) and signed URL access (no permission checks).
 func handleServeMedia(r *fastglue.Request) error {
 	var (
-		app   = r.Context.(*App)
-		auser = r.RequestCtx.UserValue("user").(amodels.User)
-		uuid  = r.RequestCtx.UserValue("uuid").(string)
+		app  = r.Context.(*App)
+		uuid = r.RequestCtx.UserValue("uuid").(string)
+		authMethod = r.RequestCtx.UserValue("auth_method")
 	)
+
+	// If accessed via signed URL, skip permission checks and serve file directly.
+	if authMethod == "signed_url" {
+		return serveMediaFile(r, app, uuid, nil)
+	}
+
+	// Session/API key authenticated - perform full permission check.
+	auser := r.RequestCtx.UserValue("user").(amodels.User)
 
 	user, err := app.user.GetAgent(auser.ID, "")
 	if err != nil {
@@ -156,7 +171,7 @@ func handleServeMedia(r *fastglue.Request) error {
 	}
 
 	// Fetch media from DB.
-	media, err := app.media.Get(0, strings.TrimPrefix(uuid, thumbPrefix))
+	media, err := getMediaByUUID(app, uuid)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -182,6 +197,22 @@ func handleServeMedia(r *fastglue.Request) error {
 	if !allowed {
 		return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.Ts("globals.messages.denied", "name", "{globals.terms.permission}"), nil, envelope.UnauthorizedError)
 	}
+
+	return serveMediaFile(r, app, uuid, &media)
+}
+
+// serveMediaFile serves the actual file content based on the storage provider.
+// If media is nil, it will be fetched from DB.
+func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.Media) error {
+	// Fetch media metadata from DB if not provided.
+	if media == nil {
+		m, err := getMediaByUUID(app, uuid)
+		if err != nil {
+			return sendErrorEnvelope(r, err)
+		}
+		media = &m
+	}
+
 	consts := app.consts.Load().(*constants)
 	switch consts.UploadProvider {
 	case "fs":
@@ -199,7 +230,7 @@ func handleServeMedia(r *fastglue.Request) error {
 
 		fasthttp.ServeFile(r.RequestCtx, filepath.Join(ko.String("upload.fs.upload_path"), uuid))
 	case "s3":
-		r.RequestCtx.Redirect(app.media.GetURL(uuid), http.StatusFound)
+		r.RequestCtx.Redirect(app.media.GetURL(uuid, media.ContentType, media.Filename), http.StatusFound)
 	}
 	return nil
 }
@@ -207,4 +238,9 @@ func handleServeMedia(r *fastglue.Request) error {
 // bytesToMegabytes converts bytes to megabytes.
 func bytesToMegabytes(bytes int64) float64 {
 	return float64(bytes) / 1024 / 1024
+}
+
+// getMediaByUUID fetches media metadata from DB, handling thumbnail prefix.
+func getMediaByUUID(app *App, uuid string) (mmodels.Media, error) {
+	return app.media.Get(0, strings.TrimPrefix(uuid, image.ThumbPrefix))
 }

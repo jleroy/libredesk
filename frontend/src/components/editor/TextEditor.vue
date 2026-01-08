@@ -1,5 +1,5 @@
 <template>
-  <div class="editor-wrapper h-full overflow-y-auto">
+  <div class="editor-wrapper h-full overflow-y-auto" :class="{ 'pointer-events-none': disabled }">
     <BubbleMenu
       :editor="editor"
       :tippy-options="{ duration: 100 }"
@@ -76,9 +76,20 @@
       <DialogContent class="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {{ editor?.isActive('link')
-              ? $t('globals.messages.edit', { name: $t('globals.terms.link', 1).toLowerCase() + ' ' + $t('globals.terms.url', 1).toLowerCase() })
-              : $t('globals.messages.add', { name: $t('globals.terms.link', 1).toLowerCase() + ' ' + $t('globals.terms.url', 1).toLowerCase() })
+            {{
+              editor?.isActive('link')
+                ? $t('globals.messages.edit', {
+                    name:
+                      $t('globals.terms.link', 1).toLowerCase() +
+                      ' ' +
+                      $t('globals.terms.url', 1).toLowerCase()
+                  })
+                : $t('globals.messages.add', {
+                    name:
+                      $t('globals.terms.link', 1).toLowerCase() +
+                      ' ' +
+                      $t('globals.terms.url', 1).toLowerCase()
+                  })
             }}
           </DialogTitle>
           <DialogDescription></DialogDescription>
@@ -93,7 +104,12 @@
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" @click="unsetLink" v-if="editor?.isActive('link')">
+            <Button
+              type="button"
+              variant="outline"
+              @click="unsetLink"
+              v-if="editor?.isActive('link')"
+            >
               {{ $t('globals.messages.remove', { name: $t('globals.terms.link', 1) }) }}
             </Button>
             <Button type="submit">
@@ -116,7 +132,7 @@ import {
   Bot,
   List,
   ListOrdered,
-  Link as LinkIcon,
+  Link as LinkIcon
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -138,10 +154,12 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
+import Mention from '@tiptap/extension-mention'
 import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
+import mentionSuggestion from './mentionSuggestion'
 
 const textContent = defineModel('textContent', { default: '' })
 const htmlContent = defineModel('htmlContent', { default: '' })
@@ -158,10 +176,22 @@ const props = defineProps({
   aiPrompts: {
     type: Array,
     default: () => []
+  },
+  disabled: {
+    type: Boolean,
+    default: false
+  },
+  enableMentions: {
+    type: Boolean,
+    default: false
+  },
+  getSuggestions: {
+    type: Function,
+    default: null
   }
 })
 
-const emit = defineEmits(['send', 'aiPromptSelected'])
+const emit = defineEmits(['send', 'aiPromptSelected', 'mentionsChanged'])
 
 const emitPrompt = (key) => emit('aiPromptSelected', key)
 
@@ -206,10 +236,27 @@ const CustomTableHeader = TableHeader.extend({
   }
 })
 
+// Extend Mention to include 'type' attribute for agent/team distinction
+const CustomMention = Mention.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      type: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-type'),
+        renderHTML: (attributes) => {
+          if (!attributes.type) return {}
+          return { 'data-type': attributes.type }
+        }
+      }
+    }
+  }
+})
+
 const isInternalUpdate = ref(false)
 
-const editor = useEditor({
-  extensions: [
+const buildExtensions = () => {
+  const extensions = [
     StarterKit.configure(),
     Image.configure({ HTMLAttributes: { class: 'inline-image' } }),
     Placeholder.configure({ placeholder: () => props.placeholder }),
@@ -217,12 +264,52 @@ const editor = useEditor({
     CustomTable.configure({ resizable: false }),
     TableRow,
     CustomTableCell,
-    CustomTableHeader
-  ],
+    CustomTableHeader,
+    // Always include mention extension - it gracefully handles missing getSuggestions
+    CustomMention.configure({
+      HTMLAttributes: {
+        class: 'mention'
+      },
+      suggestion: mentionSuggestion
+    })
+  ]
+
+  return extensions
+}
+
+// Extract mentions from editor content
+const extractMentions = () => {
+  if (!editor.value) return []
+  const mentions = []
+  const json = editor.value.getJSON()
+
+  const traverse = (node) => {
+    if (node.type === 'mention' && node.attrs) {
+      mentions.push({
+        id: node.attrs.id,
+        type: node.attrs.type
+      })
+    }
+    if (node.content) {
+      node.content.forEach(traverse)
+    }
+  }
+
+  if (json.content) {
+    json.content.forEach(traverse)
+  }
+
+  return mentions
+}
+
+
+const editor = useEditor({
+  extensions: buildExtensions(),
   autofocus: props.autoFocus,
   content: htmlContent.value,
   editorProps: {
     attributes: { class: 'outline-none' },
+    getSuggestions: props.getSuggestions,
     handleKeyDown: (view, event) => {
       if (event.ctrlKey && event.key.toLowerCase() === 'b') {
         event.stopPropagation()
@@ -240,6 +327,11 @@ const editor = useEditor({
     htmlContent.value = editor.getHTML()
     textContent.value = editor.getText()
     isInternalUpdate.value = false
+
+    // Emit mentions if enabled
+    if (props.enableMentions) {
+      emit('mentionsChanged', extractMentions())
+    }
   }
 })
 
@@ -287,6 +379,13 @@ const unsetLink = () => {
   editor.value?.chain().focus().unsetLink().run()
   showLinkDialog.value = false
 }
+
+// Expose focus method for parent components
+const focus = () => {
+  editor.value?.commands.focus()
+}
+
+defineExpose({ focus, extractMentions })
 </script>
 
 <style lang="scss">
@@ -297,6 +396,7 @@ const unsetLink = () => {
   color: #adb5bd;
   pointer-events: none;
   height: 0;
+  font-size: 0.875rem;
 }
 
 // Ensure the parent div has a proper height
@@ -333,6 +433,15 @@ const unsetLink = () => {
     &:hover {
       color: #003d7a;
     }
+  }
+
+  // Mention styling
+  .mention {
+    background-color: hsl(var(--primary) / 0.1);
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    color: hsl(var(--primary));
+    font-weight: 500;
   }
 }
 </style>

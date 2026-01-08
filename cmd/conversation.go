@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strconv"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	medModels "github.com/abhinavxd/libredesk/internal/media/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
+	vmodels "github.com/abhinavxd/libredesk/internal/view/models"
 	wmodels "github.com/abhinavxd/libredesk/internal/webhook/models"
 	"github.com/valyala/fasthttp"
 	"github.com/volatiletech/null/v9"
@@ -56,6 +58,7 @@ type createConversationRequest struct {
 func handleGetAllConversations(r *fastglue.Request) error {
 	var (
 		app         = r.Context.(*App)
+		user        = r.RequestCtx.UserValue("user").(amodels.User)
 		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
 		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
 		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
@@ -64,7 +67,7 @@ func handleGetAllConversations(r *fastglue.Request) error {
 		total       = 0
 	)
 
-	conversations, err := app.conversation.GetAllConversationsList(order, orderBy, filters, page, pageSize)
+	conversations, err := app.conversation.GetAllConversationsList(user.ID, order, orderBy, filters, page, pageSize)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -94,7 +97,7 @@ func handleGetAssignedConversations(r *fastglue.Request) error {
 		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
 		total       = 0
 	)
-	conversations, err := app.conversation.GetAssignedConversationsList(user.ID, order, orderBy, filters, page, pageSize)
+	conversations, err := app.conversation.GetAssignedConversationsList(user.ID, user.ID, order, orderBy, filters, page, pageSize)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -115,6 +118,7 @@ func handleGetAssignedConversations(r *fastglue.Request) error {
 func handleGetUnassignedConversations(r *fastglue.Request) error {
 	var (
 		app         = r.Context.(*App)
+		user        = r.RequestCtx.UserValue("user").(amodels.User)
 		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
 		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
 		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
@@ -123,7 +127,37 @@ func handleGetUnassignedConversations(r *fastglue.Request) error {
 		total       = 0
 	)
 
-	conversations, err := app.conversation.GetUnassignedConversationsList(order, orderBy, filters, page, pageSize)
+	conversations, err := app.conversation.GetUnassignedConversationsList(user.ID, order, orderBy, filters, page, pageSize)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	if len(conversations) > 0 {
+		total = conversations[0].Total
+	}
+
+	return r.SendEnvelope(envelope.PageResults{
+		Results:    conversations,
+		Total:      total,
+		PerPage:    pageSize,
+		TotalPages: (total + pageSize - 1) / pageSize,
+		Page:       page,
+	})
+}
+
+// handleGetMentionedConversations retrieves conversations where the current user is mentioned.
+func handleGetMentionedConversations(r *fastglue.Request) error {
+	var (
+		app         = r.Context.(*App)
+		user        = r.RequestCtx.UserValue("user").(amodels.User)
+		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
+		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
+		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
+		total       = 0
+	)
+
+	conversations, err := app.conversation.GetMentionedConversationsList(user.ID, order, orderBy, filters, page, pageSize)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -161,17 +195,31 @@ func handleGetViewConversations(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	if view.UserID != auser.ID {
-		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("conversation.viewPermissionDenied"), nil, envelope.PermissionError)
-	}
 
 	user, err := app.user.GetAgent(auser.ID, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
+	hasAccess := false
+	switch view.Visibility {
+	case vmodels.VisibilityUser:
+		hasAccess = view.UserID != nil && *view.UserID == auser.ID
+	case vmodels.VisibilityAll:
+		hasAccess = true
+	case vmodels.VisibilityTeam:
+		if view.TeamID != nil {
+			hasAccess = slices.Contains(user.Teams.IDs(), *view.TeamID)
+		}
+	}
+
+	if !hasAccess {
+		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("conversation.viewPermissionDenied"), nil, envelope.PermissionError)
+	}
+
 	// Prepare lists user has access to based on user permissions, internally this prepares the SQL query.
 	lists := []string{}
+	hasTeamAll := slices.Contains(user.Permissions, authzModels.PermConversationsReadTeamAll)
 	for _, perm := range user.Permissions {
 		if perm == authzModels.PermConversationsReadAll {
 			// No further lists required as user has access to all conversations.
@@ -184,8 +232,12 @@ func handleGetViewConversations(r *fastglue.Request) error {
 		if perm == authzModels.PermConversationsReadAssigned {
 			lists = append(lists, cmodels.AssignedConversations)
 		}
-		if perm == authzModels.PermConversationsReadTeamInbox {
+		// Skip TeamUnassignedConversations if user has TeamAllConversations (superset).
+		if perm == authzModels.PermConversationsReadTeamInbox && !hasTeamAll {
 			lists = append(lists, cmodels.TeamUnassignedConversations)
+		}
+		if perm == authzModels.PermConversationsReadTeamAll {
+			lists = append(lists, cmodels.TeamAllConversations)
 		}
 	}
 
@@ -194,7 +246,7 @@ func handleGetViewConversations(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.Ts("globals.messages.denied", "name", "{globals.terms.permission}"), nil, envelope.PermissionError)
 	}
 
-	conversations, err := app.conversation.GetViewConversationsList(user.ID, user.Teams.IDs(), lists, order, orderBy, string(view.Filters), page, pageSize)
+	conversations, err := app.conversation.GetViewConversationsList(user.ID, user.ID, user.Teams.IDs(), lists, order, orderBy, string(view.Filters), page, pageSize)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -239,7 +291,7 @@ func handleGetTeamUnassignedConversations(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.PermissionError, app.i18n.T("conversation.notMemberOfTeam"), nil))
 	}
 
-	conversations, err := app.conversation.GetTeamUnassignedConversationsList(teamID, order, orderBy, filters, page, pageSize)
+	conversations, err := app.conversation.GetTeamUnassignedConversationsList(auser.ID, teamID, order, orderBy, filters, page, pageSize)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -279,7 +331,7 @@ func handleGetConversation(r *fastglue.Request) error {
 	return r.SendEnvelope(conv)
 }
 
-// handleUpdateConversationAssigneeLastSeen updates the assignee's last seen timestamp for a conversation.
+// handleUpdateConversationAssigneeLastSeen updates the current user's last seen timestamp for a conversation.
 func handleUpdateConversationAssigneeLastSeen(r *fastglue.Request) error {
 	var (
 		app   = r.Context.(*App)
@@ -294,7 +346,30 @@ func handleUpdateConversationAssigneeLastSeen(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	if err = app.conversation.UpdateConversationAssigneeLastSeen(uuid); err != nil {
+
+	if err = app.conversation.UpdateUserLastSeen(uuid, auser.ID); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(true)
+}
+
+// handleMarkConversationAsUnread marks a conversation as unread for the current user.
+func handleMarkConversationAsUnread(r *fastglue.Request) error {
+	var (
+		app   = r.Context.(*App)
+		uuid  = r.RequestCtx.UserValue("uuid").(string)
+		auser = r.RequestCtx.UserValue("user").(amodels.User)
+	)
+	user, err := app.user.GetAgent(auser.ID, "")
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	_, err = enforceConversationAccess(app, uuid, user)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	if err = app.conversation.MarkAsUnread(uuid, auser.ID); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 	return r.SendEnvelope(true)
@@ -594,7 +669,7 @@ func handleUpdateContactCustomAttributes(r *fastglue.Request) error {
 
 // enforceConversationAccess fetches the conversation and checks if the user has access to it.
 func enforceConversationAccess(app *App, uuid string, user umodels.User) (*cmodels.Conversation, error) {
-	conversation, err := app.conversation.GetConversation(0, uuid)
+	conversation, err := app.conversation.GetConversation(0, uuid, "")
 	if err != nil {
 		return nil, err
 	}
@@ -747,16 +822,16 @@ func handleCreateConversation(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.invalid", "name", "`initiator`"), nil, envelope.InputError)
 	}
 
-	// Assign the conversation to the agent or team.
-	if req.AssignedAgentID > 0 {
-		app.conversation.UpdateConversationUserAssignee(conversationUUID, req.AssignedAgentID, user)
-	}
+	// Assign the conversation to team/agent if provided, always assign team first as it clears assigned agent.
 	if req.AssignedTeamID > 0 {
 		app.conversation.UpdateConversationTeamAssignee(conversationUUID, req.AssignedTeamID, user)
 	}
+	if req.AssignedAgentID > 0 {
+		app.conversation.UpdateConversationUserAssignee(conversationUUID, req.AssignedAgentID, user)
+	}
 
 	// Trigger webhook event for conversation created.
-	conversation, err := app.conversation.GetConversation(conversationID, "")
+	conversation, err := app.conversation.GetConversation(conversationID, "", "")
 	if err == nil {
 		app.webhook.TriggerEvent(wmodels.EventConversationCreated, conversation)
 	}

@@ -15,25 +15,39 @@ import (
 )
 
 type messageReq struct {
-	Attachments []int    `json:"attachments"`
-	Message     string   `json:"message"`
-	Private     bool     `json:"private"`
-	To          []string `json:"to"`
-	CC          []string `json:"cc"`
-	BCC         []string `json:"bcc"`
-	SenderType  string   `json:"sender_type"`
+	Attachments []int                  `json:"attachments"`
+	Message     string                 `json:"message"`
+	Private     bool                   `json:"private"`
+	To          []string               `json:"to"`
+	CC          []string               `json:"cc"`
+	BCC         []string               `json:"bcc"`
+	SenderType  string                 `json:"sender_type"`
+	Mentions    []cmodels.MentionInput `json:"mentions"`
 }
 
 // handleGetMessages returns messages for a conversation.
 func handleGetMessages(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		uuid        = r.RequestCtx.UserValue("uuid").(string)
-		auser       = r.RequestCtx.UserValue("user").(amodels.User)
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		total       = 0
+		app      = r.Context.(*App)
+		uuid     = r.RequestCtx.UserValue("uuid").(string)
+		auser    = r.RequestCtx.UserValue("user").(amodels.User)
+		page, _  = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
+		pageSize = r.RequestCtx.QueryArgs().GetUintOrZero("page_size")
+		total    = 0
+		private  *bool
 	)
+
+	// Parse optional private filter (null = no filter)
+	if r.RequestCtx.QueryArgs().Has("private") {
+		p := r.RequestCtx.QueryArgs().GetBool("private")
+		private = &p
+	}
+
+	// Parse repeated type params: ?type=incoming&type=outgoing
+	var msgTypes []string
+	for _, v := range r.RequestCtx.QueryArgs().PeekMulti("type") {
+		msgTypes = append(msgTypes, string(v))
+	}
 
 	user, err := app.user.GetAgent(auser.ID, "")
 	if err != nil {
@@ -46,7 +60,7 @@ func handleGetMessages(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	messages, pageSize, err := app.conversation.GetConversationMessages(uuid, page, pageSize)
+	messages, pageSize, err := app.conversation.GetConversationMessages(uuid, page, pageSize, private, msgTypes)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -55,7 +69,8 @@ func handleGetMessages(r *fastglue.Request) error {
 		total = messages[i].Total
 		// Populate attachment URLs
 		for j := range messages[i].Attachments {
-			messages[i].Attachments[j].URL = app.media.GetURL(messages[i].Attachments[j].UUID)
+			att := messages[i].Attachments[j]
+			messages[i].Attachments[j].URL = app.media.GetURL(att.UUID, att.ContentType, att.Name)
 		}
 		// Redact CSAT survey link
 		messages[i].CensorCSATContent()
@@ -98,7 +113,8 @@ func handleGetMessage(r *fastglue.Request) error {
 	message.CensorCSATContent()
 
 	for j := range message.Attachments {
-		message.Attachments[j].URL = app.media.GetURL(message.Attachments[j].UUID)
+		att := message.Attachments[j]
+		message.Attachments[j].URL = app.media.GetURL(att.UUID, att.ContentType, att.Name)
 	}
 
 	return r.SendEnvelope(message)
@@ -187,6 +203,11 @@ func handleSendMessage(r *fastglue.Request) error {
 			app.lo.Error("error fetching media", "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.media}"), nil, envelope.GeneralError)
 		}
+		if m.ModelID.Int > 0 {
+			// Attachment is already associated with another model. Skip it.
+			app.lo.Warn("attachment already associated with another model, skipping", "media_id", m.ID, "model", m.Model.String, "model_id", m.ModelID.Int)
+			continue
+		}
 		media = append(media, m)
 	}
 
@@ -201,7 +222,7 @@ func handleSendMessage(r *fastglue.Request) error {
 
 	// Send private note.
 	if req.Private {
-		message, err := app.conversation.SendPrivateNote(media, user.ID, cuuid, req.Message)
+		message, err := app.conversation.SendPrivateNote(media, user.ID, cuuid, req.Message, req.Mentions)
 		if err != nil {
 			return sendErrorEnvelope(r, err)
 		}

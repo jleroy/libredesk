@@ -302,6 +302,7 @@ const updateConversationPriority = (uuid, data) =>
     }
   })
 const updateAssigneeLastSeen = (uuid) => http.put(`/api/v1/conversations/${uuid}/last-seen`)
+const markConversationAsUnread = (uuid) => http.put(`/api/v1/conversations/${uuid}/mark-unread`)
 const getConversationMessage = (cuuid, uuid) =>
   http.get(`/api/v1/conversations/${cuuid}/messages/${uuid}`)
 const retryMessage = (cuuid, uuid) =>
@@ -343,6 +344,8 @@ const getAssignedConversations = (params) => http.get('/api/v1/conversations/ass
 const getUnassignedConversations = (params) =>
   http.get('/api/v1/conversations/unassigned', { params })
 const getAllConversations = (params) => http.get('/api/v1/conversations/all', { params })
+const getMentionedConversations = (params) =>
+  http.get('/api/v1/conversations/mentioned', { params })
 const getViewConversations = (id, params) =>
   http.get(`/api/v1/views/${id}/conversations`, { params })
 const uploadMedia = (data) =>
@@ -354,6 +357,9 @@ const uploadMedia = (data) =>
 const getOverviewCounts = () => http.get('/api/v1/reports/overview/counts')
 const getOverviewCharts = (params) => http.get('/api/v1/reports/overview/charts', { params })
 const getOverviewSLA = (params) => http.get('/api/v1/reports/overview/sla', { params })
+const getOverviewCSAT = (params) => http.get('/api/v1/reports/overview/csat', { params })
+const getOverviewMessageVolume = (params) => http.get('/api/v1/reports/overview/messages', { params })
+const getOverviewTagDistribution = (params) => http.get('/api/v1/reports/overview/tags', { params })
 const getLanguage = (lang) => http.get(`/api/v1/lang/${lang}`)
 const createInbox = (data) =>
   http.post('/api/v1/inboxes', data, {
@@ -371,6 +377,16 @@ const updateInbox = (id, data) =>
     }
   })
 const deleteInbox = (id) => http.delete(`/api/v1/inboxes/${id}`)
+const saveDraft = (uuid, data) =>
+  http.post(`/api/v1/conversations/${uuid}/draft`, data, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+
+const getAllDrafts = () => http.get('/api/v1/drafts')
+
+const deleteDraft = (uuid) => http.delete(`/api/v1/conversations/${uuid}/draft`)
 const getCurrentUserViews = () => http.get('/api/v1/views/me')
 const createView = (data) =>
   http.post('/api/v1/views/me', data, {
@@ -385,6 +401,24 @@ const updateView = (id, data) =>
     }
   })
 const deleteView = (id) => http.delete(`/api/v1/views/me/${id}`)
+
+const getSharedViews = () => http.get('/api/v1/views/shared')
+const getAllSharedViews = () => http.get('/api/v1/shared-views')
+const getSharedView = (id) => http.get(`/api/v1/shared-views/${id}`)
+const createSharedView = (data) =>
+  http.post('/api/v1/shared-views', data, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+const updateSharedView = (id, data) =>
+  http.put(`/api/v1/shared-views/${id}`, data, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+const deleteSharedView = (id) => http.delete(`/api/v1/shared-views/${id}`)
+
 const getAiPrompts = () => http.get('/api/v1/ai/prompts')
 const aiCompletion = (data) => http.post('/api/v1/ai/completion', data, {
   headers: {
@@ -431,6 +465,21 @@ const generateAPIKey = (id) =>
 
 const revokeAPIKey = (id) => http.delete(`/api/v1/agents/${id}/api-key`)
 
+const initiateOAuthFlow = (provider, data) =>
+  http.post(`/api/v1/inboxes/oauth/${provider}/authorize`, data, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+
+// User notifications (in-app)
+const getNotifications = (params) => http.get('/api/v1/notifications', { params })
+const getNotificationStats = () => http.get('/api/v1/notifications/stats')
+const markNotificationAsRead = (id) => http.put(`/api/v1/notifications/${id}/read`)
+const markAllNotificationsAsRead = () => http.put('/api/v1/notifications/read-all')
+const deleteNotification = (id) => http.delete(`/api/v1/notifications/${id}`)
+const deleteAllNotifications = () => http.delete('/api/v1/notifications')
+
 export default {
   login,
   deleteUser,
@@ -466,11 +515,15 @@ export default {
   getAssignedConversations,
   getUnassignedConversations,
   getAllConversations,
+  getMentionedConversations,
   getTeamUnassignedConversations,
   getViewConversations,
   getOverviewCharts,
   getOverviewCounts,
   getOverviewSLA,
+  getOverviewCSAT,
+  getOverviewMessageVolume,
+  getOverviewTagDistribution,
   getConversationParticipants,
   getConversationMessage,
   getConversationMessages,
@@ -491,6 +544,7 @@ export default {
   updateContactCustomAttribute,
   uploadMedia,
   updateAssigneeLastSeen,
+  markConversationAsUnread,
   updateUser,
   updateCurrentUserAvailability,
   updateAutomationRule,
@@ -536,10 +590,19 @@ export default {
   getUsersCompact,
   getEmailNotificationSettings,
   updateEmailNotificationSettings,
+  saveDraft,
+  getAllDrafts,
+  deleteDraft,
   getCurrentUserViews,
   createView,
   updateView,
   deleteView,
+  getSharedViews,
+  getAllSharedViews,
+  getSharedView,
+  createSharedView,
+  updateSharedView,
+  deleteSharedView,
   getAiPrompts,
   aiCompletion,
   searchConversations,
@@ -567,5 +630,12 @@ export default {
   toggleWebhook,
   testWebhook,
   generateAPIKey,
-  revokeAPIKey
+  revokeAPIKey,
+  initiateOAuthFlow,
+  getNotifications,
+  getNotificationStats,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotifications
 }

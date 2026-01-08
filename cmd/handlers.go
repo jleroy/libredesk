@@ -26,8 +26,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Public config for app initialization.
 	g.GET("/api/v1/config", handleGetConfig)
 
-	// Media.
-	g.GET("/uploads/{uuid}", auth(handleServeMedia))
+	// Media - supports both authenticated access and signed URLs.
+	g.GET("/uploads/{uuid}", authOrSignedURL(handleServeMedia))
 	g.POST("/api/v1/media", auth(handleMediaUpload))
 
 	// Settings.
@@ -47,6 +47,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/conversations/all", perm(handleGetAllConversations, "conversations:read_all"))
 	g.GET("/api/v1/conversations/unassigned", perm(handleGetUnassignedConversations, "conversations:read_unassigned"))
 	g.GET("/api/v1/conversations/assigned", perm(handleGetAssignedConversations, "conversations:read_assigned"))
+	g.GET("/api/v1/conversations/mentioned", perm(handleGetMentionedConversations, "conversations:read"))
 	g.GET("/api/v1/teams/{id}/conversations/unassigned", perm(handleGetTeamUnassignedConversations, "conversations:read_team_inbox"))
 	g.GET("/api/v1/views/{id}/conversations", perm(handleGetViewConversations, "conversations:read"))
 	g.GET("/api/v1/conversations/{uuid}", perm(handleGetConversation, "conversations:read"))
@@ -58,6 +59,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.PUT("/api/v1/conversations/{uuid}/priority", perm(handleUpdateConversationPriority, "conversations:update_priority"))
 	g.PUT("/api/v1/conversations/{uuid}/status", perm(handleUpdateConversationStatus, "conversations:update_status"))
 	g.PUT("/api/v1/conversations/{uuid}/last-seen", perm(handleUpdateConversationAssigneeLastSeen, "conversations:read"))
+	g.PUT("/api/v1/conversations/{uuid}/mark-unread", perm(handleMarkConversationAsUnread, "conversations:read"))
 	g.POST("/api/v1/conversations/{uuid}/tags", perm(handleUpdateConversationtags, "conversations:update_tags"))
 	g.GET("/api/v1/conversations/{cuuid}/messages/{uuid}", perm(handleGetMessage, "messages:read"))
 	g.GET("/api/v1/conversations/{uuid}/messages", perm(handleGetMessages, "messages:read"))
@@ -66,6 +68,10 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/conversations", perm(handleCreateConversation, "conversations:write"))
 	g.PUT("/api/v1/conversations/{uuid}/custom-attributes", auth(handleUpdateConversationCustomAttributes))
 	g.PUT("/api/v1/conversations/{uuid}/contacts/custom-attributes", auth(handleUpdateContactCustomAttributes))
+	// Draft endpoints
+	g.GET("/api/v1/drafts", auth(handleGetAllDrafts))
+	g.POST("/api/v1/conversations/{uuid}/draft", auth(handleUpsertConversationDraft))
+	g.DELETE("/api/v1/conversations/{uuid}/draft", auth(handleDeleteConversationDraft))
 
 	// Search.
 	g.GET("/api/v1/conversations/search", perm(handleSearchConversations, "conversations:read"))
@@ -77,6 +83,14 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/views/me", perm(handleCreateUserView, "view:manage"))
 	g.PUT("/api/v1/views/me/{id}", perm(handleUpdateUserView, "view:manage"))
 	g.DELETE("/api/v1/views/me/{id}", perm(handleDeleteUserView, "view:manage"))
+
+	g.GET("/api/v1/views/shared", auth(handleGetSharedViews))
+
+	g.GET("/api/v1/shared-views", perm(handleGetAllSharedViews, "shared_views:manage"))
+	g.GET("/api/v1/shared-views/{id}", perm(handleGetSharedView, "shared_views:manage"))
+	g.POST("/api/v1/shared-views", perm(handleCreateSharedView, "shared_views:manage"))
+	g.PUT("/api/v1/shared-views/{id}", perm(handleUpdateSharedView, "shared_views:manage"))
+	g.DELETE("/api/v1/shared-views/{id}", perm(handleDeleteSharedView, "shared_views:manage"))
 
 	// Status and priority.
 	g.GET("/api/v1/statuses", auth(handleGetStatuses))
@@ -156,6 +170,10 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.PUT("/api/v1/inboxes/{id}", perm(handleUpdateInbox, "inboxes:manage"))
 	g.DELETE("/api/v1/inboxes/{id}", perm(handleDeleteInbox, "inboxes:manage"))
 
+	// OAuth endpoints for email inboxes.
+	g.POST("/api/v1/inboxes/oauth/{provider}/authorize", perm(handleOAuthAuthorize, "inboxes:manage"))
+	g.GET("/api/v1/inboxes/oauth/{provider}/callback", perm(handleOAuthCallback, "inboxes:manage"))
+
 	// Roles.
 	g.GET("/api/v1/roles", auth(handleGetRoles))
 	g.GET("/api/v1/roles/{id}", perm(handleGetRole, "roles:manage"))
@@ -176,6 +194,9 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/reports/overview/sla", perm(handleOverviewSLA, "reports:manage"))
 	g.GET("/api/v1/reports/overview/counts", perm(handleOverviewCounts, "reports:manage"))
 	g.GET("/api/v1/reports/overview/charts", perm(handleOverviewCharts, "reports:manage"))
+	g.GET("/api/v1/reports/overview/csat", perm(handleOverviewCSAT, "reports:manage"))
+	g.GET("/api/v1/reports/overview/messages", perm(handleOverviewMessageVolume, "reports:manage"))
+	g.GET("/api/v1/reports/overview/tags", perm(handleOverviewTagDistribution, "reports:manage"))
 
 	// Templates.
 	g.GET("/api/v1/templates", perm(handleGetTemplates, "templates:manage"))
@@ -192,7 +213,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.DELETE("/api/v1/business-hours/{id}", perm(handleDeleteBusinessHour, "business_hours:manage"))
 
 	// SLAs.
-	g.GET("/api/v1/sla", perm(handleGetSLAs, "sla:manage"))
+	g.GET("/api/v1/sla", auth(handleGetSLAs))
 	g.GET("/api/v1/sla/{id}", perm(handleGetSLA, "sla:manage"))
 	g.POST("/api/v1/sla", perm(handleCreateSLA, "sla:manage"))
 	g.PUT("/api/v1/sla/{id}", perm(handleUpdateSLA, "sla:manage"))
@@ -212,6 +233,14 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 
 	// Actvity logs.
 	g.GET("/api/v1/activity-logs", perm(handleGetActivityLogs, "activity_logs:manage"))
+
+	// User notifications.
+	g.GET("/api/v1/notifications", auth(handleGetUserNotifications))
+	g.GET("/api/v1/notifications/stats", auth(handleGetUserNotificationStats))
+	g.PUT("/api/v1/notifications/{id}/read", auth(handleMarkNotificationAsRead))
+	g.PUT("/api/v1/notifications/read-all", auth(handleMarkAllNotificationsAsRead))
+	g.DELETE("/api/v1/notifications/{id}", auth(handleDeleteNotification))
+	g.DELETE("/api/v1/notifications", auth(handleDeleteAllNotifications))
 
 	// WebSocket.
 	g.GET("/ws", auth(func(r *fastglue.Request) error {

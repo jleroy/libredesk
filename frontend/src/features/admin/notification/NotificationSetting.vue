@@ -27,11 +27,13 @@ import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { useEmitter } from '@/composables/useEmitter'
 import { handleHTTPError } from '@/utils/http'
 import { Spinner } from '@/components/ui/spinner'
+import { useAppSettingsStore } from '@/stores/appSettings'
 
 const initialValues = ref({})
 const { t } = useI18n()
 const isLoading = ref(false)
 const emitter = useEmitter()
+const appSettingsStore = useAppSettingsStore()
 
 onMounted(() => {
   getNotificationSettings()
@@ -72,6 +74,7 @@ const submitForm = async (values) => {
       description: t('admin.notification.restartApp')
     })
     await getNotificationSettings()
+    appSettingsStore.fetchSettings()
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',

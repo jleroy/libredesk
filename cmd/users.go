@@ -26,10 +26,6 @@ const (
 	maxAvatarSizeMB = 2
 )
 
-type updateAvailabilityRequest struct {
-	Status string `json:"status"`
-}
-
 type resetPasswordRequest struct {
 	Email string `json:"email"`
 }
@@ -282,6 +278,13 @@ func handleUpdateAgent(r *fastglue.Request) error {
 	// Create activity log if user availability status changed.
 	if oldAvailabilityStatus != req.AvailabilityStatus {
 		if err := app.activityLog.UserAvailability(auser.ID, auser.Email, req.AvailabilityStatus, ip, req.Email, id); err != nil {
+			app.lo.Error("error creating activity log", "error", err)
+		}
+	}
+
+	// Log activity if password was changed.
+	if req.NewPassword != "" {
+		if err := app.activityLog.PasswordSet(auser.ID, auser.Email, ip, id, req.Email); err != nil {
 			app.lo.Error("error creating activity log", "error", err)
 		}
 	}
