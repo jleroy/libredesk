@@ -19,18 +19,6 @@ SELECT
 FROM user_notifications
 WHERE user_id = $1;
 
--- name: get-notification
-SELECT
-    n.id, n.created_at, n.updated_at, n.user_id, n.notification_type,
-    n.title, n.body, n.is_read, n.conversation_id, n.message_id, n.actor_id, n.meta,
-    u.first_name as actor_first_name, u.last_name as actor_last_name, u.avatar_url as actor_avatar_url,
-    c.uuid as conversation_uuid, m.uuid as message_uuid
-FROM user_notifications n
-LEFT JOIN users u ON u.id = n.actor_id
-LEFT JOIN conversations c ON c.id = n.conversation_id
-LEFT JOIN conversation_messages m ON m.id = n.message_id
-WHERE n.id = $1 AND n.user_id = $2;
-
 -- name: insert-notification
 INSERT INTO user_notifications (user_id, notification_type, title, body, conversation_id, message_id, actor_id, meta)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

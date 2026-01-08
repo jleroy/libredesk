@@ -35,7 +35,6 @@ type UserNotificationOpts struct {
 type queries struct {
 	GetNotifications       *sqlx.Stmt `query:"get-notifications"`
 	GetNotificationStats   *sqlx.Stmt `query:"get-notification-stats"`
-	GetNotification        *sqlx.Stmt `query:"get-notification"`
 	InsertNotification     *sqlx.Stmt `query:"insert-notification"`
 	MarkAsRead             *sqlx.Stmt `query:"mark-as-read"`
 	MarkAllAsRead          *sqlx.Stmt `query:"mark-all-as-read"`
@@ -78,19 +77,6 @@ func (m *UserNotificationManager) GetStats(userID int) (models.NotificationStats
 		return stats, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.notification}"), nil)
 	}
 	return stats, nil
-}
-
-// Get retrieves a single notification by ID for a user.
-func (m *UserNotificationManager) Get(id, userID int) (models.UserNotification, error) {
-	var notification models.UserNotification
-	if err := m.q.GetNotification.Get(&notification, id, userID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return notification, envelope.NewError(envelope.NotFoundError, m.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.notification}"), nil)
-		}
-		m.lo.Error("error fetching notification", "id", id, "user_id", userID, "error", err)
-		return notification, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.notification}"), nil)
-	}
-	return notification, nil
 }
 
 // Create creates a new notification for a user.
@@ -163,8 +149,6 @@ func (m *UserNotificationManager) RunNotificationCleaner(ctx context.Context) {
 	time.Sleep(10 * time.Second)
 	if err := m.DeleteOldNotifications(ctx); err != nil {
 		m.lo.Error("error cleaning old notifications", "error", err)
-	} else {
-		m.lo.Info("cleaned old notifications")
 	}
 
 	ticker := time.NewTicker(24 * time.Hour)
@@ -177,8 +161,6 @@ func (m *UserNotificationManager) RunNotificationCleaner(ctx context.Context) {
 		case <-ticker.C:
 			if err := m.DeleteOldNotifications(ctx); err != nil {
 				m.lo.Error("error cleaning old notifications", "error", err)
-			} else {
-				m.lo.Info("cleaned old notifications")
 			}
 		}
 	}
