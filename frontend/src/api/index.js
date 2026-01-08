@@ -251,6 +251,13 @@ const setPassword = (data) => http.post('/api/v1/agents/set-password', data, {
   }
 })
 const deleteUser = (id) => http.delete(`/api/v1/agents/${id}`)
+const importAgents = (data) =>
+  http.post('/api/v1/agents/import', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+const getAgentImportStatus = () => http.get('/api/v1/agents/import/status')
 const createUser = (data) =>
   http.post('/api/v1/agents', data, {
     headers: {
@@ -483,6 +490,8 @@ const deleteAllNotifications = () => http.delete('/api/v1/notifications')
 export default {
   login,
   deleteUser,
+  importAgents,
+  getAgentImportStatus,
   resetPassword,
   setPassword,
   getTags,

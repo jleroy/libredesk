@@ -258,7 +258,7 @@ func main() {
 		conversation:     conversation,
 		automation:       automation,
 		businessHours:    businessHours,
-		importer:         importer.NewImporter(),
+		importer:         initImporter(i18n),
 		activityLog:      initActivityLog(db, i18n),
 		customAttribute:  initCustomAttribute(db, i18n),
 		authz:            initAuthz(i18n),
@@ -320,6 +320,8 @@ func main() {
 	conversation.Close()
 	colorlog.Red("Shutting down SLA...")
 	sla.Close()
+	colorlog.Red("Shutting down importer...")
+	app.importer.Close()
 	colorlog.Red("Shutting down database...")
 	db.Close()
 	colorlog.Red("Shutting down redis...")

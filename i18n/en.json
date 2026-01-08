@@ -18,8 +18,10 @@
   "globals.terms.permission": "Permission | Permissions",
   "globals.terms.request": "Request | Requests",
   "globals.terms.file": "File | Files",
+  "globals.terms.csvFile": "CSV file | CSV files",
   "globals.terms.actor": "Actor | Actors",
   "globals.terms.page": "Page | Pages",
+  "globals.terms.log": "Log | Logs",
   "globals.terms.activityLog": "Activity log | Activity logs",
   "activityLog.type.agentLogin": "Agent login",
   "activityLog.type.agentLogout": "Agent logout",
@@ -331,6 +333,10 @@
   "globals.messages.upload": "Upload",
   "globals.messages.back": "Back",
   "globals.messages.close": "Close",
+  "globals.messages.import": "Import {name}",
+  "globals.messages.selectFile": "Select {name}",
+  "globals.messages.uploadFailed": "Upload failed",
+  "globals.messages.inProgressConfirmClose": "{action} in progress. Close?",
   "globals.messages.apply": "Apply {name}",
   "globals.messages.reset": "Reset {name}",
   "globals.messages.lastNItems": "Last {n} {name} | Last {n} {name}",
@@ -720,5 +726,10 @@
   "contact.notes.help": "Add note for this contact to keep track of important information and conversations.",
   "setup.completeYourSetup": "Complete your setup",
   "setup.createFirstInbox": "Create your first inbox",
-  "setup.inviteTeammates": "Invite teammates"
+  "setup.inviteTeammates": "Invite teammates",
+  "importer.requiredCSVFormat": "Required CSV format",
+  "importer.importCompleted": "Import completed: {success} of {total} successful, {errors} failed",
+  "importer.csvMustContainHeadersAndData": "CSV must contain headers and at least one data row",
+  "importer.importAlreadyInProgress": "Import already in progress",
+  "importer.caseSensitiveNote": "Roles and teams must match exactly (case-sensitive)"
 }
