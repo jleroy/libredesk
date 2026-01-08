@@ -24,7 +24,7 @@
                 {{
                   file
                     ? file.name
-                    : $t('globals.messages.selectFile', { name: $t('globals.terms.csvFile') })
+                    : $t('globals.messages.select', { name: $t('globals.terms.csvFile') })
                 }}
               </span>
               <Upload class="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -229,13 +229,6 @@ const stopPolling = () => {
 }
 
 const closeDialog = () => {
-  if (
-    (loading.value || status.value?.running) &&
-    !confirm(t('globals.messages.inProgressConfirmClose', { action: t('globals.terms.import') }))
-  )
-    return
-  stopPolling()
-  resetState()
   showDialog.value = false
 }
 
