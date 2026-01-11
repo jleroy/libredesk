@@ -13,7 +13,7 @@
       </router-link>
     </div>
     <div>
-      <DataTable :columns="createColumns(t)" :data="sharedViews" />
+      <DataTable :columns="createColumns(t)" :data="sharedViews" :loading="formLoading" />
     </div>
   </div>
 </template>
