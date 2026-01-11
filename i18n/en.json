@@ -613,6 +613,7 @@
   "admin.template.makeSureTemplateHasContent": "Make sure the template has {content} only once.",
   "admin.template.onlyOneDefaultOutgoingTemplate": "You can have only one default outgoing email template.",
   "admin.sso.setThisUrlForCallback": "Set this URI for callback.",
+  "admin.sso.logoURLDescription": "Custom logo URL to display on the login page.",
   "admin.customAttributes.regex.description": "Regex to validate the value of this custom attribute. Leave empty to skip validation.",
   "admin.customAttributes.regexHint.description": "Regex pattern hint.",
   "admin.customAttributes.keyNotAllowed": "The provided key is not allowed as it conflicts with default attributes. Please use a different key.",

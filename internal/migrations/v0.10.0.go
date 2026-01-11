@@ -114,5 +114,13 @@ Libredesk
 		return err
 	}
 
+	// Add logo_url column to oidc table for custom provider logos
+	_, err = db.Exec(`
+		ALTER TABLE oidc ADD COLUMN IF NOT EXISTS logo_url TEXT NOT NULL DEFAULT '';
+	`)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -128,7 +128,7 @@ func (o *Manager) Create(oidc models.OIDC) (models.OIDC, error) {
 	}
 
 	var createdOIDC models.OIDC
-	if err := o.q.InsertOIDC.Get(&createdOIDC, oidc.Name, oidc.Provider, oidc.ProviderURL, encryptedClientID, encryptedClientSecret); err != nil {
+	if err := o.q.InsertOIDC.Get(&createdOIDC, oidc.Name, oidc.Provider, oidc.ProviderURL, encryptedClientID, encryptedClientSecret, oidc.LogoURL); err != nil {
 		o.lo.Error("error inserting oidc", "error", err)
 		return models.OIDC{}, envelope.NewError(envelope.GeneralError, o.i18n.Ts("globals.messages.errorCreating", "name", "{globals.terms.oidcProvider}"), nil)
 	}
@@ -160,7 +160,7 @@ func (o *Manager) Update(id int, oidc models.OIDC) (models.OIDC, error) {
 	}
 
 	var updatedOIDC models.OIDC
-	if err := o.q.UpdateOIDC.Get(&updatedOIDC, id, oidc.Name, oidc.Provider, oidc.ProviderURL, encryptedClientID, encryptedClientSecret, oidc.Enabled); err != nil {
+	if err := o.q.UpdateOIDC.Get(&updatedOIDC, id, oidc.Name, oidc.Provider, oidc.ProviderURL, encryptedClientID, encryptedClientSecret, oidc.Enabled, oidc.LogoURL); err != nil {
 		o.lo.Error("error updating oidc", "error", err)
 		return models.OIDC{}, envelope.NewError(envelope.GeneralError, o.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.oidcProvider}"), nil)
 	}

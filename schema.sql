@@ -405,6 +405,7 @@ CREATE TABLE oidc (
 	client_secret TEXT NOT NULL,
 	enabled bool DEFAULT TRUE NOT NULL,
 	provider VARCHAR NULL,
+	logo_url TEXT NOT NULL DEFAULT '',
 	CONSTRAINT constraint_oidc_on_name CHECK (length("name") <= 140)
 );
 
