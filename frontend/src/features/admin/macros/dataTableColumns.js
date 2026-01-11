@@ -60,6 +60,7 @@ export const createColumns = (t) => [
   {
     id: 'actions',
     enableHiding: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const macro = row.original
       return h(

@@ -77,6 +77,7 @@ export const createColumns = (t) => [
   {
     id: 'actions',
     enableHiding: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const user = row.original
       return h(

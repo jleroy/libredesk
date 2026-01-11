@@ -46,6 +46,11 @@ export const createColumns = (t) => [
           () => `${events.length} ${t('globals.terms.event', 2).toLowerCase()}`
         )
       ])
+    },
+    sortingFn: (rowA, rowB) => {
+      const a = rowA.original.events?.length || 0
+      const b = rowB.original.events?.length || 0
+      return a - b
     }
   },
   {
@@ -77,6 +82,7 @@ export const createColumns = (t) => [
   {
     id: 'actions',
     enableHiding: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const webhook = row.original
       return h(

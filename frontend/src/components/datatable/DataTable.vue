@@ -92,6 +92,7 @@ const table = useVueTable({
       return sorting.value
     }
   },
+  enableSortingRemoval: false,
   onSortingChange: (updaterOrValue) => {
     sorting.value =
       typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue

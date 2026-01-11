@@ -48,6 +48,7 @@ export const createOutgoingEmailTableColumns = (t) => [
   {
     id: 'actions',
     enableHiding: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const template = row.original
       return h(
@@ -93,6 +94,7 @@ export const createEmailNotificationTableColumns = (t) => [
   {
     id: 'actions',
     enableHiding: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const template = row.original
       return h(

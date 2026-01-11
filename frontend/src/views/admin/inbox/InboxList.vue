@@ -153,6 +153,7 @@ const columns = [
   {
     id: 'actions',
     enableHiding: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const inbox = row.original
       return h(

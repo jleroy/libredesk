@@ -50,6 +50,7 @@ export const columns = [
   {
     id: 'actions',
     enableHiding: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const team = row.original
       return h(
