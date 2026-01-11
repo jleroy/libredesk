@@ -57,15 +57,14 @@ type createConversationRequest struct {
 // handleGetAllConversations retrieves all conversations.
 func handleGetAllConversations(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		user        = r.RequestCtx.UserValue("user").(amodels.User)
-		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
-		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
-		total       = 0
+		app     = r.Context.(*App)
+		user    = r.RequestCtx.UserValue("user").(amodels.User)
+		order   = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		filters = string(r.RequestCtx.QueryArgs().Peek("filters"))
+		total   = 0
 	)
+	page, pageSize := getPagination(r)
 
 	conversations, err := app.conversation.GetAllConversationsList(user.ID, order, orderBy, filters, page, pageSize)
 	if err != nil {
@@ -88,15 +87,14 @@ func handleGetAllConversations(r *fastglue.Request) error {
 // handleGetAssignedConversations retrieves conversations assigned to the current user.
 func handleGetAssignedConversations(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		user        = r.RequestCtx.UserValue("user").(amodels.User)
-		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
-		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
-		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		total       = 0
+		app     = r.Context.(*App)
+		user    = r.RequestCtx.UserValue("user").(amodels.User)
+		order   = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		filters = string(r.RequestCtx.QueryArgs().Peek("filters"))
+		total   = 0
 	)
+	page, pageSize := getPagination(r)
 	conversations, err := app.conversation.GetAssignedConversationsList(user.ID, user.ID, order, orderBy, filters, page, pageSize)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
@@ -117,15 +115,14 @@ func handleGetAssignedConversations(r *fastglue.Request) error {
 // handleGetUnassignedConversations retrieves unassigned conversations.
 func handleGetUnassignedConversations(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		user        = r.RequestCtx.UserValue("user").(amodels.User)
-		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
-		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
-		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		total       = 0
+		app     = r.Context.(*App)
+		user    = r.RequestCtx.UserValue("user").(amodels.User)
+		order   = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		filters = string(r.RequestCtx.QueryArgs().Peek("filters"))
+		total   = 0
 	)
+	page, pageSize := getPagination(r)
 
 	conversations, err := app.conversation.GetUnassignedConversationsList(user.ID, order, orderBy, filters, page, pageSize)
 	if err != nil {
@@ -147,15 +144,14 @@ func handleGetUnassignedConversations(r *fastglue.Request) error {
 // handleGetMentionedConversations retrieves conversations where the current user is mentioned.
 func handleGetMentionedConversations(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		user        = r.RequestCtx.UserValue("user").(amodels.User)
-		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
-		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
-		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		total       = 0
+		app     = r.Context.(*App)
+		user    = r.RequestCtx.UserValue("user").(amodels.User)
+		order   = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		filters = string(r.RequestCtx.QueryArgs().Peek("filters"))
+		total   = 0
 	)
+	page, pageSize := getPagination(r)
 
 	conversations, err := app.conversation.GetMentionedConversationsList(user.ID, order, orderBy, filters, page, pageSize)
 	if err != nil {
@@ -177,15 +173,14 @@ func handleGetMentionedConversations(r *fastglue.Request) error {
 // handleGetViewConversations retrieves conversations for a view.
 func handleGetViewConversations(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		auser       = r.RequestCtx.UserValue("user").(amodels.User)
-		viewID, _   = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
-		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
-		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		total       = 0
+		app       = r.Context.(*App)
+		auser     = r.RequestCtx.UserValue("user").(amodels.User)
+		viewID, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
+		order     = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy   = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		total     = 0
 	)
+	page, pageSize := getPagination(r)
 	if viewID < 1 {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.invalid", "name", "`view_id`"), nil, envelope.InputError)
 	}
@@ -266,16 +261,15 @@ func handleGetViewConversations(r *fastglue.Request) error {
 // handleGetTeamUnassignedConversations returns conversations assigned to a team but not to any user.
 func handleGetTeamUnassignedConversations(r *fastglue.Request) error {
 	var (
-		app         = r.Context.(*App)
-		auser       = r.RequestCtx.UserValue("user").(amodels.User)
-		teamIDStr   = r.RequestCtx.UserValue("id").(string)
-		order       = string(r.RequestCtx.QueryArgs().Peek("order"))
-		orderBy     = string(r.RequestCtx.QueryArgs().Peek("order_by"))
-		filters     = string(r.RequestCtx.QueryArgs().Peek("filters"))
-		page, _     = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
-		total       = 0
+		app       = r.Context.(*App)
+		auser     = r.RequestCtx.UserValue("user").(amodels.User)
+		teamIDStr = r.RequestCtx.UserValue("id").(string)
+		order     = string(r.RequestCtx.QueryArgs().Peek("order"))
+		orderBy   = string(r.RequestCtx.QueryArgs().Peek("order_by"))
+		filters   = string(r.RequestCtx.QueryArgs().Peek("filters"))
+		total     = 0
 	)
+	page, pageSize := getPagination(r)
 	teamID, _ := strconv.Atoi(teamIDStr)
 	if teamID < 1 {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.invalid", "name", "`team_id`"), nil, envelope.InputError)

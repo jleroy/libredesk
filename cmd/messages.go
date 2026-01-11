@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strconv"
 	"strings"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
@@ -28,14 +27,13 @@ type messageReq struct {
 // handleGetMessages returns messages for a conversation.
 func handleGetMessages(r *fastglue.Request) error {
 	var (
-		app      = r.Context.(*App)
-		uuid     = r.RequestCtx.UserValue("uuid").(string)
-		auser    = r.RequestCtx.UserValue("user").(amodels.User)
-		page, _  = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
-		pageSize = r.RequestCtx.QueryArgs().GetUintOrZero("page_size")
-		total    = 0
-		private  *bool
+		app     = r.Context.(*App)
+		uuid    = r.RequestCtx.UserValue("uuid").(string)
+		auser   = r.RequestCtx.UserValue("user").(amodels.User)
+		total   = 0
+		private *bool
 	)
+	page, pageSize := getPagination(r)
 
 	// Parse optional private filter (null = no filter)
 	if r.RequestCtx.QueryArgs().Has("private") {

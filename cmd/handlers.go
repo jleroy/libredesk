@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
+	"strconv"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/ws"
@@ -342,6 +343,20 @@ func serveFrontendStaticFiles(r *fastglue.Request) error {
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
 	r.RequestCtx.SetBody(file.ReadBytes())
 	return nil
+}
+
+// getPagination extracts page and page_size from query params with defaults.
+// Defaults: page=1, pageSize=30
+func getPagination(r *fastglue.Request) (page, pageSize int) {
+	page, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
+	pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 30
+	}
+	return page, pageSize
 }
 
 // sendErrorEnvelope sends a standardized error response to the client.

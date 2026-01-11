@@ -831,14 +831,8 @@ func (m *Manager) GetConversationByMessageID(id int) (models.Conversation, error
 
 // generateMessagesQuery generates the SQL query for fetching messages in a conversation.
 func (c *Manager) generateMessagesQuery(baseQuery string, qArgs []interface{}, page, pageSize int) (string, int, []interface{}, error) {
-	if page <= 0 {
-		return "", 0, nil, errors.New("page must be greater than 0")
-	}
 	if pageSize > maxMessagesPerPage {
 		pageSize = maxMessagesPerPage
-	}
-	if pageSize <= 0 {
-		return "", 0, nil, errors.New("page size must be greater than 0")
 	}
 
 	// Calculate the offset

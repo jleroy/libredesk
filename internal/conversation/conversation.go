@@ -1258,11 +1258,8 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 	}
 
 	// Validate inputs
-	if pageSize > conversationsListMaxPageSize || pageSize < 1 {
+	if pageSize > conversationsListMaxPageSize {
 		return "", nil, fmt.Errorf("invalid page size: must be between 1 and %d", conversationsListMaxPageSize)
-	}
-	if page < 1 {
-		return "", nil, fmt.Errorf("page must be greater than 0")
 	}
 
 	if len(listTypes) == 0 {
