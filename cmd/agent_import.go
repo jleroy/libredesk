@@ -196,10 +196,8 @@ func getField(record []string, headerMap map[string]int, name string) string {
 }
 
 func parseList(s string) []string {
-	s = strings.ReplaceAll(s, ";", ",")
-	parts := strings.Split(s, ",")
 	var result []string
-	for _, part := range parts {
+	for part := range strings.SplitSeq(s, ",") {
 		if trimmed := strings.TrimSpace(part); trimmed != "" {
 			result = append(result, trimmed)
 		}
