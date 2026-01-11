@@ -514,15 +514,12 @@ func (m *Manager) InsertMessage(message *models.Message) error {
 	// Broadcast new message.
 	m.BroadcastNewMessage(message)
 
-	// Refetch message if this message has media attachments, as media gets linked after inserting the message.
-	if len(message.Media) > 0 {
-		refetchedMessage, err := m.GetMessage(message.UUID)
-		if err != nil {
-			m.lo.Error("error fetching message after insert", "error", err)
-		} else {
-			// Replace the message in the struct with the refetched message.
-			*message = refetchedMessage
-		}
+	// Refetch the message to get all fields populated (e.g., author, media URLs).
+	refetchedMessage, err := m.GetMessage(message.UUID)
+	if err != nil {
+		m.lo.Error("error fetching message after insert", "error", err)
+	} else {
+		*message = refetchedMessage
 	}
 
 	// Trigger webhook for new message created.
