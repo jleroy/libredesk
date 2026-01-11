@@ -9,7 +9,7 @@ import (
 	"github.com/zerodha/logf"
 )
 
-// WSHub defines the interface for the WebSocket hub.
+// WSHub defines the interface for the Websocket hub.
 type WSHub interface {
 	BroadcastMessage(msg wsmodels.BroadcastMessage)
 }
@@ -26,7 +26,7 @@ type Notification struct {
 	ActorID        null.Int
 	Meta           json.RawMessage
 
-	// For WebSocket broadcast
+	// For Websocket broadcast
 	ConversationUUID string
 	ActorFirstName   string
 	ActorLastName    string
@@ -68,7 +68,84 @@ func NewDispatcher(opts DispatcherOpts) *Dispatcher {
 	}
 }
 
-// broadcastNotification broadcasts a notification via WebSocket to specified users.
+// Send sends a notification through all configured channels.
+// For each recipient: creates in-app notification (DB), broadcasts via Websocket,
+// and sends email if Email field is provided.
+func (d *Dispatcher) Send(n Notification) {
+	for i, recipientID := range n.RecipientIDs {
+		d.sendToRecipient(recipientID, n)
+
+		if d.outbound != nil && n.Email != nil {
+			var email string
+			if i < len(n.Email.Recipients) {
+				email = n.Email.Recipients[i]
+			} else if len(n.Email.Recipients) == 1 {
+				email = n.Email.Recipients[0] // Broadcast mode
+			}
+			if email != "" {
+				d.sendEmail(recipientID, email, n.Email.Subject, n.Email.Content, n.Type)
+			}
+		}
+	}
+}
+
+// SendWithEmails sends notifications where each recipient has their own email content.
+// This is useful when email content is personalized per recipient.
+func (d *Dispatcher) SendWithEmails(n Notification, emails []EmailNotification) {
+	for i, recipientID := range n.RecipientIDs {
+		d.sendToRecipient(recipientID, n)
+
+		if d.outbound != nil && i < len(emails) && len(emails[i].Recipients) > 0 {
+			e := emails[i]
+			d.sendEmail(recipientID, e.Recipients[0], e.Subject, e.Content, n.Type)
+		}
+	}
+}
+
+// sendToRecipient creates in-app notification and broadcasts via Websocket.
+// Returns the created notification or nil if creation failed.
+func (d *Dispatcher) sendToRecipient(recipientID int, n Notification) *models.UserNotification {
+	notification, err := d.inApp.Create(
+		recipientID,
+		n.Type,
+		n.Title,
+		n.Body,
+		n.ConversationID,
+		n.MessageID,
+		n.ActorID,
+		n.Meta,
+	)
+	if err != nil {
+		d.lo.Error("error creating in-app notification",
+			"recipient_id", recipientID,
+			"type", n.Type,
+			"error", err)
+		return nil
+	}
+	notification.ConversationUUID = null.StringFrom(n.ConversationUUID)
+	notification.ActorFirstName = null.StringFrom(n.ActorFirstName)
+	notification.ActorLastName = null.StringFrom(n.ActorLastName)
+	d.broadcastNotification([]int{recipientID}, notification)
+	return &notification
+}
+
+// sendEmail sends an email notification through the outbound service.
+func (d *Dispatcher) sendEmail(recipientID int, email, subject, content string, nType models.NotificationType) {
+	if err := d.outbound.Send(Message{
+		RecipientEmails: []string{email},
+		Subject:         subject,
+		Content:         content,
+		Provider:        ProviderEmail,
+	}); err != nil {
+		d.lo.Error("error sending email notification",
+			"recipient_id", recipientID,
+			"email", email,
+			"type", nType,
+			"error", err)
+	}
+}
+
+// broadcastNotification broadcasts a notification via Websocket to specified users.
 func (d *Dispatcher) broadcastNotification(userIDs []int, notification any) {
 	if d.wsHub == nil {
 		return
@@ -79,118 +156,11 @@ func (d *Dispatcher) broadcastNotification(userIDs []int, notification any) {
 	}
 	msgB, err := json.Marshal(message)
 	if err != nil {
-		d.lo.Error("error marshalling notification for WebSocket", "error", err)
+		d.lo.Error("error marshalling notification for Websocket", "error", err)
 		return
 	}
 	d.wsHub.BroadcastMessage(wsmodels.BroadcastMessage{
 		Data:  msgB,
 		Users: userIDs,
 	})
-}
-
-// Send sends a notification through all configured channels.
-// For each recipient:
-// 1. Creates in-app notification (DB)
-// 2. Broadcasts via WebSocket
-// 3. Sends email if Email field is provided and recipient has email
-func (d *Dispatcher) Send(n Notification) {
-	for i, recipientID := range n.RecipientIDs {
-		// 1. Create in-app notification
-		notification, err := d.inApp.Create(
-			recipientID,
-			n.Type,
-			n.Title,
-			n.Body,
-			n.ConversationID,
-			n.MessageID,
-			n.ActorID,
-			n.Meta,
-		)
-		if err != nil {
-			d.lo.Error("error creating in-app notification",
-				"recipient_id", recipientID,
-				"type", n.Type,
-				"error", err)
-		} else {
-			// 2. Broadcast via WebSocket
-			notification.ConversationUUID = null.StringFrom(n.ConversationUUID)
-			notification.ActorFirstName = null.StringFrom(n.ActorFirstName)
-			notification.ActorLastName = null.StringFrom(n.ActorLastName)
-			d.broadcastNotification([]int{recipientID}, notification)
-		}
-
-		// 3. Send email
-		if d.outbound != nil && n.Email != nil {
-			// Get recipient email - either from Email.Recipients array or skip
-			var recipientEmail string
-			if len(n.Email.Recipients) > i {
-				recipientEmail = n.Email.Recipients[i]
-			} else if len(n.Email.Recipients) == 1 {
-				// Single email for all recipients (broadcast case)
-				recipientEmail = n.Email.Recipients[0]
-			}
-
-			if recipientEmail != "" {
-				if err := d.outbound.Send(Message{
-					RecipientEmails: []string{recipientEmail},
-					Subject:         n.Email.Subject,
-					Content:         n.Email.Content,
-					Provider:        ProviderEmail,
-				}); err != nil {
-					d.lo.Error("error sending email notification",
-						"recipient_id", recipientID,
-						"email", recipientEmail,
-						"type", n.Type,
-						"error", err)
-				}
-			}
-		}
-	}
-}
-
-// SendWithEmails sends notifications where each recipient has their own email content.
-// This is useful when email content is personalized per recipient.
-func (d *Dispatcher) SendWithEmails(n Notification, emails []EmailNotification) {
-	for i, recipientID := range n.RecipientIDs {
-		// 1. Create in-app notification
-		notification, err := d.inApp.Create(
-			recipientID,
-			n.Type,
-			n.Title,
-			n.Body,
-			n.ConversationID,
-			n.MessageID,
-			n.ActorID,
-			n.Meta,
-		)
-		if err != nil {
-			d.lo.Error("error creating in-app notification",
-				"recipient_id", recipientID,
-				"type", n.Type,
-				"error", err)
-			// Continue to try email even if DB insert failed
-		} else {
-			// 2. Broadcast via WebSocket (only if DB succeeded - need notification object)
-			notification.ConversationUUID = null.StringFrom(n.ConversationUUID)
-			notification.ActorFirstName = null.StringFrom(n.ActorFirstName)
-			notification.ActorLastName = null.StringFrom(n.ActorLastName)
-			d.broadcastNotification([]int{recipientID}, notification)
-		}
-
-		// 3. Send email
-		if d.outbound != nil && i < len(emails) && len(emails[i].Recipients) > 0 {
-			email := emails[i]
-			if err := d.outbound.Send(Message{
-				RecipientEmails: email.Recipients,
-				Subject:         email.Subject,
-				Content:         email.Content,
-				Provider:        ProviderEmail,
-			}); err != nil {
-				d.lo.Error("error sending email notification",
-					"recipient_id", recipientID,
-					"type", n.Type,
-					"error", err)
-			}
-		}
-	}
 }
