@@ -974,7 +974,8 @@ func (m *Manager) NotifyMention(conversationUUID string, message models.Message,
 						"Email":     recipient.Email.String,
 					},
 					"Message": map[string]any{
-						"UUID": message.UUID,
+						"UUID":    message.UUID,
+						"Content": message.Content,
 					},
 					"MentionedBy": map[string]any{
 						"FirstName": author.FirstName,
