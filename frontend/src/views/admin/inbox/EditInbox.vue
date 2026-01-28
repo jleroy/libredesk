@@ -32,6 +32,7 @@ const submitForm = (values) => {
   // Prepare request payload from form values
   const config = {
     auth_type: values.auth_type,
+    enable_plus_addressing: values.enable_plus_addressing,
     imap: [{ ...values.imap }],
     smtp: [{ ...values.smtp }]
   }
@@ -106,6 +107,7 @@ onMounted(async () => {
     }
     inboxData.auth_type = inboxData?.config?.auth_type || AUTH_TYPE_PASSWORD
     inboxData.oauth = inboxData?.config?.oauth || {}
+    inboxData.enable_plus_addressing = inboxData?.config?.enable_plus_addressing || false
     inbox.value = inboxData
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
