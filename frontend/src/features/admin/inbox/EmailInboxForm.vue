@@ -743,7 +743,7 @@ const form = useForm({
     from: '',
     enabled: true,
     csat_enabled: false,
-    enable_plus_addressing: false,
+    enable_plus_addressing: true,
     auth_type: AUTH_TYPE_PASSWORD,
     imap: {
       host: 'imap.gmail.com',
