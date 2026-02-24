@@ -19,14 +19,14 @@
             accept="image/jpg, image/jpeg, image/png"
             @change="selectFile"
           />
-          <Button class="w-28" @click="selectAvatar"> {{ $t('account.chooseAFile') }} </Button>
-          <Button class="w-28" @click="removeAvatar" variant="destructive">
+          <Button @click="selectAvatar"> {{ $t('account.chooseAFile') }} </Button>
+          <Button @click="removeAvatar" variant="destructive">
             {{ $t('account.removeAvatar') }}
           </Button>
         </div>
       </div>
 
-      <Button class="w-28" @click="saveUser" size="sm" :isLoading="isSaving">
+      <Button class="self-start" @click="saveUser" :isLoading="isSaving">
         {{ $t('globals.messages.saveChanges') }}
       </Button>
 

@@ -2,8 +2,8 @@
   <div class="max-w-5xl mx-auto p-6 min-h-screen">
     <Tabs :default-value="defaultTab" v-model="activeTab">
       <TabsList class="grid w-full mb-6" :class="tabsGridClass">
-        <TabsTrigger v-for="(items, type) in results" :key="type" :value="type" class="capitalize">
-          {{ type }} ({{ items.length }})
+        <TabsTrigger v-for="(items, type) in results" :key="type" :value="type">
+          {{ $t(tabLabelKeys[type], 2) }} ({{ items.length }})
         </TabsTrigger>
       </TabsList>
 
@@ -93,6 +93,11 @@ import { computed, ref, watch } from 'vue'
 import { ChevronRightIcon, ClockIcon } from 'lucide-vue-next'
 import { format, parseISO } from 'date-fns'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
+
+const tabLabelKeys = {
+  conversations: 'globals.terms.conversation',
+  messages: 'globals.terms.message'
+}
 
 const props = defineProps({
   results: {

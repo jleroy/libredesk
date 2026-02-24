@@ -75,14 +75,14 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  const sortFieldLabels = {
-    oldest: 'Oldest activity',
-    newest: 'Newest activity',
-    started_first: 'Started first',
-    started_last: 'Started last',
-    waiting_longest: 'Waiting longest',
-    next_sla_target: 'Next SLA target',
-    priority_first: 'Priority first'
+  const sortFieldI18nKeys = {
+    oldest: 'conversation.sort.oldestActivity',
+    newest: 'conversation.sort.newestActivity',
+    started_first: 'conversation.sort.startedFirst',
+    started_last: 'conversation.sort.startedLast',
+    waiting_longest: 'conversation.sort.waitingLongest',
+    next_sla_target: 'conversation.sort.nextSLATarget',
+    priority_first: 'conversation.sort.priorityFirst'
   }
 
   const conversations = reactive({
@@ -141,7 +141,9 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   const getListSortField = computed(() => {
-    return sortFieldLabels[conversations.sortField]
+    const i18n = getI18n()
+    const t = i18n?.global?.t || ((key) => key.split('.').pop())
+    return t(sortFieldI18nKeys[conversations.sortField])
   })
 
 
