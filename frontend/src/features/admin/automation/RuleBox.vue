@@ -115,6 +115,9 @@
                 <TagsInput
                   :defaultValue="fieldValueAsArray(rule.value)"
                   @update:modelValue="(value) => handleValueChange(value, index)"
+                  :addOnBlur="true"
+                  :addOnTab="true"
+                  :addOnPaste="true"
                 >
                   <TagsInputItem
                     v-for="item in fieldValueAsArray(rule.value)"
