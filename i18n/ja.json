@@ -992,5 +992,12 @@
   "webhook.edit": "Webhookを編集",
   "webhook.new": "新規Webhook",
   "webhook.sendTest": "テスト送信",
-  "webhook.sentSuccessfully": "Webhookが正常に送信されました"
+  "webhook.sentSuccessfully": "Webhookが正常に送信されました",
+  "admin.automation.validation.addCondition": "条件を少なくとも1つ追加してください。",
+  "admin.automation.validation.setConditionValue": "すべての条件に値を設定してください。",
+  "admin.automation.validation.addAction": "アクションを少なくとも1つ追加してください。",
+  "admin.automation.validation.setActionValue": "すべてのアクションに値を設定してください。",
+  "admin.automation.validation.selectField": "すべての条件にフィールドを選択してください。",
+  "admin.automation.validation.selectOperator": "すべての条件に演算子を選択してください。",
+  "admin.automation.validation.selectActionType": "すべてのアクションにタイプを選択してください。"
 }

@@ -992,5 +992,12 @@
   "webhook.edit": "ویرایش webhook",
   "webhook.new": "webhook جدید",
   "webhook.sendTest": "ارسال آزمایشی",
-  "webhook.sentSuccessfully": "Webhook با موفقیت ارسال شد"
+  "webhook.sentSuccessfully": "Webhook با موفقیت ارسال شد",
+  "admin.automation.validation.addCondition": "لطفاً حداقل یک شرط اضافه کنید.",
+  "admin.automation.validation.setConditionValue": "لطفاً برای همه شرط‌ها یک مقدار تعیین کنید.",
+  "admin.automation.validation.addAction": "لطفاً حداقل یک عملیات اضافه کنید.",
+  "admin.automation.validation.setActionValue": "لطفاً برای همه عملیات‌ها یک مقدار تعیین کنید.",
+  "admin.automation.validation.selectField": "لطفاً برای همه شرط‌ها یک فیلد انتخاب کنید.",
+  "admin.automation.validation.selectOperator": "لطفاً برای همه شرط‌ها یک عملگر انتخاب کنید.",
+  "admin.automation.validation.selectActionType": "لطفاً برای همه عملیات‌ها یک نوع انتخاب کنید."
 }

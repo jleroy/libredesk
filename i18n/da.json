@@ -992,5 +992,12 @@
   "webhook.edit": "Rediger webhook",
   "webhook.new": "Ny webhook",
   "webhook.sendTest": "Send testbesked",
-  "webhook.sentSuccessfully": "Webhook sendt"
+  "webhook.sentSuccessfully": "Webhook sendt",
+  "admin.automation.validation.addCondition": "Tilføj venligst mindst én betingelse.",
+  "admin.automation.validation.setConditionValue": "Angiv venligst en værdi for alle betingelser.",
+  "admin.automation.validation.addAction": "Tilføj venligst mindst én handling.",
+  "admin.automation.validation.setActionValue": "Angiv venligst en værdi for alle handlinger.",
+  "admin.automation.validation.selectField": "Vælg venligst et felt for alle betingelser.",
+  "admin.automation.validation.selectOperator": "Vælg venligst en operator for alle betingelser.",
+  "admin.automation.validation.selectActionType": "Vælg venligst en type for alle handlinger."
 }

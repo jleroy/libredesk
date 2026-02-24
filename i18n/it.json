@@ -992,5 +992,12 @@
   "webhook.edit": "Modifica webhook",
   "webhook.new": "Nuovo webhook",
   "webhook.sendTest": "Invia test",
-  "webhook.sentSuccessfully": "Webhook inviato con successo"
+  "webhook.sentSuccessfully": "Webhook inviato con successo",
+  "admin.automation.validation.addCondition": "Aggiungi almeno una condizione.",
+  "admin.automation.validation.setConditionValue": "Imposta un valore per tutte le condizioni.",
+  "admin.automation.validation.addAction": "Aggiungi almeno un'azione.",
+  "admin.automation.validation.setActionValue": "Imposta un valore per tutte le azioni.",
+  "admin.automation.validation.selectField": "Seleziona un campo per tutte le condizioni.",
+  "admin.automation.validation.selectOperator": "Seleziona un operatore per tutte le condizioni.",
+  "admin.automation.validation.selectActionType": "Seleziona un tipo per tutte le azioni."
 }

@@ -992,5 +992,12 @@
   "webhook.edit": "वेबहुक संपादित करा",
   "webhook.new": "नवीन वेबहुक",
   "webhook.sendTest": "चाचणी पाठवा",
-  "webhook.sentSuccessfully": "वेबहुक यशस्वीरित्या पाठवले"
+  "webhook.sentSuccessfully": "वेबहुक यशस्वीरित्या पाठवले",
+  "admin.automation.validation.addCondition": "कृपया किमान एक अट जोडा.",
+  "admin.automation.validation.setConditionValue": "कृपया सर्व अटींसाठी मूल्य सेट करा.",
+  "admin.automation.validation.addAction": "कृपया किमान एक कृती जोडा.",
+  "admin.automation.validation.setActionValue": "कृपया सर्व कृतींसाठी मूल्य सेट करा.",
+  "admin.automation.validation.selectField": "कृपया सर्व अटींसाठी फील्ड निवडा.",
+  "admin.automation.validation.selectOperator": "कृपया सर्व अटींसाठी ऑपरेटर निवडा.",
+  "admin.automation.validation.selectActionType": "कृपया सर्व कृतींसाठी प्रकार निवडा."
 }
