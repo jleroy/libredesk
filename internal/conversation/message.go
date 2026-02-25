@@ -420,10 +420,9 @@ func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, con
 }
 
 // QueueReply queues a reply message in a conversation.
-func (m *Manager) QueueReply(media []mmodels.Media, inboxID, senderID, contactID int, conversationUUID, content string, to, cc, bcc []string, meta map[string]interface{}) (models.Message, error) {
+func (m *Manager) QueueReply(media []mmodels.Media, inboxID, senderID, contactID int, conversationUUID, content string, to, cc, bcc []string, metaMap map[string]interface{}) (models.Message, error) {
 	var (
 		message = models.Message{}
-		metaMap = map[string]interface{}{}
 	)
 
 	inboxRecord, err := m.inboxStore.GetDBRecord(inboxID)
@@ -453,7 +452,7 @@ func (m *Manager) QueueReply(media []mmodels.Media, inboxID, senderID, contactID
 			metaMap["bcc"] = bcc
 		}
 		if len(to) == 0 {
-		return message, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.empty", "name", "`to`"), nil)
+			return message, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.empty", "name", "`to`"), nil)
 		}
 		sourceID, err = stringutil.GenerateEmailMessageID(conversationUUID, inboxRecord.From)
 		if err != nil {
