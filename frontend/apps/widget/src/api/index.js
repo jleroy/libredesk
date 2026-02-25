@@ -84,6 +84,7 @@ const getWidgetSettings = (inboxID) => http.get('/api/v1/widget/chat/settings', 
     params: { inbox_id: inboxID }
 })
 const getLanguage = (lang) => http.get(`/api/v1/lang/${lang}`)
+const getAvailableLanguages = () => http.get('/api/v1/lang')
 const initChatConversation = (data) => http.post('/api/v1/widget/chat/conversations/init', data)
 const getChatConversations = () => http.get('/api/v1/widget/chat/conversations')
 const getChatConversation = (uuid) => http.get(`/api/v1/widget/chat/conversations/${uuid}`)
@@ -141,6 +142,7 @@ const submitCSATResponse = (csatUuid, rating, feedback) =>
 export default {
     getWidgetSettings,
     getLanguage,
+    getAvailableLanguages,
     initChatConversation,
     getChatConversations,
     getChatConversation,

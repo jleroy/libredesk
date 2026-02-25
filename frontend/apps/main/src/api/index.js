@@ -368,6 +368,7 @@ const getOverviewCSAT = (params) => http.get('/api/v1/reports/overview/csat', { 
 const getOverviewMessageVolume = (params) => http.get('/api/v1/reports/overview/messages', { params })
 const getOverviewTagDistribution = (params) => http.get('/api/v1/reports/overview/tags', { params })
 const getLanguage = (lang) => http.get(`/api/v1/lang/${lang}`)
+const getAvailableLanguages = () => http.get('/api/v1/lang')
 const createInbox = (data) =>
   http.post('/api/v1/inboxes', data, {
     headers: {
@@ -508,6 +509,7 @@ export default {
   getInbox,
   getInboxes,
   getLanguage,
+  getAvailableLanguages,
   getConversation,
   getAutomationRule,
   getAutomationRules,

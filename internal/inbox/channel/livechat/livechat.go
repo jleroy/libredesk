@@ -37,11 +37,12 @@ type PreChatFormField struct {
 
 // Config holds the live chat inbox configuration.
 type Config struct {
-	BrandName     string `json:"brand_name"`
-	DarkMode      bool   `json:"dark_mode"`
-	ShowPoweredBy bool   `json:"show_powered_by"`
-	Language      string `json:"language"`
-	Users         struct {
+	BrandName        string `json:"brand_name"`
+	DarkMode         bool   `json:"dark_mode"`
+	ShowPoweredBy    bool   `json:"show_powered_by"`
+	Language         string `json:"language"`
+	FallbackLanguage string `json:"fallback_language"`
+	Users            struct {
 		AllowStartConversation       bool   `json:"allow_start_conversation"`
 		PreventMultipleConversations bool   `json:"prevent_multiple_conversations"`
 		StartConversationButtonText  string `json:"start_conversation_button_text"`

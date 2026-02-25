@@ -5,6 +5,7 @@
         <GeneralSettingForm
           :submitForm="submitForm"
           :initial-values="initialValues"
+          :available-languages="availableLanguages"
         />
         <Spinner v-if="isLoading" />
       </div>
@@ -24,12 +25,17 @@ import { useAppSettingsStore } from '@/stores/appSettings'
 import api from '@/api'
 
 const initialValues = ref({})
+const availableLanguages = ref([])
 const isLoading = ref(false)
 const settingsStore = useAppSettingsStore()
 
 onMounted(async () => {
   isLoading.value = true
-  await settingsStore.fetchSettings('general')
+  const [, langsResp] = await Promise.all([
+    settingsStore.fetchSettings('general'),
+    api.getAvailableLanguages()
+  ])
+  availableLanguages.value = langsResp.data.data
   const data = settingsStore.settings
   isLoading.value = false
   initialValues.value = Object.keys(data).reduce((acc, key) => {

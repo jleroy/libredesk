@@ -11,6 +11,7 @@ export const createFormSchema = (t) => z.object({
     dark_mode: z.boolean(),
     show_powered_by: z.boolean(),
     language: z.string().min(1, { message: t('globals.messages.required') }),
+    fallback_language: z.string().optional(),
     logo_url: z.string().url({
       message: t('validation.invalidUrl')
     }).optional().or(z.literal('')),

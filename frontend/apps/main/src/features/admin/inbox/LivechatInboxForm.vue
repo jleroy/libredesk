@@ -80,12 +80,34 @@
                     <SelectValue :placeholder="$t('admin.general.language.placeholder')" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="mr">मराठी</SelectItem>
+                    <SelectItem value="auto">{{ $t('admin.inbox.livechat.language.auto') }}</SelectItem>
+                    <SelectItem v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                      {{ lang.name }}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </FormControl>
               <FormDescription> </FormDescription>
+            </FormItem>
+          </FormField>
+
+          <!-- Fallback Language (shown only when auto-detect is selected) -->
+          <FormField v-if="form.values.config?.language === 'auto'" v-slot="{ componentField }" name="config.fallback_language">
+            <FormItem>
+              <FormLabel>{{ $t('admin.inbox.livechat.fallbackLanguage') }}</FormLabel>
+              <FormControl>
+                <Select v-bind="componentField">
+                  <SelectTrigger>
+                    <SelectValue :placeholder="$t('admin.general.language.placeholder')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                      {{ lang.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormDescription>{{ $t('admin.inbox.livechat.fallbackLanguage.description') }}</FormDescription>
             </FormItem>
           </FormField>
 
@@ -805,6 +827,10 @@ const props = defineProps({
     type: Object,
     default: () => ({})
   },
+  availableLanguages: {
+    type: Array,
+    default: () => []
+  },
   submitForm: {
     type: Function,
     required: true
@@ -895,6 +921,7 @@ const form = useForm({
       dark_mode: false,
       show_powered_by: true,
       language: 'en',
+      fallback_language: 'en',
       logo_url: '',
       launcher: {
         position: 'right',

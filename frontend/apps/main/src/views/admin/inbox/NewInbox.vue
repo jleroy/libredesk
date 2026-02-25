@@ -70,7 +70,7 @@
           <EmailInboxForm :initial-values="{}" :submitForm="submitForm" :isLoading="isLoading" />
         </div>
         <div v-else-if="selectedChannel === 'livechat'">
-          <LivechatInboxForm :initial-values="{}" :submitForm="submitLiveChatForm" :isLoading="isLoading" />
+          <LivechatInboxForm :initial-values="{}" :submitForm="submitLiveChatForm" :isLoading="isLoading" :available-languages="availableLanguages" />
         </div>
       </div>
 
@@ -84,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { useRouter } from 'vue-router'
 import { CustomBreadcrumb } from '@shared-ui/components/ui/breadcrumb/index.js'
@@ -108,6 +108,7 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const emitter = useEmitter()
 const isLoading = ref(false)
+const availableLanguages = ref([])
 const currentStep = ref(1)
 const selectedChannel = ref(null)
 const router = useRouter()
@@ -156,6 +157,15 @@ const channels = [
     icon: MessageCircle
   }
 ]
+
+onMounted(async () => {
+  try {
+    const resp = await api.getAvailableLanguages()
+    availableLanguages.value = resp.data.data
+  } catch (error) {
+    console.error('Error fetching available languages:', error)
+  }
+})
 
 const goBack = () => {
   currentStep.value = 1

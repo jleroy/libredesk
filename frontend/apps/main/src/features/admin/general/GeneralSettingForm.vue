@@ -24,15 +24,9 @@
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="da">Dansk</SelectItem>
-                <SelectItem value="de">Deutsch</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Español</SelectItem>
-                <SelectItem value="fa">فارسی</SelectItem>
-                <SelectItem value="fr">Français</SelectItem>
-                <SelectItem value="it">Italiano</SelectItem>
-                <SelectItem value="ja">日本語</SelectItem>
-                <SelectItem value="mr">मराठी</SelectItem>
+                <SelectItem v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                  {{ lang.name }}
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -225,6 +219,10 @@ const props = defineProps({
   initialValues: {
     type: Object,
     required: false
+  },
+  availableLanguages: {
+    type: Array,
+    default: () => []
   },
   submitForm: {
     type: Function,

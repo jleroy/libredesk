@@ -20,8 +20,17 @@ async function initWidget () {
         const widgetSettingsResponse = await api.getWidgetSettings(inboxID)
         const widgetConfig = widgetSettingsResponse.data.data
 
-        // Get language from config or default to 'en'
-        const lang = widgetConfig.language || 'en'
+        // Resolve language: auto-detect from browser or use admin-configured language.
+        let lang
+        const fallbackLang = widgetConfig.fallback_language || 'en'
+        if (widgetConfig.language === 'auto') {
+            const browserLang = (navigator.language || navigator.languages?.[0] || '').split('-')[0]
+            const availableResp = await api.getAvailableLanguages()
+            const availableCodes = availableResp.data.data.map(l => l.code)
+            lang = availableCodes.includes(browserLang) ? browserLang : fallbackLang
+        } else {
+            lang = widgetConfig.language || fallbackLang
+        }
 
         // Fetch language messages
         const langMessages = await api.getLanguage(lang)
@@ -30,7 +39,7 @@ async function initWidget () {
         const i18nConfig = {
             legacy: false,
             locale: lang,
-            fallbackLocale: 'en',
+            fallbackLocale: fallbackLang,
             messages: {
                 [lang]: langMessages.data
             }

@@ -14,6 +14,7 @@
       :initialValues="inbox"
       :submitForm="submitForm"
       :isLoading="isLoading"
+      :available-languages="availableLanguages"
       v-else-if="inbox.channel === 'livechat'"
     />
   </div>
@@ -37,6 +38,7 @@ const { t } = useI18n()
 const formLoading = ref(false)
 const isLoading = ref(false)
 const inbox = ref({})
+const availableLanguages = ref([])
 const breadcrumbLinks = [
   { path: 'inbox-list', label: t('globals.terms.inbox', 2) },
   { path: '', label: t('inbox.edit') }
@@ -114,7 +116,11 @@ const updateInbox = async (payload) => {
 onMounted(async () => {
   try {
     formLoading.value = true
-    const resp = await api.getInbox(props.id)
+    const [resp, langsResp] = await Promise.all([
+      api.getInbox(props.id),
+      api.getAvailableLanguages()
+    ])
+    availableLanguages.value = langsResp.data.data
     let inboxData = resp.data.data
 
     // Modify the inbox data as per the zod schema.
