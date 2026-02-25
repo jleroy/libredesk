@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
     // Separate cache per app to avoid stale/conflicting caches.
     cacheDir: path.resolve(__dirname, `node_modules/.vite-${isWidget ? 'widget' : 'main'}`),
     server: {
+      cors: { origin: "*" },
       // Allow access to parent dir so shared-ui imports work in dev.
       fs: {
         allow: [path.resolve(__dirname)],
@@ -40,23 +41,29 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:9000',
+          changeOrigin: true, 
         },
         '/widget.js': {
           target: 'http://127.0.0.1:9000',
+          changeOrigin: true, 
         },
         '/logout': {
           target: 'http://127.0.0.1:9000',
+          changeOrigin: true, 
         },
         '/uploads': {
           target: 'http://127.0.0.1:9000',
+          changeOrigin: true, 
         },
         '/ws': {
           target: 'ws://127.0.0.1:9000',
           ws: true,
+          changeOrigin: true, 
         },
         '/widget/ws': {
           target: 'ws://127.0.0.1:9000',
           ws: true,
+          changeOrigin: true, 
         }
       },
     },

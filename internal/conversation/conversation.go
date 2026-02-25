@@ -1326,7 +1326,8 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 	message := fmt.Sprintf(csatReplyMessage, csatPublicURL)
 	// Store `is_csat` meta to identify and filter CSAT public url from the message.
 	meta := map[string]interface{}{
-		"is_csat": true,
+		"is_csat":   true,
+		"csat_uuid": csat.UUID,
 	}
 
 	// Make recipient list.

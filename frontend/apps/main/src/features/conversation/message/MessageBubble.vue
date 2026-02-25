@@ -73,6 +73,9 @@
           <!-- Attachments -->
           <MessageAttachmentPreview :attachments="nonInlineAttachments" />
 
+          <!-- CSAT Response -->
+          <CSATResponseDisplay :message="message" />
+
           <!-- Spinner for Pending Messages (outgoing only) -->
           <Spinner v-if="isOutgoing && message.status === 'pending'" size="sm" />
 
@@ -129,6 +132,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/av
 import { Letter } from 'vue-letter'
 import MessageAttachmentPreview from '@main/features/conversation/message/attachment/MessageAttachmentPreview.vue'
 import MessageEnvelope from './MessageEnvelope.vue'
+import CSATResponseDisplay from './CSATResponseDisplay.vue'
 import api from '@main/api'
 
 const props = defineProps({
@@ -165,6 +169,10 @@ const avatarFallback = computed(() => {
 
 // Content sanitization - different processing for incoming vs outgoing
 const sanitizedContent = computed(() => {
+  if (props.message.meta?.is_csat) {
+    return t('globals.messages.pleaseRateConversation')
+  }
+
   let content = props.message.content || ''
 
   if (isOutgoing.value) {
