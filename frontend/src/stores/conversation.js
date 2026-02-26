@@ -603,6 +603,12 @@ export const useConversationStore = defineStore('conversation', () => {
    * @param {object} message - Message object with conversation_uuid field
    */
   async function updateConversationMessage (message) {
+    // Skip if the message's conversation UUID is not in the list.
+    if (!conversationUUIDExists(message.conversation_uuid) &&
+      conversation.data?.uuid !== message.conversation_uuid) {
+      return
+    }
+
     // Message does not exist in cache? fetch from server and update.
     if (!messages.data.hasMessage(message.conversation_uuid, message.uuid)) {
       fetchParticipants(message.conversation_uuid)
