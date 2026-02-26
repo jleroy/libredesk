@@ -300,6 +300,12 @@ const processSend = async () => {
               .filter((email) => email)
           : []
       })
+
+      // Instantly update conversation list preview.
+      conversationStore.updateConversationLastMessage(
+        conversationStore.current.uuid,
+        { text_content: textContent.value, created_at: new Date().toISOString(), sender_type: 'agent' }
+      )
     }
 
     // Apply macro actions if any, for macro errors just show toast and clear the editor.
