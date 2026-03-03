@@ -31,23 +31,6 @@
             </FormItem>
           </FormField>
 
-          <FormField v-slot="{ componentField, handleChange }" name="csat_enabled">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
-                <FormDescription>
-                  {{ $t('admin.inbox.csatSurveys.description_1') }}
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
-            </FormItem>
-            <p class="!mt-2 text-muted-foreground text-sm">
-              {{ $t('admin.inbox.csatSurveys.description_2') }}
-            </p>
-          </FormField>
-
           <FormField v-slot="{ componentField }" name="name">
             <FormItem>
               <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
@@ -135,42 +118,27 @@
               </FormDescription>
             </FormItem>
           </FormField>
+
+          <FormField v-slot="{ componentField, handleChange }" name="csat_enabled">
+            <FormItem class="flex flex-row items-center justify-between box p-4">
+              <div class="space-y-0.5">
+                <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
+                <FormDescription>
+                  {{ $t('admin.inbox.csatSurveys.description_1') }}
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
+              </FormControl>
+            </FormItem>
+            <p class="!mt-2 text-muted-foreground text-sm">
+              {{ $t('admin.inbox.csatSurveys.description_2') }}
+            </p>
+          </FormField>
         </div>
 
         <!-- Appearance Tab -->
         <div v-show="activeTab === 'appearance'" class="space-y-6">
-          <!-- Dark mode -->
-          <FormField v-slot="{ componentField, handleChange }" name="config.dark_mode">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base">{{ $t('admin.inbox.livechat.darkMode') }}</FormLabel>
-                <FormDescription>{{
-                  $t('admin.inbox.livechat.darkMode.description')
-                }}</FormDescription>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
-            </FormItem>
-          </FormField>
-
-          <!-- Show Powered By -->
-          <FormField v-slot="{ componentField, handleChange }" name="config.show_powered_by">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base">{{
-                  $t('admin.inbox.livechat.showPoweredBy')
-                }}</FormLabel>
-                <FormDescription>{{
-                  $t('admin.inbox.livechat.showPoweredBy.description')
-                }}</FormDescription>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
-            </FormItem>
-          </FormField>
-
           <!-- Logo URL -->
           <FormField v-slot="{ componentField }" name="config.logo_url">
             <FormItem>
@@ -279,6 +247,38 @@
               </FormField>
             </div>
           </div>
+
+          <!-- Dark mode -->
+          <FormField v-slot="{ componentField, handleChange }" name="config.dark_mode">
+            <FormItem class="flex flex-row items-center justify-between box p-4">
+              <div class="space-y-0.5">
+                <FormLabel class="text-base">{{ $t('admin.inbox.livechat.darkMode') }}</FormLabel>
+                <FormDescription>{{
+                  $t('admin.inbox.livechat.darkMode.description')
+                }}</FormDescription>
+              </div>
+              <FormControl>
+                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
+              </FormControl>
+            </FormItem>
+          </FormField>
+
+          <!-- Show Powered By -->
+          <FormField v-slot="{ componentField, handleChange }" name="config.show_powered_by">
+            <FormItem class="flex flex-row items-center justify-between box p-4">
+              <div class="space-y-0.5">
+                <FormLabel class="text-base">{{
+                  $t('admin.inbox.livechat.showPoweredBy')
+                }}</FormLabel>
+                <FormDescription>{{
+                  $t('admin.inbox.livechat.showPoweredBy.description')
+                }}</FormDescription>
+              </div>
+              <FormControl>
+                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
+              </FormControl>
+            </FormItem>
+          </FormField>
         </div>
 
         <!-- Messages Tab -->
@@ -779,6 +779,22 @@
               {{ $t('admin.inbox.livechat.installation.authenticated.secret.note') }}
             </p>
           </div>
+
+          <!-- JavaScript API Section -->
+          <div class="space-y-4 pt-4">
+            <h4 class="font-medium text-foreground">
+              {{ $t('admin.inbox.livechat.installation.jsApi.title') }}
+            </h4>
+
+            <p class="text-sm text-muted-foreground">
+              {{ $t('admin.inbox.livechat.installation.jsApi.description') }}
+            </p>
+
+            <div class="relative">
+              <CodeEditor :modelValue="jsApiSnippet" language="javascript" :readOnly="true" />
+              <CopyButton :text="jsApiSnippet" class="absolute top-3 right-3" />
+            </div>
+          </div>
         </div>
       </div>
     </Tabs>
@@ -868,8 +884,7 @@ const integrationSnippet = computed(() => {
   const inboxId = props.initialValues?.id || '<INBOX_ID>'
   return `<script src="${baseUrl.value}/widget.js"><\/script>
 <script>
-  // Initialize the Libredesk widget
-  const widget = initLibredeskWidget({
+  initLibredeskWidget({
     baseUrl: '${baseUrl.value}',
     inboxID: ${inboxId}
   });
@@ -879,7 +894,7 @@ const integrationSnippet = computed(() => {
 // JWT payload example
 const jwtPayloadExample = computed(() => {
   return `{
-  "external_user_id": "your_app_user_123",  // Required: Your application's unique user ID
+  "external_user_id": "your_app_user_123",  // Required: Unique user ID (use email if unavailable)
   "email": "user@example.com",              // Optional: User's email
   "first_name": "John",                     // Optional: User's first name
   "last_name": "Doe",                       // Optional: User's last name
@@ -899,13 +914,33 @@ const authenticatedIntegrationSnippet = computed(() => {
   // Sign it with the secret key from the Security tab
   const userJWT = 'YOUR_SIGNED_JWT_TOKEN_HERE';
 
-  // Initialize the Libredesk widget with authentication
-  const widget = initLibredeskWidget({
+  initLibredeskWidget({
     baseUrl: '${baseUrl.value}',
     inboxID: ${inboxId},
-    libredesk_user_jwt: userJWT  // Pass the signed JWT token
+    libredesk_user_jwt: userJWT
   });
 <\/script>`
+})
+
+// JavaScript API example
+const jsApiSnippet = computed(() => {
+  return `// Hide the default launcher and open programmatically
+initLibredeskWidget({
+  baseUrl: '...',
+  inboxID: 123,
+  hideDefaultLauncher: true
+});
+
+// Authenticate a user after init
+window.LibredeskWidget.setUser('SIGNED_JWT_TOKEN');
+
+// Clear user session (e.g. on logout)
+window.LibredeskWidget.logout();
+
+// Show, hide, or toggle the widget
+window.LibredeskWidget.show();
+window.LibredeskWidget.hide();
+window.LibredeskWidget.toggle();`
 })
 
 const form = useForm({

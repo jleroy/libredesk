@@ -66,10 +66,11 @@ const setupParentMessageListeners = () => {
     } else if (event.data.type === 'WIDGET_EXPANDED') {
       widgetStore.setExpanded(event.data.isExpanded)
     } else if (event.data.type === 'SET_JWT_TOKEN') {
-      // Set the JWT token in user store when received from parent
       if (event.data.jwt) {
         userStore.setSessionToken(event.data.jwt)
       }
+    } else if (event.data.type === 'CLEAR_SESSION') {
+      userStore.clearSessionToken()
     }
   })
 }

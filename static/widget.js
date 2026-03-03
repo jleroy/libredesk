@@ -31,6 +31,7 @@
             this.isMobile = window.innerWidth <= 600;
             this.isExpanded = false;
             this.isVueAppReady = false;
+            this.hideDefaultLauncher = config.hideDefaultLauncher || false;
             this.init();
         }
 
@@ -254,8 +255,9 @@
 
         handleVueAppReady () {
             this.isVueAppReady = true;
-            // Show the widget button now that Vue app is ready
-            this.widgetButtonWrapper.style.display = '';
+            if (!this.hideDefaultLauncher) {
+                this.widgetButtonWrapper.style.display = '';
+            }
 
             // Send JWT token if provided in config
             if (this.config.libredesk_user_jwt) {
@@ -392,6 +394,21 @@
             }
         }
 
+        setUser (jwt) {
+            if (this.iframe && this.iframe.contentWindow) {
+                this.iframe.contentWindow.postMessage({
+                    type: 'SET_JWT_TOKEN',
+                    jwt: jwt
+                }, '*');
+            }
+        }
+
+        logout () {
+            if (this.iframe && this.iframe.contentWindow) {
+                this.iframe.contentWindow.postMessage({ type: 'CLEAR_SESSION' }, '*');
+            }
+        }
+
         destroy () {
             if (this.widgetButtonWrapper) {
                 document.body.removeChild(this.widgetButtonWrapper);
@@ -406,6 +423,10 @@
             this.isChatVisible = false;
         }
     }
+
+    LibredeskWidget.prototype.show = LibredeskWidget.prototype.showChat;
+    LibredeskWidget.prototype.hide = LibredeskWidget.prototype.hideChat;
+    LibredeskWidget.prototype.isVisible = function () { return this.isChatVisible; };
 
     // Global widget instance
     window.LibredeskWidget = LibredeskWidget;
@@ -422,39 +443,6 @@
         }
         window.LibredeskWidget = new LibredeskWidget(config);
         return window.LibredeskWidget;
-    };
-
-    LibredeskWidget.show = function () {
-        if (window.LibredeskWidget && window.LibredeskWidget instanceof LibredeskWidget) {
-            window.LibredeskWidget.showChat();
-        } else {
-            console.warn('Libredesk Widget is not initialized. Call initLibredeskWidget() first.');
-        }
-    };
-
-    LibredeskWidget.hide = function () {
-        if (window.LibredeskWidget && window.LibredeskWidget instanceof LibredeskWidget) {
-            window.LibredeskWidget.hideChat();
-        } else {
-            console.warn('Libredesk Widget is not initialized. Call initLibredeskWidget() first.');
-        }
-    };
-
-    LibredeskWidget.toggle = function () {
-        if (window.LibredeskWidget && window.LibredeskWidget instanceof LibredeskWidget) {
-            window.LibredeskWidget.toggle();
-        } else {
-            console.warn('Libredesk Widget is not initialized. Call initLibredeskWidget() first.');
-        }
-    };
-
-    LibredeskWidget.isVisible = function () {
-        if (window.LibredeskWidget && window.LibredeskWidget instanceof LibredeskWidget) {
-            return window.LibredeskWidget.isChatVisible;
-        } else {
-            console.warn('Libredesk Widget is not initialized. Call initLibredeskWidget() first.');
-            return false;
-        }
     };
 
 })();
