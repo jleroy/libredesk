@@ -41,10 +41,17 @@
     </div>
     <div class="text-sm text-muted-foreground flex gap-2 items-center">
       <Mail size="16" class="flex-shrink-0" />
+      <Tooltip v-if="isLivechat && !conversationStore.conversation.loading">
+        <TooltipTrigger as-child>
+          <ShieldCheck v-if="isVerified" size="14" class="flex-shrink-0 text-green-600" />
+          <ShieldQuestion v-else size="14" class="flex-shrink-0 text-amber-500" />
+        </TooltipTrigger>
+        <TooltipContent>{{ isVerified ? t('contact.identityVerified') : t('contact.identityNotVerified') }}</TooltipContent>
+      </Tooltip>
       <span v-if="conversationStore.conversation.loading">
         <Skeleton class="w-32 h-4" />
       </span>
-      <span v-else-if="conversation?.contact?.email"  class="break-all">
+      <span v-else-if="conversation?.contact?.email" class="break-all">
         {{ conversation?.contact?.email }}
       </span>
       <span v-else class="text-muted-foreground">
@@ -72,13 +79,32 @@
         {{ conversation.contact.external_user_id }}
       </span>
     </div>
-    <div
-      v-if="conversation?.contact?.type === 'visitor'"
-      class="text-sm text-amber-600 flex gap-2 items-center bg-amber-50 dark:bg-amber-900/20 p-2 rounded"
-    >
-      <AlertCircle size="16" class="flex-shrink-0" />
-      <span>{{ t('contact.identityNotVerified') }} ({{ t('globals.terms.visitor', 1) }})</span>
-    </div>
+
+    <!-- Livechat visitor info -->
+    <template v-if="isLivechat && !conversationStore.conversation.loading">
+      <div
+        v-if="conversation?.contact?.country"
+        class="text-sm text-muted-foreground flex gap-2 items-center"
+      >
+        <Globe size="16" class="flex-shrink-0" />
+        <span>{{ countryName }}</span>
+      </div>
+      <div
+        v-if="conversation?.meta?.ip"
+        class="text-sm text-muted-foreground flex gap-2 items-center"
+      >
+        <Monitor size="16" class="flex-shrink-0" />
+        <span class="break-all">{{ conversation.meta.ip }}</span>
+      </div>
+      <div
+        v-if="conversation?.meta?.user_agent"
+        class="text-sm text-muted-foreground flex gap-2 items-center"
+      >
+        <Smartphone size="16" class="flex-shrink-0" />
+        <span class="break-all">{{ parsedUA }}</span>
+      </div>
+    </template>
+
   </div>
 </template>
 
@@ -88,7 +114,8 @@ import { ViewVerticalIcon } from '@radix-icons/vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import StatusDot from '@shared-ui/components/StatusDot.vue'
-import { Mail, Phone, ExternalLink, AlertCircle, IdCard } from 'lucide-vue-next'
+import { Mail, Phone, ExternalLink, IdCard, Globe, Monitor, Smartphone, ShieldCheck, ShieldQuestion } from 'lucide-vue-next'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import countries from '@/constants/countries.js'
 import { useEmitter } from '@/composables/useEmitter'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
@@ -96,7 +123,6 @@ import { useConversationStore } from '@/stores/conversation'
 import { Skeleton } from '@shared-ui/components/ui/skeleton'
 import { useUserStore } from '@/stores/user'
 import { useI18n } from 'vue-i18n'
-
 const conversationStore = useConversationStore()
 const emitter = useEmitter()
 const conversation = computed(() => conversationStore.current)
@@ -114,6 +140,26 @@ const phoneNumber = computed(() => {
   return `${callingCode} ${number}`
 })
 
+const countryName = computed(() => {
+  const code = conversation.value?.contact?.country
+  if (!code) return ''
+  const c = countries.find((c) => c.iso_2 === code)
+  return c ? c.name : code
+})
+
 const isLivechat = computed(() => conversation.value?.inbox_channel === 'livechat')
 const contactStatus = computed(() => conversation.value?.contact?.availability_status)
+const isVerified = computed(() => isLivechat.value && conversation.value?.contact?.type !== 'visitor')
+
+const parsedUA = computed(() => {
+  const ua = conversation.value?.meta?.user_agent
+  if (!ua) return ''
+  const browser = ua.match(/(Chrome|Firefox|Safari|Edge|Opera|MSIE|Trident)[/\s](\d+)/i)
+  const os = ua.match(/(Windows|Mac OS X|Linux|Android|iOS|iPhone|iPad)[\s/]?([0-9._]*)/i)
+  const parts = []
+  if (browser) parts.push(browser[1] + ' ' + browser[2])
+  if (os) parts.push(os[1].replace('_', ' '))
+  return parts.length > 0 ? parts.join(' / ') : ua.substring(0, 60)
+})
+
 </script>

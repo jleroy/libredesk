@@ -325,6 +325,28 @@ func handleGetConversation(r *fastglue.Request) error {
 	return r.SendEnvelope(conv)
 }
 
+// handleGetContactPageVisits returns the recent page visits for the contact of a conversation.
+func handleGetContactPageVisits(r *fastglue.Request) error {
+	var (
+		app   = r.Context.(*App)
+		uuid  = r.RequestCtx.UserValue("uuid").(string)
+		auser = r.RequestCtx.UserValue("user").(amodels.User)
+	)
+
+	user, err := app.user.GetAgent(auser.ID, "")
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	conv, err := enforceConversationAccess(app, uuid, user)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	pages := getPageVisitsFromRedis(app, conv.ContactID)
+	return r.SendEnvelope(pages)
+}
+
 // handleUpdateConversationAssigneeLastSeen updates the current user's last seen timestamp for a conversation.
 func handleUpdateConversationAssigneeLastSeen(r *fastglue.Request) error {
 	var (
@@ -766,6 +788,8 @@ func handleCreateConversation(r *fastglue.Request) error {
 		time.Now(), /** last_message_at **/
 		req.Subject,
 		true, /** append reference number to subject? **/
+		nil,
+		nil,
 	)
 	if err != nil {
 		app.lo.Error("error creating conversation", "error", err)

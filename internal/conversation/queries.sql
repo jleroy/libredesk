@@ -12,18 +12,20 @@ reference_number AS (
     SELECT generate_reference_number($7) AS reference_number
 )
 INSERT INTO conversations
-(contact_id, status_id, inbox_id, last_message, last_message_at, subject, reference_number)
+(contact_id, status_id, inbox_id, last_message, last_message_at, subject, reference_number, meta, custom_attributes)
 VALUES(
-   $1, 
-   (SELECT id FROM status_id), 
-   $3, 
-   $4, 
-   $5, 
-   CASE 
+   $1,
+   (SELECT id FROM status_id),
+   $3,
+   $4,
+   $5,
+   CASE
       WHEN $8 = TRUE THEN CONCAT($6::text, ' - #', (SELECT reference_number FROM reference_number), '')
       ELSE $6::text
-   END, 
-   (SELECT reference_number FROM reference_number)
+   END,
+   (SELECT reference_number FROM reference_number),
+   $9,
+   $10
 )
 RETURNING id, uuid;
 
@@ -162,6 +164,7 @@ SELECT
    ct.avatar_url as "contact.avatar_url",
    ct.phone_number as "contact.phone_number",
    ct.phone_number_country_code as "contact.phone_number_country_code",
+   ct.country as "contact.country",
    ct.custom_attributes as "contact.custom_attributes",
    ct.enabled as "contact.enabled",
    ct.last_active_at as "contact.last_active_at",
@@ -321,11 +324,6 @@ SET assigned_team_id = $2,
 updated_at = NOW()
 WHERE uuid = $1;
 
--- name: update-conversation-meta
-UPDATE conversations
-SET meta = COALESCE(meta, '{}'::jsonb) || $2,
-    updated_at = NOW()
-WHERE uuid = $1;
 
 -- name: update-conversation-status
 UPDATE conversations
@@ -583,6 +581,9 @@ SELECT
     u.first_name AS "author.first_name",
     u.last_name AS "author.last_name",
     u.avatar_url AS "author.avatar_url",
+    u.availability_status AS "author.availability_status",
+    u.type AS "author.type",
+    u.last_active_at AS "author.last_active_at",
     COALESCE(
         json_agg(
             json_build_object(
@@ -603,7 +604,7 @@ LEFT JOIN media ON media.model_type = 'messages' AND media.model_id = m.id
 WHERE m.uuid = $1
 GROUP BY
     m.id, m.created_at, m.updated_at, m.status, m.type, m.content, m.uuid, m.private, m.sender_type, c.uuid,
-    u.id, u.first_name, u.last_name, u.avatar_url
+    u.id, u.first_name, u.last_name, u.avatar_url, u.availability_status, u.type, u.last_active_at
 ORDER BY m.created_at;
 
 -- name: get-messages
@@ -628,6 +629,9 @@ SELECT
    u.first_name AS "author.first_name",
    u.last_name AS "author.last_name",
    u.avatar_url AS "author.avatar_url",
+   u.availability_status AS "author.availability_status",
+   u.type AS "author.type",
+   u.last_active_at AS "author.last_active_at",
    COALESCE(
      (SELECT json_agg(
        json_build_object(

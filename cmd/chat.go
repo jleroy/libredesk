@@ -16,10 +16,12 @@ import (
 	bhmodels "github.com/abhinavxd/libredesk/internal/business_hours/models"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/httputil"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
+	realip "github.com/ferluci/fast-realip"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/valyala/fasthttp"
 	"github.com/volatiletech/null/v9"
@@ -28,13 +30,14 @@ import (
 
 // Define JWT claims structure
 type Claims struct {
-	UserID           int            `json:"user_id,omitempty"`
-	ExternalUserID   string         `json:"external_user_id,omitempty"`
-	IsVisitor        bool           `json:"is_visitor,omitempty"`
-	Email            string         `json:"email,omitempty"`
-	FirstName        string         `json:"first_name,omitempty"`
-	LastName         string         `json:"last_name,omitempty"`
-	CustomAttributes map[string]any `json:"custom_attributes,omitempty"`
+	UserID                       int            `json:"user_id,omitempty"`
+	ExternalUserID               string         `json:"external_user_id,omitempty"`
+	IsVisitor                    bool           `json:"is_visitor,omitempty"`
+	Email                        string         `json:"email,omitempty"`
+	FirstName                    string         `json:"first_name,omitempty"`
+	LastName                     string         `json:"last_name,omitempty"`
+	ContactCustomAttributes      map[string]any `json:"contact_custom_attributes,omitempty"`
+	ConversationCustomAttributes map[string]any `json:"conversation_custom_attributes,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -67,10 +70,6 @@ type conversationResponseWithBusinessHours struct {
 	WorkingHoursUTCOffset *int `json:"working_hours_utc_offset,omitempty"`
 }
 
-// -----------------------------------------------------------------------------
-// Handlers
-// -----------------------------------------------------------------------------
-
 // handleGetChatLauncherSettings returns the live chat launcher settings for the widget
 func handleGetChatLauncherSettings(r *fastglue.Request) error {
 	_, config, err := validateLiveChatInbox(r)
@@ -93,11 +92,11 @@ func handleGetChatSettings(r *fastglue.Request) error {
 		return err
 	}
 
-	// Get business hours data if office hours feature is enabled.
 	response := chatSettingsResponse{
 		Config: config,
 	}
 
+	// Get business hours data if office hours feature is enabled.
 	if config.ShowOfficeHoursInChat {
 		businessHours, err := app.businessHours.GetAll()
 		if err != nil {
@@ -135,8 +134,14 @@ func handleGetChatSettings(r *fastglue.Request) error {
 // handleChatInit initializes a new chat session.
 func handleChatInit(r *fastglue.Request) error {
 	var (
-		app = r.Context.(*App)
-		req = chatInitReq{}
+		app               = r.Context.(*App)
+		req               = chatInitReq{}
+		clientIP          = realip.FromRequest(r.RequestCtx)
+		userAgent         = string(r.RequestCtx.Request.Header.Peek("User-Agent"))
+		contactID         int
+		isVisitor         bool
+		newJWT            string
+		conversationAttrs map[string]any
 	)
 
 	if err := r.Decode(&req, "json"); err != nil {
@@ -148,109 +153,78 @@ func handleChatInit(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.message}"), nil, envelope.InputError)
 	}
 
-	// Get authenticated data from context (set by middleware), middleware always validates inbox, so we can safely use non-optional getters
 	claims := getWidgetClaimsOptional(r)
-	inboxID, err := getWidgetInboxID(r)
-	if err != nil {
-		app.lo.Error("error getting inbox ID from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
 	inbox, err := getWidgetInbox(r)
 	if err != nil {
 		app.lo.Error("error getting inbox from middleware context", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
-	var (
-		contactID        int
-		conversationUUID string
-		isVisitor        bool
-		newJWT           string
-	)
-
-	// Parse inbox config
 	config, err := parseLiveChatConfig(inbox)
 	if err != nil {
 		app.lo.Error("error parsing live chat config", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("validation.invalidInbox"), nil, envelope.GeneralError)
 	}
 
-	// Handle authenticated user vs visitor
+	// Handle authenticated user vs visitor.
 	if claims != nil {
-		// Handle existing contacts with external user id - check if we need to create user
 		if claims.ExternalUserID != "" {
-			// Find or create user based on external_user_id.
-			user, err := app.user.GetByExternalID(claims.ExternalUserID)
+			contactID, conversationAttrs, err = resolveOrCreateExternalContact(app, *claims, req.FormData, config)
 			if err != nil {
-				envErr, ok := err.(envelope.Error)
-				if ok && envErr.ErrorType != envelope.NotFoundError {
-					app.lo.Error("error fetching user by external ID", "external_user_id", claims.ExternalUserID, "error", err)
-					return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-				}
-
-				// User doesn't exist, create new contact
-				contactID, err = createExternalUser(app, *claims, req.FormData, config)
-				if err != nil {
-					return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-				}
-			} else {
-				// User exists, update custom attributes from both JWT and form
-				processCustomAttributesForUser(app, user.ID, claims, req.FormData, config)
-				contactID = user.ID
+				app.lo.Error("error resolving or creating contact for external_user_id", "external_user_id", claims.ExternalUserID, "error", err)
+				return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 			}
 			isVisitor = false
 		} else {
-			// Authenticated visitor
-			isVisitor = claims.IsVisitor
+			// Non-visitor JWTs must include `external_user_id`.
+			if !claims.IsVisitor {
+				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "external_user_id"), nil, envelope.InputError)
+			}
+			isVisitor = true
 			contactID, err = getWidgetContactID(r)
 			if err != nil {
 				app.lo.Error("error getting contact ID from middleware context", "error", err)
 				return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 			}
-
-			// Update custom attributes from both JWT and form
-			processCustomAttributesForUser(app, contactID, claims, req.FormData, config)
+			conversationAttrs = saveContactAttrsAndCollectConvoAttrs(app, contactID, claims, req.FormData, config)
 		}
 	} else {
-		// Visitor user not authenticated, create a new visitor contact.
 		isVisitor = true
-
 		var visitorErr error
-		contactID, newJWT, visitorErr = createVisitorContact(app, req.FormData, config, inbox)
+		contactID, newJWT, conversationAttrs, visitorErr = createVisitorContact(app, req.FormData, config, inbox)
 		if visitorErr != nil {
-			// Check if it's a validation error (from validateFormData)
-			if strings.Contains(visitorErr.Error(), "required") || strings.Contains(visitorErr.Error(), "invalid") {
-				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, visitorErr.Error(), nil, envelope.InputError)
-			}
+			app.lo.Error("error creating visitor contact", "error", visitorErr)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 		}
 	}
 
 	// Check conversation permissions based on user type.
-	if err := checkConversationPermissions(app, config, isVisitor, contactID, inboxID); err != nil {
-		if strings.Contains(err.Error(), "not allowed") || strings.Contains(err.Error(), "multiple conversations") {
-			return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("globals.messages.notAllowed"), nil, envelope.PermissionError)
-		}
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	if err := checkConversationPermissions(app, config, isVisitor, contactID, inbox.ID); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 
-	app.lo.Info("creating new live chat conversation for user", "user_id", contactID, "inbox_id", inboxID, "is_visitor", isVisitor)
+	app.lo.Info("creating new live chat conversation for user", "user_id", contactID, "inbox_id", inbox.ID, "is_visitor", isVisitor)
 
-	// Create conversation.
-	_, conversationUUID, err = app.conversation.CreateConversation(
+	// Create conversation and insert message.
+	meta := map[string]any{
+		"ip":         clientIP,
+		"user_agent": userAgent,
+	}
+	_, conversationUUID, err := app.conversation.CreateConversation(
 		contactID,
-		inboxID,
+		inbox.ID,
 		"",
 		time.Now(),
 		"",
 		false,
+		meta,
+		conversationAttrs,
 	)
 	if err != nil {
 		app.lo.Error("error creating conversation", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.errorSendingMessage"), nil, envelope.GeneralError)
 	}
 
-	// Insert initial message.
 	message := cmodels.Message{
 		ConversationUUID: conversationUUID,
 		SenderID:         contactID,
@@ -288,7 +262,6 @@ func handleChatInit(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	// For visitors, return the new JWT. For authenticated users, no JWT is needed in response.
 	response := map[string]any{
 		"conversation":             resp.Conversation,
 		"messages":                 resp.Messages,
@@ -296,7 +269,7 @@ func handleChatInit(r *fastglue.Request) error {
 		"working_hours_utc_offset": resp.WorkingHoursUTCOffset,
 	}
 
-	// Only add JWT for visitor creation
+	// Only add JWT when a new visitor is created.
 	if newJWT != "" {
 		response["jwt"] = newJWT
 	}
@@ -315,23 +288,9 @@ func handleChatUpdateLastSeen(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.conversation}"), nil, envelope.InputError)
 	}
 
-	// Get authenticated data from middleware context
-	contactID, err := getWidgetContactID(r)
+	contactID, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		app.lo.Error("error getting contact ID from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
-	conversation, err := app.conversation.GetConversation(0, conversationUUID, "")
-	if err != nil {
-		app.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
-		return sendErrorEnvelope(r, err)
-	}
-
-	// Make sure the conversation belongs to the contact.
-	if conversation.ContactID != contactID {
-		app.lo.Error("unauthorized access to conversation", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID)
-		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
+		return err
 	}
 
 	// Update last seen timestamp.
@@ -342,10 +301,10 @@ func handleChatUpdateLastSeen(r *fastglue.Request) error {
 
 	// Also update custom attributes from JWT claims, if present.
 	// This avoids a separate handler and ensures contact attributes stay in sync.
-	// Since this endpoint is hit frequently during chat, it's a good place to keep them updated.
+	// Since this endpoint is hit frequently during chat, this should keep attribs in sync.
 	claims := getWidgetClaimsOptional(r)
-	if claims != nil && len(claims.CustomAttributes) > 0 {
-		if err := app.user.SaveCustomAttributes(contactID, claims.CustomAttributes, false); err != nil {
+	if claims != nil && len(claims.ContactCustomAttributes) > 0 {
+		if err := app.user.SaveCustomAttributes(contactID, claims.ContactCustomAttributes, false); err != nil {
 			app.lo.Error("error updating contact custom attributes", "contact_id", contactID, "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 		}
@@ -365,24 +324,9 @@ func handleChatGetConversation(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "conversation_id is required", nil, envelope.InputError)
 	}
 
-	// Get authenticated data from middleware context
-	contactID, err := getWidgetContactID(r)
+	_, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		app.lo.Error("error getting contact ID from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
-	// Fetch conversation
-	conversation, err := app.conversation.GetConversation(0, conversationUUID, "")
-	if err != nil {
-		app.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
-		return sendErrorEnvelope(r, err)
-	}
-
-	// Make sure the conversation belongs to the contact.
-	if conversation.ContactID != contactID {
-		app.lo.Error("unauthorized access to conversation", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID)
-		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
+		return err
 	}
 
 	// Build conversation response with messages and attachments.
@@ -407,14 +351,14 @@ func handleGetConversations(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
-	inboxID, err := getWidgetInboxID(r)
+	inbox, err := getWidgetInbox(r)
 	if err != nil {
-		app.lo.Error("error getting inbox ID from middleware context", "error", err)
+		app.lo.Error("error getting inbox from middleware context", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	// Fetch conversations for the contact and convert to ChatConversation format.
-	chatConversations, err := app.conversation.GetContactChatConversations(contactID, inboxID)
+	chatConversations, err := app.conversation.GetContactChatConversations(contactID, inbox.ID)
 	if err != nil {
 		app.lo.Error("error fetching conversations for contact", "contact_id", contactID, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
@@ -443,24 +387,15 @@ func handleChatSendMessage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.message}"), nil, envelope.InputError)
 	}
 
-	// Get authenticated data from middleware context
-	senderID, err := getWidgetContactID(r)
+	senderID, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		app.lo.Error("error getting contact ID from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+		return err
 	}
 
 	inbox, err := getWidgetInbox(r)
 	if err != nil {
 		app.lo.Error("error getting inbox from middleware context", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
-	// Fetch conversation to ensure it exists
-	conversation, err := app.conversation.GetConversation(0, conversationUUID, "")
-	if err != nil {
-		app.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
-		return sendErrorEnvelope(r, err)
 	}
 
 	// Fetch sender.
@@ -470,15 +405,21 @@ func handleChatSendMessage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
-	// Make sure the conversation belongs to the sender.
-	if conversation.ContactID != senderID {
-		app.lo.Error("access denied: user attempted to access conversation owned by different contact", "conversation_uuid", conversationUUID, "requesting_contact_id", senderID, "conversation_owner_id", conversation.ContactID)
-		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
-	}
+	// Check if replies to closed conversations are allowed.
+	if conversation.Status.String == cmodels.StatusClosed {
+		lcConfig, err := parseLiveChatConfig(inbox)
+		if err != nil {
+			app.lo.Error("error parsing live chat config", "error", err)
+			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("validation.invalidInbox"), nil, envelope.GeneralError)
+		}
 
-	// Make sure the inbox is enabled.
-	if !inbox.Enabled {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("status.disabledInbox"), nil, envelope.InputError)
+		preventReply := lcConfig.Visitors.PreventReplyToClosedConversation
+		if sender.Type != umodels.UserTypeVisitor {
+			preventReply = lcConfig.Users.PreventReplyToClosedConversation
+		}
+		if preventReply {
+			return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("widget.conversationClosed"), nil, envelope.InputError)
+		}
 	}
 
 	// Insert incoming message and run post processing hooks.
@@ -505,6 +446,10 @@ func handleChatSendMessage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
+	for i := range message.Attachments {
+		message.Attachments[i].URL = app.media.GetSignedURL(message.Attachments[i].UUID)
+	}
+
 	return r.SendEnvelope(cmodels.ChatMessage{
 		UUID:             message.UUID,
 		CreatedAt:        message.CreatedAt,
@@ -512,15 +457,8 @@ func handleChatSendMessage(r *fastglue.Request) error {
 		TextContent:      message.TextContent,
 		ConversationUUID: message.ConversationUUID,
 		Status:           message.Status,
-		Author: umodels.ChatUser{
-			ID:                 sender.ID,
-			FirstName:          sender.FirstName,
-			LastName:           sender.LastName,
-			AvatarURL:          sender.AvatarURL,
-			AvailabilityStatus: sender.AvailabilityStatus,
-			Type:               sender.Type,
-		},
-		Attachments: message.Attachments,
+		Author:           message.Author,
+		Attachments:      message.Attachments,
 	})
 }
 
@@ -536,19 +474,6 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("errors.parsingRequest"), nil, envelope.GeneralError)
 	}
 
-	// Get authenticated data from middleware context
-	senderID, err := getWidgetContactID(r)
-	if err != nil {
-		app.lo.Error("error getting contact ID from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
-	inbox, err := getWidgetInbox(r)
-	if err != nil {
-		app.lo.Error("error getting inbox from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
 	// Get conversation UUID from form data
 	conversationValues, convOk := form.Value["conversation_uuid"]
 	if !convOk || len(conversationValues) == 0 || conversationValues[0] == "" {
@@ -556,16 +481,15 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 	}
 	conversationUUID := conversationValues[0]
 
-	// Make sure the conversation belongs to the sender
-	conversation, err := app.conversation.GetConversation(0, conversationUUID, "")
+	senderID, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		app.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
-		return sendErrorEnvelope(r, err)
+		return err
 	}
 
-	if conversation.ContactID != senderID {
-		app.lo.Error("access denied: user attempted to access conversation owned by different contact", "conversation_uuid", conversationUUID, "requesting_contact_id", senderID, "conversation_owner_id", conversation.ContactID)
-		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
+	inbox, err := getWidgetInbox(r)
+	if err != nil {
+		app.lo.Error("error getting inbox from middleware context", "error", err)
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	// Make sure file upload is enabled for the inbox.
@@ -657,23 +581,46 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
+	for i := range insertedMessage.Attachments {
+		insertedMessage.Attachments[i].URL = app.media.GetSignedURL(insertedMessage.Attachments[i].UUID)
+	}
+
 	return r.SendEnvelope(insertedMessage)
 }
 
-// -----------------------------------------------------------------------------
-// Helper functions
-// -----------------------------------------------------------------------------
+// getContactConversation gets the contact ID from middleware, fetches the conversation,
+// and verifies the conversation belongs to the contact.
+func getContactConversation(r *fastglue.Request, conversationUUID string) (int, cmodels.Conversation, error) {
+	app := r.Context.(*App)
 
-// parseLiveChatConfig parses the livechat.Config from an inbox's Config JSON.
+	contactID, err := getWidgetContactID(r)
+	if err != nil {
+		app.lo.Error("error getting contact ID from middleware context", "error", err)
+		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
+	conversation, err := app.conversation.GetConversation(0, conversationUUID, "")
+	if err != nil {
+		app.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
+		return 0, cmodels.Conversation{}, sendErrorEnvelope(r, err)
+	}
+
+	if conversation.ContactID != contactID {
+		app.lo.Error("unauthorized access to conversation", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID)
+		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
+	}
+
+	return contactID, conversation, nil
+}
+
 func parseLiveChatConfig(inbox imodels.Inbox) (livechat.Config, error) {
 	var config livechat.Config
 	if err := json.Unmarshal(inbox.Config, &config); err != nil {
-		return livechat.Config{}, fmt.Errorf("error parsing live chat config: %w", err)
+		return livechat.Config{}, fmt.Errorf("parsing live chat config: %w", err)
 	}
 	return config, nil
 }
 
-// userTypeLabel returns "visitor" or "user" based on the isVisitor flag.
 func userTypeLabel(isVisitor bool) string {
 	if isVisitor {
 		return "visitor"
@@ -723,93 +670,138 @@ func validateLiveChatInbox(r *fastglue.Request) (imodels.Inbox, livechat.Config,
 			nil, envelope.GeneralError)
 	}
 
+	// Check if the client's IP is blocked.
+	if len(config.BlockedIPs) > 0 {
+		clientIP := realip.FromRequest(r.RequestCtx)
+		if httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
+			r.SendErrorEnvelope(
+				fasthttp.StatusForbidden,
+				app.i18n.T("widget.ipBlocked"), nil, envelope.PermissionError)
+			return imodels.Inbox{}, livechat.Config{}, fmt.Errorf("ip blocked")
+		}
+	}
+
 	return inbox, config, nil
 }
 
-// processCustomAttributesForUser validates and saves custom attributes from JWT and form data for an existing user.
-func processCustomAttributesForUser(app *App, contactID int, claims *Claims, formData map[string]any, config livechat.Config) {
-	formCustomAttributes := validateCustomAttributes(formData, config, app)
-	var jwtAttribs map[string]any
+// saveContactAttrsAndCollectConvoAttrs validates and saves contact custom attributes from JWT and form data.
+// Returns conversation custom attributes (merged from JWT + form) for the caller to apply after conversation creation.
+func saveContactAttrsAndCollectConvoAttrs(app *App, contactID int, claims *Claims, formData map[string]any, config livechat.Config) map[string]any {
+	var (
+		jwtContactAttrs map[string]any
+		jwtConvoAttrs   map[string]any
+	)
+	formContactAttrs, formConvoAttrs := validateCustomAttributes(formData, config, app)
 	if claims != nil {
-		jwtAttribs = claims.CustomAttributes
+		jwtContactAttrs = claims.ContactCustomAttributes
+		jwtConvoAttrs = claims.ConversationCustomAttributes
 	}
-	mergedAttributes := mergeCustomAttributes(jwtAttribs, formCustomAttributes)
 
-	if len(mergedAttributes) > 0 {
-		if err := app.user.SaveCustomAttributes(contactID, mergedAttributes, false); err != nil {
+	// Save contact custom attributes (JWT takes precedence).
+	mergedContactAttrs := mergeCustomAttributes(jwtContactAttrs, formContactAttrs)
+	if len(mergedContactAttrs) > 0 {
+		if err := app.user.SaveCustomAttributes(contactID, mergedContactAttrs, false); err != nil {
 			app.lo.Error("error updating contact custom attributes", "contact_id", contactID, "error", err)
-			// Don't fail the request for custom attributes update failure
 		}
 	}
+
+	// Return merged conversation custom attributes (JWT takes precedence).
+	return mergeCustomAttributes(jwtConvoAttrs, formConvoAttrs)
+}
+
+// resolveOrCreateExternalContact finds or creates a contact from JWT claims with external user ID.
+// It tries:
+//  1. lookup by external_user_id
+//  2. lookup by email and set external_user_id if found
+//  3. create new contact
+func resolveOrCreateExternalContact(app *App, claims Claims, formData map[string]any, config livechat.Config) (int, map[string]any, error) {
+	user, err := app.user.GetByExternalID(claims.ExternalUserID)
+	if err == nil {
+		convoAttrs := saveContactAttrsAndCollectConvoAttrs(app, user.ID, &claims, formData, config)
+		return user.ID, convoAttrs, nil
+	}
+
+	envErr, ok := err.(envelope.Error)
+	if ok && envErr.ErrorType != envelope.NotFoundError {
+		app.lo.Error("error fetching user by external ID", "external_user_id", claims.ExternalUserID, "error", err)
+		return 0, nil, err
+	}
+
+	// Not found by external_user_id, look up with email and enrich with ext user id.
+	if claims.Email != "" {
+		existingContact, emailErr := app.user.GetContactByEmail(strings.ToLower(claims.Email))
+		if emailErr != nil {
+			envErr, ok := emailErr.(envelope.Error)
+			if !ok || envErr.ErrorType != envelope.NotFoundError {
+				app.lo.Error("error fetching contact by email", "email", claims.Email, "error", emailErr)
+				return 0, nil, emailErr
+			}
+		} else {
+			if setErr := app.user.SetExternalUserID(existingContact.ID, claims.ExternalUserID); setErr != nil {
+				app.lo.Error("error setting external user ID on existing contact", "contact_id", existingContact.ID, "error", setErr)
+				return 0, nil, setErr
+			}
+			convoAttrs := saveContactAttrsAndCollectConvoAttrs(app, existingContact.ID, &claims, formData, config)
+			return existingContact.ID, convoAttrs, nil
+		}
+	}
+
+	return createExternalUser(app, claims, formData, config)
 }
 
 // createExternalUser creates a new contact from JWT claims with external user ID.
-// Returns the new contact ID.
-func createExternalUser(app *App, claims Claims, formData map[string]any, config livechat.Config) (int, error) {
-	formCustomAttributes := validateCustomAttributes(formData, config, app)
-	mergedAttributes := mergeCustomAttributes(claims.CustomAttributes, formCustomAttributes)
-
-	customAttribJSON, err := json.Marshal(mergedAttributes)
-	if err != nil {
-		app.lo.Error("error marshalling custom attributes", "error", err)
-		customAttribJSON = []byte("{}")
-	}
+// Returns the new contact ID and conversation custom attributes.
+func createExternalUser(app *App, claims Claims, formData map[string]any, config livechat.Config) (int, map[string]any, error) {
+	formContactAttrs, formConvoAttrs := validateCustomAttributes(formData, config, app)
+	mergedContactAttrs := mergeCustomAttributes(claims.ContactCustomAttributes, formContactAttrs)
 
 	user := umodels.User{
 		FirstName:        claims.FirstName,
 		LastName:         claims.LastName,
 		Email:            null.NewString(claims.Email, claims.Email != ""),
 		ExternalUserID:   null.NewString(claims.ExternalUserID, claims.ExternalUserID != ""),
-		CustomAttributes: customAttribJSON,
+		CustomAttributes: marshalCustomAttributes(mergedContactAttrs, app),
 	}
 	if err := app.user.CreateContact(&user); err != nil {
 		app.lo.Error("error creating contact with external ID", "external_user_id", claims.ExternalUserID, "error", err)
-		return 0, err
+		return 0, nil, err
 	}
-	return user.ID, nil
+
+	convoAttrs := mergeCustomAttributes(claims.ConversationCustomAttributes, formConvoAttrs)
+	return user.ID, convoAttrs, nil
 }
 
 // createVisitorContact creates a new visitor contact from form data.
-// Returns the contact ID and a new JWT for the visitor.
-func createVisitorContact(app *App, formData map[string]any, config livechat.Config, inbox imodels.Inbox) (contactID int, jwt string, err error) {
+// Returns the contact ID, a new JWT for the visitor, and conversation custom attributes.
+func createVisitorContact(app *App, formData map[string]any, config livechat.Config, inbox imodels.Inbox) (contactID int, jwt string, convoAttrs map[string]any, err error) {
 	// Validate form data and get final name/email for new visitor
 	finalName, finalEmail, err := validateFormData(formData, config, nil)
 	if err != nil {
-		return 0, "", err
+		return 0, "", nil, err
 	}
 
-	// Process custom attributes from form data
-	formCustomAttributes := validateCustomAttributes(formData, config, app)
-
-	var customAttribJSON []byte
-	if len(formCustomAttributes) > 0 {
-		customAttribJSON, err = json.Marshal(formCustomAttributes)
-		if err != nil {
-			app.lo.Error("error marshalling form custom attributes", "error", err)
-			customAttribJSON = []byte("{}")
-		}
-	} else {
-		customAttribJSON = []byte("{}")
-	}
+	// Process custom attributes from form data, split by applies_to.
+	formContactAttrs, formConvoAttrs := validateCustomAttributes(formData, config, app)
+	convoAttrs = formConvoAttrs
 
 	visitor := umodels.User{
 		Email:            null.NewString(finalEmail, finalEmail != ""),
 		FirstName:        finalName,
-		CustomAttributes: customAttribJSON,
+		CustomAttributes: marshalCustomAttributes(formContactAttrs, app),
 	}
 
 	if err := app.user.CreateVisitor(&visitor); err != nil {
 		app.lo.Error("error creating visitor contact", "error", err)
-		return 0, "", err
+		return 0, "", nil, err
 	}
 
 	newJWT, err := generateUserJWTWithSecret(visitor.ID, true, time.Now().Add(87600*time.Hour), []byte(inbox.Secret.String)) // 10 years
 	if err != nil {
 		app.lo.Error("error generating visitor JWT", "error", err)
-		return 0, "", err
+		return 0, "", nil, err
 	}
 
-	return visitor.ID, newJWT, nil
+	return visitor.ID, newJWT, convoAttrs, nil
 }
 
 // checkConversationPermissions checks if the user is allowed to start a conversation based on inbox config.
@@ -825,18 +817,18 @@ func checkConversationPermissions(app *App, config livechat.Config, isVisitor bo
 	}
 
 	if !allowStartConversation {
-		return fmt.Errorf("not allowed to start conversation")
+		return envelope.NewError(envelope.InputError, "Not allowed.", nil)
 	}
 
 	if preventMultipleConversations {
 		conversations, err := app.conversation.GetContactChatConversations(contactID, inboxID)
 		if err != nil {
 			app.lo.Error("error fetching "+userTypeLabel(isVisitor)+" conversations", "contact_id", contactID, "error", err)
-			return fmt.Errorf("error checking existing conversations: %w", err)
+			return envelope.NewError(envelope.GeneralError, "Error checking existing conversations", nil)
 		}
 		if len(conversations) > 0 {
 			app.lo.Info(userTypeLabel(isVisitor)+" attempted to start new conversation but already has one", "contact_id", contactID, "conversations_count", len(conversations))
-			return fmt.Errorf("multiple conversations not allowed")
+			return envelope.NewError(envelope.PermissionError, "Multiple conversations are not allowed", nil)
 		}
 	}
 
@@ -865,30 +857,28 @@ func buildConversationResponseWithBusinessHours(app *App, conversation cmodels.C
 // resolveUserIDFromClaims resolves the actual user ID from JWT claims,
 // handling both regular user_id and external_user_id cases
 func resolveUserIDFromClaims(app *App, claims Claims) (int, error) {
-	if claims.UserID > 0 {
-		user, err := app.user.Get(claims.UserID, "", []string{})
-		if err != nil {
-			app.lo.Error("error fetching user by user ID", "user_id", claims.UserID, "error", err)
-			return 0, errors.New("error fetching user")
-		}
-		if !user.Enabled {
-			return 0, errors.New("user is disabled")
-		}
-		return user.ID, nil
-	} else if claims.ExternalUserID != "" {
-		user, err := app.user.GetByExternalID(claims.ExternalUserID)
-		if err != nil {
-			app.lo.Error("error fetching user by external ID", "external_user_id", claims.ExternalUserID, "error", err)
-			return 0, errors.New("error fetching user")
-		}
-		if !user.Enabled {
-			return 0, errors.New("user is disabled")
-		}
+	var (
+		user umodels.User
+		err  error
+	)
 
-		return user.ID, nil
+	switch {
+	case claims.UserID > 0:
+		user, err = app.user.Get(claims.UserID, "", []string{})
+	case claims.ExternalUserID != "":
+		user, err = app.user.GetByExternalID(claims.ExternalUserID)
+	default:
+		return 0, errors.New("error fetching user")
 	}
 
-	return 0, errors.New("error fetching user")
+	if err != nil {
+		app.lo.Error("error fetching user", "user_id", claims.UserID, "external_user_id", claims.ExternalUserID, "error", err)
+		return 0, errors.New("error fetching user")
+	}
+	if !user.Enabled {
+		return 0, errors.New("user is disabled")
+	}
+	return user.ID, nil
 }
 
 // verifyJWT verifies and validates a JWT token with proper signature verification
@@ -951,32 +941,42 @@ func generateUserJWTWithSecret(userID int, isVisitor bool, expirationTime time.T
 	return tokenString, nil
 }
 
-// mergeCustomAttributes merges JWT and form custom attributes with form taking precedence
-func mergeCustomAttributes(jwtAttributes, formAttributes map[string]interface{}) map[string]interface{} {
-	merged := make(map[string]interface{})
+// marshalCustomAttributes marshals custom attributes to JSON, returning "{}" on error or empty input.
+func marshalCustomAttributes(attrs map[string]any, app *App) []byte {
+	if len(attrs) == 0 {
+		return []byte("{}")
+	}
+	b, err := json.Marshal(attrs)
+	if err != nil {
+		app.lo.Error("error marshalling custom attributes", "error", err)
+		return []byte("{}")
+	}
+	return b
+}
 
-	// Add JWT attributes first (as fallback)
-	maps.Copy(merged, jwtAttributes)
-
-	// Add form attributes second (takes precedence)
+// mergeCustomAttributes merges JWT and form custom attributes.
+// JWT attributes take precedence as they are server-signed and trusted.
+func mergeCustomAttributes(jwtAttributes, formAttributes map[string]any) map[string]any {
+	merged := make(map[string]any)
 	maps.Copy(merged, formAttributes)
-
+	maps.Copy(merged, jwtAttributes)
 	return merged
 }
 
-// validateCustomAttributes validates and processes custom attributes from form data
-func validateCustomAttributes(formData map[string]interface{}, config livechat.Config, app *App) map[string]interface{} {
-	customAttributes := make(map[string]interface{})
+// validateCustomAttributes validates pre chat form data and splits into contact and conversation attributes based on applies_to.
+func validateCustomAttributes(formData map[string]any, config livechat.Config, app *App) (contactAttrs, conversationAttrs map[string]any) {
+	contactAttrs = make(map[string]any)
+	conversationAttrs = make(map[string]any)
 
 	if !config.PreChatForm.Enabled || len(formData) == 0 {
-		return customAttributes
+		return contactAttrs, conversationAttrs
 	}
 
 	// Validate total number of form fields
-	const maxFormFields = 50
+	const maxFormFields = 100
 	if len(formData) > maxFormFields {
 		app.lo.Warn("form data exceeds maximum allowed fields", "received", len(formData), "max", maxFormFields)
-		return customAttributes
+		return contactAttrs, conversationAttrs
 	}
 
 	// Create a map of valid field keys for quick lookup
@@ -1013,42 +1013,64 @@ func validateCustomAttributes(formData map[string]interface{}, config livechat.C
 			continue
 		}
 
-		// Validate and process string values with length limits
-		if strValue, ok := value.(string); ok {
-			const maxValueLength = 1000
-			if len(strValue) > maxValueLength {
-				app.lo.Warn("form field value exceeds maximum length", "key", key, "length", len(strValue), "max", maxValueLength)
-				// Truncate the value instead of rejecting it
-				strValue = strValue[:maxValueLength]
-			}
-			customAttributes[field.Key] = strValue
+		// Validate value
+		validated := validateAttributeValue(key, value, app)
+		if validated == nil {
+			continue
 		}
 
-		// Numbers
-		if numValue, ok := value.(float64); ok {
-			if math.IsNaN(numValue) || math.IsInf(numValue, 0) {
-				app.lo.Warn("form field contains invalid numeric value", "key", key, "value", numValue)
-				continue
-			}
-
-			if numValue > 1e12 || numValue < -1e12 {
-				app.lo.Warn("form field numeric value out of acceptable range", "key", key, "value", numValue)
-				continue
-			}
-
-			customAttributes[field.Key] = numValue
+		// Look up the custom attribute definition to determine applies_to
+		attr, err := app.customAttribute.Get(field.CustomAttributeID)
+		if err != nil {
+			app.lo.Warn("custom attribute not found", "custom_attribute_id", field.CustomAttributeID, "error", err)
+			continue
 		}
 
-		// Set rest as is
-		customAttributes[field.Key] = value
+		if attr.AppliesTo == "conversation" {
+			conversationAttrs[field.Key] = validated
+		} else {
+			contactAttrs[field.Key] = validated
+		}
 	}
 
-	return customAttributes
+	return contactAttrs, conversationAttrs
+}
+
+// validateAttributeValue validates and sanitizes a single attribute value.
+func validateAttributeValue(key string, value any, app *App) any {
+	if strValue, ok := value.(string); ok {
+		const maxValueLength = 1000
+		if len(strValue) > maxValueLength {
+			app.lo.Warn("form field value exceeds maximum length", "key", key, "length", len(strValue), "max", maxValueLength)
+			return strValue[:maxValueLength]
+		}
+		return strValue
+	}
+
+	if numValue, ok := value.(float64); ok {
+		if math.IsNaN(numValue) || math.IsInf(numValue, 0) {
+			app.lo.Warn("form field contains invalid numeric value", "key", key, "value", numValue)
+			return nil
+		}
+		if numValue > 1e12 || numValue < -1e12 {
+			app.lo.Warn("form field numeric value out of acceptable range", "key", key, "value", numValue)
+			return nil
+		}
+		return numValue
+	}
+
+	if boolValue, ok := value.(bool); ok {
+		return boolValue
+	}
+
+	// Reject all other types (arrays, objects, etc.) to prevent arbitrary data in JSONB.
+	app.lo.Warn("form field contains unsupported value type", "key", key)
+	return nil
 }
 
 // validateFormData validates form data against pre-chat form configuration
 // Returns the final name/email to use and any validation errors
-func validateFormData(formData map[string]interface{}, config livechat.Config, existingUser *umodels.User) (string, string, error) {
+func validateFormData(formData map[string]any, config livechat.Config, existingUser *umodels.User) (string, string, error) {
 	var finalName, finalEmail string
 
 	if !config.PreChatForm.Enabled {
@@ -1127,7 +1149,6 @@ func filterPreChatFormFields(fields []livechat.PreChatFormField, app *App) ([]li
 	for id := range customAttrIDs {
 		attr, err := app.customAttribute.Get(id)
 		if err != nil {
-			app.lo.Warn("custom attribute referenced in pre-chat form no longer exists", "custom_attribute_id", id, "error", err)
 			continue
 		}
 		existingCustomAttrs[id] = customAttributeWidget{

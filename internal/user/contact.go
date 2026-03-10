@@ -9,7 +9,6 @@ import (
 	"github.com/volatiletech/null/v9"
 )
 
-// CreateContact creates a new contact user.
 func (u *Manager) CreateContact(user *models.User) error {
 	password, err := u.generatePassword()
 	if err != nil {
@@ -17,18 +16,27 @@ func (u *Manager) CreateContact(user *models.User) error {
 		return fmt.Errorf("generating password: %w", err)
 	}
 
-	// Normalize email address.
 	user.Email = null.NewString(strings.ToLower(user.Email.String), user.Email.Valid)
 
-	// If external_user_id is provided, insert with it.
-	if user.ExternalUserID.Valid {
+	if user.ExternalUserID.String != "" {
 		if err := u.q.InsertContactWithExtID.QueryRow(user.Email, user.FirstName, user.LastName, password, user.AvatarURL, user.ExternalUserID, user.CustomAttributes).Scan(&user.ID); err != nil {
 			u.lo.Error("error inserting contact with external ID", "error", err)
-			return fmt.Errorf("insert contact with external ID: %w", err)
+			return fmt.Errorf("inserting contact with external ID: %w", err)
 		}
 		return nil
 	}
-	// Insert without external_user_id.
+
+	if user.Email.Valid && user.Email.String != "" {
+		existing, err := u.GetContactByEmail(user.Email.String)
+		if err == nil {
+			user.ID = existing.ID
+			return nil
+		}
+		if envErr, ok := err.(envelope.Error); ok && envErr.ErrorType != envelope.NotFoundError {
+			return err
+		}
+	}
+
 	if err := u.q.InsertContactNoExtID.QueryRow(user.Email, user.FirstName, user.LastName, password, user.AvatarURL).Scan(&user.ID); err != nil {
 		u.lo.Error("error inserting contact", "error", err)
 		return fmt.Errorf("insert contact: %w", err)
@@ -36,16 +44,14 @@ func (u *Manager) CreateContact(user *models.User) error {
 	return nil
 }
 
-// UpdateContact updates a contact in the database.
 func (u *Manager) UpdateContact(id int, user models.User) error {
-	if _, err := u.q.UpdateContact.Exec(id, user.FirstName, user.LastName, user.Email, user.AvatarURL, user.PhoneNumber, user.PhoneNumberCountryCode); err != nil {
+	if _, err := u.q.UpdateContact.Exec(id, user.FirstName, user.LastName, user.Email, user.AvatarURL, user.PhoneNumber, user.PhoneNumberCountryCode, user.Country); err != nil {
 		u.lo.Error("error updating user", "error", err)
 		return envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return nil
 }
 
-// GetContact retrieves a contact by ID.
 func (u *Manager) GetContact(id int, email string) (models.User, error) {
 	return u.Get(id, email, []string{models.UserTypeContact, models.UserTypeVisitor})
 }

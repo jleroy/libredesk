@@ -62,13 +62,6 @@ import { useTypingIndicator } from '@shared-ui/composables/useTypingIndicator.js
 import MessageInputActions from './MessageInputActions.vue'
 import api, { setVisitorJWT } from '@widget/api/index.js'
 
-const props = defineProps({
-  formData: {
-    type: Object,
-    default: () => ({})
-  }
-})
-
 const emit = defineEmits(['error'])
 const widgetStore = useWidgetStore()
 const chatStore = useChatStore()
@@ -87,16 +80,7 @@ const { startTyping, stopTyping } = useTypingIndicator((isTyping) => {
 })
 
 const initChatConversation = async (messageText) => {
-  const payload = {
-    message: messageText
-  }
-
-  // Add form data if user is a visitor and has provided info
-  if (userStore.isVisitor && Object.keys(props.formData).length > 0) {
-    payload.form_data = props.formData
-  }
-
-  const resp = await api.initChatConversation(payload)
+  const resp = await api.initChatConversation({ message: messageText })
   const { conversation, jwt, messages } = resp.data.data
 
   if (!userStore.userSessionToken && jwt) {

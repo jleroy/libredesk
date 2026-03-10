@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"time"
 
+	realip "github.com/ferluci/fast-realip"
+
+	"github.com/abhinavxd/libredesk/internal/httputil"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	"github.com/fasthttp/websocket"
 	"github.com/zerodha/fastglue"
@@ -11,15 +17,20 @@ import (
 
 // Widget WebSocket message types
 const (
-	WidgetMsgTypeJoin    = "join"
-	WidgetMsgTypeMessage = "message"
-	WidgetMsgTypeTyping  = "typing"
-	WidgetMsgTypePing    = "ping"
-	WidgetMsgTypePong    = "pong"
-	WidgetMsgTypeError   = "error"
-	WidgetMsgTypeNewMsg  = "new_message"
-	WidgetMsgTypeStatus  = "status"
-	WidgetMsgTypeJoined  = "joined"
+	WidgetMsgTypeJoin      = "join"
+	WidgetMsgTypeMessage   = "message"
+	WidgetMsgTypeTyping    = "typing"
+	WidgetMsgTypePing      = "ping"
+	WidgetMsgTypePong      = "pong"
+	WidgetMsgTypeError     = "error"
+	WidgetMsgTypeNewMsg    = "new_message"
+	WidgetMsgTypeStatus    = "status"
+	WidgetMsgTypeJoined    = "joined"
+	WidgetMsgTypePageVisit = "page_visit"
+
+	pageVisitRedisKeyPrefix = "page_visits:"
+	maxPageVisits           = 10
+	pageVisitTTL            = 24 * time.Hour
 )
 
 // WidgetMessage represents a message sent through the widget WebSocket
@@ -48,15 +59,25 @@ type WidgetTypingData struct {
 	IsTyping         bool   `json:"is_typing"`
 }
 
+// WidgetPageVisitData represents a page visit event from the widget.
+type WidgetPageVisitData struct {
+	URL   string `json:"url"`
+	Title string `json:"title"`
+}
+
 // handleWidgetWS handles the widget WebSocket connection for live chat.
 func handleWidgetWS(r *fastglue.Request) error {
 	var app = r.Context.(*App)
+
+	// Capture client IP before WebSocket upgrade (headers are only available pre-upgrade).
+	clientIP := realip.FromRequest(r.RequestCtx)
 
 	if err := upgrader.Upgrade(r.RequestCtx, func(conn *websocket.Conn) {
 		// To store client and live chat references for cleanup.
 		var client *livechat.Client
 		var liveChat *livechat.LiveChat
 		var inboxID int
+		var userID int
 
 		// Clean up client when connection closes.
 		defer func() {
@@ -82,21 +103,28 @@ func handleWidgetWS(r *fastglue.Request) error {
 				var joinedClient *livechat.Client
 				var joinedLiveChat *livechat.LiveChat
 				var joinedInboxID int
+				var joinedUserID int
 				var err error
-				if joinedClient, joinedLiveChat, joinedInboxID, err = handleInboxJoin(app, conn, &msg); err != nil {
+				if joinedClient, joinedLiveChat, joinedInboxID, joinedUserID, err = handleInboxJoin(app, conn, &msg, clientIP); err != nil {
 					app.lo.Error("error handling widget join", "error", err)
 					sendWidgetError(conn, "Failed to join conversation")
 					continue
 				}
-				// Store the client, livechat, and inbox ID for cleanup and future use.
+				// Store the client, livechat, inbox ID and user ID for cleanup and future use.
 				client = joinedClient
 				liveChat = joinedLiveChat
 				inboxID = joinedInboxID
+				userID = joinedUserID
 			// Typing.
 			case WidgetMsgTypeTyping:
 				if err := handleWidgetTyping(app, &msg); err != nil {
 					app.lo.Error("error handling widget typing", "error", err)
 					continue
+				}
+			// Page visit tracking.
+			case WidgetMsgTypePageVisit:
+				if userID > 0 {
+					handleWidgetPageVisit(app, &msg, userID)
 				}
 			// Ping.
 			case WidgetMsgTypePing:
@@ -133,48 +161,56 @@ func handleWidgetWS(r *fastglue.Request) error {
 }
 
 // handleInboxJoin handles a websocket join request for a live chat inbox.
-func handleInboxJoin(app *App, conn *websocket.Conn, msg *WidgetMessage) (*livechat.Client, *livechat.LiveChat, int, error) {
+func handleInboxJoin(app *App, conn *websocket.Conn, msg *WidgetMessage, clientIP string) (*livechat.Client, *livechat.LiveChat, int, int, error) {
 	joinDataBytes, err := json.Marshal(msg.Data)
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("invalid join data: %w", err)
+		return nil, nil, 0, 0, fmt.Errorf("invalid join data: %w", err)
 	}
 
 	var joinData WidgetInboxJoinRequest
 	if err := json.Unmarshal(joinDataBytes, &joinData); err != nil {
-		return nil, nil, 0, fmt.Errorf("invalid join data format: %w", err)
+		return nil, nil, 0, 0, fmt.Errorf("invalid join data format: %w", err)
 	}
 
 	// Validate JWT with inbox secret
 	claims, err := validateWidgetMessageJWT(app, msg.JWT, joinData.InboxID)
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("JWT validation failed: %w", err)
+		return nil, nil, 0, 0, fmt.Errorf("JWT validation failed: %w", err)
 	}
 
 	// Resolve user ID.
 	userID, err := resolveUserIDFromClaims(app, claims)
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("failed to resolve user ID from claims: %w", err)
+		return nil, nil, 0, 0, fmt.Errorf("failed to resolve user ID from claims: %w", err)
 	}
 
 	// Make sure inbox is active.
 	inbox, err := app.inbox.GetDBRecord(joinData.InboxID)
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("inbox not found: %w", err)
+		return nil, nil, 0, 0, fmt.Errorf("inbox not found: %w", err)
 	}
 	if !inbox.Enabled {
-		return nil, nil, 0, fmt.Errorf("inbox is not enabled")
+		return nil, nil, 0, 0, fmt.Errorf("inbox is not enabled")
+	}
+
+	// Check if the client's IP is blocked.
+	var config livechat.Config
+	if err := json.Unmarshal(inbox.Config, &config); err == nil {
+		if len(config.BlockedIPs) > 0 && httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
+			return nil, nil, 0, 0, fmt.Errorf("IP address is blocked")
+		}
 	}
 
 	// Get live chat inbox
 	lcInbox, err := app.inbox.Get(inbox.ID)
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("live chat inbox not found: %w", err)
+		return nil, nil, 0, 0, fmt.Errorf("live chat inbox not found: %w", err)
 	}
 
 	// Assert type.
 	liveChat, ok := lcInbox.(*livechat.LiveChat)
 	if !ok {
-		return nil, nil, 0, fmt.Errorf("inbox is not a live chat inbox")
+		return nil, nil, 0, 0, fmt.Errorf("inbox is not a live chat inbox")
 	}
 
 	// Add client to live chat session
@@ -182,7 +218,7 @@ func handleInboxJoin(app *App, conn *websocket.Conn, msg *WidgetMessage) (*livec
 	client, err := liveChat.AddClient(userIDStr)
 	if err != nil {
 		app.lo.Error("error adding client to live chat", "error", err, "user_id", userIDStr)
-		return nil, nil, 0, err
+		return nil, nil, 0, 0, err
 	}
 
 	// Start listening for messages from the live chat channel.
@@ -204,12 +240,12 @@ func handleInboxJoin(app *App, conn *websocket.Conn, msg *WidgetMessage) (*livec
 	}
 
 	if err := conn.WriteJSON(joinResp); err != nil {
-		return nil, nil, 0, err
+		return nil, nil, 0, 0, err
 	}
 
 	app.lo.Debug("widget client joined live chat", "user_id", userIDStr, "inbox_id", joinData.InboxID)
 
-	return client, liveChat, joinData.InboxID, nil
+	return client, liveChat, joinData.InboxID, userID, nil
 }
 
 // handleWidgetTyping handles typing indicators
@@ -276,4 +312,68 @@ func sendWidgetError(conn *websocket.Conn, message string) {
 		},
 	}
 	conn.WriteJSON(errorMsg)
+}
+
+// handleWidgetPageVisit stores the page visit in Redis and broadcasts to agents.
+func handleWidgetPageVisit(app *App, msg *WidgetMessage, contactID int) {
+	dataBytes, err := json.Marshal(msg.Data)
+	if err != nil {
+		return
+	}
+
+	var visit WidgetPageVisitData
+	if err := json.Unmarshal(dataBytes, &visit); err != nil || visit.URL == "" {
+		return
+	}
+
+	// Truncate long URLs/titles.
+	if len(visit.URL) > 2048 {
+		visit.URL = visit.URL[:2048]
+	}
+	if len(visit.Title) > 256 {
+		visit.Title = visit.Title[:256]
+	}
+
+	// Only allow http/https URLs.
+	parsedURL, err := url.Parse(visit.URL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return
+	}
+
+	// Store in Redis as a JSON-encoded list entry.
+	entry, _ := json.Marshal(map[string]string{
+		"url":   visit.URL,
+		"title": visit.Title,
+		"time":  time.Now().UTC().Format(time.RFC3339),
+	})
+
+	redisCtx := context.Background()
+	key := fmt.Sprintf("%s%d", pageVisitRedisKeyPrefix, contactID)
+	pipe := app.redis.Pipeline()
+	pipe.LPush(redisCtx, key, string(entry))
+	pipe.LTrim(redisCtx, key, 0, maxPageVisits-1)
+	pipe.Expire(redisCtx, key, pageVisitTTL)
+	pipe.Exec(redisCtx)
+
+	// Read back the full list to broadcast to agents.
+	pages := getPageVisitsFromRedis(app, contactID)
+	app.conversation.BroadcastContactPageVisit(contactID, pages)
+}
+
+// getPageVisitsFromRedis reads the page visit list from Redis.
+func getPageVisitsFromRedis(app *App, contactID int) []map[string]string {
+	redisCtx := context.Background()
+	key := fmt.Sprintf("%s%d", pageVisitRedisKeyPrefix, contactID)
+	entries, err := app.redis.LRange(redisCtx, key, 0, maxPageVisits-1).Result()
+	if err != nil {
+		return nil
+	}
+	pages := make([]map[string]string, 0, len(entries))
+	for _, e := range entries {
+		var p map[string]string
+		if err := json.Unmarshal([]byte(e), &p); err == nil {
+			pages = append(pages, p)
+		}
+	}
+	return pages
 }

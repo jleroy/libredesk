@@ -41,6 +41,7 @@ SELECT
     u.last_login_at,
     u.phone_number_country_code,
     u.phone_number,
+    u.country,
     u.api_key,
     u.api_key_last_used_at,
     u.external_user_id,
@@ -58,8 +59,8 @@ FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
 LEFT JOIN LATERAL unnest(r.permissions) AS p ON true
-WHERE u.deleted_at IS NULL 
-    AND ($1 = 0 OR u.id = $1) 
+WHERE u.deleted_at IS NULL
+    AND ($1 = 0 OR u.id = $1)
     AND ($2 = '' OR u.email = $2)
     AND (cardinality($3::text[]) = 0 OR u.type::text = ANY($3::text[]))
 GROUP BY u.id;
@@ -105,7 +106,7 @@ WHERE id = $1;
 UPDATE users
 SET custom_attributes = COALESCE(custom_attributes, '{}'::jsonb) || $2,
 updated_at = now()
-WHERE id = $1
+WHERE id = $1;
 
 -- name: update-avatar
 UPDATE users  
@@ -167,9 +168,18 @@ RETURNING id;
 -- name: insert-contact-without-external-id
 INSERT INTO users (email, type, first_name, last_name, "password", avatar_url, external_user_id)
 VALUES ($1, 'contact', $2, $3, $4, $5, NULL)
-ON CONFLICT (email) WHERE type = 'contact' AND deleted_at IS NULL AND external_user_id IS NULL
+ON CONFLICT (email) WHERE type = 'contact' AND deleted_at IS NULL AND email IS NOT NULL
 DO UPDATE SET updated_at = now()
 RETURNING id;
+
+-- name: get-contact-by-email
+SELECT id, external_user_id FROM users
+WHERE email = $1 AND type = 'contact' AND deleted_at IS NULL
+LIMIT 1;
+
+-- name: set-external-user-id
+UPDATE users SET external_user_id = $2, updated_at = now()
+WHERE id = $1 AND type = 'contact' AND deleted_at IS NULL;
 
 -- name: insert-visitor
 INSERT INTO users (email, type, first_name, last_name, custom_attributes)
@@ -195,6 +205,7 @@ SET first_name = COALESCE($2, first_name),
     avatar_url = $5,
     phone_number = $6,
     phone_number_country_code = $7,
+    country = $8,
     updated_at = now()
 WHERE id = $1 and type in ('contact', 'visitor');
 
@@ -255,6 +266,7 @@ SELECT
     u.last_login_at,
     u.phone_number_country_code,
     u.phone_number,
+    u.country,
     u.api_key,
     u.api_key_last_used_at,
     u.api_secret,
@@ -307,6 +319,7 @@ SELECT
     u.last_login_at,
     u.phone_number_country_code,
     u.phone_number,
+    u.country,
     u.external_user_id,
     u.custom_attributes,
     u.api_key,
@@ -327,6 +340,15 @@ LEFT JOIN LATERAL unnest(r.permissions) AS p ON true
 WHERE u.deleted_at IS NULL
     AND u.external_user_id = $1
 GROUP BY u.id;
+
+-- name: get-visitor-by-email
+SELECT id, email, external_user_id FROM users
+WHERE email = $1 AND type = 'visitor' AND deleted_at IS NULL
+LIMIT 1;
+
+-- name: upgrade-visitor-to-contact
+UPDATE users SET type = 'contact', updated_at = now()
+WHERE id = $1 AND type = 'visitor';
 
 -- name: merge-visitor-to-contact
 WITH transfer_conversations AS (

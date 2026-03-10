@@ -6,9 +6,10 @@
     'use strict';
 
     // Prevent multiple initializations
-    if (window.LibredeskWidget && window.LibredeskWidget instanceof Function) {
+    if (window.__libredeskWidgetLoaded) {
         return;
     }
+    window.__libredeskWidgetLoaded = true;
 
     class LibredeskWidget {
         constructor(config = {}) {
@@ -49,6 +50,7 @@
                 });
                 this.setupMobileDetection();
                 this.setupEventListeners();
+                this.startPageTracking();
             } catch (error) {
                 console.error('Failed to initialize Libredesk Widget:', error);
             }
@@ -233,6 +235,12 @@
                         this.expandWidget();
                     } else if (event.data.type === 'COLLAPSE_WIDGET') {
                         this.collapseWidget();
+                    } else if (event.data.type === 'REQUEST_PAGE_INFO') {
+                        this.iframe.contentWindow.postMessage({
+                            type: 'PAGE_VISIT',
+                            url: window.location.href,
+                            title: document.title || ''
+                        }, '*');
                     }
                 }
             });
@@ -394,6 +402,69 @@
             }
         }
 
+        startPageTracking () {
+            this._lastPageURL = '';
+            this._origPushState = history.pushState;
+            this._origReplaceState = history.replaceState;
+
+            const self = this;
+            const onPageChange = () => {
+                const url = window.location.href;
+                if (url === self._lastPageURL) return;
+                self._lastPageURL = url;
+                // Defer to let SPA frameworks update document.title after route change.
+                setTimeout(() => {
+                    if (self.iframe && self.iframe.contentWindow) {
+                        self.iframe.contentWindow.postMessage({
+                            type: 'PAGE_VISIT',
+                            url: url,
+                            title: document.title || ''
+                        }, '*');
+                    }
+                }, 100);
+            };
+
+            // Monkey-patch history methods.
+            history.pushState = function () {
+                self._origPushState.apply(this, arguments);
+                onPageChange();
+            };
+            history.replaceState = function () {
+                self._origReplaceState.apply(this, arguments);
+                onPageChange();
+            };
+
+            // Hash routing and browser back/forward.
+            this._onPopState = onPageChange;
+            this._onHashChange = onPageChange;
+            window.addEventListener('popstate', this._onPopState);
+            window.addEventListener('hashchange', this._onHashChange);
+
+            // Fallback polling for edge cases.
+            this._pageTrackInterval = setInterval(onPageChange, 7000);
+
+            // Send initial page.
+            onPageChange();
+        }
+
+        stopPageTracking () {
+            if (this._origPushState) {
+                history.pushState = this._origPushState;
+            }
+            if (this._origReplaceState) {
+                history.replaceState = this._origReplaceState;
+            }
+            if (this._onPopState) {
+                window.removeEventListener('popstate', this._onPopState);
+            }
+            if (this._onHashChange) {
+                window.removeEventListener('hashchange', this._onHashChange);
+            }
+            if (this._pageTrackInterval) {
+                clearInterval(this._pageTrackInterval);
+            }
+        }
+
         setUser (jwt) {
             if (this.iframe && this.iframe.contentWindow) {
                 this.iframe.contentWindow.postMessage({
@@ -410,6 +481,7 @@
         }
 
         destroy () {
+            this.stopPageTracking();
             if (this.widgetButtonWrapper) {
                 document.body.removeChild(this.widgetButtonWrapper);
                 this.widgetButtonWrapper = null;

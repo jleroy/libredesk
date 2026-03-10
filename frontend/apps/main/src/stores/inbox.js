@@ -12,6 +12,10 @@ export const useInboxStore = defineStore('inbox', () => {
     label: inb.name,
     value: String(inb.id)
   })))
+  const emailOptions = computed(() => inboxes.value
+    .filter(inb => inb.channel === 'email')
+    .map(inb => ({ label: inb.name, value: String(inb.id) }))
+  )
   const fetchInboxes = async (force = false) => {
     if (!force && inboxes.value.length) return
     try {
@@ -27,6 +31,7 @@ export const useInboxStore = defineStore('inbox', () => {
   return {
     inboxes,
     options,
+    emailOptions,
     fetchInboxes,
   }
 })

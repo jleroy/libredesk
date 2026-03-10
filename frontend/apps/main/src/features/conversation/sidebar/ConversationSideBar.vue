@@ -75,6 +75,20 @@
         </AccordionContent>
       </AccordionItem>
 
+      <!-- Page visits (livechat only) -->
+      <AccordionItem
+        value="page_visits"
+        class="accordion-item"
+        v-if="conversationStore.current?.inbox_channel === 'livechat'"
+      >
+        <AccordionTrigger class="accordion-trigger">
+          {{ $t('conversation.sidebar.lastBrowsedPages') }}
+        </AccordionTrigger>
+        <AccordionContent class="accordion-content">
+          <ConversationSideBarPageVisits />
+        </AccordionContent>
+      </AccordionItem>
+
       <!-- Previous conversations -->
       <AccordionItem value="previous_conversations" class="accordion-item">
         <AccordionTrigger class="accordion-trigger">
@@ -111,6 +125,7 @@ import { useStorage } from '@vueuse/core'
 import CustomAttributes from '@/features/conversation/sidebar/CustomAttributes.vue'
 import { useCustomAttributeStore } from '../../../stores/customAttributes'
 import PreviousConversations from '@/features/conversation/sidebar/PreviousConversations.vue'
+import ConversationSideBarPageVisits from '@/features/conversation/sidebar/ConversationSideBarPageVisits.vue'
 import SelectComboBox from '@main/components/combobox/SelectCombobox.vue'
 import api from '../../../api'
 

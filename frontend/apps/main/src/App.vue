@@ -142,6 +142,7 @@ import { useSharedViewStore } from './stores/sharedView'
 import { useTagStore } from './stores/tag'
 import { useCustomAttributeStore } from './stores/customAttributes'
 import { useIdleDetection } from './composables/useIdleDetection'
+import { initAudioContext } from '@shared-ui/composables/useNotificationSound'
 import PageHeader from './components/layout/PageHeader.vue'
 import ViewForm from '@/features/view/ViewForm.vue'
 import AdminBanner from '@/components/banner/AdminBanner.vue'
@@ -188,6 +189,15 @@ const { t } = useI18n()
 
 initWS()
 useIdleDetection()
+
+// Unlock audio on first user interaction (browser autoplay policy)
+const unlockAudio = () => {
+  initAudioContext()
+  document.removeEventListener('click', unlockAudio)
+  document.removeEventListener('touchstart', unlockAudio)
+}
+document.addEventListener('click', unlockAudio)
+document.addEventListener('touchstart', unlockAudio)
 
 onMounted(() => {
   initToaster()

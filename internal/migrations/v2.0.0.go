@@ -62,75 +62,39 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
-	// Add last_interaction_at column if it doesn't exist
-	_, err = db.Exec(`
-		ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_interaction_at TIMESTAMPTZ NULL;
-	`)
-	if err != nil {
-		return err
-	}
-
-	// Create index on last_interaction_at column if it doesn't exist
-	_, err = db.Exec(`
-		CREATE INDEX IF NOT EXISTS index_conversations_on_last_interaction_at ON conversations (last_interaction_at);
-	`)
-	if err != nil {
-		return err
-	}
-
-	tx, err := db.Beginx()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	stmts := []string{
-		/* ── drop index for e‑mail uniqueness and add seperate indexes for type of user ── */
-		`DROP INDEX IF EXISTS index_unique_users_on_email_and_type_when_deleted_at_is_null`,
-
-		/* ── email for agents are unique ── */
-		`CREATE UNIQUE INDEX IF NOT EXISTS
-		index_unique_users_on_email_when_type_is_agent
-			ON users(email)
-			WHERE type = 'agent'  AND deleted_at IS NULL`,
-	}
-
-	for _, q := range stmts {
-		if _, err = tx.Exec(q); err != nil {
-			return err
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
 	tx2, err := db.Beginx()
 	if err != nil {
 		return err
 	}
 	defer tx2.Rollback()
 
-	jwtStmts := []string{
-		/* ── Add secret column to inboxes table for JWT signing (livechat only) ── */
+	stmts := []string{
 		`ALTER TABLE inboxes ADD COLUMN IF NOT EXISTS secret TEXT NULL`,
 
-		/* ── Add external_user_id column to users table for 3rd party user mapping ── */
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS external_user_id TEXT NULL`,
 
-		/* ──  ── */
+		`DROP INDEX IF EXISTS index_unique_users_on_email_and_type_when_deleted_at_is_null`,
+
 		`
-		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_users_on_ext_id_when_type_is_contact 
-		ON users (external_user_id) 
+		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_users_on_email_when_type_is_agent
+		ON users (email)
+		WHERE type = 'agent' AND deleted_at IS NULL;
+		`,
+
+		`
+		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_users_on_ext_id_when_type_is_contact
+		ON users (external_user_id)
 		WHERE type = 'contact' AND deleted_at IS NULL AND external_user_id IS NOT NULL;
 		`,
 
 		`
-		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_users_on_email_when_no_ext_id_contact
-		ON users (email) 
-		WHERE type = 'contact' AND deleted_at IS NULL AND external_user_id IS NULL;
+		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_users_on_email_when_type_is_contact
+		ON users (email)
+		WHERE type = 'contact' AND deleted_at IS NULL AND email IS NOT NULL;
 		`,
 	}
 
-	for _, q := range jwtStmts {
+	for _, q := range stmts {
 		if _, err = tx2.Exec(q); err != nil {
 			return err
 		}

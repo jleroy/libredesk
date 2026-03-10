@@ -59,6 +59,7 @@
           :title="channel.title"
           :subTitle="channel.subTitle"
           :icon="channel.icon"
+          :badge="channel.badge"
           class="w-full max-w-sm cursor-pointer"
         >
         </MenuCard>
@@ -154,7 +155,8 @@ const channels = [
     title: t('globals.terms.liveChat'),
     subTitle: t('admin.inbox.createLiveChatInbox'),
     onClick: selectLiveChatChannel,
-    icon: MessageCircle
+    icon: MessageCircle,
+    badge: t('globals.terms.beta')
   }
 ]
 

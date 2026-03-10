@@ -95,7 +95,7 @@
                         <SelectContent>
                           <SelectGroup>
                             <SelectItem
-                              v-for="option in inboxStore.options"
+                              v-for="option in inboxStore.emailOptions"
                               :key="option.value"
                               :value="option.value"
                             >
@@ -300,7 +300,7 @@ const formSchema = z.object({
     1,
     t('validation.messageCannotBeEmpty')
   ),
-  inbox_id: z.any().refine((val) => inboxStore.options.some((option) => option.value === val), {
+  inbox_id: z.any().refine((val) => inboxStore.emailOptions.some((option) => option.value === val), {
     message: t('globals.messages.required')
   }),
   team_id: z.any().optional(),

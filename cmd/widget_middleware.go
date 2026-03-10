@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/httputil"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
+	realip "github.com/ferluci/fast-realip"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
 )
@@ -15,7 +18,6 @@ import (
 const (
 	// Context keys for storing authenticated widget data
 	ctxWidgetClaims    = "widget_claims"
-	ctxWidgetInboxID   = "widget_inbox_id"
 	ctxWidgetContactID = "widget_contact_id"
 	ctxWidgetInbox     = "widget_inbox"
 
@@ -58,8 +60,20 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("validation.notFoundInbox"), nil, envelope.InputError)
 		}
 
+		// Check if the client's IP is blocked.
+		var config livechat.Config
+		if err := json.Unmarshal(inbox.Config, &config); err != nil {
+			app.lo.Error("error parsing live chat config", "error", err)
+			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+		}
+		if len(config.BlockedIPs) > 0 {
+			clientIP := realip.FromRequest(r.RequestCtx)
+			if httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
+				return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("widget.ipBlocked"), nil, envelope.PermissionError)
+			}
+		}
+
 		// Always store inbox data in context
-		r.RequestCtx.SetUserValue(ctxWidgetInboxID, inboxID)
 		r.RequestCtx.SetUserValue(ctxWidgetInbox, inbox)
 
 		// Extract JWT from Authorization header (Bearer token)
@@ -120,19 +134,6 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 
 // Helper functions to extract authenticated data from request context
 
-// getWidgetInboxID extracts inbox ID from request context
-func getWidgetInboxID(r *fastglue.Request) (int, error) {
-	val := r.RequestCtx.UserValue(ctxWidgetInboxID)
-	if val == nil {
-		return 0, fmt.Errorf("widget middleware not applied: missing inbox ID in context")
-	}
-	inboxID, ok := val.(int)
-	if !ok {
-		return 0, fmt.Errorf("invalid inbox ID type in context")
-	}
-	return inboxID, nil
-}
-
 // getWidgetContactID extracts contact ID from request context
 func getWidgetContactID(r *fastglue.Request) (int, error) {
 	val := r.RequestCtx.UserValue(ctxWidgetContactID)
@@ -175,7 +176,7 @@ func getWidgetClaimsOptional(r *fastglue.Request) *Claims {
 func rateLimitWidget(handler fastglue.FastRequestHandler) fastglue.FastRequestHandler {
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
-		if err := app.rateLimit.CheckWidgetLimit(r.RequestCtx); err != nil {
+		if err := app.rateLimit.Check(r.RequestCtx, "widget"); err != nil {
 			return err
 		}
 		return handler(r)

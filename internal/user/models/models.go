@@ -63,8 +63,9 @@ type User struct {
 	LastLoginAt            null.Time            `db:"last_login_at" json:"last_login_at"`
 	Roles                  pq.StringArray       `db:"roles" json:"roles"`
 	Permissions            pq.StringArray       `db:"permissions" json:"permissions"`
-	CustomAttributes       json.RawMessage      `db:"custom_attributes" json:"custom_attributes"`
+	Country                null.String          `db:"country" json:"country"`
 	Meta                   json.RawMessage      `db:"meta" json:"meta"`
+	CustomAttributes       json.RawMessage      `db:"custom_attributes" json:"custom_attributes"`
 	ExternalUserID         null.String          `db:"external_user_id" json:"external_user_id"`
 	Teams                  tmodels.TeamsCompact `db:"teams" json:"teams"`
 	ContactChannelID       int                  `db:"contact_channel_id" json:"contact_channel_id,omitempty"`

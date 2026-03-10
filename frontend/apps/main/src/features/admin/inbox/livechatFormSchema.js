@@ -46,6 +46,7 @@ export const createFormSchema = (t) => z.object({
     }),
     direct_to_conversation: z.boolean().default(false),
     trusted_domains: z.string().optional(),
+    blocked_ips: z.string().optional(),
     external_links: z.array(z.object({
       text: z.string().min(1),
       url: z.string().url({
@@ -56,11 +57,13 @@ export const createFormSchema = (t) => z.object({
       start_conversation_button_text: z.string(),
       allow_start_conversation: z.boolean(),
       prevent_multiple_conversations: z.boolean(),
+      prevent_reply_to_closed_conversation: z.boolean(),
     }),
     users: z.object({
       start_conversation_button_text: z.string(),
       allow_start_conversation: z.boolean(),
       prevent_multiple_conversations: z.boolean(),
+      prevent_reply_to_closed_conversation: z.boolean(),
     }),
     prechat_form: z.object({
       enabled: z.boolean(),

@@ -9,11 +9,6 @@
           {{ formTitle }}
         </div>
 
-        <!-- Default message -->
-        <div v-else class="text-lg font-semibold text-foreground mb-2">
-          {{ $t('globals.terms.helpUsServeYouBetter') }}
-        </div>
-
         <form @submit.prevent="submitForm" class="space-y-4">
           <!-- Dynamic fields -->
           <div v-for="field in sortedFields" :key="field.key" class="space-y-2">
@@ -174,13 +169,30 @@
               </FormItem>
             </FormField>
           </div>
+
+          <!-- Message textarea (always last) -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium">
+              {{ $t('globals.terms.message') }}
+              <span class="text-destructive">*</span>
+            </label>
+            <Textarea
+              v-model="messageText"
+              :placeholder="$t('globals.terms.typeMessage')"
+              class="w-full min-h-20 max-h-32 resize-none"
+            />
+          </div>
         </form>
       </div>
 
       <!-- Submit button - fixed at bottom -->
       <div class="p-4 border-t">
-        <Button @click="submitForm" class="w-full" :disabled="!requiredFieldsFilled || !meta.valid">
-          {{ $t('globals.terms.continue') }}
+        <Button @click="submitForm" class="w-full" :disabled="!requiredFieldsFilled || !meta.valid || !messageText.trim() || props.isSubmitting">
+          <div
+            v-if="props.isSubmitting"
+            class="w-4 h-4 border-2 border-background border-t-current rounded-full animate-spin mr-2"
+          ></div>
+          {{ $t('widget.prechatForm.startChat') }}
         </Button>
       </div>
     </div>
@@ -188,11 +200,12 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@shared-ui/components/ui/button'
 import { Input } from '@shared-ui/components/ui/input'
+import { Textarea } from '@shared-ui/components/ui/textarea'
 import { Checkbox } from '@shared-ui/components/ui/checkbox'
 import {
   Select,
@@ -216,12 +229,17 @@ const props = defineProps({
   excludeDefaultFields: {
     type: Boolean,
     default: false
+  },
+  isSubmitting: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['submit'])
 const { t } = useI18n()
 const widgetStore = useWidgetStore()
+const messageText = ref('')
 
 const config = computed(() => widgetStore.config?.prechat_form || {})
 const preChatFormEnabled = computed(() => config.value.enabled || false)
@@ -283,7 +301,7 @@ const submitForm = handleSubmit((values) => {
     }
   })
 
-  emit('submit', filteredValues)
+  emit('submit', { formData: filteredValues, message: messageText.value.trim() })
 })
 
 // Get options for list fields
@@ -300,12 +318,12 @@ const getFieldOptions = (field) => {
   return []
 }
 
-// Auto-submit for disabled mode
+// Auto-submit when no fields to show (e.g., all fields excluded)
 watch(
   showForm,
   (newValue) => {
     if (!newValue) {
-      emit('submit', {})
+      emit('submit', { formData: {}, message: '' })
     }
   },
   { immediate: true }

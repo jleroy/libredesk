@@ -269,10 +269,10 @@ type queries struct {
 	GetContactPreviousConversations    *sqlx.Stmt `query:"get-contact-previous-conversations"`
 	GetConversationParticipants        *sqlx.Stmt `query:"get-conversation-participants"`
 	GetUserActiveConversationsCount    *sqlx.Stmt `query:"get-user-active-conversations-count"`
-	UpdateConversationFirstReplyAt    *sqlx.Stmt `query:"update-conversation-first-reply-at"`
-	UpdateConversationLastReplyAt     *sqlx.Stmt `query:"update-conversation-last-reply-at"`
-	UpdateConversationWaitingSince    *sqlx.Stmt `query:"update-conversation-waiting-since"`
-	UpdateConversationContactLastSeen *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
+	UpdateConversationFirstReplyAt     *sqlx.Stmt `query:"update-conversation-first-reply-at"`
+	UpdateConversationLastReplyAt      *sqlx.Stmt `query:"update-conversation-last-reply-at"`
+	UpdateConversationWaitingSince     *sqlx.Stmt `query:"update-conversation-waiting-since"`
+	UpdateConversationContactLastSeen  *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
 	UpsertUserLastSeen                 *sqlx.Stmt `query:"upsert-user-last-seen"`
 	MarkConversationUnread             *sqlx.Stmt `query:"mark-conversation-unread"`
 	UpdateConversationAssignedUser     *sqlx.Stmt `query:"update-conversation-assigned-user"`
@@ -281,7 +281,6 @@ type queries struct {
 	UpdateConversationPriority         *sqlx.Stmt `query:"update-conversation-priority"`
 	UpdateConversationStatus           *sqlx.Stmt `query:"update-conversation-status"`
 	UpdateConversationLastMessage      *sqlx.Stmt `query:"update-conversation-last-message"`
-	UpdateConversationMeta             *sqlx.Stmt `query:"update-conversation-meta"`
 	InsertConversationParticipant      *sqlx.Stmt `query:"insert-conversation-participant"`
 	InsertConversation                 *sqlx.Stmt `query:"insert-conversation"`
 	AddConversationTags                *sqlx.Stmt `query:"add-conversation-tags"`
@@ -324,13 +323,32 @@ type queries struct {
 }
 
 // CreateConversation creates a new conversation and returns its ID and UUID.
-func (c *Manager) CreateConversation(contactID, inboxID int, lastMessage string, lastMessageAt time.Time, subject string, appendRefNumToSubject bool) (int, string, error) {
+func (c *Manager) CreateConversation(contactID, inboxID int, lastMessage string, lastMessageAt time.Time, subject string, appendRefNumToSubject bool, meta, customAttributes map[string]any) (int, string, error) {
 	var (
 		id     int
 		uuid   string
 		prefix string
 	)
-	if err := c.q.InsertConversation.QueryRow(contactID, models.StatusOpen, inboxID, lastMessage, lastMessageAt, subject, prefix, appendRefNumToSubject).Scan(&id, &uuid); err != nil {
+
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	if customAttributes == nil {
+		customAttributes = map[string]any{}
+	}
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		c.lo.Error("error marshalling conversation meta", "error", err)
+		return 0, "", err
+	}
+	customAttrsJSON, err := json.Marshal(customAttributes)
+	if err != nil {
+		c.lo.Error("error marshalling conversation custom attributes", "error", err)
+		return 0, "", err
+	}
+
+	if err := c.q.InsertConversation.QueryRow(contactID, models.StatusOpen, inboxID, lastMessage, lastMessageAt, subject, prefix, appendRefNumToSubject, metaJSON, customAttrsJSON).Scan(&id, &uuid); err != nil {
 		c.lo.Error("error inserting new conversation into the DB", "error", err)
 		return id, uuid, err
 	}
@@ -589,15 +607,6 @@ func (c *Manager) ActiveUserConversationsCount(userID int) (int, error) {
 func (c *Manager) UpdateConversationLastMessage(conversation int, conversationUUID, lastMessage, lastMessageSenderType, messageType string, private bool, lastMessageAt time.Time, senderID int) error {
 	if _, err := c.q.UpdateConversationLastMessage.Exec(conversation, conversationUUID, lastMessage, lastMessageSenderType, lastMessageAt, messageType, private, senderID); err != nil {
 		c.lo.Error("error updating conversation last message", "error", err)
-		return err
-	}
-	return nil
-}
-
-// UpdateConversationMeta updates meta data for a conversation.
-func (c *Manager) UpdateConversationMeta(uuid string, meta map[string]any) error {
-	if _, err := c.q.UpdateConversationMeta.Exec(uuid, meta); err != nil {
-		c.lo.Error("error updating conversation meta", "error", err)
 		return err
 	}
 	return nil
@@ -1561,31 +1570,25 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 func (m *Manager) ProcessCSATStatus(messages []models.Message) {
 	for i := range messages {
 		msg := &messages[i]
-		if msg.HasCSAT() {
-			// Extract CSAT UUID from message content
-			csatUUID := msg.ExtractCSATUUID()
-			if csatUUID == "" {
-				// Fallback to basic censoring if UUID extraction fails
-				msg.CensorCSATContent()
-				continue
-			}
-
-			// Get CSAT submission status
-			csat, err := m.csatStore.Get(csatUUID)
-			isSubmitted := false
-			rating := 0
-			feedback := ""
-			if err == nil && csat.ResponseTimestamp.Valid {
-				isSubmitted = true
-				rating = csat.Rating
-				if csat.Feedback.Valid {
-					feedback = csat.Feedback.String
-				}
-			}
-
-			// Censor content and add submission status
-			msg.CensorCSATContentWithStatus(isSubmitted, csatUUID, rating, feedback)
+		csatUUID := msg.ExtractCSATUUID()
+		if csatUUID == "" {
+			continue
 		}
+
+		var (
+			isSubmitted bool
+			rating      int
+			feedback    string
+		)
+		csat, err := m.csatStore.Get(csatUUID)
+		if err == nil && csat.ResponseTimestamp.Valid {
+			isSubmitted = true
+			rating = csat.Rating
+			if csat.Feedback.Valid {
+				feedback = csat.Feedback.String
+			}
+		}
+		msg.CensorCSATContentWithStatus(isSubmitted, csatUUID, rating, feedback)
 	}
 }
 
@@ -1612,8 +1615,7 @@ func (m *Manager) BuildWidgetConversationView(conversation models.Conversation) 
 				}
 			}
 
-			// Build assignee object
-			view.Assignee = map[string]interface{}{
+			view.Assignee = map[string]any{
 				"id":                  assignee.ID,
 				"first_name":          assignee.FirstName,
 				"last_name":           assignee.LastName,
@@ -1650,6 +1652,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 	// Build messages if requested
 	if includeMessages {
 		private := false
+		// Fetch last 400 messages.
 		messages, _, err := m.GetConversationMessages(conversation.UUID, 1, 400, &private, []string{models.MessageIncoming, models.MessageOutgoing})
 		if err != nil {
 			m.lo.Error("error fetching conversation messages", "conversation_uuid", conversation.UUID, "error", err)
@@ -1658,27 +1661,12 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 
 		m.ProcessCSATStatus(messages)
 
-		// Convert to chat message format
+		// Generate signed URLs for all attachments.
 		chatMessages := make([]models.ChatMessage, len(messages))
-		userCache := make(map[int]umodels.User)
 		for i, msg := range messages {
-			// Generate signed URLs for attachments
 			attachments := msg.Attachments
 			for j := range attachments {
 				attachments[j].URL = m.mediaStore.GetSignedURL(attachments[j].UUID)
-			}
-
-			// Fetch sender from cache or store
-			var user umodels.User
-			if cachedUser, ok := userCache[msg.SenderID]; ok {
-				user = cachedUser
-			} else {
-				user, err = m.userStore.Get(msg.SenderID, "", []string{})
-				if err != nil {
-					m.lo.Error("error fetching message sender user", "sender_id", msg.SenderID, "conversation_uuid", conversation.UUID, "error", err)
-				} else {
-					userCache[msg.SenderID] = user
-				}
 			}
 
 			chatMessages[i] = models.ChatMessage{
@@ -1689,15 +1677,8 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 				TextContent:      msg.TextContent,
 				ConversationUUID: msg.ConversationUUID,
 				Meta:             msg.Meta,
-				Author: umodels.ChatUser{
-					ID:                 user.ID,
-					FirstName:          user.FirstName,
-					LastName:           user.LastName,
-					AvatarURL:          user.AvatarURL,
-					AvailabilityStatus: user.AvailabilityStatus,
-					Type:               user.Type,
-				},
-				Attachments: attachments,
+				Author:           msg.Author,
+				Attachments:      attachments,
 			}
 		}
 		resp.Messages = chatMessages
@@ -1722,7 +1703,9 @@ func (m *Manager) calculateBusinessHoursInfo(conversation models.Conversation) (
 	// Check if conversation is assigned to a team with business hours
 	if conversation.AssignedTeamID.Valid {
 		team, err := m.teamStore.Get(conversation.AssignedTeamID.Int)
-		if err == nil && team.BusinessHoursID.Valid {
+		if err != nil {
+			m.lo.Error("error fetching team for business hours info", "team_id", conversation.AssignedTeamID.Int, "error", err)
+		} else if team.BusinessHoursID.Valid {
 			businessHoursID = &team.BusinessHoursID.Int
 			timezone = team.Timezone
 		}
@@ -1733,7 +1716,10 @@ func (m *Manager) calculateBusinessHoursInfo(conversation models.Conversation) (
 		out, err := m.settingsStore.GetByPrefix("app")
 		if err == nil {
 			var settings map[string]any
-			if err := json.Unmarshal([]byte(out), &settings); err == nil {
+			err := json.Unmarshal([]byte(out), &settings)
+			if err != nil {
+				m.lo.Error("error unmarshalling settings", "error", err)
+			} else {
 				if bhIDStr, ok := settings["app.business_hours_id"].(string); ok && bhIDStr != "" {
 					if bhID, err := strconv.Atoi(bhIDStr); err == nil {
 						businessHoursID = &bhID
@@ -1748,7 +1734,10 @@ func (m *Manager) calculateBusinessHoursInfo(conversation models.Conversation) (
 
 	// Calculate UTC offset for the timezone
 	if timezone != "" {
-		if loc, err := time.LoadLocation(timezone); err == nil {
+		loc, err := time.LoadLocation(timezone)
+		if err != nil {
+			m.lo.Error("error loading location for timezone", "timezone", timezone, "error", err)
+		} else {
 			_, offset := time.Now().In(loc).Zone()
 			offsetMinutes := offset / 60
 			utcOffset = &offsetMinutes

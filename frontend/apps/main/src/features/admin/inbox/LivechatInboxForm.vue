@@ -591,6 +591,30 @@
               </FormItem>
             </FormField>
           </div>
+
+          <!-- Blocked IPs -->
+          <div class="space-y-4">
+            <h4 class="font-medium text-foreground">
+              {{ $t('admin.inbox.livechat.blockedIPs') }}
+            </h4>
+
+            <FormField v-slot="{ componentField }" name="config.blocked_ips">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.blockedIPs.list') }}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    v-bind="componentField"
+                    placeholder="192.168.1.0/24&#10;10.0.0.1&#10;2001:db8::/32"
+                    rows="4"
+                  />
+                </FormControl>
+                <FormDescription>{{
+                  $t('admin.inbox.livechat.blockedIPs.description')
+                }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+          </div>
         </div>
 
         <!-- Pre-Chat Form Tab -->
@@ -665,6 +689,25 @@
                     </FormControl>
                   </FormItem>
                 </FormField>
+
+                <FormField
+                  v-slot="{ componentField, handleChange }"
+                  name="config.visitors.prevent_reply_to_closed_conversation"
+                >
+                  <FormItem class="flex flex-row items-center justify-between box p-4">
+                    <div class="space-y-0.5">
+                      <FormLabel class="text-base">{{
+                        $t('admin.inbox.livechat.preventReplyToClosedConversation')
+                      }}</FormLabel>
+                      <FormDescription>{{
+                        $t('admin.inbox.livechat.preventReplyToClosedConversation.description')
+                      }}</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
+                    </FormControl>
+                  </FormItem>
+                </FormField>
               </div>
 
               <!-- Users Settings -->
@@ -714,6 +757,25 @@
                       }}</FormLabel>
                       <FormDescription>{{
                         $t('admin.inbox.livechat.preventMultipleConversations.users.description')
+                      }}</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
+                    </FormControl>
+                  </FormItem>
+                </FormField>
+
+                <FormField
+                  v-slot="{ componentField, handleChange }"
+                  name="config.users.prevent_reply_to_closed_conversation"
+                >
+                  <FormItem class="flex flex-row items-center justify-between box p-4">
+                    <div class="space-y-0.5">
+                      <FormLabel class="text-base">{{
+                        $t('admin.inbox.livechat.preventReplyToClosedConversation')
+                      }}</FormLabel>
+                      <FormDescription>{{
+                        $t('admin.inbox.livechat.preventReplyToClosedConversation.description')
                       }}</FormDescription>
                     </div>
                     <FormControl>
@@ -894,13 +956,17 @@ const integrationSnippet = computed(() => {
 // JWT payload example
 const jwtPayloadExample = computed(() => {
   return `{
-  "external_user_id": "your_app_user_123",  // Required: Unique user ID (use email if unavailable)
-  "email": "user@example.com",              // Optional: User's email
-  "first_name": "John",                     // Optional: User's first name
-  "last_name": "Doe",                       // Optional: User's last name
-  "custom_attributes": {                    // Optional: Custom attributes
+  "external_user_id": "your_app_user_123",    // Required: Your system's unique user ID
+  "email": "user@example.com",                // Optional: User's email
+  "first_name": "John",                       // Optional: User's first name
+  "last_name": "Doe",                         // Optional: User's last name
+  "contact_custom_attributes": {              // Optional: Contact-level attributes
     "plan": "premium",
     "company": "Acme Inc"
+  },
+  "conversation_custom_attributes": {         // Optional: Conversation-level attributes
+    "order_id": "ORD-123",
+    "page_url": "https://example.com/orders"
   }
 }`
 })
@@ -985,16 +1051,19 @@ const form = useForm({
       },
       direct_to_conversation: false,
       trusted_domains: '',
+      blocked_ips: '',
       external_links: [],
       visitors: {
         start_conversation_button_text: 'Start conversation',
         allow_start_conversation: true,
-        prevent_multiple_conversations: false
+        prevent_multiple_conversations: false,
+        prevent_reply_to_closed_conversation: false
       },
       users: {
         start_conversation_button_text: 'Start conversation',
         allow_start_conversation: true,
-        prevent_multiple_conversations: false
+        prevent_multiple_conversations: false,
+        prevent_reply_to_closed_conversation: false
       },
       prechat_form: {
         enabled: false,
@@ -1061,6 +1130,16 @@ const onSubmit = form.handleSubmit(async (values) => {
     values.config.trusted_domains = []
   }
 
+  // Transform blocked_ips from textarea to array
+  if (values.config.blocked_ips) {
+    values.config.blocked_ips = values.config.blocked_ips
+      .split('\n')
+      .map((ip) => ip.trim())
+      .filter((ip) => ip)
+  } else {
+    values.config.blocked_ips = []
+  }
+
   // Filter out incomplete external links before submission
   if (values.config.external_links) {
     values.config.external_links = values.config.external_links.filter(
@@ -1073,17 +1152,16 @@ const onSubmit = form.handleSubmit(async (values) => {
     values.linked_email_inbox_id = null
   }
 
+  // Sync prechat config to form values before submission.
+  // If no fields are enabled, disable the form.
+  const pc = { ...prechatConfig.value }
+  if (pc.enabled && pc.fields?.length > 0 && !pc.fields.some((f) => f.enabled)) {
+    pc.enabled = false
+  }
+  values.config.prechat_form = pc
+
   await props.submitForm(values)
 })
-
-// Watch for prechat config changes and sync with form
-watch(
-  prechatConfig,
-  (newConfig) => {
-    form.setFieldValue('config.prechat_form', newConfig)
-  },
-  { deep: true }
-)
 
 watch(
   () => props.initialValues,
@@ -1097,6 +1175,11 @@ watch(
       newValues.config.trusted_domains = newValues.config.trusted_domains.join('\n')
     }
 
+    // Transform blocked_ips array back to textarea format
+    if (newValues.config?.blocked_ips && Array.isArray(newValues.config.blocked_ips)) {
+      newValues.config.blocked_ips = newValues.config.blocked_ips.join('\n')
+    }
+
     // Set external links for the reactive array
     if (newValues.config?.external_links) {
       externalLinks.value = [...newValues.config.external_links]
@@ -1104,7 +1187,7 @@ watch(
 
     // Set prechat config
     if (newValues.config?.prechat_form) {
-      prechatConfig.value = { ...newValues.config.prechat_form }
+      prechatConfig.value = JSON.parse(JSON.stringify(newValues.config.prechat_form))
     }
 
     form.setValues(newValues)

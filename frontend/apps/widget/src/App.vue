@@ -16,9 +16,9 @@ import { onMounted, watch, getCurrentInstance } from 'vue'
 import { useWidgetStore } from './store/widget.js'
 import { useChatStore } from '@widget/store/chat.js'
 import { useUserStore } from './store/user.js'
-import { initWidgetWS, closeWidgetWebSocket } from './websocket.js'
+import { initWidgetWS, closeWidgetWebSocket, sendPageVisit } from './websocket.js'
 import { useUnreadCount } from './composables/useUnreadCount.js'
-import { initAudioContext } from './composables/useNotificationSound.js'
+import { initAudioContext } from '@shared-ui/composables/useNotificationSound.js'
 import { applyCSSColor } from '@shared-ui/utils/color.js'
 import MainLayout from '@widget/layouts/MainLayout.vue'
 
@@ -71,6 +71,8 @@ const setupParentMessageListeners = () => {
       }
     } else if (event.data.type === 'CLEAR_SESSION') {
       userStore.clearSessionToken()
+    } else if (event.data.type === 'PAGE_VISIT') {
+      sendPageVisit(event.data.url, event.data.title)
     }
   })
 }

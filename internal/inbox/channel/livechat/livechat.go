@@ -10,7 +10,6 @@ import (
 
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/inbox"
-	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/zerodha/logf"
 )
 
@@ -43,9 +42,10 @@ type Config struct {
 	Language         string `json:"language"`
 	FallbackLanguage string `json:"fallback_language"`
 	Users            struct {
-		AllowStartConversation       bool   `json:"allow_start_conversation"`
-		PreventMultipleConversations bool   `json:"prevent_multiple_conversations"`
-		StartConversationButtonText  string `json:"start_conversation_button_text"`
+		AllowStartConversation           bool   `json:"allow_start_conversation"`
+		PreventMultipleConversations     bool   `json:"prevent_multiple_conversations"`
+		PreventReplyToClosedConversation bool   `json:"prevent_reply_to_closed_conversation"`
+		StartConversationButtonText      string `json:"start_conversation_button_text"`
 	} `json:"users"`
 	Colors struct {
 		Primary string `json:"primary"`
@@ -64,9 +64,10 @@ type Config struct {
 	} `json:"launcher"`
 	LogoURL  string `json:"logo_url"`
 	Visitors struct {
-		AllowStartConversation       bool   `json:"allow_start_conversation"`
-		PreventMultipleConversations bool   `json:"prevent_multiple_conversations"`
-		StartConversationButtonText  string `json:"start_conversation_button_text"`
+		AllowStartConversation           bool   `json:"allow_start_conversation"`
+		PreventMultipleConversations     bool   `json:"prevent_multiple_conversations"`
+		PreventReplyToClosedConversation bool   `json:"prevent_reply_to_closed_conversation"`
+		StartConversationButtonText      string `json:"start_conversation_button_text"`
 	} `json:"visitors"`
 	NoticeBanner struct {
 		Text    string `json:"text"`
@@ -77,6 +78,7 @@ type Config struct {
 		Text string `json:"text"`
 	} `json:"external_links"`
 	TrustedDomains                 []string `json:"trusted_domains"`
+	BlockedIPs                     []string `json:"blocked_ips"`
 	DirectToConversation           bool     `json:"direct_to_conversation"`
 	GreetingMessage                string   `json:"greeting_message"`
 	ChatIntroduction               string   `json:"chat_introduction"`
@@ -173,13 +175,14 @@ func (lc *LiveChat) Send(message models.OutboundMessage) error {
 						Content:          message.Content,
 						TextContent:      message.TextContent,
 						Meta:             message.Meta,
-						Author: umodels.ChatUser{
+						Author: models.MessageAuthor{
 							ID:                 message.SenderID,
 							FirstName:          sender.FirstName,
 							LastName:           sender.LastName,
 							AvatarURL:          sender.AvatarURL,
 							AvailabilityStatus: sender.AvailabilityStatus,
 							Type:               sender.Type,
+							LastActiveAt:       sender.LastActiveAt,
 						},
 						Attachments: message.Attachments,
 					},

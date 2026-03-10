@@ -2,7 +2,7 @@
 import { useChatStore } from './store/chat.js'
 import { useWidgetStore } from './store/widget.js'
 import { useUserStore } from './store/user.js'
-import { playNotificationSound } from './composables/useNotificationSound.js'
+import { playNotificationSound } from '@shared-ui/composables/useNotificationSound.js'
 
 export const WS_EVENT = {
   JOIN: 'join',
@@ -80,7 +80,10 @@ export class WidgetWebSocketClient {
       const data = JSON.parse(event.data)
       const handlers = {
         [WS_EVENT.JOINED]: () => {
-          // Joined inbox.
+          // Request current page info from parent after joining.
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'REQUEST_PAGE_INFO' }, '*')
+          }
         },
         [WS_EVENT.PONG]: () => {
           this.lastPong = Date.now()
@@ -276,3 +279,11 @@ export const sendWidgetMessage = message => widgetWSClient?.send(message)
 export const sendWidgetTyping = (isTyping = true, conversationUUID = null) => widgetWSClient?.sendTyping(isTyping, conversationUUID)
 export const closeWidgetWebSocket = () => widgetWSClient?.close()
 export const reOpenWidgetWebSocket = () => widgetWSClient?.reOpen()
+
+export function sendPageVisit (url, title) {
+  if (!widgetWSClient) return
+  widgetWSClient.send({
+    type: 'page_visit',
+    data: { url, title }
+  })
+}

@@ -684,8 +684,8 @@ export const useConversationStore = defineStore('conversation', () => {
 
     const { uuid, contact_id, prop, value } = update
 
-    // Handle contact status updates (broadcast by contact_id)
-    if (contact_id && prop === 'contact.availability_status') {
+    // Handle contact-level updates (broadcast by contact_id)
+    if (contact_id && prop?.startsWith('contact.')) {
       // Update current conversation if it belongs to this contact
       if (conversation.data?.contact_id === contact_id) {
         updateNested(conversation.data, prop, value)

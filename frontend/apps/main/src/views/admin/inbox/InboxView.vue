@@ -6,12 +6,14 @@
 
     <template #help>
       <div class="flex flex-col justify-evenly h-full gap-4">
-        <p class="font-medium text-2xl">{{ $t('admin.inbox.help.title') }}</p>
-        <p>{{ $t('admin.inbox.help.description') }}</p>
-        <ul class="list-disc list-inside space-y-2">
-          <li>{{ $t('admin.inbox.help.email') }}</li>
-          <li>{{ $t('admin.inbox.help.livechat') }}</li>
-        </ul>
+        <div class="space-y-2">
+          <p class="font-medium text-lg">{{ $t('globals.terms.email') }}</p>
+          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.email') }}</p>
+        </div>
+        <div class="space-y-2">
+          <p class="font-medium text-lg">{{ $t('globals.terms.liveChat') }}</p>
+          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.livechat') }}</p>
+        </div>
       </div>
     </template>
   </AdminPageWithHelp>

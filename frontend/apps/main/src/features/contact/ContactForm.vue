@@ -97,6 +97,39 @@
       </div>
     </div>
 
+    <div class="flex flex-wrap gap-6">
+      <div class="flex-1">
+        <FormField v-slot="{ componentField }" name="country">
+          <FormItem class="flex flex-col">
+            <FormLabel class="flex items-center">{{ t('globals.terms.country') }}</FormLabel>
+            <FormControl>
+              <ComboBox
+                v-bind="componentField"
+                :items="countryOptions"
+                :placeholder="t('globals.messages.select')"
+              >
+                <template #item="{ item }">
+                  <div class="flex items-center gap-2">
+                    <span v-if="item.emoji">{{ item.emoji }}</span>
+                    <span class="text-sm">{{ item.label }}</span>
+                  </div>
+                </template>
+
+                <template #selected="{ selected }">
+                  <div class="flex items-center gap-1">
+                    <span v-if="selected" class="text-lg">{{ selected.emoji }}</span>
+                    <span v-if="selected" class="text-sm">{{ selected.label }}</span>
+                  </div>
+                </template>
+              </ComboBox>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        </FormField>
+      </div>
+      <div class="flex-1"></div>
+    </div>
+
     <div v-if="userStore.can('contacts:write')">
       <Button type="submit" :isLoading="formLoading" :disabled="formLoading">
         {{ t('contact.updateContact') }}
@@ -106,7 +139,13 @@
 </template>
 
 <script setup>
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@shared-ui/components/ui/form'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
+} from '@shared-ui/components/ui/form'
 import { Input } from '@shared-ui/components/ui/input'
 import { Button } from '@shared-ui/components/ui/button'
 import ComboBox from '@shared-ui/components/ui/combobox/ComboBox.vue'
@@ -124,5 +163,11 @@ const allCountries = countries.map((country) => ({
   value: country.iso_2,
   emoji: country.emoji,
   calling_code: country.calling_code
+}))
+
+const countryOptions = countries.map((country) => ({
+  label: country.name,
+  value: country.iso_2,
+  emoji: country.emoji
 }))
 </script>

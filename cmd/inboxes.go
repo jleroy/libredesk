@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/httputil"
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/email/oauth"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
@@ -202,6 +203,12 @@ func validateInbox(app *App, inbox imodels.Inbox) error {
 			// ShowOfficeHoursAfterAssignment cannot be enabled if ShowOfficeHoursInChat is disabled
 			if config.ShowOfficeHoursAfterAssignment && !config.ShowOfficeHoursInChat {
 				return envelope.NewError(envelope.InputError, "`show_office_hours_after_assignment` cannot be enabled when `show_office_hours_in_chat` is disabled", nil)
+			}
+			// Validate blocked IPs entries.
+			for _, entry := range config.BlockedIPs {
+				if !httputil.ValidateIPOrCIDR(entry) {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.invalidIPOrCIDR", "entry", entry), nil)
+				}
 			}
 		}
 

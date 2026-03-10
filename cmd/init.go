@@ -1065,9 +1065,21 @@ func getLogLevel(lvl string) logf.Level {
 
 // initRateLimit initializes the rate limiter.
 func initRateLimit(redisClient *redis.Client) *ratelimit.Limiter {
-	var config ratelimit.Config
-	if err := ko.UnmarshalWithConf("rate_limit", &config, koanf.UnmarshalConf{Tag: "toml"}); err != nil {
-		log.Fatalf("error unmarshalling rate limit config: %v", err)
+	limiter := ratelimit.New(redisClient)
+
+	// Widget rate limit rule.
+	var widgetCfg struct {
+		Enabled           bool `toml:"enabled"`
+		RequestsPerMinute int  `toml:"requests_per_minute"`
 	}
-	return ratelimit.New(redisClient, config)
+	if err := ko.UnmarshalWithConf("rate_limit.widget", &widgetCfg, koanf.UnmarshalConf{Tag: "toml"}); err != nil {
+		log.Fatalf("error unmarshalling widget rate limit config: %v", err)
+	}
+	limiter.AddRule(ratelimit.Rule{
+		Name:              "widget",
+		Enabled:           widgetCfg.Enabled,
+		RequestsPerMinute: widgetCfg.RequestsPerMinute,
+	})
+
+	return limiter
 }

@@ -99,7 +99,7 @@ type ChatMessage struct {
 	CreatedAt        time.Time              `json:"created_at"`
 	Content          string                 `json:"content"`
 	TextContent      string                 `json:"text_content"`
-	Author           umodels.ChatUser       `json:"author"`
+	Author           MessageAuthor          `json:"author"`
 	Attachments      attachment.Attachments `json:"attachments"`
 	Meta             json.RawMessage        `json:"meta"`
 }
@@ -203,10 +203,12 @@ type ConversationContact struct {
 	AvatarURL              null.String     `db:"avatar_url" json:"avatar_url"`
 	PhoneNumber            null.String     `db:"phone_number" json:"phone_number"`
 	PhoneNumberCountryCode null.String     `db:"phone_number_country_code" json:"phone_number_country_code"`
+	Country                null.String     `db:"country" json:"country"`
 	CustomAttributes       json.RawMessage `db:"custom_attributes" json:"custom_attributes"`
 	Enabled                bool            `db:"enabled" json:"enabled"`
 	LastActiveAt           null.Time       `db:"last_active_at" json:"last_active_at"`
 	LastLoginAt            null.Time       `db:"last_login_at" json:"last_login_at"`
+	ExternalUserID         null.String     `db:"external_user_id" json:"external_user_id"`
 }
 
 func (c *ConversationContact) FullName() string {
@@ -241,10 +243,13 @@ type ConversationParticipant struct {
 }
 
 type MessageAuthor struct {
-	ID        int         `db:"id" json:"id"`
-	FirstName string      `db:"first_name" json:"first_name"`
-	LastName  string      `db:"last_name" json:"last_name"`
-	AvatarURL null.String `db:"avatar_url" json:"avatar_url"`
+	ID                 int         `db:"id" json:"id"`
+	FirstName          string      `db:"first_name" json:"first_name"`
+	LastName           string      `db:"last_name" json:"last_name"`
+	AvatarURL          null.String `db:"avatar_url" json:"avatar_url"`
+	AvailabilityStatus string      `db:"availability_status" json:"availability_status"`
+	Type               string      `db:"type" json:"type"`
+	LastActiveAt       null.Time   `db:"last_active_at" json:"last_active_at"`
 }
 
 type ConversationCounts struct {
@@ -301,86 +306,71 @@ func (m *Message) IsContinuityMessage() bool {
 	return isContinuity
 }
 
-// CensorCSATContent redacts the content of a CSAT message to prevent leaking the CSAT survey public link.
-func (m *Message) CensorCSATContent() {
+// csatMeta unmarshals the message meta and returns the map and whether is_csat is true.
+func (m *Message) csatMeta() (map[string]any, bool) {
 	var meta map[string]any
 	if err := json.Unmarshal([]byte(m.Meta), &meta); err != nil {
-		return
+		return nil, false
 	}
-	if isCsat, _ := meta["is_csat"].(bool); isCsat {
-		m.Content = "Please rate this conversation"
-		m.TextContent = m.Content
-	}
-}
-
-// CensorCSATContentWithStatus redacts the content and adds submission status for CSAT messages.
-func (m *Message) CensorCSATContentWithStatus(csatSubmitted bool, csatUUID string, rating int, feedback string) {
-	var meta map[string]any
-	if err := json.Unmarshal([]byte(m.Meta), &meta); err != nil {
-		return
-	}
-	if isCsat, _ := meta["is_csat"].(bool); isCsat {
-		m.Content = "Please rate this conversation"
-		m.TextContent = m.Content
-
-		// Add submission status and UUID to meta
-		meta["csat_submitted"] = csatSubmitted
-		meta["csat_uuid"] = csatUUID
-
-		// Add submitted rating and feedback if CSAT was submitted
-		if csatSubmitted {
-			if rating > 0 {
-				meta["submitted_rating"] = rating
-			}
-			meta["submitted_feedback"] = feedback
-		}
-
-		// Update the meta field
-		if updatedMeta, err := json.Marshal(meta); err == nil {
-			m.Meta = json.RawMessage(updatedMeta)
-		}
-	}
+	isCsat, _ := meta["is_csat"].(bool)
+	return meta, isCsat
 }
 
 // HasCSAT returns true if the message is a CSAT message.
 func (m *Message) HasCSAT() bool {
-	var meta map[string]interface{}
-	if err := json.Unmarshal([]byte(m.Meta), &meta); err != nil {
-		return false
-	}
-	isCsat, _ := meta["is_csat"].(bool)
+	_, isCsat := m.csatMeta()
 	return isCsat
 }
 
 // ExtractCSATUUID extracts the CSAT UUID from the message content.
 func (m *Message) ExtractCSATUUID() string {
-	if !m.HasCSAT() {
+	if _, isCsat := m.csatMeta(); !isCsat {
 		return ""
 	}
 
-	// Extract UUID from the CSAT URL in the message content
+	// Extract UUID from the CSAT URL in the message content.
 	// Pattern: <a href="http://localhost:8000/csat/3b68fa67-ad1a-4c5b-87eb-b262c420f43f">
-	content := m.Content
-	// Look for /csat/ followed by UUID pattern
-	start := strings.Index(content, "/csat/")
+	start := strings.Index(m.Content, "/csat/")
 	if start == -1 {
 		return ""
 	}
 	start += 6 // Skip "/csat/"
 
-	// Find the end of UUID (36 characters)
-	if len(content) < start+36 {
+	if len(m.Content) < start+36 {
 		return ""
 	}
 
-	uuid := content[start : start+36]
-
-	// Basic validation - UUID should contain hyphens at positions 8, 13, 18, 23
-	if len(uuid) == 36 && uuid[8] == '-' && uuid[13] == '-' && uuid[18] == '-' && uuid[23] == '-' {
+	uuid := m.Content[start : start+36]
+	// Basic validation - UUID should contain hyphens at positions 8, 13, 18, 23.
+	if uuid[8] == '-' && uuid[13] == '-' && uuid[18] == '-' && uuid[23] == '-' {
 		return uuid
 	}
-
 	return ""
+}
+
+// CensorCSATContentWithStatus redacts the content and adds submission status for CSAT messages.
+func (m *Message) CensorCSATContentWithStatus(csatSubmitted bool, csatUUID string, rating int, feedback string) {
+	meta, isCsat := m.csatMeta()
+	if !isCsat {
+		return
+	}
+
+	m.Content = "Please rate this conversation"
+	m.TextContent = m.Content
+
+	meta["csat_submitted"] = csatSubmitted
+	meta["csat_uuid"] = csatUUID
+
+	if csatSubmitted {
+		if rating > 0 {
+			meta["submitted_rating"] = rating
+		}
+		meta["submitted_feedback"] = feedback
+	}
+
+	if updatedMeta, err := json.Marshal(meta); err == nil {
+		m.Meta = json.RawMessage(updatedMeta)
+	}
 }
 
 // OutboundMessage contains fields needed for sending messages via inboxes.

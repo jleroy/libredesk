@@ -957,7 +957,7 @@ func (m *Manager) findOrCreateConversation(in models.IncomingMessage) (int, stri
 	if conversationID == 0 {
 		lastMessage := stringutil.HTML2Text(in.Content)
 		lastMessageAt := time.Now()
-		conversationID, conversationUUID, err = m.CreateConversation(in.Contact.ID, in.InboxID, lastMessage, lastMessageAt, in.Subject, false /**append reference number to subject**/)
+		conversationID, conversationUUID, err = m.CreateConversation(in.Contact.ID, in.InboxID, lastMessage, lastMessageAt, in.Subject, false /**append reference number to subject**/, nil, nil)
 		if err != nil || conversationID == 0 {
 			return 0, "", false, err
 		}

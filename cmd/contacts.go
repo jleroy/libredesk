@@ -106,6 +106,10 @@ func handleUpdateContact(r *fastglue.Request) error {
 	if v, ok := form.Value["phone_number_country_code"]; ok && len(v) > 0 {
 		phoneNumberCountryCode = string(v[0])
 	}
+	country := ""
+	if v, ok := form.Value["country"]; ok && len(v) > 0 {
+		country = string(v[0])
+	}
 	avatarURL := ""
 	if v, ok := form.Value["avatar_url"]; ok && len(v) > 0 {
 		avatarURL = string(v[0])
@@ -120,6 +124,9 @@ func handleUpdateContact(r *fastglue.Request) error {
 	}
 	if phoneNumber == "null" {
 		phoneNumber = ""
+	}
+	if country == "null" {
+		country = ""
 	}
 
 	// Validate mandatory fields.
@@ -146,6 +153,7 @@ func handleUpdateContact(r *fastglue.Request) error {
 		AvatarURL:              null.NewString(avatarURL, avatarURL != ""),
 		PhoneNumber:            null.NewString(phoneNumber, phoneNumber != ""),
 		PhoneNumberCountryCode: null.NewString(phoneNumberCountryCode, phoneNumberCountryCode != ""),
+		Country:                null.NewString(country, country != ""),
 	}
 
 	if err := app.user.UpdateContact(id, contactToUpdate); err != nil {

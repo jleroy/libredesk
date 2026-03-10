@@ -66,6 +66,19 @@ func (m *Manager) BroadcastContactStatus(contactID int, status string) {
 	m.broadcastToUsers([]int{}, message)
 }
 
+// BroadcastContactPageVisit broadcasts a contact's page visit history to all agents.
+func (m *Manager) BroadcastContactPageVisit(contactID int, pages []map[string]string) {
+	message := wsmodels.Message{
+		Type: wsmodels.MessageTypeConversationPropertyUpdate,
+		Data: map[string]interface{}{
+			"contact_id": contactID,
+			"prop":       "contact.page_visits",
+			"value":      pages,
+		},
+	}
+	m.broadcastToUsers([]int{}, message)
+}
+
 // BroadcastTypingToConversation broadcasts typing status to all subscribers of a conversation.
 // Set broadcastToWidgets to false when the typing event originates from a widget client to avoid echo.
 func (m *Manager) BroadcastTypingToConversation(conversationUUID string, isTyping bool, broadcastToWidgets bool) {

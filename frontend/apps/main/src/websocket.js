@@ -1,6 +1,7 @@
 import { useConversationStore } from './stores/conversation'
 import { useNotificationStore } from './stores/notification'
 import { WS_EVENT, WS_EPHEMERAL_TYPES } from './constants/websocket'
+import { playNotificationSound } from '@shared-ui/composables/useNotificationSound'
 
 export class WebSocketClient {
   constructor() {
@@ -67,6 +68,13 @@ export class WebSocketClient {
         [WS_EVENT.NEW_MESSAGE]: () => {
           this.convStore.updateConversationList(data.data)
           this.convStore.updateConversationMessage(data.data)
+
+          // Play notification sound for incoming contact messages not currently being viewed
+          const isFromContact = data.data.sender_type === 'contact'
+          const isViewingConversation = this.convStore.conversation.data?.uuid === data.data.conversation_uuid
+          if (isFromContact && !isViewingConversation) {
+            playNotificationSound()
+          }
         },
         [WS_EVENT.MESSAGE_PROP_UPDATE]: () => this.convStore.updateMessageProp(data.data),
         [WS_EVENT.CONVERSATION_PROP_UPDATE]: () => this.convStore.updateConversationProp(data.data),
