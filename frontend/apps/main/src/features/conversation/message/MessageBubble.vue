@@ -9,6 +9,13 @@
       >
         {{ getFullName }}
       </router-link>
+      <router-link
+        v-else-if="canManageUsers"
+        :to="{ name: 'edit-agent', params: { id: message.author?.id } }"
+        class="text-muted-foreground text-sm font-medium hover:underline hover:text-primary"
+      >
+        {{ getFullName }}
+      </router-link>
       <p v-else class="text-muted-foreground text-sm font-medium">
         {{ getFullName }}
       </p>
@@ -94,7 +101,19 @@
       </div>
 
       <!-- Avatar (right for outgoing) -->
-      <Avatar v-if="isOutgoing" class="cursor-pointer w-8 h-8">
+      <router-link
+        v-if="isOutgoing && canManageUsers"
+        :to="{ name: 'edit-agent', params: { id: message.author?.id } }"
+        class="flex-shrink-0"
+      >
+        <Avatar class="cursor-pointer w-8 h-8 hover:opacity-80 transition-opacity">
+          <AvatarImage :src="getAvatar" />
+          <AvatarFallback class="font-medium">
+            {{ avatarFallback }}
+          </AvatarFallback>
+        </Avatar>
+      </router-link>
+      <Avatar v-else-if="isOutgoing" class="w-8 h-8">
         <AvatarImage :src="getAvatar" />
         <AvatarFallback class="font-medium">
           {{ avatarFallback }}
@@ -122,6 +141,7 @@
 import { computed, ref } from 'vue'
 import { useConversationStore } from '@main/stores/conversation'
 import { useAppSettingsStore } from '@main/stores/appSettings'
+import { useUserStore } from '@main/stores/user'
 import { useI18n } from 'vue-i18n'
 import { Lock, RotateCcw, Check } from 'lucide-vue-next'
 import { revertCIDToImageSrc } from '@shared-ui/utils/string.js'
@@ -129,6 +149,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/u
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import { formatMessageTimestamp, formatFullTimestamp } from '@shared-ui/utils/datetime.js'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
+import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
 import { Letter } from 'vue-letter'
 import MessageAttachmentPreview from '@main/features/conversation/message/attachment/MessageAttachmentPreview.vue'
 import MessageEnvelope from './MessageEnvelope.vue'
@@ -145,7 +166,11 @@ const props = defineProps({
 
 const convStore = useConversationStore()
 const settingsStore = useAppSettingsStore()
+const userStore = useUserStore()
 const { t } = useI18n()
+
+const isSystemUser = computed(() => props.message.author?.email === 'System')
+const canManageUsers = computed(() => !isSystemUser.value && userStore.can('users:manage'))
 
 // Direction helpers
 const isOutgoing = computed(() => props.direction === 'outgoing')
@@ -159,7 +184,11 @@ const getFullName = computed(() => {
 })
 
 const getAvatar = computed(() => {
-  return props.message.author?.avatar_url || ''
+  if (props.message.author?.avatar_url) return props.message.author.avatar_url
+  if (!isOutgoing.value && convStore.current?.contact?.email) {
+    return getGravatarUrl(convStore.current.contact.email)
+  }
+  return ''
 })
 
 const avatarFallback = computed(() => {

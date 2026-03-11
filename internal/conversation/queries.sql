@@ -44,6 +44,7 @@ SELECT
     users.updated_at as "contact.updated_at",
     users.first_name as "contact.first_name",
     users.last_name as "contact.last_name",
+    users.email as "contact.email",
     users.avatar_url as "contact.avatar_url",
     inboxes.channel as inbox_channel,
     inboxes.name as inbox_name,
@@ -581,6 +582,7 @@ SELECT
     u.id AS "author.id",
     u.first_name AS "author.first_name",
     u.last_name AS "author.last_name",
+    u.email AS "author.email",
     u.avatar_url AS "author.avatar_url",
     u.availability_status AS "author.availability_status",
     u.type AS "author.type",
@@ -605,7 +607,7 @@ LEFT JOIN media ON media.model_type = 'messages' AND media.model_id = m.id
 WHERE m.uuid = $1
 GROUP BY
     m.id, m.created_at, m.updated_at, m.status, m.type, m.content, m.uuid, m.private, m.sender_type, c.uuid,
-    u.id, u.first_name, u.last_name, u.avatar_url, u.availability_status, u.type, u.last_active_at
+    u.id, u.first_name, u.last_name, u.email, u.avatar_url, u.availability_status, u.type, u.last_active_at
 ORDER BY m.created_at;
 
 -- name: get-messages
@@ -629,6 +631,7 @@ SELECT
    u.id AS "author.id",
    u.first_name AS "author.first_name",
    u.last_name AS "author.last_name",
+   u.email AS "author.email",
    u.avatar_url AS "author.avatar_url",
    u.availability_status AS "author.availability_status",
    u.type AS "author.type",

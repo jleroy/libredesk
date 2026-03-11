@@ -3,7 +3,7 @@
     <div class="flex justify-between items-start">
       <div class="relative">
         <Avatar class="size-20">
-          <AvatarImage :src="conversation?.contact?.avatar_url || ''" />
+          <AvatarImage :src="conversation?.contact?.avatar_url || getGravatarUrl(conversation?.contact?.email)" />
           <AvatarFallback>
             {{ conversation?.contact?.first_name?.toUpperCase().substring(0, 2) }}
           </AvatarFallback>
@@ -122,6 +122,7 @@ import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { useConversationStore } from '@/stores/conversation'
 import { Skeleton } from '@shared-ui/components/ui/skeleton'
 import { useUserStore } from '@/stores/user'
+import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
 import { useI18n } from 'vue-i18n'
 const conversationStore = useConversationStore()
 const emitter = useEmitter()

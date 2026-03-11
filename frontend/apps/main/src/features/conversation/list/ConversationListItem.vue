@@ -12,7 +12,9 @@
           <!-- Avatar -->
           <Avatar class="w-12 h-12 rounded-full shadow">
             <AvatarImage
-              :src="conversation.contact.avatar_url || ''"
+              :src="
+                conversation.contact.avatar_url || getGravatarUrl(conversation.contact.email) || ''
+              "
               class="object-cover"
               v-if="conversation.contact.avatar_url || ''"
             />
@@ -29,10 +31,6 @@
                 <h3 class="text-sm font-semibold truncate">
                   {{ contactFullName }}
                 </h3>
-                <Pencil
-                  v-if="hasDraftForConversation"
-                  class="w-3 h-3 text-muted-foreground flex-shrink-0"
-                />
               </div>
               <span
                 class="text-xs text-gray-400 whitespace-nowrap"
@@ -43,7 +41,10 @@
             </div>
 
             <!-- Subject -->
-            <p v-if="conversation.subject" class="text-xs font-medium text-muted-foreground truncate">
+            <p
+              v-if="conversation.subject"
+              class="text-xs font-medium text-muted-foreground truncate"
+            >
               {{ conversation.subject }}
             </p>
 
@@ -55,15 +56,19 @@
 
             <!-- Message preview and unread count -->
             <div class="flex items-start justify-between gap-2">
-              <div
-                class="text-sm flex items-center gap-1.5 flex-1 break-all text-gray-600 dark:text-gray-300"
-              >
-                <Reply
-                  class="text-green-600 flex-shrink-0"
-                  size="15"
-                  v-if="conversation.last_message_sender === 'agent'"
-                />
-                {{ trimmedLastMessage }}
+              <div class="text-sm flex items-center gap-1.5 flex-1 break-all text-muted-foreground">
+                <template v-if="hasDraftForConversation">
+                  <span class="font-medium text-primary">{{ $t('globals.terms.draft') }}:</span>
+                  {{ draftPreview }}
+                </template>
+                <template v-else>
+                  <Reply
+                    class="text-green-600 flex-shrink-0"
+                    size="15"
+                    v-if="conversation.last_message_sender === 'agent'"
+                  />
+                  {{ trimmedLastMessage }}
+                </template>
               </div>
               <div
                 v-if="conversation.unread_message_count > 0"
@@ -123,7 +128,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRelativeTime } from '@shared-ui/utils/datetime.js'
-import { Mail, Reply, Pencil, MailOpen } from 'lucide-vue-next'
+import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
+import { Mail, Reply, MailOpen } from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import {
   ContextMenu,
@@ -196,5 +202,12 @@ const relativeLastMessageTime = computed(() => {
 
 const hasDraftForConversation = computed(() => {
   return conversationStore.hasDraft(props.conversation.uuid)
+})
+
+const draftPreview = computed(() => {
+  const draft = conversationStore.getDraft(props.conversation.uuid)
+  if (!draft?.content) return ''
+  const text = draft.content.replace(/<[^>]*>/g, '').trim()
+  return text.length > 100 ? text.slice(0, 100) + '...' : text
 })
 </script>

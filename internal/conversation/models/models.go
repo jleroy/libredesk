@@ -145,6 +145,7 @@ type ConversationListContact struct {
 	UpdatedAt time.Time   `db:"updated_at" json:"updated_at"`
 	FirstName string      `db:"first_name" json:"first_name"`
 	LastName  string      `db:"last_name" json:"last_name"`
+	Email     null.String `db:"email" json:"email"`
 	AvatarURL null.String `db:"avatar_url" json:"avatar_url"`
 }
 
@@ -246,6 +247,7 @@ type MessageAuthor struct {
 	ID                 int         `db:"id" json:"id"`
 	FirstName          string      `db:"first_name" json:"first_name"`
 	LastName           string      `db:"last_name" json:"last_name"`
+	Email              null.String `db:"email" json:"email"`
 	AvatarURL          null.String `db:"avatar_url" json:"avatar_url"`
 	AvailabilityStatus string      `db:"availability_status" json:"availability_status"`
 	Type               string      `db:"type" json:"type"`

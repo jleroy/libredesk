@@ -1,4 +1,19 @@
 <template>
+  <AlertDialog :open="showContactEmailWarning" @update:open="showContactEmailWarning = $event">
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{{ $t('replyBox.contactEmailMissing') }}</AlertDialogTitle>
+        <AlertDialogDescription>
+          {{ $t('replyBox.contactEmailMissingDescription', { email: conversationStore.current?.contact?.email }) }}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>{{ $t('globals.messages.cancel') }}</AlertDialogCancel>
+        <AlertDialogAction @click="processSend(true)">{{ $t('replyBox.sendAnyway') }}</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+
   <Dialog :open="openAIKeyPrompt" @update:open="openAIKeyPrompt = false">
     <DialogContent class="sm:max-w-lg">
       <DialogHeader class="space-y-2">
@@ -117,6 +132,16 @@ import { useDraftManager } from '@main/composables/useDraftManager'
 import api from '@main/api'
 import { useI18n } from 'vue-i18n'
 import { useConversationStore } from '@main/stores/conversation'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@shared-ui/components/ui/alert-dialog'
 import { Button } from '@shared-ui/components/ui/button'
 import {
   Dialog,
@@ -189,6 +214,7 @@ const showBcc = ref(false)
 const emailErrors = ref([])
 const aiPrompts = ref([])
 const replyBoxContentRef = ref(null)
+const showContactEmailWarning = ref(false)
 const mentions = ref([])
 
 /**
@@ -265,47 +291,97 @@ const hasTextContent = computed(() => {
 /**
  * Processes the send action.
  */
-const processSend = async () => {
+const processSend = async (skipContactEmailCheck = false) => {
   let hasMessageSendingErrored = false
   isEditorFullscreen.value = false
-  try {
-    isSending.value = true
-    // Send message if there is text content in the editor or media files are attached.
-    if (hasTextContent.value > 0 || mediaFiles.value.length > 0) {
-      const message = htmlContent.value
-      await api.sendMessage(conversationStore.current.uuid, {
-        sender_type: UserTypeAgent,
-        private: messageType.value === 'private_note',
-        message: message,
-        attachments: mediaFiles.value.map((file) => file.id),
-        // Include mentions only for private notes
-        mentions: messageType.value === 'private_note' ? mentions.value : [],
-        // Convert email addresses to array and remove empty strings.
-        cc: cc.value
-          .split(',')
-          .map((email) => email.trim())
-          .filter((email) => email),
-        bcc: bcc.value
-          ? bcc.value
-              .split(',')
-              .map((email) => email.trim())
-              .filter((email) => email)
-          : [],
-        to: to.value
-          ? to.value
-              .split(',')
-              .map((email) => email.trim())
-              .filter((email) => email)
-          : []
+
+  const hasContent = hasTextContent.value > 0 || mediaFiles.value.length > 0
+  const convUUID = conversationStore.current.uuid
+  const isPrivate = messageType.value === 'private_note'
+
+  if (!isPrivate && conversationStore.current.inbox_channel === 'email') {
+    // Require at least one recipient in `to`.
+    if (!to.value.trim()) {
+      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+        variant: 'destructive',
+        description: t('replyBox.toRequired')
       })
+      return
     }
 
-    // Apply macro actions if any, for macro errors just show toast and clear the editor.
+    // Warn if the contact's email is not in any recipient field.
+    if (!skipContactEmailCheck) {
+      const contactEmail = conversationStore.current.contact?.email?.toLowerCase()
+      if (contactEmail) {
+        const allRecipients = [to.value, cc.value, bcc.value].join(',').toLowerCase()
+        if (!allRecipients.split(',').map(e => e.trim()).includes(contactEmail)) {
+          showContactEmailWarning.value = true
+          return
+        }
+      }
+    }
+  }
+  let tempUUID = null
+
+  // Add pending message to cache for instant display.
+  if (hasContent) {
+    const savedContent = htmlContent.value
+    const author = {
+      id: userStore.userID,
+      first_name: userStore.firstName,
+      last_name: userStore.lastName,
+      avatar_url: userStore.avatar,
+      type: 'agent'
+    }
+    const parsedTo = !isPrivate && to.value ? to.value.split(',').map(e => e.trim()).filter(Boolean) : []
+    const parsedCC = !isPrivate && cc.value ? cc.value.split(',').map(e => e.trim()).filter(Boolean) : []
+    const parsedBCC = !isPrivate && bcc.value ? bcc.value.split(',').map(e => e.trim()).filter(Boolean) : []
+    const meta = {}
+    if (parsedTo.length) meta.to = parsedTo
+    if (parsedCC.length) meta.cc = parsedCC
+    if (parsedBCC.length) meta.bcc = parsedBCC
+
+    tempUUID = conversationStore.addPendingMessage(convUUID, savedContent, isPrivate, author, mediaFiles.value, textContent.value, meta)
+
+    // Clear editor immediately.
+    htmlContent.value = ''
+
+    try {
+      isSending.value = true
+      const response = await api.sendMessage(convUUID, {
+        sender_type: UserTypeAgent,
+        private: isPrivate,
+        message: savedContent,
+        attachments: mediaFiles.value.map((file) => file.id),
+        mentions: isPrivate ? mentions.value : [],
+        cc: parsedCC,
+        bcc: parsedBCC,
+        to: parsedTo
+      })
+
+      // Replace pending message with the real one from API response.
+      if (response?.data?.data) {
+        conversationStore.replacePendingMessage(convUUID, tempUUID, response.data.data)
+      }
+    } catch (error) {
+      hasMessageSendingErrored = true
+      // Remove pending message and restore editor content.
+      conversationStore.removePendingMessage(convUUID, tempUUID)
+      htmlContent.value = savedContent
+      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+        variant: 'destructive',
+        description: handleHTTPError(error).message
+      })
+    }
+  }
+
+  // Apply macro actions if any.
+  if (!hasMessageSendingErrored) {
     const macroID = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.id
     const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
     if (macroID > 0 && macroActions.length > 0) {
       try {
-        await api.applyMacro(conversationStore.current.uuid, macroID, macroActions)
+        await api.applyMacro(convUUID, macroID, macroActions)
       } catch (error) {
         emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
           variant: 'destructive',
@@ -313,32 +389,17 @@ const processSend = async () => {
         })
       }
     }
-  } catch (error) {
-    hasMessageSendingErrored = true
-    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      variant: 'destructive',
-      description: handleHTTPError(error).message
-    })
-  } finally {
-    // If API has NOT errored clear state.
-    if (hasMessageSendingErrored === false) {
-      // Clear draft from backend.
-      clearDraft(currentDraftKey.value)
-
-      // Clear macro for this conversation reply.
-      conversationStore.resetMacro(MACRO_CONTEXT.REPLY)
-
-      // Clear media files.
-      clearMediaFiles()
-
-      // Clear any email errors.
-      emailErrors.value = []
-
-      // Clear mentions.
-      mentions.value = []
-    }
-    isSending.value = false
   }
+
+  // Clear state on success.
+  if (!hasMessageSendingErrored) {
+    clearDraft(currentDraftKey.value)
+    conversationStore.resetMacro(MACRO_CONTEXT.REPLY)
+    clearMediaFiles()
+    emailErrors.value = []
+    mentions.value = []
+  }
+  isSending.value = false
 }
 
 /**
