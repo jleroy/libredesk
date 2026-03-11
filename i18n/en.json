@@ -618,6 +618,7 @@
   "globals.messages.submitting": "Submitting...",
   "globals.messages.thankYou": "Thank you!",
   "globals.messages.thankYouFeedback": "✅ Thank you for your feedback!",
+  "globals.messages.tooManyRequests": "Too many requests.",
   "globals.messages.true": "True",
   "globals.messages.unblock": "Unblock",
   "globals.messages.update": "Update",

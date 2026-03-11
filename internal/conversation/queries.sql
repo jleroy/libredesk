@@ -4,7 +4,8 @@ SET snoozed_until = NULL, status_id = (SELECT id FROM conversation_statuses WHER
 WHERE snoozed_until <= NOW();
 
 -- name: insert-conversation
-WITH 
+-- $11 = rate limit window start (timestamptz), $12 = max conversations (0 = unlimited)
+WITH
 status_id AS (
     SELECT id FROM conversation_statuses WHERE name = $2
 ),
@@ -13,7 +14,7 @@ reference_number AS (
 )
 INSERT INTO conversations
 (contact_id, status_id, inbox_id, last_message, last_message_at, subject, reference_number, meta, custom_attributes)
-VALUES(
+SELECT
    $1,
    (SELECT id FROM status_id),
    $3,
@@ -26,7 +27,7 @@ VALUES(
    (SELECT reference_number FROM reference_number),
    $9,
    $10
-)
+WHERE $12::int = 0 OR (SELECT COUNT(*) FROM conversations WHERE contact_id = $1 AND created_at >= $11) < $12::int
 RETURNING id, uuid;
 
 -- name: get-conversations

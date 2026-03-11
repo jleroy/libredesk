@@ -671,89 +671,25 @@ func (m *Manager) getMessageActivityContent(activityType, newValue, actorName st
 // conversations, and creates a new conversation if necessary. It also
 // inserts the message, uploads any attachments, and queues the conversation evaluation of automation rules.
 func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Message, error) {
-	var (
-		isNewConversation bool
-		conversationID    int
-		conversationUUID  string
-		senderID          int
-		err               error
-	)
-
-	// Find or create contact.
-	user := umodels.User{
-		FirstName: in.Contact.FirstName,
-		LastName:  in.Contact.LastName,
-		Email:     in.Contact.Email,
-		Type:      umodels.UserTypeContact,
-	}
-	if err := m.userStore.CreateContact(&user); err != nil {
-		return models.Message{}, fmt.Errorf("creating contact: %w", err)
-	}
-	in.Contact.ID = user.ID
-	senderID = user.ID
-
-	// Message already exists by source ID?
-	conversationID, err = m.messageExistsBySourceID([]string{in.SourceID.String})
+	// Return early if this message already exists (same source ID).
+	dupConvID, err := m.messageExistsBySourceID([]string{in.SourceID.String})
 	if err != nil && err != errConversationNotFound {
 		return models.Message{}, err
 	}
-	if conversationID > 0 {
+	if dupConvID > 0 {
 		return models.Message{}, nil
 	}
 
-	// Reset conversationID.
-	conversationID = 0
-
-	// Try to match by plus-addressed Reply-To (e.g., inbox+conv-{uuid}@domain)
-	if in.ConversationUUIDFromReplyTo != "" {
-		conversation, err := m.GetConversation(0, in.ConversationUUIDFromReplyTo, "")
-		if err != nil {
-			envErr, ok := err.(envelope.Error)
-			if !ok || envErr.ErrorType != envelope.NotFoundError {
-				return models.Message{}, fmt.Errorf("fetching conversation: %w", err)
-			}
-		}
-
-		// Verify sender email matches conversation contact
-		if strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-			conversationID = conversation.ID
-			conversationUUID = conversation.UUID
-			m.lo.Debug("matched conversation by plus-addressed Reply-To",
-				"conversation_uuid", conversation.UUID,
-				"contact_email", in.Contact.Email.String)
-		} else {
-			m.lo.Debug("plus-address UUID found but contact email mismatch, ignoring",
-				"conversation_uuid", in.ConversationUUIDFromReplyTo,
-				"conversation_contact", conversation.Contact.Email.String,
-				"message_contact", in.Contact.Email.String)
-		}
+	// Resolve sender (contact/visitor) and optionally match conversation via plus-addressing.
+	senderID, conversationID, conversationUUID, err := m.resolveSender(&in)
+	if err != nil {
+		return models.Message{}, err
 	}
 
-	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").
-	// Skip if already matched by plus-addressing above.
+	// Match conversation if not already matched by plus-addressing.
+	var isNewConversation bool
 	if conversationID == 0 {
-		if refNum := stringutil.ExtractReferenceNumber(in.Subject); refNum != "" {
-			conversation, err := m.GetConversation(0, "", refNum)
-			if err != nil {
-				envErr, ok := err.(envelope.Error)
-				if !ok || envErr.ErrorType != envelope.NotFoundError {
-					return models.Message{}, fmt.Errorf("fetching conversation: %w", err)
-				}
-			}
-			if conversation.Contact.Email.String != "" && strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-				// Conversation found and contact email matches, use this conversation.
-				conversationID = conversation.ID
-				conversationUUID = conversation.UUID
-				m.lo.Debug("matched conversation by reference number in subject", "reference_number", refNum, "contact_email", in.Contact.Email.String)
-			} else {
-				m.lo.Debug("reference number found in subject but contact email did not match, skipping conversation match", "reference_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "message_contact_email", in.Contact.Email.String)
-			}
-		}
-	}
-
-	// If conversation not matched via reference number, find conversation using references and in-reply-to headers else create a new one.
-	if conversationID == 0 {
-		conversationID, conversationUUID, isNewConversation, err = m.findOrCreateConversation(in)
+		conversationID, conversationUUID, isNewConversation, err = m.matchConversation(&in)
 		if err != nil {
 			return models.Message{}, err
 		}
@@ -768,10 +704,10 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		if isNewConversation && conversationUUID != "" {
 			m.lo.Info("deleting conversation as message attachment upload failed", "conversation_uuid", conversationUUID, "message_source_id", in.SourceID)
 			if err := m.DeleteConversation(conversationUUID); err != nil {
-				return models.Message{}, fmt.Errorf("error deleting conversation after message attachment upload failure: %w", err)
+				return models.Message{}, fmt.Errorf("deleting conversation after message attachment upload failure: %w", err)
 			}
 		}
-		return models.Message{}, fmt.Errorf("error uploading message attachments: %w", upErr)
+		return models.Message{}, fmt.Errorf("uploading message attachments: %w", upErr)
 	}
 
 	// Insert message.
@@ -785,6 +721,117 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		return models.Message{}, fmt.Errorf("processing incoming message hooks: %w", err)
 	}
 	return msg, nil
+}
+
+// resolveSender resolves the sender for an incoming message. It checks plus-addressing
+// to detect continuity email replies from visitors and upgrades them to contacts.
+// Returns senderID, and optionally conversationID/UUID if matched via plus-addressing.
+func (m *Manager) resolveSender(in *models.IncomingMessage) (senderID, conversationID int, conversationUUID string, err error) {
+	// Check plus-addressing to detect continuity email replies.
+	if in.ConversationUUIDFromReplyTo != "" {
+		senderID, conversationID, conversationUUID, err = m.resolveByPlusAddress(in)
+		if err != nil {
+			return 0, 0, "", err
+		}
+	}
+
+	// Find or create contact if not already resolved via plus-addressing.
+	if senderID == 0 {
+		user := umodels.User{
+			FirstName: in.Contact.FirstName,
+			LastName:  in.Contact.LastName,
+			Email:     in.Contact.Email,
+			Type:      umodels.UserTypeContact,
+		}
+		if err := m.userStore.CreateContact(&user); err != nil {
+			return 0, 0, "", fmt.Errorf("creating contact: %w", err)
+		}
+		senderID = user.ID
+	}
+
+	in.Contact.ID = senderID
+
+	return senderID, conversationID, conversationUUID, nil
+}
+
+// resolveByPlusAddress attempts to match a conversation via plus-addressed Reply-To
+// (e.g., inbox+conv-{uuid}@domain). If the conversation contact is a visitor, it upgrades
+// them to a contact (proving email ownership). Returns senderID > 0 if resolved.
+func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, conversationID int, conversationUUID string, err error) {
+	conversation, err := m.GetConversation(0, in.ConversationUUIDFromReplyTo, "")
+	if err != nil {
+		// Not found return with no error.
+		if envErr, ok := err.(envelope.Error); ok && envErr.ErrorType == envelope.NotFoundError {
+			return 0, 0, "", nil
+		}
+		// Other errors.
+		return 0, 0, "", fmt.Errorf("fetching conversation: %w", err)
+	}
+
+	// Verify sender email matches the conversations contact.
+	if !strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+		m.lo.Debug("plus-address UUID found but contact email mismatch, ignoring",
+			"conversation_uuid", in.ConversationUUIDFromReplyTo,
+			"conversation_contact", conversation.Contact.Email.String,
+			"message_contact", in.Contact.Email.String)
+		return 0, 0, "", nil
+	}
+
+	m.lo.Debug("matched conversation by plus-addressed Reply-To",
+		"conversation_uuid", conversation.UUID,
+		"contact_email", in.Contact.Email.String)
+
+	conversationID = conversation.ID
+	conversationUUID = conversation.UUID
+	senderID = conversation.Contact.ID
+
+	// Visitor replied to continuity email — proven email ownership.
+	// Upgrade to contact if no existing contact with the same email.
+	if conversation.Contact.Type != umodels.UserTypeVisitor {
+		return senderID, conversationID, conversationUUID, nil
+	}
+
+	_, contactErr := m.userStore.Get(0, in.Contact.Email.String, []string{umodels.UserTypeContact})
+	if contactErr == nil {
+		// A contact with this email already exists; don't upgrade visitor.
+		// Let CreateContact resolve the correct sender ID.
+		return 0, conversationID, conversationUUID, nil
+	}
+
+	if envErr, ok := contactErr.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
+		return 0, 0, "", fmt.Errorf("fetching contact by email: %w", contactErr)
+	}
+
+	// Upgrade visitor as no contact exist with this email.
+	if err := m.userStore.UpgradeVisitorToContact(conversation.Contact.ID); err != nil {
+		return 0, 0, "", fmt.Errorf("upgrading visitor to contact: %w", err)
+	}
+
+	m.lo.Debug("upgraded visitor to contact",
+		"conversation_uuid", conversation.UUID,
+		"contact_id", conversation.Contact.ID)
+
+	return senderID, conversationID, conversationUUID, nil
+}
+
+// matchConversation matches an incoming message to an existing conversation or creates a new one.
+// It tries matching by reference number in subject, then by in-reply-to/references headers.
+func (m *Manager) matchConversation(in *models.IncomingMessage) (int, string, bool, error) {
+	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").
+	if refNum := stringutil.ExtractReferenceNumber(in.Subject); refNum != "" {
+		conversation, err := m.GetConversation(0, "", refNum)
+		if err != nil {
+			if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
+				return 0, "", false, fmt.Errorf("fetching conversation: %w", err)
+			}
+		} else if strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+			m.lo.Debug("matched conversation by reference number in subject and emails match", "ref_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "incoming_email", in.Contact.Email.String)
+			return conversation.ID, conversation.UUID, false, nil
+		}
+	}
+
+	// Find conversation using references and in-reply-to headers, or create a new one.
+	return m.findOrCreateConversation(*in)
 }
 
 // ProcessIncomingLiveChatMessage handles incoming live chat messages.
@@ -957,7 +1004,7 @@ func (m *Manager) findOrCreateConversation(in models.IncomingMessage) (int, stri
 	if conversationID == 0 {
 		lastMessage := stringutil.HTML2Text(in.Content)
 		lastMessageAt := time.Now()
-		conversationID, conversationUUID, err = m.CreateConversation(in.Contact.ID, in.InboxID, lastMessage, lastMessageAt, in.Subject, false /**append reference number to subject**/, nil, nil)
+		conversationID, conversationUUID, err = m.CreateConversation(in.Contact.ID, in.InboxID, lastMessage, lastMessageAt, in.Subject, false /**append reference number to subject**/, nil, nil, 0, 0)
 		if err != nil || conversationID == 0 {
 			return 0, "", false, err
 		}

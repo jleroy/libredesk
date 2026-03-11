@@ -611,6 +611,7 @@
   "globals.messages.submitting": "सबमिट करत आहे...",
   "globals.messages.thankYou": "धन्यवाद!",
   "globals.messages.thankYouFeedback": "✅ तुमच्या अभिप्रायासाठी धन्यवाद!",
+  "globals.messages.tooManyRequests": "खूप जास्त विनंत्या.",
   "globals.messages.true": "सत्य",
   "globals.messages.unblock": "{name} अनवरोधित करा",
   "globals.messages.update": "{name} अद्ययावत करा",

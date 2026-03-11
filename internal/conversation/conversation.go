@@ -126,10 +126,9 @@ type teamStore interface {
 type userStore interface {
 	Get(int, string, []string) (umodels.User, error)
 	GetAgent(int, string) (umodels.User, error)
-	GetContact(int, string) (umodels.User, error)
-	GetVisitor(int) (umodels.User, error)
 	GetSystemUser() (umodels.User, error)
 	CreateContact(user *umodels.User) error
+	UpgradeVisitorToContact(visitorID int) error
 }
 
 type mediaStore interface {
@@ -322,8 +321,9 @@ type queries struct {
 	InsertMention *sqlx.Stmt `query:"insert-mention"`
 }
 
-// CreateConversation creates a new conversation and returns its ID and UUID.
-func (c *Manager) CreateConversation(contactID, inboxID int, lastMessage string, lastMessageAt time.Time, subject string, appendRefNumToSubject bool, meta, customAttributes map[string]any) (int, string, error) {
+// CreateConversation creates a new conversation. If maxConversations > 0, the insert is
+// atomically rejected when the contact already has >= maxConversations in the given window.
+func (c *Manager) CreateConversation(contactID, inboxID int, lastMessage string, lastMessageAt time.Time, subject string, appendRefNumToSubject bool, meta, customAttributes map[string]any, maxConversations int, rateLimitWindow time.Duration) (int, string, error) {
 	var (
 		id     int
 		uuid   string
@@ -348,9 +348,17 @@ func (c *Manager) CreateConversation(contactID, inboxID int, lastMessage string,
 		return 0, "", err
 	}
 
-	if err := c.q.InsertConversation.QueryRow(contactID, models.StatusOpen, inboxID, lastMessage, lastMessageAt, subject, prefix, appendRefNumToSubject, metaJSON, customAttrsJSON).Scan(&id, &uuid); err != nil {
+	var since time.Time
+	if maxConversations > 0 {
+		since = time.Now().Add(-rateLimitWindow)
+	}
+
+	if err := c.q.InsertConversation.QueryRow(contactID, models.StatusOpen, inboxID, lastMessage, lastMessageAt, subject, prefix, appendRefNumToSubject, metaJSON, customAttrsJSON, since, maxConversations).Scan(&id, &uuid); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, "", envelope.NewError(envelope.RateLimitError, c.i18n.T("globals.messages.tooManyRequests"), nil)
+		}
 		c.lo.Error("error inserting new conversation into the DB", "error", err)
-		return id, uuid, err
+		return 0, "", err
 	}
 	return id, uuid, nil
 }

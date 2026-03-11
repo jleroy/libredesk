@@ -611,6 +611,7 @@
   "globals.messages.submitting": "Enviando...",
   "globals.messages.thankYou": "¡Gracias!",
   "globals.messages.thankYouFeedback": "✅ ¡Gracias por tus comentarios!",
+  "globals.messages.tooManyRequests": "Demasiadas solicitudes.",
   "globals.messages.true": "true",
   "globals.messages.unblock": "Desbloquear {name}",
   "globals.messages.update": "Actualizar {name}",

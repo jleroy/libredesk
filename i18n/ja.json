@@ -611,6 +611,7 @@
   "globals.messages.submitting": "送信中...",
   "globals.messages.thankYou": "ありがとうござます！",
   "globals.messages.thankYouFeedback": "✅ フィードバックをありがとうございます！",
+  "globals.messages.tooManyRequests": "リクエストが多すぎます。",
   "globals.messages.true": "true",
   "globals.messages.unblock": "{name} のブロックを解除",
   "globals.messages.update": "{name} を更新",

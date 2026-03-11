@@ -611,6 +611,7 @@
   "globals.messages.submitting": "در حال ارسال...",
   "globals.messages.thankYou": "متشکریم!",
   "globals.messages.thankYouFeedback": "✅ از بازخورد شما متشکریم!",
+  "globals.messages.tooManyRequests": "درخواست‌های بیش از حد.",
   "globals.messages.true": "true",
   "globals.messages.unblock": "رفع مسدودیت {name}",
   "globals.messages.update": "به‌روزرسانی {name}",

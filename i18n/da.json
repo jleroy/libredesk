@@ -611,6 +611,7 @@
   "globals.messages.submitting": "Indsender...",
   "globals.messages.thankYou": "Tak!",
   "globals.messages.thankYouFeedback": "✅ Tak for din feedback!",
+  "globals.messages.tooManyRequests": "For mange anmodninger.",
   "globals.messages.true": "true",
   "globals.messages.unblock": "Afblokér {name}",
   "globals.messages.update": "Opdatér {name}",

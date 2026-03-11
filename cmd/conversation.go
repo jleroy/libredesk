@@ -790,6 +790,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 		true, /** append reference number to subject? **/
 		nil,
 		nil,
+		0, 0,
 	)
 	if err != nil {
 		app.lo.Error("error creating conversation", "error", err)

@@ -28,6 +28,11 @@ import (
 	"github.com/zerodha/fastglue"
 )
 
+const (
+	maxChatConversationsPerContact  = 50
+	chatConversationRateLimitWindow = 24 * time.Hour
+)
+
 // Define JWT claims structure
 type Claims struct {
 	UserID                       int            `json:"user_id,omitempty"`
@@ -219,8 +224,13 @@ func handleChatInit(r *fastglue.Request) error {
 		false,
 		meta,
 		conversationAttrs,
+		maxChatConversationsPerContact,
+		chatConversationRateLimitWindow,
 	)
 	if err != nil {
+		if envErr, ok := err.(envelope.Error); ok && envErr.ErrorType == envelope.RateLimitError {
+			return sendErrorEnvelope(r, err)
+		}
 		app.lo.Error("error creating conversation", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.errorSendingMessage"), nil, envelope.GeneralError)
 	}
