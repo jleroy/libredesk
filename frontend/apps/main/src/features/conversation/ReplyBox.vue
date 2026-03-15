@@ -4,12 +4,18 @@
       <AlertDialogHeader>
         <AlertDialogTitle>{{ $t('replyBox.contactEmailMissing') }}</AlertDialogTitle>
         <AlertDialogDescription>
-          {{ $t('replyBox.contactEmailMissingDescription', { email: conversationStore.current?.contact?.email }) }}
+          {{
+            $t('replyBox.contactEmailMissingDescription', {
+              email: conversationStore.current?.contact?.email
+            })
+          }}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>{{ $t('globals.messages.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction @click="processSend(true)">{{ $t('replyBox.sendAnyway') }}</AlertDialogAction>
+        <AlertDialogAction @click="processSend(true)">{{
+          $t('replyBox.sendAnyway')
+        }}</AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
@@ -122,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed, toRaw } from 'vue'
+import { ref, watch, computed, toRaw } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
@@ -314,7 +320,12 @@ const processSend = async (skipContactEmailCheck = false) => {
       const contactEmail = conversationStore.current.contact?.email?.toLowerCase()
       if (contactEmail) {
         const allRecipients = [to.value, cc.value, bcc.value].join(',').toLowerCase()
-        if (!allRecipients.split(',').map(e => e.trim()).includes(contactEmail)) {
+        if (
+          !allRecipients
+            .split(',')
+            .map((e) => e.trim())
+            .includes(contactEmail)
+        ) {
           showContactEmailWarning.value = true
           return
         }
@@ -333,15 +344,41 @@ const processSend = async (skipContactEmailCheck = false) => {
       avatar_url: userStore.avatar,
       type: 'agent'
     }
-    const parsedTo = !isPrivate && to.value ? to.value.split(',').map(e => e.trim()).filter(Boolean) : []
-    const parsedCC = !isPrivate && cc.value ? cc.value.split(',').map(e => e.trim()).filter(Boolean) : []
-    const parsedBCC = !isPrivate && bcc.value ? bcc.value.split(',').map(e => e.trim()).filter(Boolean) : []
+    const parsedTo =
+      !isPrivate && to.value
+        ? to.value
+            .split(',')
+            .map((e) => e.trim())
+            .filter(Boolean)
+        : []
+    const parsedCC =
+      !isPrivate && cc.value
+        ? cc.value
+            .split(',')
+            .map((e) => e.trim())
+            .filter(Boolean)
+        : []
+    const parsedBCC =
+      !isPrivate && bcc.value
+        ? bcc.value
+            .split(',')
+            .map((e) => e.trim())
+            .filter(Boolean)
+        : []
     const meta = {}
     if (parsedTo.length) meta.to = parsedTo
     if (parsedCC.length) meta.cc = parsedCC
     if (parsedBCC.length) meta.bcc = parsedBCC
 
-    tempUUID = conversationStore.addPendingMessage(convUUID, savedContent, isPrivate, author, mediaFiles.value, textContent.value, meta)
+    tempUUID = conversationStore.addPendingMessage(
+      convUUID,
+      savedContent,
+      isPrivate,
+      author,
+      mediaFiles.value,
+      textContent.value,
+      meta
+    )
 
     // Clear editor immediately.
     htmlContent.value = ''

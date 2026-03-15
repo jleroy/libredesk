@@ -16,7 +16,7 @@ func (m *Manager) BroadcastNewMessage(message *cmodels.Message, lastMessage stri
 		Type: wsmodels.MessageTypeNewMessage,
 		Data: map[string]interface{}{
 			"conversation_uuid": message.ConversationUUID,
-			"content":           lastMessage,
+			"content":           "",
 			"created_at":        message.CreatedAt.Format(time.RFC3339),
 			"uuid":              message.UUID,
 			"private":           message.Private,

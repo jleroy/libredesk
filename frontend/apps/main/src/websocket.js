@@ -64,9 +64,9 @@ export class WebSocketClient {
 
       const data = JSON.parse(event.data)
       const handlers = {
-        // On new message, update the message in the conversation list and in the currently opened conversation.
+        // On new message, refresh list and fetch message if it's in current conversation.
         [WS_EVENT.NEW_MESSAGE]: () => {
-          this.convStore.updateConversationList(data.data)
+          this.convStore.refreshConversationList()
           this.convStore.updateConversationMessage(data.data)
 
           // Play notification sound for incoming contact messages not currently being viewed
@@ -76,6 +76,7 @@ export class WebSocketClient {
             playNotificationSound()
           }
         },
+        // Property updates for conversation and message.
         [WS_EVENT.MESSAGE_PROP_UPDATE]: () => this.convStore.updateMessageProp(data.data),
         [WS_EVENT.CONVERSATION_PROP_UPDATE]: () => this.convStore.updateConversationProp(data.data),
         [WS_EVENT.CONVERSATION_SUBSCRIBED]: () => {
@@ -84,6 +85,7 @@ export class WebSocketClient {
         [WS_EVENT.TYPING]: () => {
           this.convStore.updateTypingStatus(data.data)
         },
+        // New notification.
         [WS_EVENT.NEW_NOTIFICATION]: () => this.notificationStore.addNotification(data.data)
       }
 

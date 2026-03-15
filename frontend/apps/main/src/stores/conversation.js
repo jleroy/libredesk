@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, watchEffect } from 'vue'
-import { CONVERSATION_LIST_TYPE, CONVERSATION_DEFAULT_STATUSES } from '../constants/conversation'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { computeRecipientsFromMessage } from '../utils/email-recipients'
 import { useEmitter } from '../composables/useEmitter'
@@ -8,6 +7,8 @@ import { EMITTER_EVENTS } from '../constants/emitterEvents'
 import { subscribeToConversation, sendTypingIndicator } from '@main/websocket'
 import MessageCache from '../utils/conversation-message-cache'
 import { getI18n } from '../i18n'
+import { useDebounceFn } from '@vueuse/core'
+import { CONVERSATION_LIST_TYPE, CONVERSATION_DEFAULT_STATUSES } from '@/constants/conversation'
 import api from '../api'
 
 export const useConversationStore = defineStore('conversation', () => {
@@ -494,13 +495,20 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function processConversationListResponse (response) {
     const apiResponse = response.data.data
-    const newConversations = apiResponse.results.filter(conversation => {
-      if (!seenConversationUUIDs.has(conversation.uuid)) {
-        seenConversationUUIDs.set(conversation.uuid, true)
-        return true
+    const newConversations = []
+    for (const conv of apiResponse.results) {
+      if (seenConversationUUIDs.has(conv.uuid)) {
+        // Update existing conversation with fresh data.
+        const idx = conversations.data.findIndex(c => c.uuid === conv.uuid)
+        if (idx !== -1) {
+          Object.assign(conversations.data[idx], conv)
+        }
+      } else {
+        // Add to seen and new conversations list.
+        seenConversationUUIDs.set(conv.uuid, true)
+        newConversations.push(conv)
       }
-      return false
-    })
+    }
     if (apiResponse.total_pages <= conversations.page) conversations.hasMore = false
     else conversations.hasMore = true
     if (!conversations.data) conversations.data = []
@@ -594,54 +602,56 @@ export const useConversationStore = defineStore('conversation', () => {
     return conversations.data?.find(c => c.uuid === uuid) ? true : false
   }
 
-  function updateConversationList (message) {
-    const listConversation = conversations.data.find(c => c.uuid === message.conversation_uuid)
-    if (listConversation) {
-      let lastMessage = (message.content || '').trim()
-      if (lastMessage === '' && message.attachments?.length > 0) {
-        lastMessage = getMediaPreview(message.attachments)
-      } else {
-        lastMessage = message.content
-      }
+  // Debounced to prevent apis calls during many WS events in a short time.
+  const debouncedFetchFirstPage = useDebounceFn(fetchFirstPageConversations, 1000)
+  const debouncedFetchParticipants = useDebounceFn(fetchParticipants, 400)
 
-      listConversation.last_message = lastMessage
-      listConversation.last_message_at = message.created_at
-      listConversation.last_message_sender = message.sender_type
-      // Update last interaction only for non-private, non-activity messages
-      if (message.type !== 'activity' && !message.private) {
-        listConversation.last_interaction = lastMessage
-        listConversation.last_interaction_at = message.created_at
-        listConversation.last_interaction_sender = message.sender_type
-      }
-      if (listConversation.uuid !== conversation?.data?.uuid) {
-        listConversation.unread_message_count += 1
-      }
-    } else {
-      // Conversation is not in the list, fetch the first page of the conversations list as this updated conversation might be at the top.
-      fetchFirstPageConversations()
-    }
+  function refreshConversationList () {
+    debouncedFetchFirstPage()
+  }
+
+  function updateConversationLastMessage (uuid, message) {
+    const conv = conversations.data?.find(c => c.uuid === uuid)
+    if (!conv) return
+    conv.last_message = message.text_content || message.content
+    conv.last_message_at = message.created_at
+    conv.last_message_sender = message.sender_type
   }
 
   /**
    * Update conversation message in the cache by fetching it from the server.
-   * 
+   *
    * @param {object} message - Message object with conversation_uuid field
    */
   async function updateConversationMessage (message) {
-    // Message does not exist in cache? fetch from server and update.
-    if (!messages.data.hasMessage(message.conversation_uuid, message.uuid)) {
-      fetchParticipants(message.conversation_uuid)
-      const fetchedMessage = await fetchMessage(message.conversation_uuid, message.uuid)
-      setTimeout(() => {
-        emitter.emit(EMITTER_EVENTS.NEW_MESSAGE, {
-          conversation_uuid: message.conversation_uuid,
-          message: fetchedMessage
-        })
-      }, 100)
+    if (conversation.data?.uuid !== message.conversation_uuid) {
+      // Not the open conversation. If we have cached messages for it,
+      // fetch the new message to keep the cache fresh.
+      if (messages.data.getLastFetchedPage(message.conversation_uuid) > 0) {
+        const fetchedMessage = await fetchMessage(message.conversation_uuid, message.uuid)
+        if (fetchedMessage) {
+          // Update last message in conversation list (preview)
+          updateConversationLastMessage(message.conversation_uuid, fetchedMessage)
+        }
+      }
+      return
+    }
 
-      // Update last seen only if the conversation is currently open.
-      if (conversation.data?.uuid === message.conversation_uuid)
-        updateAssigneeLastSeen(message.conversation_uuid)
+    // Open conversation and message not in cache? Fetch from server.
+    if (!messages.data.hasMessage(message.conversation_uuid, message.uuid)) {
+      debouncedFetchParticipants(message.conversation_uuid)
+      const fetchedMessage = await fetchMessage(message.conversation_uuid, message.uuid)
+      if (fetchedMessage) {
+        updateConversationLastMessage(message.conversation_uuid, fetchedMessage)
+        setTimeout(() => {
+          emitter.emit(EMITTER_EVENTS.NEW_MESSAGE, {
+            conversation_uuid: message.conversation_uuid,
+            message: fetchedMessage
+          })
+        }, 100)
+      }
+
+      updateAssigneeLastSeen(message.conversation_uuid)
     }
   }
 
@@ -901,7 +911,8 @@ export const useConversationStore = defineStore('conversation', () => {
     updateAssignee,
     updatePriority,
     updateStatus,
-    updateConversationList,
+    refreshConversationList,
+    updateConversationLastMessage,
     fetchFirstPageConversations,
     fetchStatuses,
     fetchPriorities,

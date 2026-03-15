@@ -142,6 +142,7 @@ import { computed, ref } from 'vue'
 import { useConversationStore } from '@main/stores/conversation'
 import { useAppSettingsStore } from '@main/stores/appSettings'
 import { useUserStore } from '@main/stores/user'
+import { useAppSettingsStore } from '@/stores/appSettings'
 import { useI18n } from 'vue-i18n'
 import { Lock, RotateCcw, Check } from 'lucide-vue-next'
 import { revertCIDToImageSrc } from '@shared-ui/utils/string.js'
@@ -239,7 +240,7 @@ const isPrivateMessage = computed(() => isOutgoing.value && props.message.privat
 const showCheckCheck = computed(
   () => isOutgoing.value && props.message.status === 'sent' && !isPrivateMessage.value
 )
-const showRetry = computed(() => isOutgoing.value && props.message.status === 'failed')
+const showRetry = computed(() => isOutgoing.value && props.message.status === 'failed' && props.message.sender_id === userStore.userID)
 
 const retryMessage = (msg) => {
   api.retryMessage(convStore.current.uuid, msg.uuid)
