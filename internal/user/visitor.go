@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/abhinavxd/libredesk/internal/user/models"
-	"github.com/taion809/haikunator"
 	"github.com/volatiletech/null/v9"
 )
 
@@ -15,8 +14,11 @@ func (u *Manager) CreateVisitor(user *models.User) error {
 	user.Email = null.NewString(strings.ToLower(user.Email.String), user.Email.Valid)
 
 	if user.FirstName == "" && user.LastName == "" {
-		h := haikunator.NewHaikunator()
-		user.FirstName = h.Haikunate()
+		if user.Email.Valid && user.Email.String != "" {
+			user.FirstName = strings.Split(user.Email.String, "@")[0]
+		} else {
+			user.FirstName = "Visitor"
+		}
 	}
 
 	if err := u.q.InsertVisitor.Get(user, user.Email, user.FirstName, user.LastName, user.CustomAttributes); err != nil {

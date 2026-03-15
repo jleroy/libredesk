@@ -817,6 +817,9 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 		"conversation_uuid", conversation.UUID,
 		"contact_id", conversation.Contact.ID)
 
+	// Notify conversation subscribers that the contact type has changed.
+	m.BroadcastConversationUpdate(conversation.UUID, "contact.type", umodels.UserTypeContact)
+
 	return senderID, conversationID, conversationUUID, nil
 }
 

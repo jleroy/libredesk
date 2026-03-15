@@ -37,6 +37,7 @@ type PreChatFormField struct {
 // Config holds the live chat inbox configuration.
 type Config struct {
 	BrandName        string `json:"brand_name"`
+	WebsiteURL       string `json:"website_url"`
 	DarkMode         bool   `json:"dark_mode"`
 	ShowPoweredBy    bool   `json:"show_powered_by"`
 	Language         string `json:"language"`

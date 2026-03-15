@@ -37,7 +37,6 @@
               <FormControl>
                 <Input type="text" placeholder="" v-bind="componentField" />
               </FormControl>
-              <FormDescription>{{ $t('admin.inbox.name.description') }}</FormDescription>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -50,6 +49,16 @@
               <FormControl>
                 <Input type="text" placeholder="" v-bind="componentField" />
               </FormControl>
+            </FormItem>
+          </FormField>
+
+          <FormField v-slot="{ componentField }" name="config.website_url">
+            <FormItem>
+              <FormLabel>{{ $t('admin.inbox.livechat.websiteUrl') }}</FormLabel>
+              <FormControl>
+                <Input type="url" placeholder="https://example.com" v-bind="componentField" />
+              </FormControl>
+              <FormDescription>{{ $t('admin.inbox.livechat.websiteUrl.description') }}</FormDescription>
             </FormItem>
           </FormField>
 
@@ -150,9 +159,6 @@
                   v-bind="componentField"
                 />
               </FormControl>
-              <FormDescription>{{
-                $t('admin.inbox.livechat.logoUrl.description')
-              }}</FormDescription>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -323,9 +329,6 @@
                   rows="2"
                 />
               </FormControl>
-              <FormDescription>{{
-                $t('admin.inbox.livechat.chatIntroduction.description')
-              }}</FormDescription>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -371,9 +374,6 @@
                     {{ $t('admin.inbox.livechat.externalLinks.add') }}
                   </Button>
                 </div>
-                <FormDescription>
-                  {{ $t('admin.inbox.livechat.externalLinks.description') }}
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
@@ -947,7 +947,7 @@ const integrationSnippet = computed(() => {
   return `<script src="${baseUrl.value}/widget.js"><\/script>
 <script>
   initLibredeskWidget({
-    baseUrl: '${baseUrl.value}',
+    baseURL: '${baseUrl.value}',
     inboxID: ${inboxId}
   });
 <\/script>`
@@ -957,7 +957,7 @@ const integrationSnippet = computed(() => {
 const jwtPayloadExample = computed(() => {
   return `{
   "external_user_id": "your_app_user_123",    // Required: Your system's unique user ID
-  "email": "user@example.com",                // Optional: User's email
+  "email": "user@example.com",                // Required: User's email
   "first_name": "John",                       // Optional: User's first name
   "last_name": "Doe",                         // Optional: User's last name
   "contact_custom_attributes": {              // Optional: Contact-level attributes
@@ -981,9 +981,9 @@ const authenticatedIntegrationSnippet = computed(() => {
   const userJWT = 'YOUR_SIGNED_JWT_TOKEN_HERE';
 
   initLibredeskWidget({
-    baseUrl: '${baseUrl.value}',
+    baseURL: '${baseUrl.value}',
     inboxID: ${inboxId},
-    libredesk_user_jwt: userJWT
+    userJWT: userJWT
   });
 <\/script>`
 })
@@ -992,7 +992,7 @@ const authenticatedIntegrationSnippet = computed(() => {
 const jsApiSnippet = computed(() => {
   return `// Hide the default launcher and open programmatically
 initLibredeskWidget({
-  baseUrl: '...',
+  baseURL: '...',
   inboxID: 123,
   hideDefaultLauncher: true
 });
@@ -1019,6 +1019,7 @@ const form = useForm({
     linked_email_inbox_id: null,
     config: {
       brand_name: '',
+      website_url: '',
       dark_mode: false,
       show_powered_by: true,
       language: 'en',

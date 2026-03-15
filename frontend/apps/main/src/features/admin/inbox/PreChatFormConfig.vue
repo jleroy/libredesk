@@ -26,9 +26,6 @@
           :placeholder="$t('placeholders.tellUsAboutYourself')"
           class="mt-1"
         />
-        <p class="text-sm text-muted-foreground mt-1">
-          {{ $t('admin.inbox.livechat.prechatForm.title.description') }}
-        </p>
       </div>
 
       <!-- Fields Configuration -->

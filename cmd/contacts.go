@@ -140,12 +140,6 @@ func handleUpdateContact(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "first_name"), nil, envelope.InputError)
 	}
 
-	// Another contact with same new email?
-	existingContact, _ := app.user.GetContact(0, email)
-	if existingContact.ID > 0 && existingContact.ID != id {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("contact.alreadyExistsWithEmail"), nil, envelope.InputError)
-	}
-
 	contactToUpdate := models.User{
 		FirstName:              firstName,
 		LastName:               lastName,

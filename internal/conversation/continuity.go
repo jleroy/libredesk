@@ -106,8 +106,19 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		return fmt.Errorf("error fetching linked email inbox: %w", err)
 	}
 
+	// Fetch livechat inbox config for website URL
+	var websiteURL string
+	if livechatInbox, err := m.inboxStore.GetDBRecord(conv.InboxID); err == nil {
+		var lcConfig struct {
+			WebsiteURL string `json:"website_url"`
+		}
+		if err := json.Unmarshal(livechatInbox.Config, &lcConfig); err == nil {
+			websiteURL = lcConfig.WebsiteURL
+		}
+	}
+
 	// Build email content with all unread messages
-	emailContent := m.buildContinuityEmailContent(unreadMessages)
+	emailContent := m.buildContinuityEmailContent(unreadMessages, websiteURL)
 
 	// Collect attachments from all unread messages
 	attachments, err := m.collectAttachmentsFromMessages(unreadMessages)
@@ -116,12 +127,17 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		return fmt.Errorf("error collecting attachments for continuity email: %w", err)
 	}
 
-	// Generate email subject with site name, this subject is translated
-	siteName := "Support"
-	if siteNameJSON, err := m.settingsStore.Get("app.site_name"); err == nil {
-		siteName = strings.Trim(strings.TrimSpace(string(siteNameJSON)), "\"")
+	// Reuse saved subject for threading, or build from first message on first email
+	emailSubject := conv.ContinuityEmailSubject.String
+	if emailSubject == "" {
+		emailSubject = fmt.Sprintf("#%s", conv.ReferenceNumber)
+		if text := strings.TrimSpace(unreadMessages[0].TextContent); text != "" {
+			if len(text) > 100 {
+				text = text[:100] + "..."
+			}
+			emailSubject = fmt.Sprintf("%s - #%s", text, conv.ReferenceNumber)
+		}
 	}
-	emailSubject := m.i18n.Ts("admin.inbox.livechat.continuityEmailSubject", "site_name", siteName)
 
 	// Generate unique Message-ID for threading
 	sourceID, err := stringutil.GenerateEmailMessageID(conv.UUID, linkedEmailInbox.FromAddress())
@@ -218,7 +234,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		References:        references,
 		InReplyTo:         inReplyTo,
 		ReplyTo:           replyTo,
-		Attachments:       message.Attachments,
+		Attachments:       attachments,
 		Meta:              message.Meta,
 		CreatedAt:         message.CreatedAt,
 	}
@@ -232,7 +248,8 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	}
 
 	// Mark in DB that continuity email was sent now
-	if _, err := m.q.UpdateContinuityEmailTracking.Exec(conv.ID); err != nil {
+	lastMessageTime := unreadMessages[len(unreadMessages)-1].CreatedAt
+	if _, err := m.q.UpdateContinuityEmailTracking.Exec(conv.ID, emailSubject, lastMessageTime); err != nil {
 		m.lo.Error("error updating continuity email tracking", "conversation_uuid", conv.UUID, "error", err)
 		return fmt.Errorf("error updating continuity email tracking: %w", err)
 	}
@@ -247,12 +264,11 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 }
 
 // buildContinuityEmailContent creates email content with conversation summary and unread messages
-func (m *Manager) buildContinuityEmailContent(unreadMessages []models.ContinuityUnreadMessage) string {
+func (m *Manager) buildContinuityEmailContent(unreadMessages []models.ContinuityUnreadMessage, websiteURL string) string {
 	var content strings.Builder
 
-	for _, msg := range unreadMessages {
-		// Get sender display name
-		senderName := "Agent"
+	for i, msg := range unreadMessages {
+		senderName := m.i18n.T("globals.terms.agent")
 		if msg.SenderFirstName.Valid || msg.SenderLastName.Valid {
 			firstName := strings.TrimSpace(msg.SenderFirstName.String)
 			lastName := strings.TrimSpace(msg.SenderLastName.String)
@@ -262,22 +278,29 @@ func (m *Manager) buildContinuityEmailContent(unreadMessages []models.Continuity
 			}
 		}
 
-		// Format timestamp
-		timestamp := msg.CreatedAt.Format("Mon, Jan 2, 2006 at 3:04 PM")
-
-		// Add message header with agent name and timestamp
-		content.WriteString(fmt.Sprintf("<p><strong>%s</strong> <em>%s</em></p>\n",
+		timestamp := msg.CreatedAt.Format("3:04 PM")
+		marginTop := ""
+		if i == 0 {
+			marginTop = "margin-top:8px;"
+		}
+		fmt.Fprintf(&content, `<div style="border-left:2px solid #e0e0e0;padding-left:12px;margin-bottom:8px;%s">`+
+			`<div style="font-size:12px;color:#888;margin-bottom:2px"><strong>%s</strong> · %s</div>`+
+			`<div>%s</div></div>`,
+			marginTop,
 			html.EscapeString(senderName),
-			html.EscapeString(timestamp)))
-
-		// Add message content
-		content.WriteString(msg.Content)
-		content.WriteString("\n<br/>\n")
+			html.EscapeString(timestamp),
+			msg.Content)
+		content.WriteString("\n")
 	}
 
-	// Add footer with reply instructions, footer is translated
-	content.WriteString("<hr/>\n")
-	content.WriteString(fmt.Sprintf("<p><em>%s</em></p>\n", html.EscapeString(m.i18n.T("admin.inbox.livechat.continuityEmailFooter"))))
+	footerText := m.i18n.T("admin.inbox.livechat.continuityEmailFooter")
+	if websiteURL != "" {
+		footerText = m.i18n.Ts("admin.inbox.livechat.continuityEmailFooterWithLink",
+			"link", fmt.Sprintf(`<a href="%s" style="color:#2563eb">`, html.EscapeString(websiteURL)),
+			"endlink", "</a>")
+	}
+	fmt.Fprintf(&content, `<div style="border-top:1px solid #e0e0e0;margin-top:12px;padding-top:8px">`+
+		`<div style="font-size:12px;color:#999">%s</div></div>`, footerText)
 
 	return content.String()
 }

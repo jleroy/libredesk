@@ -68,6 +68,8 @@ type ContinuityConversation struct {
 	ContactFirstName          null.String `db:"contact_first_name"`
 	ContactLastName           null.String `db:"contact_last_name"`
 	LinkedEmailInboxID        null.Int    `db:"linked_email_inbox_id"`
+	ReferenceNumber           string      `db:"reference_number"`
+	ContinuityEmailSubject    null.String `db:"continuity_email_subject"`
 }
 
 type ContinuityUnreadMessage struct {

@@ -723,7 +723,9 @@ SELECT
     i.linked_email_inbox_id,
     u.email as contact_email,
     u.first_name as contact_first_name,
-    u.last_name as contact_last_name
+    u.last_name as contact_last_name,
+    c.reference_number,
+    c.meta->>'continuity_email_subject' as continuity_email_subject
 FROM conversations c
 JOIN users u ON u.id = c.contact_id
 JOIN inboxes i ON i.id = c.inbox_id
@@ -772,8 +774,9 @@ LIMIT $3;
 
 -- name: update-continuity-email-tracking
 UPDATE conversations
-SET contact_last_seen_at = NOW(),
-    last_continuity_email_sent_at = NOW()
+SET contact_last_seen_at = $3,
+    last_continuity_email_sent_at = NOW(),
+    meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{continuity_email_subject}', to_jsonb($2::text))
 WHERE id = $1;
 -- name: upsert-conversation-draft
 INSERT INTO conversation_drafts (conversation_id, user_id, content, meta, updated_at)

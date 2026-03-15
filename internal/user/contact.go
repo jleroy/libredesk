@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/volatiletech/null/v9"
@@ -46,6 +47,9 @@ func (u *Manager) CreateContact(user *models.User) error {
 
 func (u *Manager) UpdateContact(id int, user models.User) error {
 	if _, err := u.q.UpdateContact.Exec(id, user.FirstName, user.LastName, user.Email, user.AvatarURL, user.PhoneNumber, user.PhoneNumberCountryCode, user.Country); err != nil {
+		if dbutil.IsUniqueViolationError(err) {
+			return envelope.NewError(envelope.InputError, u.i18n.T("contact.alreadyExistsWithEmail"), nil)
+		}
 		u.lo.Error("error updating user", "error", err)
 		return envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}

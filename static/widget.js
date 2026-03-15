@@ -14,8 +14,8 @@
     class LibredeskWidget {
         constructor(config = {}) {
             // Validate required config
-            if (!config.baseUrl) {
-                throw new Error('baseUrl is required');
+            if (!config.baseURL) {
+                throw new Error('baseURL is required');
             }
             if (!config.inboxID) {
                 throw new Error('inboxID is required');
@@ -58,7 +58,7 @@
 
         async fetchWidgetSettings () {
             try {
-                const response = await fetch(`${this.config.baseUrl}/api/v1/widget/chat/settings/launcher?inbox_id=${this.config.inboxID}`);
+                const response = await fetch(`${this.config.baseURL}/api/v1/widget/chat/settings/launcher?inbox_id=${this.config.inboxID}`);
 
                 if (!response.ok) {
                     throw new Error(`Error fetching widget settings. Status: ${response.status}`);
@@ -175,7 +175,7 @@
 
             // Create iframe
             this.iframe = document.createElement('iframe');
-            this.iframe.src = `${this.config.baseUrl}/widget/?inbox_id=${this.config.inboxID}`;
+            this.iframe.src = `${this.config.baseURL}/widget/?inbox_id=${this.config.inboxID}`;
             this.iframe.style.cssText = `
                 position: fixed;
                 border: none;
@@ -268,10 +268,10 @@
             }
 
             // Send JWT token if provided in config
-            if (this.config.libredesk_user_jwt) {
+            if (this.config.userJWT) {
                 this.iframe.contentWindow.postMessage({
                     type: 'SET_JWT_TOKEN',
-                    jwt: this.config.libredesk_user_jwt
+                    jwt: this.config.userJWT
                 }, '*');
             }
         }

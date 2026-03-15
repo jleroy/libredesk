@@ -8,6 +8,7 @@ export const createFormSchema = (t) => z.object({
   linked_email_inbox_id: z.number().nullable().optional(),
   config: z.object({
     brand_name: z.string().min(1, { message: t('globals.messages.required') }),
+    website_url: z.string().url({ message: t('validation.invalidUrl') }).optional().or(z.literal('')),
     dark_mode: z.boolean(),
     show_powered_by: z.boolean(),
     language: z.string().min(1, { message: t('globals.messages.required') }),

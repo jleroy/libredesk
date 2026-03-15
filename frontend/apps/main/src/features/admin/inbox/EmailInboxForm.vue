@@ -7,7 +7,6 @@
         <FormControl>
           <Input type="text" placeholder="" v-bind="componentField" />
         </FormControl>
-        <FormDescription> {{ $t('admin.inbox.name.description') }} </FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>

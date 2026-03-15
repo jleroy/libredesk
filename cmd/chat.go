@@ -79,7 +79,7 @@ type conversationResponseWithBusinessHours struct {
 func handleGetChatLauncherSettings(r *fastglue.Request) error {
 	_, config, err := validateLiveChatInbox(r)
 	if err != nil {
-		return err
+		return sendErrorEnvelope(r, err)
 	}
 
 	return r.SendEnvelope(map[string]any{
@@ -94,7 +94,7 @@ func handleGetChatSettings(r *fastglue.Request) error {
 
 	_, config, err := validateLiveChatInbox(r)
 	if err != nil {
-		return err
+		return sendErrorEnvelope(r, err)
 	}
 
 	response := chatSettingsResponse{
@@ -174,6 +174,9 @@ func handleChatInit(r *fastglue.Request) error {
 	// Handle authenticated user vs visitor.
 	if claims != nil {
 		if claims.ExternalUserID != "" {
+			if claims.Email == "" {
+				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "email"), nil, envelope.InputError)
+			}
 			contactID, conversationAttrs, err = resolveOrCreateExternalContact(app, *claims, req.FormData, config)
 			if err != nil {
 				app.lo.Error("error resolving or creating contact for external_user_id", "external_user_id", claims.ExternalUserID, "error", err)
@@ -645,49 +648,41 @@ func validateLiveChatInbox(r *fastglue.Request) (imodels.Inbox, livechat.Config,
 	inboxID := r.RequestCtx.QueryArgs().GetUintOrZero("inbox_id")
 
 	if inboxID <= 0 {
-		return imodels.Inbox{}, livechat.Config{}, r.SendErrorEnvelope(
-			fasthttp.StatusBadRequest,
-			app.i18n.Ts("globals.messages.required", "name", "{globals.terms.inbox}"),
-			nil, envelope.InputError)
+		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.InputError,
+			app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	inbox, err := app.inbox.GetDBRecord(inboxID)
 	if err != nil {
 		app.lo.Error("error fetching inbox", "inbox_id", inboxID, "error", err)
-		return imodels.Inbox{}, livechat.Config{}, sendErrorEnvelope(r, err)
+		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.GeneralError,
+			app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	if inbox.Channel != livechat.ChannelLiveChat {
-		return imodels.Inbox{}, livechat.Config{}, r.SendErrorEnvelope(
-			fasthttp.StatusBadRequest,
-			app.i18n.T("validation.notFoundInbox"),
-			nil, envelope.InputError)
+		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.InputError,
+			app.i18n.T("validation.notFoundInbox"), nil)
 	}
 
 	if !inbox.Enabled {
-		return imodels.Inbox{}, livechat.Config{}, r.SendErrorEnvelope(
-			fasthttp.StatusBadRequest,
-			app.i18n.T("status.disabledInbox"),
-			nil, envelope.InputError)
+		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.InputError,
+			app.i18n.T("status.disabledInbox"), nil)
 	}
 
 	config, err := parseLiveChatConfig(inbox)
 	if err != nil {
 		app.lo.Error("error parsing live chat config", "error", err)
-		return imodels.Inbox{}, livechat.Config{}, r.SendErrorEnvelope(
-			fasthttp.StatusInternalServerError,
-			app.i18n.T("validation.invalidInbox"),
-			nil, envelope.GeneralError)
+		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.GeneralError,
+			app.i18n.T("validation.invalidInbox"), nil)
 	}
 
 	// Check if the client's IP is blocked.
 	if len(config.BlockedIPs) > 0 {
 		clientIP := realip.FromRequest(r.RequestCtx)
 		if httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
-			r.SendErrorEnvelope(
-				fasthttp.StatusForbidden,
-				app.i18n.T("widget.ipBlocked"), nil, envelope.PermissionError)
-			return imodels.Inbox{}, livechat.Config{}, fmt.Errorf("ip blocked")
+			app.lo.Info("client IP blocked for live chat inbox", "client_id", clientIP, "inbox_id", inboxID)
+			return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.PermissionError,
+				app.i18n.T("widget.ipBlocked"), nil)
 		}
 	}
 
