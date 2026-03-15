@@ -339,6 +339,12 @@ func (m *Manager) GetMessage(uuid string) (models.Message, error) {
 		m.lo.Error("error fetching message", "uuid", uuid, "error", err)
 		return message, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+
+	// Generate signed URLs for attachments.
+	for i := range message.Attachments {
+		message.Attachments[i].URL = m.mediaStore.GetSignedURL(message.Attachments[i].UUID)
+	}
+
 	return message, nil
 }
 

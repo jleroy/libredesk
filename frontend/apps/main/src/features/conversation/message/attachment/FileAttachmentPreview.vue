@@ -33,7 +33,7 @@ const props = defineProps({
 })
 
 const getAttachmentName = (name) => {
-  return name.substring(0, 50)
+  return (name || '').substring(0, 50)
 }
 
 const downloadAttachment = () => {

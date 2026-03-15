@@ -29,7 +29,7 @@ const props = defineProps({
 })
 
 const trimAttachmentName = (name) => {
-  return name.substring(0, 40)
+  return (name || '').substring(0, 40)
 }
 
 const downloadAttachment = () => {

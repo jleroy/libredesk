@@ -613,7 +613,7 @@ export const useConversationStore = defineStore('conversation', () => {
   function updateConversationLastMessage (uuid, message) {
     const conv = conversations.data?.find(c => c.uuid === uuid)
     if (!conv) return
-    conv.last_message = message.text_content || message.content
+    conv.last_message = message.text_content || message.content || getMediaPreview(message.attachments)
     conv.last_message_at = message.created_at
     conv.last_message_sender = message.sender_type
   }
@@ -669,7 +669,14 @@ export const useConversationStore = defineStore('conversation', () => {
       conversation_uuid: conversationUUID,
       created_at: new Date().toISOString(),
       author,
-      attachments,
+      attachments: attachments.map(a => ({
+        uuid: a.uuid,
+        name: a.filename || a.name,
+        size: a.size,
+        content_type: a.content_type,
+        url: a.url,
+        disposition: a.disposition
+      })),
       meta
     }
     messages.data.addMessage(conversationUUID, pendingMessage)
