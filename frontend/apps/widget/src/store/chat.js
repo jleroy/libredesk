@@ -22,9 +22,7 @@ export const useChatStore = defineStore('chat', () => {
         messageCacheVersion.value // Force reactivity tracking
         const convId = currentConversation.value?.uuid
         if (!convId) return []
-        const messages = messageCache.getAllPagesMessages(convId)
-        // Filter out continuity email messages
-        return messages.filter(msg => !msg.meta?.continuity_email)
+        return messageCache.getAllPagesMessages(convId)
     })
     const hasConversations = computed(() => conversations.value?.length > 0)
     const getConversations = computed(() => {
@@ -130,9 +128,11 @@ export const useChatStore = defineStore('chat', () => {
         try {
             isLoadingConversation.value = true
             const resp = await api.getChatConversation(conversationUUID)
-            setCurrentConversation(resp.data.data.conversation)
+            const conversation = resp.data.data.conversation
+            conversation.business_hours_id = resp.data.data.business_hours_id
+            conversation.working_hours_utc_offset = resp.data.data.working_hours_utc_offset
+            setCurrentConversation(conversation)
             replaceMessages(resp.data.data.messages)
-            currentConversation.value = resp.data.data.conversation
             if (resp.data.data.messages.length > 0) {
                 updateConversationListLastMessage(conversationUUID, resp.data.data.messages[0], false)
             }

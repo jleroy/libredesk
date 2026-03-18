@@ -479,6 +479,7 @@
   "conversation.placeholder": "Selecciona una conversación del panel izquierdo.",
   "conversation.search": "Buscar conversaciones",
   "conversation.searchContact": "Buscar contacto por correo electrónico o escribir nuevo correo electrónico",
+  "conversation.sentViaEmail": "Enviado por correo electrónico",
   "conversation.showQuotedText": "Mostrar texto citado",
   "conversation.sidebar.contactAttributes": "Atributos del contacto",
   "conversation.sidebar.information": "Información",

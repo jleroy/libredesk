@@ -479,6 +479,7 @@
   "conversation.placeholder": "Vælg en samtale fra venstre panel.",
   "conversation.search": "Søg i samtaler",
   "conversation.searchContact": "Søg kontakt via e-mail eller skriv ny e-mail",
+  "conversation.sentViaEmail": "Sendt via e-mail",
   "conversation.showQuotedText": "Vis citeret tekst",
   "conversation.sidebar.contactAttributes": "Kontaktattributter",
   "conversation.sidebar.information": "Oplysninger",

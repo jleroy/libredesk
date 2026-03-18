@@ -486,6 +486,7 @@
   "conversation.placeholder": "Select a conversation from the left panel.",
   "conversation.search": "Search conversations",
   "conversation.searchContact": "Search contact by email or type new email",
+  "conversation.sentViaEmail": "Sent via email",
   "conversation.showQuotedText": "Show quoted text",
   "conversation.sidebar.contactAttributes": "Contact attributes",
   "conversation.sidebar.information": "Information",

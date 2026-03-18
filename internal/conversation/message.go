@@ -721,6 +721,11 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		return models.Message{}, err
 	}
 
+	// When a customer replies to a continuity email (matched via plus-addressing or
+	// reference number), sync the message to their live chat widget via WebSocket.
+	// No-op if the conversation's inbox isn't livechat.
+	m.broadcastMessageToWidgetClients(&msg)
+
 	// Process post-message hooks (automation rules, webhooks, SLA, etc.).
 	if err := m.ProcessIncomingMessageHooks(msg.ConversationUUID, isNewConversation); err != nil {
 		m.lo.Error("error processing incoming message hooks", "conversation_uuid", msg.ConversationUUID, "error", err)
@@ -834,7 +839,7 @@ func (m *Manager) matchConversation(in *models.IncomingMessage) (int, string, bo
 				return 0, "", false, fmt.Errorf("fetching conversation: %w", err)
 			}
 		} else if strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-			m.lo.Debug("matched conversation by reference number in subject and emails match", "ref_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "incoming_email", in.Contact.Email.String)
+			m.lo.Info("matched conversation by reference number in subject", "ref_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "incoming_email", in.Contact.Email.String)
 			return conversation.ID, conversation.UUID, false, nil
 		}
 	}
@@ -1192,6 +1197,36 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 		}
 	}
 	return nil
+}
+
+// broadcastMessageToWidgetClients sends a message to widget clients if the conversation belongs to a livechat inbox.
+func (m *Manager) broadcastMessageToWidgetClients(message *models.Message) {
+	conversation, err := m.GetConversation(0, message.ConversationUUID, "")
+	if err != nil {
+		return
+	}
+
+	inboxInstance, err := m.inboxStore.Get(conversation.InboxID)
+	if err != nil {
+		return
+	}
+
+	liveChatInbox, ok := inboxInstance.(*livechat.LiveChat)
+	if !ok {
+		return
+	}
+
+	liveChatInbox.BroadcastMessageToClients(message.ConversationUUID, conversation.ContactID, models.ChatMessage{
+		UUID:             message.UUID,
+		Status:           message.Status,
+		ConversationUUID: message.ConversationUUID,
+		CreatedAt:        message.CreatedAt,
+		Content:          message.Content,
+		TextContent:      message.TextContent,
+		Author:           message.Author,
+		Attachments:      message.Attachments,
+		Meta:             message.Meta,
+	})
 }
 
 // getMediaPreview returns a localized preview string based on attachment type.

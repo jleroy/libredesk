@@ -479,6 +479,7 @@
   "conversation.placeholder": "左側のパネルから会話を選択してください。",
   "conversation.search": "会話を検索",
   "conversation.searchContact": "メールアドレスで連絡先を検索するか、新しいメールアドレスを入力してください",
+  "conversation.sentViaEmail": "メールで送信済み",
   "conversation.showQuotedText": "引用文を表示",
   "conversation.sidebar.contactAttributes": "連絡先属性",
   "conversation.sidebar.information": "インフォメーション",

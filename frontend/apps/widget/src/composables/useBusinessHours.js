@@ -4,10 +4,10 @@ import { useI18n } from 'vue-i18n'
 /**
  * Business hours composable providing generic business hours utilities.
  */
-export function useBusinessHours() {
+export function useBusinessHours () {
   const { t } = useI18n()
 
-  function getBusinessHoursById(businessHoursId, businessHoursList) {
+  function getBusinessHoursById (businessHoursId, businessHoursList) {
     if (!businessHoursId || !businessHoursList) {
       return null
     }
@@ -15,7 +15,7 @@ export function useBusinessHours() {
     return businessHoursList.find(bh => bh.id === businessHoursId)
   }
 
-  function resolveBusinessHours(options) {
+  function resolveBusinessHours (options) {
     const {
       showOfficeHours,
       showAfterAssignment,
@@ -41,14 +41,16 @@ export function useBusinessHours() {
     return getBusinessHoursById(businessHoursId, businessHoursList)
   }
 
-  function isWithinBusinessHours(businessHours, date, utcOffset = 0) {
+  function isWithinBusinessHours (businessHours, date, utcOffset = 0) {
     if (!businessHours || businessHours.is_always_open) {
       return true
     }
 
-    // Convert to business timezone
-    const localDate = new Date(date.getTime() + (utcOffset * 60000))
-    
+    // Adjust for browser timezone: getTimezoneOffset() is negative for east of UTC,
+    // which cancels out the browser offset that format/getDay will add.
+    const adjustedOffset = utcOffset + date.getTimezoneOffset()
+    const localDate = new Date(date.getTime() + (adjustedOffset * 60000))
+
     // Check if it's a holiday
     if (isHoliday(businessHours, localDate)) {
       return false
@@ -70,7 +72,7 @@ export function useBusinessHours() {
     return currentTime >= schedule.open && currentTime <= schedule.close
   }
 
-  function isHoliday(businessHours, date) {
+  function isHoliday (businessHours, date) {
     if (!businessHours.holidays || businessHours.holidays.length === 0) {
       return false
     }
@@ -78,15 +80,17 @@ export function useBusinessHours() {
     return businessHours.holidays.some(holiday => holiday.date === dateStr)
   }
 
-  function getNextWorkingTime(businessHours, fromDate, utcOffset = 0) {
+  function getNextWorkingTime (businessHours, fromDate, utcOffset = 0) {
     if (!businessHours || businessHours.is_always_open) {
       return fromDate
     }
 
+    const adjustedOffset = utcOffset + fromDate.getTimezoneOffset()
+
     // Check up to 14 days ahead
     for (let i = 0; i < 14; i++) {
       const checkDate = addDays(fromDate, i)
-      const localDate = new Date(checkDate.getTime() + (utcOffset * 60000))
+      const localDate = new Date(checkDate.getTime() + (adjustedOffset * 60000))
 
       // Skip holidays
       if (isHoliday(businessHours, localDate)) {
@@ -109,11 +113,11 @@ export function useBusinessHours() {
         const currentTime = format(localDate, 'HH:mm')
         // Currently within business hours
         if (currentTime >= schedule.open && currentTime < schedule.close) {
-          return new Date(localDate.getTime() - (utcOffset * 60000))
+          return new Date(localDate.getTime() - (adjustedOffset * 60000))
         }
         // Before opening time today
         if (currentTime < schedule.open) {
-          return new Date(nextWorking.getTime() - (utcOffset * 60000))
+          return new Date(nextWorking.getTime() - (adjustedOffset * 60000))
         }
         // Past closing time, check next day
         continue
@@ -121,18 +125,18 @@ export function useBusinessHours() {
 
       // For future days, return the opening time
       // Convert back from business timezone to user timezone
-      return new Date(nextWorking.getTime() - (utcOffset * 60000))
+      return new Date(nextWorking.getTime() - (adjustedOffset * 60000))
     }
 
     return null
   }
 
   // Returns English day name to match backend hours keys
-  function getDayName(dayNum) {
+  function getDayName (dayNum) {
     return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayNum]
   }
 
-  function formatNextWorkingTime(nextWorkingTime) {
+  function formatNextWorkingTime (nextWorkingTime) {
     if (!nextWorkingTime) {
       return ''
     }
@@ -142,13 +146,14 @@ export function useBusinessHours() {
     } else if (isTomorrow(nextWorkingTime)) {
       return t('globals.messages.backTomorrowAt', { time: format(nextWorkingTime, 'h:mm a') })
     } else {
-      return t('globals.messages.backOnDayAt', { 
-        day: format(nextWorkingTime, 'EEEE'), 
-        time: format(nextWorkingTime, 'h:mm a') 
+      return t('globals.messages.backOnDayAt', {
+        day: format(nextWorkingTime, 'EEEE'),
+        time: format(nextWorkingTime, 'h:mm a')
       })
     }
   }
-  function getBusinessHoursStatus(businessHours, utcOffset = 0, withinHoursMessage = '') {
+
+  function getBusinessHoursStatus (businessHours, utcOffset = 0, withinHoursMessage = '') {
     if (!businessHours) {
       return null
     }

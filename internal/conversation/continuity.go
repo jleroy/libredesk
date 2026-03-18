@@ -12,6 +12,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/attachment"
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
+	"github.com/lib/pq"
 	"github.com/volatiletech/null/v9"
 )
 
@@ -151,8 +152,14 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		return fmt.Errorf("error fetching system user: %w", err)
 	}
 
+	messageIDs := make([]int, len(unreadMessages))
+	for i, msg := range unreadMessages {
+		messageIDs[i] = msg.ID
+	}
+
 	metaJSON, err := json.Marshal(map[string]any{
 		"continuity_email": true,
+		"message_ids":      messageIDs,
 	})
 	if err != nil {
 		m.lo.Error("error marshalling continuity email meta", "error", err, "conversation_uuid", conv.UUID)
@@ -185,7 +192,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	}
 
 	// Get all message source IDs for References header and threading
-	references, err := m.GetMessageSourceIDs(conv.ID, 100)
+	references, err := m.GetMessageSourceIDs(conv.ID, 200)
 	if err != nil {
 		m.lo.Error("error fetching conversation source IDs for continuity email", "error", err)
 		references = []string{}
@@ -245,6 +252,11 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		cleanUp = true
 		m.lo.Error("error sending continuity email", "error", err, "message_id", message.ID, "message_uuid", message.UUID, "conversation_uuid", conv.UUID)
 		return fmt.Errorf("error sending continuity email: %w", err)
+	}
+
+	// Mark original messages as sent via continuity email.
+	if _, err := m.q.MarkMessagesContinuityEmailed.Exec(pq.Array(messageIDs)); err != nil {
+		m.lo.Error("error marking messages as continuity emailed", "conversation_uuid", conv.UUID, "error", err)
 	}
 
 	// Mark in DB that continuity email was sent now

@@ -303,7 +303,7 @@ WHERE c.contact_id = $1 AND c.inbox_id = $2
   AND inb.deleted_at IS NULL
   AND con.deleted_at IS NULL
 ORDER BY c.created_at DESC
-LIMIT 500;
+LIMIT 200;
 
 -- name: get-conversation-uuid
 SELECT uuid from conversations where id = $1;
@@ -656,6 +656,7 @@ WHERE m.conversation_id = (
 )
 AND ($2::boolean IS NULL OR m.private = $2)
 AND ($3::text[] IS NULL OR m.type::text = ANY($3))
+AND (m.meta IS NULL OR NOT COALESCE((m.meta->>'continuity_email')::boolean, false))
 ORDER BY m.created_at DESC %s
 
 -- name: insert-message
@@ -771,6 +772,11 @@ WHERE m.conversation_id = $1
   AND (m.meta IS NULL OR NOT COALESCE((m.meta->>'continuity_email')::boolean, false))
 ORDER BY m.created_at ASC
 LIMIT $3;
+
+-- name: mark-messages-continuity-emailed
+UPDATE conversation_messages
+SET meta = COALESCE(meta, '{}'::jsonb) || '{"continuity_emailed": true}'::jsonb
+WHERE id = ANY($1::int[]);
 
 -- name: update-continuity-email-tracking
 UPDATE conversations

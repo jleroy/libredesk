@@ -479,6 +479,7 @@
   "conversation.placeholder": "Sélectionnez une conversation dans le panneau de gauche.",
   "conversation.search": "Rechercher des conversations",
   "conversation.searchContact": "Rechercher un contact par courriel ou saisir un nouveau courriel",
+  "conversation.sentViaEmail": "Envoyé par e-mail",
   "conversation.showQuotedText": "Afficher le texte cité",
   "conversation.sidebar.contactAttributes": "Attributs du contact",
   "conversation.sidebar.information": "Informations",

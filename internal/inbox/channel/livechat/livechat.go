@@ -303,6 +303,34 @@ func (lc *LiveChat) BroadcastTypingToClients(conversationUUID string, contactID 
 	}
 }
 
+// BroadcastMessageToClients broadcasts a new message to specific widget clients.
+func (lc *LiveChat) BroadcastMessageToClients(conversationUUID string, contactID int, messageData any) {
+	lc.clientsMutex.RLock()
+	defer lc.clientsMutex.RUnlock()
+
+	msg := map[string]any{
+		"type": "new_message",
+		"data": messageData,
+	}
+
+	messageJSON, err := json.Marshal(msg)
+	if err != nil {
+		lc.lo.Error("failed to marshal new message for widget broadcast", "error", err)
+		return
+	}
+
+	contactIDStr := strconv.Itoa(contactID)
+	if clients, exists := lc.clients[contactIDStr]; exists {
+		for _, client := range clients {
+			select {
+			case client.Channel <- messageJSON:
+			default:
+				lc.lo.Warn("client channel full, dropping message broadcast", "contact_id", contactID, "client_id", client.ID)
+			}
+		}
+	}
+}
+
 // BroadcastConversationToClients broadcasts conversation updates to specific widget clients.
 func (lc *LiveChat) BroadcastConversationToClients(conversationUUID string, contactID int, conversationData interface{}) {
 	lc.clientsMutex.RLock()

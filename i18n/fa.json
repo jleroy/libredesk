@@ -479,6 +479,7 @@
   "conversation.placeholder": "یک مکالمه از پنل سمت چپ انتخاب کنید.",
   "conversation.search": "جستجوی مکالمات",
   "conversation.searchContact": "جستجوی مخاطب با ایمیل یا تایپ ایمیل جدید",
+  "conversation.sentViaEmail": "از طریق ایمیل ارسال شد",
   "conversation.showQuotedText": "نمایش متن نقل‌قول‌شده",
   "conversation.sidebar.contactAttributes": "ویژگی‌های مخاطب",
   "conversation.sidebar.information": "اطلاعات",

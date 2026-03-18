@@ -81,7 +81,9 @@ const { startTyping, stopTyping } = useTypingIndicator((isTyping) => {
 
 const initChatConversation = async (messageText) => {
   const resp = await api.initChatConversation({ message: messageText })
-  const { conversation, jwt, messages } = resp.data.data
+  const { conversation, jwt, messages, business_hours_id, working_hours_utc_offset } = resp.data.data
+  conversation.business_hours_id = business_hours_id
+  conversation.working_hours_utc_offset = working_hours_utc_offset
 
   if (!userStore.userSessionToken && jwt) {
     userStore.setSessionToken(jwt)

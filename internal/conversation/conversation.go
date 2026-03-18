@@ -315,6 +315,7 @@ type queries struct {
 	// Conversation continuity queries.
 	GetOfflineLiveChatConversations *sqlx.Stmt `query:"get-offline-livechat-conversations"`
 	GetUnreadMessages               *sqlx.Stmt `query:"get-unread-messages"`
+	MarkMessagesContinuityEmailed   *sqlx.Stmt `query:"mark-messages-continuity-emailed"`
 	UpdateContinuityEmailTracking   *sqlx.Stmt `query:"update-continuity-email-tracking"`
 
 	// Mention queries.
@@ -409,6 +410,9 @@ func (c *Manager) GetContactChatConversations(contactID, inboxID int) ([]models.
 		c.lo.Error("error fetching conversations", "error", err)
 		return conversations, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	for i := range conversations {
+		c.signChatAssigneeAvatar(conversations[i].Assignee)
+	}
 	return conversations, nil
 }
 
@@ -422,7 +426,19 @@ func (c *Manager) GetChatConversation(conversationUUID string) (models.ChatConve
 	if conversation.Assignee.ID == 0 {
 		conversation.Assignee = nil
 	}
+	c.signChatAssigneeAvatar(conversation.Assignee)
 	return conversation, nil
+}
+
+// signChatAssigneeAvatar converts a raw /uploads/ avatar path to a signed URL.
+func (c *Manager) signChatAssigneeAvatar(assignee *umodels.ChatUser) {
+	if assignee == nil || !assignee.AvatarURL.Valid || assignee.AvatarURL.String == "" {
+		return
+	}
+	if strings.HasPrefix(assignee.AvatarURL.String, "/uploads/") {
+		avatarUUID := strings.TrimPrefix(assignee.AvatarURL.String, "/uploads/")
+		assignee.AvatarURL = null.StringFrom(c.mediaStore.GetSignedURL(avatarUUID))
+	}
 }
 
 // GetConversationsCreatedAfter retrieves conversations created after the specified time.
