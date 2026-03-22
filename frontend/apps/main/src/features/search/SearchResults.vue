@@ -36,15 +36,24 @@
               >
                 <div class="flex justify-between items-start">
                   <div class="flex-grow">
-                    <!-- Reference number -->
+                    <!-- Reference number and status -->
                     <div
-                      class="text-sm font-semibold mb-2 text-muted-foreground group-hover:text-primary transition duration-200"
+                      class="text-sm font-semibold mb-2 text-muted-foreground group-hover:text-primary transition duration-200 flex items-center gap-2"
                     >
-                      #{{
-                        type === 'conversations'
-                          ? item.reference_number
-                          : item.conversation_reference_number
-                      }}
+                      <span>
+                        #{{
+                          type === 'conversations'
+                            ? item.reference_number
+                            : item.conversation_reference_number
+                        }}
+                      </span>
+                      <Badge variant="outline" class="text-xs font-medium">
+                        {{
+                          type === 'conversations'
+                            ? item.status
+                            : item.conversation_status
+                        }}
+                      </Badge>
                     </div>
 
                     <!-- Content -->
@@ -93,6 +102,7 @@ import { computed, ref, watch } from 'vue'
 import { ChevronRightIcon, ClockIcon } from 'lucide-vue-next'
 import { format, parseISO } from 'date-fns'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
+import { Badge } from '@shared-ui/components/ui/badge'
 
 const tabLabelKeys = {
   conversations: 'globals.terms.conversation',
