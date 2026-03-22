@@ -40,18 +40,22 @@ onMounted(async () => {
 
   setupParentMessageListeners()
 
-  // Only fetch conversations if not directly navigating to a conversation
-  if (!widgetStore.config?.direct_to_conversation) {
-    await chatStore.fetchConversations()
+  let success
+  if (widgetStore.config?.direct_to_conversation) {
+    success = await chatStore.fetchConversations()
+    if (success && chatStore.hasConversations) {
+      const latest = chatStore.getConversations[0]
+      await chatStore.loadConversation(latest.uuid)
+    }
+    if (success) widgetStore.navigateToChat()
+  } else {
+    success = await chatStore.fetchConversations()
   }
 
-  // Notify parent window that Vue app is ready
-  window.parent.postMessage(
-    {
-      type: 'VUE_APP_READY'
-    },
-    '*'
-  )
+  if (!success) return
+
+  // Initialization failed, don't show widget.
+  window.parent.postMessage({ type: 'VUE_APP_READY' }, '*')
 })
 
 // Listen for messages from parent window (widget.js)

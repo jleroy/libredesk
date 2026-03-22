@@ -184,27 +184,27 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     const fetchConversations = async () => {
-        // No session token means no conversations can be fetched simply return empty.
+        // No session token means visitor, no conversations to fetch.
         if (!userStore.userSessionToken) {
-            return
+            return true
         }
 
         // If conversations are already loaded and is an array, do not fetch again.
         if (Array.isArray(conversations.value)) {
-            return
+            return true
         }
 
         try {
             isLoadingConversations.value = true
             const response = await api.getChatConversations()
             conversations.value = response.data.data || []
+            return true
         } catch (error) {
-            // On 401, clear session from user store.
             if (error.response && error.response.status === 401) {
                 userStore.clearSessionToken()
                 conversations.value = null
-                return
             }
+            return false
         } finally {
             isLoadingConversations.value = false
         }
