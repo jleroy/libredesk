@@ -79,9 +79,7 @@ export class WebSocketClient {
         // Property updates for conversation and message.
         [WS_EVENT.MESSAGE_PROP_UPDATE]: () => this.convStore.updateMessageProp(data.data),
         [WS_EVENT.CONVERSATION_PROP_UPDATE]: () => this.convStore.updateConversationProp(data.data),
-        [WS_EVENT.CONVERSATION_SUBSCRIBED]: () => {
-          console.log('Successfully subscribed to conversation:', data.data.conversation_uuid)
-        },
+        [WS_EVENT.CONVERSATION_SUBSCRIBED]: () => { },
         [WS_EVENT.TYPING]: () => {
           this.convStore.updateTypingStatus(data.data)
         },

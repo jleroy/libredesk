@@ -139,6 +139,12 @@ min_email_interval = "15m"
 evaluation_interval = "5m"
 
 [rate_limit]
-  [rate_limit.widget]
-    enabled = true
-    requests_per_minute = 100
+[rate_limit.widget]
+  enabled = true
+  requests_per_minute = 100
+[rate_limit.auth]
+  enabled = true
+  requests_per_minute = 20
+[rate_limit.public]
+  enabled = true
+  requests_per_minute = 60

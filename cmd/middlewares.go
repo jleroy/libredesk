@@ -224,6 +224,17 @@ func notAuthPage(handler fastglue.FastRequestHandler) fastglue.FastRequestHandle
 	}
 }
 
+// rateLimit applies rate limiting for the given rule name.
+func rateLimit(handler fastglue.FastRequestHandler, ruleName string) fastglue.FastRequestHandler {
+	return func(r *fastglue.Request) error {
+		app := r.Context.(*App)
+		if err := app.rateLimit.Check(r.RequestCtx, ruleName); err != nil {
+			return err
+		}
+		return handler(r)
+	}
+}
+
 // authOrSignedURL allows access if user is authenticated OR if URL has valid signature.
 // Used for media endpoints that support both access methods.
 func authOrSignedURL(handler fastglue.FastRequestHandler) fastglue.FastRequestHandler {

@@ -1063,23 +1063,47 @@ func getLogLevel(lvl string) logf.Level {
 	}
 }
 
-// initRateLimit initializes the rate limiter.
+// initRateLimit initializes the rate limiter with default rules.
+// Defaults are used unless overridden in config.toml under [rate_limit.<name>].
 func initRateLimit(redisClient *redis.Client) *ratelimit.Limiter {
 	limiter := ratelimit.New(redisClient)
 
-	// Widget rate limit rule.
-	var widgetCfg struct {
-		Enabled           bool `toml:"enabled"`
-		RequestsPerMinute int  `toml:"requests_per_minute"`
+	defaults := []struct {
+		Name string
+		RPM  int
+	}{
+		{"widget", 100},
+		{"auth", 20},
+		{"public", 60},
 	}
-	if err := ko.UnmarshalWithConf("rate_limit.widget", &widgetCfg, koanf.UnmarshalConf{Tag: "toml"}); err != nil {
-		log.Fatalf("error unmarshalling widget rate limit config: %v", err)
+
+	for _, d := range defaults {
+		enabled := true
+		rpm := d.RPM
+
+		cfgKey := "rate_limit." + d.Name
+		if ko.Exists(cfgKey) {
+			var cfg struct {
+				Enabled           bool `toml:"enabled"`
+				RequestsPerMinute int  `toml:"requests_per_minute"`
+			}
+			ko.UnmarshalWithConf(cfgKey, &cfg, koanf.UnmarshalConf{Tag: "toml"})
+			enabled = cfg.Enabled
+			if cfg.RequestsPerMinute > 0 {
+				rpm = cfg.RequestsPerMinute
+			}
+		}
+
+		if !enabled {
+			log.Printf("WARNING: rate limit rule '%s' is disabled", d.Name)
+		}
+
+		limiter.AddRule(ratelimit.Rule{
+			Name:              d.Name,
+			Enabled:           enabled,
+			RequestsPerMinute: rpm,
+		})
 	}
-	limiter.AddRule(ratelimit.Rule{
-		Name:              "widget",
-		Enabled:           widgetCfg.Enabled,
-		RequestsPerMinute: widgetCfg.RequestsPerMinute,
-	})
 
 	return limiter
 }

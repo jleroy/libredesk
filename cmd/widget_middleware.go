@@ -172,13 +172,3 @@ func getWidgetClaimsOptional(r *fastglue.Request) *Claims {
 	return nil
 }
 
-// rateLimitWidget applies rate limiting to widget endpoints.
-func rateLimitWidget(handler fastglue.FastRequestHandler) fastglue.FastRequestHandler {
-	return func(r *fastglue.Request) error {
-		app := r.Context.(*App)
-		if err := app.rateLimit.Check(r.RequestCtx, "widget"); err != nil {
-			return err
-		}
-		return handler(r)
-	}
-}

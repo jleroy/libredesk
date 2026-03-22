@@ -46,39 +46,37 @@ func (l *Limiter) Check(ctx *fasthttp.RequestCtx, ruleName string) error {
 	clientIP := realip.FromRequest(ctx)
 	key := fmt.Sprintf("rate_limit:%s:%s", ruleName, clientIP)
 
-	// Use sliding window approach with Redis.
-	now := time.Now().Unix()
-	windowStart := now - 60 // 60 seconds window
+	now := time.Now()
+	nowUnix := now.Unix()
+	nowNano := now.UnixNano()
+	windowStart := strconv.FormatInt(nowUnix-60, 10)
 
-	count, err := l.redis.ZCount(ctx, key, strconv.FormatInt(windowStart, 10), "+inf").Result()
-	if err != nil {
+	// Single pipeline: cleanup, add, count, set expiry.
+	pipe := l.redis.Pipeline()
+	pipe.ZRemRangeByScore(ctx, key, "-inf", windowStart)
+	pipe.ZAdd(ctx, key, redis.Z{Score: float64(nowUnix), Member: nowNano})
+	countCmd := pipe.ZCard(ctx, key)
+	pipe.Expire(ctx, key, time.Minute*2)
+	if _, err := pipe.Exec(ctx); err != nil {
 		return nil
 	}
 
-	if count >= int64(rule.RequestsPerMinute) {
-		ctx.Response.Header.Set("X-RateLimit-Limit", strconv.Itoa(rule.RequestsPerMinute))
-		ctx.Response.Header.Set("X-RateLimit-Remaining", "0")
-		ctx.Response.Header.Set("X-RateLimit-Reset", strconv.FormatInt(now+60, 10))
-		ctx.Response.Header.Set("Retry-After", "60")
+	count := countCmd.Val()
+	limit := int64(rule.RequestsPerMinute)
 
+	ctx.Response.Header.Set("X-RateLimit-Limit", strconv.Itoa(rule.RequestsPerMinute))
+	ctx.Response.Header.Set("X-RateLimit-Reset", strconv.FormatInt(nowUnix+60, 10))
+
+	if count > limit {
+		ctx.Response.Header.Set("X-RateLimit-Remaining", "0")
+		ctx.Response.Header.Set("Retry-After", "60")
+		ctx.Response.Header.Set("Content-Type", "application/json")
 		ctx.SetStatusCode(fasthttp.StatusTooManyRequests)
 		ctx.SetBodyString(`{"status":"error","message":"Rate limit exceeded"}`)
 		return fmt.Errorf("rate limit exceeded")
 	}
 
-	// Add current request to the sliding window.
-	pipe := l.redis.Pipeline()
-	pipe.ZAdd(ctx, key, redis.Z{Score: float64(now), Member: time.Now().UnixNano()})
-	pipe.ZRemRangeByScore(ctx, key, "-inf", strconv.FormatInt(windowStart, 10))
-	pipe.Expire(ctx, key, time.Minute*2)
-	if _, err = pipe.Exec(ctx); err != nil {
-		return nil
-	}
-
-	remaining := max(rule.RequestsPerMinute-int(count)-1, 0)
-	ctx.Response.Header.Set("X-RateLimit-Limit", strconv.Itoa(rule.RequestsPerMinute))
+	remaining := max(int(limit-count), 0)
 	ctx.Response.Header.Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
-	ctx.Response.Header.Set("X-RateLimit-Reset", strconv.FormatInt(now+60, 10))
-
 	return nil
 }

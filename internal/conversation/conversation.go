@@ -411,6 +411,9 @@ func (c *Manager) GetContactChatConversations(contactID, inboxID int) ([]models.
 		return conversations, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	for i := range conversations {
+		if conversations[i].Assignee.ID == 0 {
+			conversations[i].Assignee = nil
+		}
 		c.signChatAssigneeAvatar(conversations[i].Assignee)
 	}
 	return conversations, nil

@@ -20,10 +20,10 @@ import (
 // initHandlers initializes the HTTP routes and handlers for the application.
 func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Authentication.
-	g.POST("/api/v1/auth/login", handleLogin)
+	g.POST("/api/v1/auth/login", rateLimit(handleLogin, "auth"))
 	g.GET("/logout", auth(handleLogout))
-	g.GET("/api/v1/oidc/{id}/login", handleOIDCLogin)
-	g.GET("/api/v1/oidc/{id}/finish", handleOIDCCallback)
+	g.GET("/api/v1/oidc/{id}/login", rateLimit(handleOIDCLogin, "auth"))
+	g.GET("/api/v1/oidc/{id}/finish", rateLimit(handleOIDCCallback, "auth"))
 
 	// i18n.
 	g.GET("/api/v1/lang", handleGetAvailableLanguages)
@@ -137,8 +137,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/agents/import/status", perm(handleGetAgentImportStatus, "users:manage"))
 	g.POST("/api/v1/agents/{id}/api-key", perm(handleGenerateAPIKey, "users:manage"))
 	g.DELETE("/api/v1/agents/{id}/api-key", perm(handleRevokeAPIKey, "users:manage"))
-	g.POST("/api/v1/agents/reset-password", tryAuth(handleResetPassword))
-	g.POST("/api/v1/agents/set-password", tryAuth(handleSetPassword))
+	g.POST("/api/v1/agents/reset-password", rateLimit(tryAuth(handleResetPassword), "auth"))
+	g.POST("/api/v1/agents/set-password", rateLimit(tryAuth(handleSetPassword), "auth"))
 
 	// Contacts.
 	g.GET("/api/v1/contacts", perm(handleGetContacts, "contacts:read_all"))
@@ -242,7 +242,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/activity-logs", perm(handleGetActivityLogs, "activity_logs:manage"))
 
 	// CSAT.
-	g.POST("/api/v1/csat/{uuid}/response", handleSubmitCSATResponse)
+	g.POST("/api/v1/csat/{uuid}/response", rateLimit(handleSubmitCSATResponse, "public"))
 
 	// User notifications.
 	g.GET("/api/v1/notifications", auth(handleGetUserNotifications))
@@ -263,12 +263,12 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Widget APIs.
 	g.GET("/api/v1/widget/chat/settings/launcher", handleGetChatLauncherSettings)
 	g.GET("/api/v1/widget/chat/settings", handleGetChatSettings)
-	g.POST("/api/v1/widget/chat/conversations/init", rateLimitWidget(widgetAuth(handleChatInit)))
-	g.GET("/api/v1/widget/chat/conversations", rateLimitWidget(widgetAuth(handleGetConversations)))
-	g.POST("/api/v1/widget/chat/conversations/{uuid}/update-last-seen", rateLimitWidget(widgetAuth(handleChatUpdateLastSeen)))
-	g.GET("/api/v1/widget/chat/conversations/{uuid}", rateLimitWidget(widgetAuth(handleChatGetConversation)))
-	g.POST("/api/v1/widget/chat/conversations/{uuid}/message", rateLimitWidget(widgetAuth(handleChatSendMessage)))
-	g.POST("/api/v1/widget/media/upload", rateLimitWidget(widgetAuth(handleWidgetMediaUpload)))
+	g.POST("/api/v1/widget/chat/conversations/init", rateLimit(widgetAuth(handleChatInit), "widget"))
+	g.GET("/api/v1/widget/chat/conversations", rateLimit(widgetAuth(handleGetConversations), "widget"))
+	g.POST("/api/v1/widget/chat/conversations/{uuid}/update-last-seen", rateLimit(widgetAuth(handleChatUpdateLastSeen), "widget"))
+	g.GET("/api/v1/widget/chat/conversations/{uuid}", rateLimit(widgetAuth(handleChatGetConversation), "widget"))
+	g.POST("/api/v1/widget/chat/conversations/{uuid}/message", rateLimit(widgetAuth(handleChatSendMessage), "widget"))
+	g.POST("/api/v1/widget/media/upload", rateLimit(widgetAuth(handleWidgetMediaUpload), "widget"))
 
 	// Frontend pages.
 	g.GET("/", notAuthPage(serveIndexPage))
@@ -293,7 +293,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 
 	// Public pages.
 	g.GET("/csat/{uuid}", handleShowCSAT)
-	g.POST("/csat/{uuid}", handleUpdateCSATResponse)
+	g.POST("/csat/{uuid}", rateLimit(handleUpdateCSATResponse, "public"))
 
 	// Health check.
 	g.GET("/health", handleHealthCheck)
