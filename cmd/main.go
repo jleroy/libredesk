@@ -241,11 +241,7 @@ func main() {
 	go sla.Run(ctx, slaEvaluationInterval)
 	go sla.SendNotifications(ctx)
 	go media.DeleteUnlinkedMedia(ctx)
-	go user.MonitorUserAvailability(ctx, func(userIDs []int) {
-		for _, id := range userIDs {
-			conversation.BroadcastContactStatus(id, "offline")
-		}
-	})
+	go user.MonitorUserAvailability(ctx, onUsersOffline(conversation))
 	go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
 	go userNotification.RunNotificationCleaner(ctx)
 
@@ -341,4 +337,15 @@ func main() {
 	colorlog.Red("Shutting down redis...")
 	rdb.Close()
 	colorlog.Green("Shutdown complete.")
+}
+
+// onUsersOffline returns a callback for MonitorUserAvailability that broadcasts
+// offline status to both agent and widget clients.
+func onUsersOffline(conv *conversation.Manager) func([]int) {
+	return func(userIDs []int) {
+		for _, id := range userIDs {
+			conv.BroadcastContactUpdate(id, map[string]any{"availability_status": "offline"})
+			conv.BroadcastAgentStatusToWidget(id, "offline")
+		}
+	}
 }

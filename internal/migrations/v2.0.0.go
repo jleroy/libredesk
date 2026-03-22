@@ -154,5 +154,11 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
+	// Add 'visitor' to user_type enum
+	_, err = db.Exec(`ALTER TYPE user_type ADD VALUE IF NOT EXISTS 'visitor'`)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

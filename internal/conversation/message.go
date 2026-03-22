@@ -206,21 +206,25 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 		}
 
 		now := time.Now()
-		if conversation.FirstReplyAt.IsZero() {
-			m.UpdateConversationFirstReplyAt(message.ConversationUUID, message.ConversationID, now)
-		}
-		m.UpdateConversationLastReplyAt(message.ConversationUUID, message.ConversationID, now)
+		nowStr := now.Format(time.RFC3339)
+		wsData := map[string]any{"last_reply_at": nowStr, "waiting_since": nil}
 
-		// Clear waiting since timestamp as agent has replied to the conversation.
-		m.UpdateConversationWaitingSince(message.ConversationUUID, nil)
+		var isFirstReply bool
+		if err := m.q.UpdateConversationReplyTimestamps.QueryRow(message.ConversationID, now).Scan(&isFirstReply); err != nil {
+			m.lo.Error("error updating conversation reply timestamps", "error", err)
+		} else if isFirstReply {
+			wsData["first_reply_at"] = nowStr
+		}
 
 		// Mark latest SLA event for next response as met.
 		metAt, err := m.slaStore.SetLatestSLAEventMetAt(conversation.AppliedSLAID.Int, sla.MetricNextResponse)
 		if err != nil && !errors.Is(err, sla.ErrLatestSLAEventNotFound) {
 			m.lo.Error("error setting next response SLA event `met_at`", "conversation_id", conversation.ID, "metric", sla.MetricNextResponse, "applied_sla_id", conversation.AppliedSLAID.Int, "error", err)
 		} else if !metAt.IsZero() {
-			m.BroadcastConversationUpdate(message.ConversationUUID, "next_response_met_at", metAt.Format(time.RFC3339))
+			wsData["next_response_met_at"] = metAt.Format(time.RFC3339)
 		}
+
+		m.BroadcastConversationUpdate(message.ConversationUUID, wsData)
 
 		// Evaluate automation rules for outgoing message.
 		m.automation.EvaluateConversationUpdateRulesByID(message.ConversationID, "", amodels.EventConversationMessageOutgoing)
@@ -357,7 +361,7 @@ func (m *Manager) UpdateMessageStatus(messageUUID string, status string) error {
 
 	// Broadcast message status update to all conversation subscribers.
 	conversationUUID, _ := m.getConversationUUIDFromMessageUUID(messageUUID)
-	m.BroadcastMessageUpdate(conversationUUID, messageUUID, "status" /*property*/, status)
+	m.BroadcastMessageUpdate(conversationUUID, messageUUID, map[string]any{"status": status})
 
 	// Trigger webhook for message update.
 	if message, err := m.GetMessage(messageUUID); err != nil {
@@ -823,7 +827,7 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 		"contact_id", conversation.Contact.ID)
 
 	// Notify conversation subscribers that the contact type has changed.
-	m.BroadcastConversationUpdate(conversation.UUID, "contact.type", umodels.UserTypeContact)
+	m.BroadcastContactUpdate(conversation.ContactID, map[string]any{"type": umodels.UserTypeContact})
 
 	return senderID, conversationID, conversationUUID, nil
 }
@@ -1191,9 +1195,10 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 			m.lo.Error("error creating next response SLA event", "conversation_id", conversation.ID, "error", err)
 		} else if !deadline.IsZero() {
 			m.lo.Info("next response SLA event created for conversation", "conversation_id", conversation.ID, "deadline", deadline, "sla_policy_id", conversation.SLAPolicyID.Int)
-			m.BroadcastConversationUpdate(conversationUUID, "next_response_deadline_at", deadline.Format(time.RFC3339))
-			// Clear next response met at timestamp as this event was just created.
-			m.BroadcastConversationUpdate(conversationUUID, "next_response_met_at", nil)
+			m.BroadcastConversationUpdate(conversationUUID, map[string]any{
+				"next_response_deadline_at": deadline.Format(time.RFC3339),
+				"next_response_met_at":      nil,
+			})
 		}
 	}
 	return nil

@@ -115,8 +115,8 @@ export class WidgetWebSocketClient {
           }
         },
         [WS_EVENT.CONVERSATION_UPDATE]: () => {
-          if (data.data && data.data.conversation) {
-            chatStore.updateCurrentConversation(data.data.conversation)
+          if (data.data) {
+            chatStore.updateCurrentConversation(data.data)
           }
         }
       }

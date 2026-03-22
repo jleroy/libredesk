@@ -1,7 +1,8 @@
 export const WS_EVENT = {
     NEW_MESSAGE: 'new_message',
-    MESSAGE_PROP_UPDATE: 'message_prop_update',
-    CONVERSATION_PROP_UPDATE: 'conversation_prop_update',
+    MESSAGE_UPDATE: 'message_update',
+    CONVERSATION_UPDATE: 'conversation_update',
+    CONTACT_UPDATE: 'contact_update',
     CONVERSATION_SUBSCRIBE: 'conversation_subscribe',
     CONVERSATION_SUBSCRIBED: 'conversation_subscribed',
     TYPING: 'typing',

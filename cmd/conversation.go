@@ -674,7 +674,7 @@ func handleUpdateContactCustomAttributes(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	// Broadcast update.
-	app.conversation.BroadcastConversationUpdate(conversation.UUID, "contact.custom_attributes", attributes)
+	app.conversation.BroadcastContactUpdate(conversation.ContactID, map[string]any{"custom_attributes": attributes})
 	return r.SendEnvelope(true)
 }
 

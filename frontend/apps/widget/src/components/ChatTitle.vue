@@ -104,7 +104,7 @@ const chatTitle = computed(() => {
       name: assignee.first_name,
       avatarUrl: assignee.avatar_url || '',
       avatarFallback: assignee.first_name.charAt(0).toUpperCase(),
-      availability_status: assignee.availability_status,
+      availability_status: assignee.availability_status?.startsWith('away') ? 'away' : assignee.availability_status,
       hasAssignee: true
     }
   }

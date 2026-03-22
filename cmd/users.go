@@ -115,6 +115,9 @@ func handleUpdateAgentAvailability(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
+	// Notify widget clients about the agent's availability change.
+	go app.conversation.BroadcastAgentStatusToWidget(auser.ID, availReq.Status)
+
 	// Skip activity log if agent returns online from away (to avoid spam).
 	if !(agent.AvailabilityStatus == models.Away && availReq.Status == models.Online) {
 		if err := app.activityLog.UserAvailability(auser.ID, auser.Email, availReq.Status, ip, "", 0); err != nil {

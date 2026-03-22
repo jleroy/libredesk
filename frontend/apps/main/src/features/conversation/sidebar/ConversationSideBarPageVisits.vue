@@ -55,10 +55,9 @@ watch(
       try {
         const resp = await api.getContactPageVisits(uuid)
         if (resp.data?.data) {
-          conversationStore.updateConversationProp({
+          conversationStore.mergeContactUpdate({
             contact_id: conversation.value?.contact_id,
-            prop: 'contact.page_visits',
-            value: resp.data.data
+            page_visits: resp.data.data
           })
         }
       } catch {

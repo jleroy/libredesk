@@ -77,8 +77,9 @@ export class WebSocketClient {
           }
         },
         // Property updates for conversation and message.
-        [WS_EVENT.MESSAGE_PROP_UPDATE]: () => this.convStore.updateMessageProp(data.data),
-        [WS_EVENT.CONVERSATION_PROP_UPDATE]: () => this.convStore.updateConversationProp(data.data),
+        [WS_EVENT.MESSAGE_UPDATE]: () => this.convStore.mergeMessageUpdate(data.data),
+        [WS_EVENT.CONVERSATION_UPDATE]: () => this.convStore.mergeConversationUpdate(data.data),
+        [WS_EVENT.CONTACT_UPDATE]: () => this.convStore.mergeContactUpdate(data.data),
         [WS_EVENT.CONVERSATION_SUBSCRIBED]: () => { },
         [WS_EVENT.TYPING]: () => {
           this.convStore.updateTypingStatus(data.data)

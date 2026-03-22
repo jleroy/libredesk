@@ -85,11 +85,10 @@ export function useBusinessHours () {
       return fromDate
     }
 
-    const adjustedOffset = utcOffset + fromDate.getTimezoneOffset()
-
     // Check up to 14 days ahead
     for (let i = 0; i < 14; i++) {
       const checkDate = addDays(fromDate, i)
+      const adjustedOffset = utcOffset + checkDate.getTimezoneOffset()
       const localDate = new Date(checkDate.getTime() + (adjustedOffset * 60000))
 
       // Skip holidays

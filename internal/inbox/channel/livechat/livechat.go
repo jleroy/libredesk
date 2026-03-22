@@ -336,12 +336,9 @@ func (lc *LiveChat) BroadcastConversationToClients(conversationUUID string, cont
 	lc.clientsMutex.RLock()
 	defer lc.clientsMutex.RUnlock()
 
-	// Create conversation update message for widget clients
-	conversationMessage := map[string]interface{}{
+	conversationMessage := map[string]any{
 		"type": "conversation_update",
-		"data": map[string]interface{}{
-			"conversation": conversationData,
-		},
+		"data": conversationData,
 	}
 
 	messageJSON, err := json.Marshal(conversationMessage)
@@ -363,3 +360,4 @@ func (lc *LiveChat) BroadcastConversationToClients(conversationUUID string, cont
 		}
 	}
 }
+

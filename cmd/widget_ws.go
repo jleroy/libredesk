@@ -140,7 +140,7 @@ func handleWidgetWS(r *fastglue.Request) error {
 								app.lo.Debug("updated user last active timestamp", "user_id", userID)
 								// Broadcast online status if user just came online
 								if wasOffline {
-									app.conversation.BroadcastContactStatus(userID, "online")
+									app.conversation.BroadcastContactUpdate(userID, map[string]any{"availability_status": "online"})
 								}
 							}
 						}
@@ -357,7 +357,7 @@ func handleWidgetPageVisit(app *App, msg *WidgetMessage, contactID int) {
 
 	// Read back the full list to broadcast to agents.
 	pages := getPageVisitsFromRedis(app, contactID)
-	app.conversation.BroadcastContactPageVisit(contactID, pages)
+	app.conversation.BroadcastContactUpdate(contactID, map[string]any{"page_visits": pages})
 }
 
 // getPageVisitsFromRedis reads the page visit list from Redis.

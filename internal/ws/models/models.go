@@ -2,15 +2,15 @@ package models
 
 // Action constants for WebSocket messages.
 const (
-	MessageTypeMessagePropUpdate          = "message_prop_update"
-	MessageTypeConversationPropertyUpdate = "conversation_prop_update"
-	MessageTypeNewMessage                 = "new_message"
-	MessageTypeNewConversation            = "new_conversation"
-	MessageTypeNewNotification            = "new_notification"
-	MessageTypeError                      = "error"
-	MessageTypeConversationSubscribe      = "conversation_subscribe"
-	MessageTypeConversationSubscribed     = "conversation_subscribed"
-	MessageTypeTyping                     = "typing"
+	MessageTypeMessageUpdate          = "message_update"
+	MessageTypeConversationUpdate     = "conversation_update"
+	MessageTypeNewMessage             = "new_message"
+	MessageTypeNewConversation        = "new_conversation"
+	MessageTypeNewNotification        = "new_notification"
+	MessageTypeError                  = "error"
+	MessageTypeConversationSubscribe  = "conversation_subscribe"
+	MessageTypeConversationSubscribed = "conversation_subscribed"
+	MessageTypeTyping                 = "typing"
 )
 
 // WSMessage represents a WS message.

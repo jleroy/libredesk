@@ -268,9 +268,8 @@ type queries struct {
 	GetContactPreviousConversations    *sqlx.Stmt `query:"get-contact-previous-conversations"`
 	GetConversationParticipants        *sqlx.Stmt `query:"get-conversation-participants"`
 	GetUserActiveConversationsCount    *sqlx.Stmt `query:"get-user-active-conversations-count"`
-	UpdateConversationFirstReplyAt     *sqlx.Stmt `query:"update-conversation-first-reply-at"`
-	UpdateConversationLastReplyAt      *sqlx.Stmt `query:"update-conversation-last-reply-at"`
-	UpdateConversationWaitingSince     *sqlx.Stmt `query:"update-conversation-waiting-since"`
+	UpdateConversationWaitingSince      *sqlx.Stmt `query:"update-conversation-waiting-since"`
+	UpdateConversationReplyTimestamps   *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
 	UpdateConversationContactLastSeen  *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
 	UpsertUserLastSeen                 *sqlx.Stmt `query:"upsert-user-last-seen"`
 	MarkConversationUnread             *sqlx.Stmt `query:"mark-conversation-unread"`
@@ -320,6 +319,9 @@ type queries struct {
 
 	// Mention queries.
 	InsertMention *sqlx.Stmt `query:"insert-mention"`
+
+	// Broadcast queries.
+	GetActiveLivechatConversationsByAgent *sqlx.Stmt `query:"get-active-livechat-conversations-by-agent"`
 }
 
 // CreateConversation creates a new conversation. If maxConversations > 0, the insert is
@@ -480,7 +482,7 @@ func (c *Manager) UpdateConversationContactLastSeen(uuid string) error {
 	}
 
 	// Broadcast the property update to all subscribers.
-	c.BroadcastConversationUpdate(uuid, "contact_last_seen_at", time.Now().Format(time.RFC3339))
+	c.BroadcastConversationUpdate(uuid, map[string]any{"contact_last_seen_at": time.Now().Format(time.RFC3339)})
 	return nil
 }
 
@@ -609,7 +611,7 @@ func (c *Manager) ReOpenConversation(conversationUUID string, actor umodels.User
 	count, _ := rows.RowsAffected()
 	if count > 0 {
 		// Broadcast update using WS
-		c.BroadcastConversationUpdate(conversationUUID, "status", models.StatusOpen)
+		c.BroadcastConversationUpdate(conversationUUID, map[string]any{"status": models.StatusOpen})
 
 		// Record the status change as an activity.
 		if err := c.RecordStatusChange(models.StatusOpen, conversationUUID, actor); err != nil {
@@ -639,35 +641,6 @@ func (c *Manager) UpdateConversationLastMessage(conversation int, conversationUU
 	return nil
 }
 
-// UpdateConversationFirstReplyAt updates the first reply timestamp for a conversation.
-func (c *Manager) UpdateConversationFirstReplyAt(conversationUUID string, conversationID int, at time.Time) error {
-	res, err := c.q.UpdateConversationFirstReplyAt.Exec(conversationID, at)
-	if err != nil {
-		c.lo.Error("error updating conversation first reply at", "error", err)
-		return err
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows > 0 {
-		c.BroadcastConversationUpdate(conversationUUID, "first_reply_at", at.Format(time.RFC3339))
-	}
-	return nil
-}
-
-// UpdateConversationLastReplyAt updates the last reply timestamp for a conversation.
-func (c *Manager) UpdateConversationLastReplyAt(conversationUUID string, conversationID int, at time.Time) error {
-	res, err := c.q.UpdateConversationLastReplyAt.Exec(conversationID, at)
-	if err != nil {
-		c.lo.Error("error updating conversation last reply at", "error", err)
-		return err
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows > 0 {
-		c.BroadcastConversationUpdate(conversationUUID, "last_reply_at", at.Format(time.RFC3339))
-	}
-	return nil
-}
 
 // UpdateConversationWaitingSince updates the waiting since timestamp for a conversation.
 func (c *Manager) UpdateConversationWaitingSince(conversationUUID string, at *time.Time) error {
@@ -680,9 +653,9 @@ func (c *Manager) UpdateConversationWaitingSince(conversationUUID string, at *ti
 	rows, _ := res.RowsAffected()
 	if rows > 0 {
 		if at != nil {
-			c.BroadcastConversationUpdate(conversationUUID, "waiting_since", at.Format(time.RFC3339))
+			c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": at.Format(time.RFC3339)})
 		} else {
-			c.BroadcastConversationUpdate(conversationUUID, "waiting_since", nil)
+			c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": nil})
 		}
 	}
 	return nil
@@ -719,8 +692,19 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Broadcast conversation update to widget clients
-	c.BroadcastConversationToWidget(uuid)
+	// Broadcast conversation update to widget clients with assignee info.
+	agent, err := c.userStore.GetAgent(assigneeID, "")
+	if err == nil {
+		c.BroadcastConversationToWidget(uuid, conversation.ContactID, conversation.InboxID, map[string]any{
+			"assignee": map[string]any{
+				"id":                  agent.ID,
+				"first_name":          agent.FirstName,
+				"last_name":           agent.LastName,
+				"avatar_url":          agent.AvatarURL,
+				"availability_status": agent.AvailabilityStatus,
+			},
+		})
+	}
 
 	return nil
 }
@@ -772,8 +756,10 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned)
 	}
 
-	// Broadcast conversation update to widget clients
-	c.BroadcastConversationToWidget(uuid)
+	// Broadcast conversation update to widget clients.
+	c.BroadcastConversationToWidget(uuid, conversation.ContactID, conversation.InboxID, map[string]any{
+		"assigned_team_id": teamID,
+	})
 
 	return nil
 }
@@ -798,7 +784,7 @@ func (c *Manager) UpdateAssignee(uuid string, assigneeID int, assigneeType strin
 		return fmt.Errorf("invalid assignee type: %s", assigneeType)
 	}
 	// Broadcast update to all subscribers.
-	c.BroadcastConversationUpdate(uuid, prop, assigneeID)
+	c.BroadcastConversationUpdate(uuid, map[string]any{prop: assigneeID})
 	return nil
 }
 
@@ -827,7 +813,7 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 	if err := c.RecordPriorityChange(priority, uuid, actor); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	c.BroadcastConversationUpdate(uuid, "priority", priority)
+	c.BroadcastConversationUpdate(uuid, map[string]any{"priority": priority})
 	return nil
 }
 
@@ -902,25 +888,25 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	}
 
 	// Broadcast updates using websocket.
-	c.BroadcastConversationUpdate(uuid, "status", status)
+	agentData := map[string]any{"status": status}
+	if oldStatus != models.StatusResolved && status == models.StatusResolved {
+		resolvedAt := conversationBeforeChange.ResolvedAt.Time
+		if resolvedAt.IsZero() {
+			resolvedAt = time.Now()
+		}
+		agentData["resolved_at"] = resolvedAt.Format(time.RFC3339)
+	}
+	c.BroadcastConversationUpdate(uuid, agentData)
 
 	// Evaluate automation rules.
 	if conversation.ID != 0 {
 		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange)
 	}
 
-	// Broadcast `resolved_at` if the status is changed to resolved, `resolved_at` is set only once when the conversation is resolved for the first time.
-	// Subsequent status changes to resolved will not update the `resolved_at` field.
-	if oldStatus != models.StatusResolved && status == models.StatusResolved {
-		resolvedAt := conversationBeforeChange.ResolvedAt.Time
-		if resolvedAt.IsZero() {
-			resolvedAt = time.Now()
-		}
-		c.BroadcastConversationUpdate(uuid, "resolved_at", resolvedAt.Format(time.RFC3339))
-	}
-
-	// Broadcast conversation update to widget clients
-	c.BroadcastConversationToWidget(uuid)
+	// Broadcast conversation update to widget clients.
+	c.BroadcastConversationToWidget(uuid, conversationBeforeChange.ContactID, conversationBeforeChange.InboxID, map[string]any{
+		"status": status,
+	})
 
 	return nil
 }
@@ -1333,16 +1319,20 @@ func (m *Manager) RemoveConversationAssignee(uuid, typ string, actor umodels.Use
 			"conversation":      conversation,
 		})
 
-		// Broadcast conversation update to widget clients when user assignee is removed
-		m.BroadcastConversationToWidget(uuid)
+		// Broadcast conversation update to widget clients when user assignee is removed.
+		if conversation.ID != 0 {
+			m.BroadcastConversationToWidget(uuid, conversation.ContactID, conversation.InboxID, map[string]any{
+				"assignee": nil,
+			})
+		}
 	}
 
 	// Broadcast ws update.
 	switch typ {
 	case models.AssigneeTypeUser:
-		m.BroadcastConversationUpdate(uuid, "assigned_user_id", nil)
+		m.BroadcastConversationUpdate(uuid, map[string]any{"assigned_user_id": nil})
 	case models.AssigneeTypeTeam:
-		m.BroadcastConversationUpdate(uuid, "assigned_team_id", nil)
+		m.BroadcastConversationUpdate(uuid, map[string]any{"assigned_team_id": nil})
 	}
 
 	return nil
@@ -1403,7 +1393,7 @@ func (c *Manager) UpdateConversationCustomAttributes(uuid string, customAttribut
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	// Broadcast the custom attributes update.
-	c.BroadcastConversationUpdate(uuid, "custom_attributes", customAttributes)
+	c.BroadcastConversationUpdate(uuid, map[string]any{"custom_attributes": customAttributes})
 	return nil
 }
 

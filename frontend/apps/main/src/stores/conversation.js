@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, watchEffect } from 'vue'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
+import { deepMerge } from '@shared-ui/utils/object.js'
 import { computeRecipientsFromMessage } from '../utils/email-recipients'
 import { useEmitter } from '../composables/useEmitter'
 import { EMITTER_EVENTS } from '../constants/emitterEvents'
@@ -725,58 +726,37 @@ export const useConversationStore = defineStore('conversation', () => {
    * 
    * @param {Object} message - Message
    */
-  function updateMessageProp (message) {
-    const exists = messages.data.hasMessage(message.conversation_uuid, message.uuid)
-    if (exists) {
-      messages.data.updateMessageField(message.conversation_uuid, message.uuid, message.prop, message.value)
-      incrementMessageVersion()
+  function mergeMessageUpdate (data) {
+    const { conversation_uuid, uuid, ...fields } = data
+    if (!messages.data.hasMessage(conversation_uuid, uuid)) return
+    for (const [field, value] of Object.entries(fields)) {
+      messages.data.updateMessageField(conversation_uuid, uuid, field, value)
+    }
+    incrementMessageVersion()
+  }
+
+  function mergeConversationUpdate (update) {
+    if (conversation.data?.uuid === update.uuid) {
+      deepMerge(conversation.data, update)
+    }
+    const existing = conversations?.data?.find(c => c.uuid === update.uuid)
+    if (existing) {
+      deepMerge(existing, update)
     }
   }
 
-  /**
-   * Update a conversation property, supports nested paths via dot notation
-   * @param {Object} update - { uuid, prop, value } or { contact_id, prop, value }
-   */
-  function updateConversationProp (update) {
-    const updateNested = (obj, prop, value) => {
-      if (!prop.includes('.')) {
-        obj[prop] = value
-        return
+  function mergeContactUpdate (update) {
+    const { contact_id, ...fields } = update
+    if (conversation.data?.contact_id === contact_id) {
+      if (!conversation.data.contact) conversation.data.contact = {}
+      deepMerge(conversation.data.contact, fields)
+    }
+    conversations?.data?.forEach(c => {
+      if (c.contact_id === contact_id) {
+        if (!c.contact) c.contact = {}
+        deepMerge(c.contact, fields)
       }
-
-      const keys = prop.split('.')
-      const lastKey = keys.pop()
-      const target = keys.reduce((o, key) => o[key] = o[key] || {}, obj)
-      target[lastKey] = value
-    }
-
-    const { uuid, contact_id, prop, value } = update
-
-    // Handle contact-level updates (broadcast by contact_id)
-    if (contact_id && prop?.startsWith('contact.')) {
-      // Update current conversation if it belongs to this contact
-      if (conversation.data?.contact_id === contact_id) {
-        updateNested(conversation.data, prop, value)
-      }
-      // Update conversations in the list that belong to this contact
-      conversations?.data?.forEach(c => {
-        if (c.contact_id === contact_id) {
-          updateNested(c, prop, value)
-        }
-      })
-      return
-    }
-
-    // Conversation is currently open? Update it.
-    if (conversation.data?.uuid === uuid) {
-      updateNested(conversation.data, prop, value)
-    }
-
-    // Update conversation if it exists in the list.
-    const existingConversation = conversations?.data?.find(c => c.uuid === uuid)
-    if (existingConversation) {
-      updateNested(existingConversation, prop, value)
-    }
+    })
   }
 
   function resetConversations () {
@@ -898,13 +878,14 @@ export const useConversationStore = defineStore('conversation', () => {
     currentBCC,
     currentCC,
     conversationUUIDExists,
-    updateConversationProp,
+    mergeConversationUpdate,
+    mergeContactUpdate,
     addNewConversation,
     getContactFullName,
     fetchParticipants,
     fetchNextMessages,
     fetchNextConversations,
-    updateMessageProp,
+    mergeMessageUpdate,
     updateAssigneeLastSeen,
     markAsUnread,
     updateConversationMessage,

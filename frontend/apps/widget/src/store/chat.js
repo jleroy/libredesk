@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 import api from '../api/index.js'
+import { deepMerge } from '@shared-ui/utils/object.js'
 import MessageCache from '@main/utils/conversation-message-cache.js'
 import { useUserStore } from './user.js'
 
@@ -227,17 +228,15 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    const updateCurrentConversation = (conversationData) => {
-        // Only update if it's the current conversation
-        if (currentConversation.value?.uuid === conversationData.uuid) {
-            currentConversation.value = conversationData
+    const updateCurrentConversation = (data) => {
+        if (currentConversation.value?.uuid === data.uuid) {
+            deepMerge(currentConversation.value, data)
         }
 
-        // Also update in conversations list if present
         if (conversations.value && Array.isArray(conversations.value)) {
-            const index = conversations.value.findIndex(c => c.uuid === conversationData.uuid)
+            const index = conversations.value.findIndex(c => c.uuid === data.uuid)
             if (index >= 0) {
-                conversations.value[index] = { ...conversations.value[index], ...conversationData }
+                deepMerge(conversations.value[index], data)
             }
         }
     }

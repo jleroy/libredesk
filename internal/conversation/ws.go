@@ -14,7 +14,7 @@ import (
 func (m *Manager) BroadcastNewMessage(message *cmodels.Message, lastMessage string) {
 	m.broadcastToUsers([]int{}, wsmodels.Message{
 		Type: wsmodels.MessageTypeNewMessage,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"conversation_uuid": message.ConversationUUID,
 			"content":           "",
 			"created_at":        message.CreatedAt.Format(time.RFC3339),
@@ -26,57 +26,32 @@ func (m *Manager) BroadcastNewMessage(message *cmodels.Message, lastMessage stri
 	})
 }
 
-// BroadcastMessageUpdate broadcasts a message update to all users.
-func (m *Manager) BroadcastMessageUpdate(conversationUUID, messageUUID, prop string, value any) {
-	message := wsmodels.Message{
-		Type: wsmodels.MessageTypeMessagePropUpdate,
-		Data: map[string]interface{}{
-			"conversation_uuid": conversationUUID,
-			"uuid":              messageUUID,
-			"prop":              prop,
-			"value":             value,
-		},
-	}
-	m.broadcastToUsers([]int{}, message)
+// BroadcastMessageUpdate broadcasts a partial message update to all users.
+func (m *Manager) BroadcastMessageUpdate(conversationUUID, messageUUID string, data map[string]any) {
+	data["conversation_uuid"] = conversationUUID
+	data["uuid"] = messageUUID
+	m.broadcastToUsers([]int{}, wsmodels.Message{
+		Type: wsmodels.MessageTypeMessageUpdate,
+		Data: data,
+	})
 }
 
-// BroadcastConversationUpdate broadcasts a conversation update to all users.
-func (m *Manager) BroadcastConversationUpdate(conversationUUID, prop string, value any) {
-	message := wsmodels.Message{
-		Type: wsmodels.MessageTypeConversationPropertyUpdate,
-		Data: map[string]interface{}{
-			"uuid":  conversationUUID,
-			"prop":  prop,
-			"value": value,
-		},
-	}
-	m.broadcastToUsers([]int{}, message)
+// BroadcastConversationUpdate broadcasts a partial conversation update to all agent clients.
+func (m *Manager) BroadcastConversationUpdate(conversationUUID string, data map[string]any) {
+	data["uuid"] = conversationUUID
+	m.broadcastToUsers([]int{}, wsmodels.Message{
+		Type: wsmodels.MessageTypeConversationUpdate,
+		Data: data,
+	})
 }
 
-// BroadcastContactStatus broadcasts a contact's availability status to all agents.
-func (m *Manager) BroadcastContactStatus(contactID int, status string) {
-	message := wsmodels.Message{
-		Type: wsmodels.MessageTypeConversationPropertyUpdate,
-		Data: map[string]interface{}{
-			"contact_id": contactID,
-			"prop":       "contact.availability_status",
-			"value":      status,
-		},
-	}
-	m.broadcastToUsers([]int{}, message)
-}
-
-// BroadcastContactPageVisit broadcasts a contact's page visit history to all agents.
-func (m *Manager) BroadcastContactPageVisit(contactID int, pages []map[string]string) {
-	message := wsmodels.Message{
-		Type: wsmodels.MessageTypeConversationPropertyUpdate,
-		Data: map[string]interface{}{
-			"contact_id": contactID,
-			"prop":       "contact.page_visits",
-			"value":      pages,
-		},
-	}
-	m.broadcastToUsers([]int{}, message)
+// BroadcastContactUpdate broadcasts a contact update to all agent clients.
+func (m *Manager) BroadcastContactUpdate(contactID int, data map[string]any) {
+	data["contact_id"] = contactID
+	m.broadcastToUsers([]int{}, wsmodels.Message{
+		Type: "contact_update",
+		Data: data,
+	})
 }
 
 // BroadcastTypingToConversation broadcasts typing status to all subscribers of a conversation.
@@ -84,21 +59,21 @@ func (m *Manager) BroadcastContactPageVisit(contactID int, pages []map[string]st
 func (m *Manager) BroadcastTypingToConversation(conversationUUID string, isTyping bool, broadcastToWidgets bool) {
 	message := wsmodels.Message{
 		Type: wsmodels.MessageTypeTyping,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"conversation_uuid": conversationUUID,
 			"is_typing":         isTyping,
 		},
 	}
-	
+
 	messageBytes, err := json.Marshal(message)
 	if err != nil {
 		m.lo.Error("error marshalling typing WS message", "error", err)
 		return
 	}
-	
+
 	// Always broadcast to agent clients (main app WebSocket clients)
 	m.wsHub.BroadcastTypingToAllConversationClients(conversationUUID, messageBytes)
-	
+
 	// Broadcast to widget clients (customers) only if this typing event comes from agents
 	if broadcastToWidgets {
 		m.broadcastTypingToWidgetClients(conversationUUID, isTyping)
@@ -125,51 +100,52 @@ func (m *Manager) broadcastToUsers(userIDs []int, message wsmodels.Message) {
 
 // broadcastTypingToWidgetClients broadcasts typing status to widget clients (customers) for a conversation.
 func (m *Manager) broadcastTypingToWidgetClients(conversationUUID string, isTyping bool) {
-	// Get the conversation to find its inbox ID
 	conversation, err := m.GetConversation(0, conversationUUID, "")
 	if err != nil {
 		m.lo.Error("error getting conversation for widget typing broadcast", "error", err, "conversation_uuid", conversationUUID)
 		return
 	}
-	
-	// Get the inbox
+
 	inboxInstance, err := m.inboxStore.Get(conversation.InboxID)
 	if err != nil {
 		m.lo.Error("error getting inbox for widget typing broadcast", "error", err, "inbox_id", conversation.InboxID)
 		return
 	}
-	
-	// Check if it's a livechat inbox and broadcast typing status
+
 	if liveChatInbox, ok := inboxInstance.(*livechat.LiveChat); ok {
 		liveChatInbox.BroadcastTypingToClients(conversationUUID, conversation.ContactID, isTyping)
 	}
 }
 
-// BroadcastConversationToWidget broadcasts full conversation data to widget clients when conversation properties change.
-func (m *Manager) BroadcastConversationToWidget(conversationUUID string) {
-	// Get the conversation with assignee details
-	conversation, err := m.GetConversation(0, conversationUUID, "")
-	if err != nil {
-		m.lo.Error("error getting conversation for widget broadcast", "error", err, "conversation_uuid", conversationUUID)
+// BroadcastAgentStatusToWidget sends a lightweight assignee availability update
+// to widget clients for all active livechat conversations assigned to the given agent.
+func (m *Manager) BroadcastAgentStatusToWidget(agentID int, status string) {
+	var conversations []struct {
+		UUID      string `db:"uuid"`
+		ContactID int    `db:"contact_id"`
+		InboxID   int    `db:"inbox_id"`
+	}
+	if err := m.q.GetActiveLivechatConversationsByAgent.Select(&conversations, agentID); err != nil {
+		m.lo.Error("error fetching active livechat conversations for agent", "error", err, "agent_id", agentID)
 		return
 	}
-	
-	// Build conversation view using the centralized method
-	conversationView, err := m.BuildWidgetConversationView(conversation)
+	for _, conv := range conversations {
+		m.BroadcastConversationToWidget(conv.UUID, conv.ContactID, conv.InboxID, map[string]any{
+			"assignee": map[string]any{"availability_status": status},
+		})
+	}
+}
+
+// BroadcastConversationToWidget broadcasts a partial conversation update to widget clients.
+func (m *Manager) BroadcastConversationToWidget(conversationUUID string, contactID, inboxID int, data map[string]any) {
+	inboxInstance, err := m.inboxStore.Get(inboxID)
 	if err != nil {
-		m.lo.Error("error building conversation data for widget", "error", err, "conversation_uuid", conversationUUID)
+		m.lo.Error("error getting inbox for widget conversation broadcast", "error", err, "inbox_id", inboxID)
 		return
 	}
-	
-	// Get the inbox
-	inboxInstance, err := m.inboxStore.Get(conversation.InboxID)
-	if err != nil {
-		m.lo.Error("error getting inbox for widget conversation broadcast", "error", err, "inbox_id", conversation.InboxID)
-		return
-	}
-	
-	// Check if it's a livechat inbox and broadcast conversation update
+
 	if liveChatInbox, ok := inboxInstance.(*livechat.LiveChat); ok {
-		liveChatInbox.BroadcastConversationToClients(conversationUUID, conversation.ContactID, conversationView)
+		data["uuid"] = conversationUUID
+		liveChatInbox.BroadcastConversationToClients(conversationUUID, contactID, data)
 	}
 }

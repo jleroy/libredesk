@@ -394,15 +394,6 @@ FROM conversations c
     JOIN inboxes inb ON c.inbox_id = inb.id 
 WHERE assigned_user_id IS NULL AND assigned_team_id IS NOT NULL;
 
--- name: update-conversation-first-reply-at
-UPDATE conversations
-SET first_reply_at = $2
-WHERE first_reply_at IS NULL AND id = $1;
-
--- name: update-conversation-last-reply-at
-UPDATE conversations
-SET last_reply_at = $2
-WHERE id = $1;
 
 -- name: add-conversation-tags
 -- Insert new tags
@@ -468,6 +459,18 @@ UPDATE conversations
 SET waiting_since = $2,
     updated_at = NOW()
 WHERE uuid = $1;
+
+-- name: update-conversation-reply-timestamps
+WITH old AS (
+    SELECT first_reply_at IS NULL AS is_first FROM conversations WHERE id = $1
+)
+UPDATE conversations SET
+    first_reply_at = COALESCE(conversations.first_reply_at, $2),
+    last_reply_at = $2,
+    waiting_since = NULL,
+    updated_at = NOW()
+FROM old WHERE conversations.id = $1
+RETURNING old.is_first AS is_first_reply;
 
 -- name: remove-conversation-assignee
 UPDATE conversations
@@ -828,3 +831,16 @@ DO UPDATE SET
                     WHERE conversation_id = (SELECT id FROM conversations WHERE uuid = $2)
                     ORDER BY created_at DESC LIMIT 1),
     updated_at = NOW();
+
+-- name: get-active-livechat-conversations-by-agent
+SELECT c.uuid, c.contact_id, c.inbox_id
+FROM conversations c
+JOIN inboxes i ON i.id = c.inbox_id
+JOIN users u ON u.id = c.contact_id
+WHERE c.assigned_user_id = $1
+  AND i.channel = 'livechat'
+  AND i.enabled = TRUE
+  AND i.deleted_at IS NULL
+  AND u.availability_status = 'online'
+ORDER BY c.last_interaction_at DESC
+LIMIT 50;
