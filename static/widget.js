@@ -349,6 +349,12 @@
                 // Switch back to default icon
                 if (this.defaultIcon) this.defaultIcon.style.display = 'block';
                 this.arrowIcon.style.display = 'none';
+
+                // Restore unread badge if there are still unread messages
+                if (this.unreadCount > 0) {
+                    this.unreadBadge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount.toString();
+                    this.unreadBadge.style.display = 'flex';
+                }
             }
         }
 
