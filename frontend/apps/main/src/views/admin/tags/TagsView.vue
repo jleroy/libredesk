@@ -7,7 +7,7 @@
           <div class="flex justify-between mb-5">
             <div class="flex justify-end mb-4 w-full">
               <Dialog v-model:open="dialogOpen">
-                <DialogTrigger as-child>
+                <DialogTrigger as-child @click="newTag">
                   <Button class="ml-auto">{{
                     t('tag.new')
                   }}</Button>
@@ -16,17 +16,23 @@
                   <DialogHeader>
                     <DialogTitle class="mb-1">
                       {{
-                        t('tag.new')
+                        isEditing
+                          ? t('tag.edit')
+                          : t('tag.new')
                       }}
                     </DialogTitle>
                     <DialogDescription>
-                      {{ t('admin.conversationTags.new.description') }}
+                      {{
+                        isEditing
+                          ? t('admin.conversationTags.edit.description')
+                          : t('admin.conversationTags.new.description')
+                      }}
                     </DialogDescription>
                   </DialogHeader>
                   <TagsForm @submit.prevent="onSubmit">
                     <template #footer>
                       <DialogFooter class="mt-10">
-                        <Button type="submit">{{ t('globals.messages.save') }}</Button>
+                        <Button type="submit">{{ isEditing ? t('globals.messages.update') : t('globals.messages.save') }}</Button>
                       </DialogFooter>
                     </template>
                   </TagsForm>
@@ -35,7 +41,7 @@
             </div>
           </div>
           <div>
-            <DataTable :columns="createColumns(t)" :data="tags" :loading="isLoading" />
+            <DataTable :columns="createColumns(t, { onEdit: editTag })" :data="tags" :loading="isLoading" />
           </div>
         </div>
       </template>
@@ -48,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import DataTable from '@main/components/datatable/DataTable.vue'
 import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
 import { Spinner } from '@shared-ui/components/ui/spinner/index.js'
@@ -79,17 +85,43 @@ const isLoading = ref(false)
 const tags = ref([])
 const emitter = useEmitter()
 const dialogOpen = ref(false)
+const isEditing = ref(false)
+const editingId = ref(null)
 
 onMounted(() => {
   getTags()
   emitter.on(EMITTER_EVENTS.REFRESH_LIST, (data) => {
     if (data?.model === 'tags') getTags()
   })
+  emitter.on(EMITTER_EVENTS.EDIT_MODEL, (data) => {
+    if (data?.model === 'tags') {
+      editTag(data.data)
+    }
+  })
+})
+
+onUnmounted(() => {
+  emitter.off(EMITTER_EVENTS.REFRESH_LIST)
+  emitter.off(EMITTER_EVENTS.EDIT_MODEL)
 })
 
 const form = useForm({
   validationSchema: toTypedSchema(createFormSchema(t))
 })
+
+const editTag = (item) => {
+  editingId.value = item.id
+  form.setValues(item)
+  form.setErrors({})
+  isEditing.value = true
+  dialogOpen.value = true
+}
+
+const newTag = () => {
+  form.resetForm()
+  form.setErrors({})
+  isEditing.value = false
+}
 
 const getTags = async () => {
   isLoading.value = true
@@ -101,7 +133,11 @@ const getTags = async () => {
 const onSubmit = form.handleSubmit(async (values) => {
   isLoading.value = true
   try {
-    await api.createTag(values)
+    if (isEditing.value) {
+      await api.updateTag(editingId.value, values)
+    } else {
+      await api.createTag(values)
+    }
     dialogOpen.value = false
     getTags()
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {

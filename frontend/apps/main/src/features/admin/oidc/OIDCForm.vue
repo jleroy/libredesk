@@ -1,101 +1,103 @@
 <template>
   <form @submit="onSubmit" class="space-y-6">
-    <FormField v-slot="{ componentField }" name="provider">
-      <FormItem>
-        <FormLabel>{{ $t('globals.terms.provider') }}</FormLabel>
-        <FormControl>
-          <Select v-bind="componentField">
-            <SelectTrigger>
-              <SelectValue
-                :placeholder="t('placeholders.selectProvider')"
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="Google"> Google </SelectItem>
-                <SelectItem value="Microsoft"> Microsoft </SelectItem>
-                <SelectItem value="Custom"> Custom </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+    <div class="grid gap-6 md:grid-cols-2">
+      <FormField v-slot="{ componentField }" name="provider">
+        <FormItem>
+          <FormLabel>{{ $t('globals.terms.provider') }}</FormLabel>
+          <FormControl>
+            <Select v-bind="componentField">
+              <SelectTrigger>
+                <SelectValue
+                  :placeholder="t('placeholders.selectProvider')"
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="Google"> Google </SelectItem>
+                  <SelectItem value="Microsoft"> Microsoft </SelectItem>
+                  <SelectItem value="Custom"> Custom </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="name">
-      <FormItem v-auto-animate>
-        <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="Google" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="name">
+        <FormItem v-auto-animate>
+          <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="Google" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="provider_url">
-      <FormItem v-auto-animate>
-        <FormLabel>{{ $t('globals.terms.providerURL') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="https://accounts.google.com" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="provider_url">
+        <FormItem v-auto-animate>
+          <FormLabel>{{ $t('globals.terms.providerURL') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="https://accounts.google.com" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="logo_url" v-if="form.values.provider === 'Custom'">
-      <FormItem v-auto-animate>
-        <FormLabel>{{ $t('admin.general.logoURL') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="https://example.com/logo.svg" v-bind="componentField" />
-        </FormControl>
-        <FormDescription>{{ $t('admin.sso.logoURLDescription') }}</FormDescription>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="logo_url" v-if="form.values.provider === 'Custom'">
+        <FormItem v-auto-animate>
+          <FormLabel>{{ $t('admin.general.logoURL') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="https://example.com/logo.svg" v-bind="componentField" />
+          </FormControl>
+          <FormDescription>{{ $t('admin.sso.logoURLDescription') }}</FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="client_id">
-      <FormItem v-auto-animate>
-        <FormLabel>{{ $t('globals.terms.clientID') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="client_id">
+        <FormItem v-auto-animate>
+          <FormLabel>{{ $t('globals.terms.clientID') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="client_secret">
-      <FormItem v-auto-animate>
-        <FormLabel>{{ $t('globals.terms.clientSecret') }}</FormLabel>
-        <FormControl>
-          <Input type="password" placeholder="" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="client_secret">
+        <FormItem v-auto-animate>
+          <FormLabel>{{ $t('globals.terms.clientSecret') }}</FormLabel>
+          <FormControl>
+            <Input type="password" placeholder="" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="redirect_uri" v-if="!isNewForm">
-      <FormItem v-auto-animate>
-        <FormLabel>{{ $t('globals.terms.callbackURL') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="" v-bind="componentField" readonly />
-        </FormControl>
-        <FormDescription>{{ $t('admin.sso.setThisUrlForCallback') }}</FormDescription>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="redirect_uri" v-if="!isNewForm">
+        <FormItem v-auto-animate>
+          <FormLabel>{{ $t('globals.terms.callbackURL') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="" v-bind="componentField" readonly />
+          </FormControl>
+          <FormDescription>{{ $t('admin.sso.setThisUrlForCallback') }}</FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField name="enabled" v-slot="{ value, handleChange }" v-if="!isNewForm">
-      <FormItem>
-        <FormControl>
-          <div class="flex items-center space-x-2">
-            <Checkbox :checked="value" @update:checked="handleChange" />
-            <Label>{{ $t('globals.terms.enabled') }}</Label>
-          </div>
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField name="enabled" v-slot="{ value, handleChange }" v-if="!isNewForm">
+        <FormItem>
+          <FormControl>
+            <div class="flex items-center space-x-2">
+              <Checkbox :checked="value" @update:checked="handleChange" />
+              <Label>{{ $t('globals.terms.enabled') }}</Label>
+            </div>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+    </div>
 
     <Button type="submit" :isLoading="isLoading"> {{ submitLabel }} </Button>
   </form>

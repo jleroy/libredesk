@@ -6,7 +6,7 @@
 
     <div v-else-if="!chatStore.hasConversations" class="flex flex-col items-center justify-center py-12 px-4">
       <MessageCircleDashed class="w-10 h-10 text-muted-foreground mb-4" />
-      <h4 class="text-sm text-muted-foreground mb-2">No messages yet</h4>
+      <h4 class="text-sm text-muted-foreground mb-2">{{ $t('globals.messages.noMessagesYet') }}</h4>
     </div>
 
     <div v-else class="divide-y divide-border">

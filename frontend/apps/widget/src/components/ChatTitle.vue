@@ -25,10 +25,7 @@
               'bg-amber-500': chatTitle.availability_status === 'away'
             }"
           ></span>
-          {{
-            chatTitle.availability_status.charAt(0).toUpperCase() +
-            chatTitle.availability_status.slice(1)
-          }}
+          {{ chatTitle.availability_status === 'online' ? $t('globals.terms.online') : $t('globals.terms.away') }}
         </span>
         <span v-else-if="chatStore.currentConversation?.assignee?.active_at">
           {{ $t('globals.terms.active') }}

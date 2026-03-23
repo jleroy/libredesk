@@ -7,9 +7,6 @@
         <FormControl>
           <Input type="text" placeholder="" v-bind="field" />
         </FormControl>
-        <FormDescription>
-          {{ t('admin.general.siteName.description') }}
-        </FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -31,9 +28,6 @@
             </SelectContent>
           </Select>
         </FormControl>
-        <FormDescription>
-          {{ t('admin.general.language.description') }}
-        </FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -57,9 +51,6 @@
             </SelectContent>
           </Select>
         </FormControl>
-        <FormDescription>
-          {{ t('admin.general.timezone.description') }}
-        </FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -83,9 +74,6 @@
             </SelectContent>
           </Select>
         </FormControl>
-        <FormDescription>
-          {{ t('admin.general.businessHours.description') }}
-        </FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -111,7 +99,6 @@
         <FormControl>
           <Input type="text" placeholder="" v-bind="field" />
         </FormControl>
-        <FormDescription>{{ t('admin.general.faviconURL.description') }}</FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -122,7 +109,6 @@
         <FormControl>
           <Input type="text" placeholder="" v-bind="field" />
         </FormControl>
-        <FormDescription>{{ t('admin.general.logoURL.description') }}</FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>

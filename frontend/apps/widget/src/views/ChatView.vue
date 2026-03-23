@@ -85,6 +85,11 @@ const goBack = () => {
 
 const handleError = (message) => {
   errorMessage.value = message
+  if (message) {
+    setTimeout(() => {
+      errorMessage.value = ''
+    }, 5000)
+  }
 }
 
 // Handle pre-chat form submission - init chat with form data and message

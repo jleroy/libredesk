@@ -8,7 +8,7 @@
         <div class="flex items-start justify-between">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-2">
-              <div class="text-sm font-medium">Continue your conversation</div>
+              <div class="text-sm font-medium">{{ $t('globals.messages.continueConversation') }}</div>
             </div>
             <div class="flex gap-2 items-start">
               <div class="text-sm text-foreground line-clamp-2 flex-1 min-w-0">

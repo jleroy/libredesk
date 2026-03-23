@@ -25,7 +25,7 @@
         class="text-center flex items-center justify-center"
       >
         <span class="text-[10px] text-muted-foreground"
-          >Powered by <a href="https://libredesk.io" target="_blank">Libredesk</a></span
+          >{{ $t('globals.messages.poweredBy') }} <a href="https://libredesk.io" target="_blank">Libredesk</a></span
         >
       </div>
 

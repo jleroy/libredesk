@@ -52,10 +52,10 @@
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="contact">
-                <DataTable :columns="createColumns(t)" :data="customAttributes" :loading="isLoading" />
+                <DataTable :columns="createColumns(t, { onEdit: editCustomAttribute })" :data="customAttributes" :loading="isLoading" />
               </TabsContent>
               <TabsContent value="conversation">
-                <DataTable :columns="createColumns(t)" :data="customAttributes" :loading="isLoading" />
+                <DataTable :columns="createColumns(t, { onEdit: editCustomAttribute })" :data="customAttributes" :loading="isLoading" />
               </TabsContent>
             </Tabs>
           </div>
@@ -127,6 +127,13 @@ onUnmounted(() => {
   emitter.off(EMITTER_EVENTS.REFRESH_LIST)
   emitter.off(EMITTER_EVENTS.EDIT_MODEL)
 })
+
+const editCustomAttribute = (item) => {
+  form.setValues(item)
+  form.setErrors({})
+  isEditing.value = true
+  dialogOpen.value = true
+}
 
 const newCustomAttribute = () => {
   form.resetForm()

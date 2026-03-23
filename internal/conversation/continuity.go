@@ -51,7 +51,7 @@ func (m *Manager) processContinuityEmails() error {
 	m.lo.Debug("fetched offline conversations for continuity emails", "count", len(conversations))
 
 	for _, conv := range conversations {
-		m.lo.Info("sending continuity email for conversation", "conversation_uuid", conv.UUID, "contact_email", conv.ContactEmail)
+		m.lo.Info("sending continuity email for conversation", "conversation_uuid", conv.UUID, "contact_email", conv.ContactEmail.String)
 		if err := m.sendContinuityEmail(conv, maxMessagesPerEmail); err != nil {
 			m.lo.Error("error sending continuity email", "conversation_uuid", conv.UUID, "error", err)
 			continue

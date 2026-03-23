@@ -2,14 +2,21 @@ import { h } from 'vue'
 import dropdown from './dataTableDropdown.vue'
 import { format } from 'date-fns'
 
-export const createColumns = (t) => [
+export const createColumns = (t, { onEdit } = {}) => [
   {
     accessorKey: 'name',
     header: function () {
       return h('div', { class: 'text-center' }, t('globals.terms.name'))
     },
     cell: function ({ row }) {
-      return h('div', { class: 'text-center' }, row.getValue('name'))
+      return h('div', { class: 'text-center' },
+        onEdit
+          ? h('span', {
+              class: 'text-primary hover:underline cursor-pointer',
+              onClick: () => onEdit(row.original)
+            }, row.getValue('name'))
+          : row.getValue('name')
+      )
     }
   },
   {

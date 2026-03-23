@@ -7,7 +7,7 @@
           <div class="flex justify-between mb-5">
             <div class="flex justify-end mb-4 w-full">
               <Dialog v-model:open="dialogOpen">
-                <DialogTrigger as-child>
+                <DialogTrigger as-child @click="newStatus">
                   <Button class="ml-auto">
                     {{
                       $t('status.new')
@@ -18,7 +18,9 @@
                   <DialogHeader>
                     <DialogTitle>
                       {{
-                        $t('status.new')
+                        isEditing
+                          ? $t('status.edit')
+                          : $t('status.new')
                       }}
                     </DialogTitle>
                     <DialogDescription>
@@ -29,7 +31,7 @@
                     <template #footer>
                       <DialogFooter class="mt-10">
                         <Button type="submit" :isLoading="isLoading" :disabled="isLoading">
-                          {{ $t('globals.messages.save') }}
+                          {{ isEditing ? $t('globals.messages.update') : $t('globals.messages.save') }}
                         </Button>
                       </DialogFooter>
                     </template>
@@ -39,7 +41,7 @@
             </div>
           </div>
           <div>
-            <DataTable :columns="createColumns(t)" :data="statuses" :loading="isLoading" />
+            <DataTable :columns="createColumns(t, { onEdit: editStatus })" :data="statuses" :loading="isLoading" />
           </div>
         </div>
       </template>
@@ -52,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import DataTable from '@main/components/datatable/DataTable.vue'
 import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
 import { createColumns } from '../../../features/admin/status/dataTableColumns.js'
@@ -73,6 +75,7 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { createFormSchema } from '../../../features/admin/status/formSchema.js'
 import { useEmitter } from '../../../composables/useEmitter'
 import { EMITTER_EVENTS } from '../../../constants/emitterEvents.js'
+import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useI18n } from 'vue-i18n'
 import api from '../../../api'
 
@@ -81,17 +84,43 @@ const isLoading = ref(false)
 const statuses = ref([])
 const emit = useEmitter()
 const dialogOpen = ref(false)
+const isEditing = ref(false)
+const editingId = ref(null)
 
 onMounted(() => {
   getStatuses()
   emit.on(EMITTER_EVENTS.REFRESH_LIST, (data) => {
     if (data?.model === 'status') getStatuses()
   })
+  emit.on(EMITTER_EVENTS.EDIT_MODEL, (data) => {
+    if (data?.model === 'status') {
+      editStatus(data.data)
+    }
+  })
+})
+
+onUnmounted(() => {
+  emit.off(EMITTER_EVENTS.REFRESH_LIST)
+  emit.off(EMITTER_EVENTS.EDIT_MODEL)
 })
 
 const form = useForm({
   validationSchema: toTypedSchema(createFormSchema(t))
 })
+
+const editStatus = (item) => {
+  editingId.value = item.id
+  form.setValues(item)
+  form.setErrors({})
+  isEditing.value = true
+  dialogOpen.value = true
+}
+
+const newStatus = () => {
+  form.resetForm()
+  form.setErrors({})
+  isEditing.value = false
+}
 
 const getStatuses = async () => {
   try {
@@ -106,11 +135,21 @@ const getStatuses = async () => {
 const onSubmit = form.handleSubmit(async (values) => {
   try {
     isLoading.value = true
-    await api.createStatus(values)
+    if (isEditing.value) {
+      await api.updateStatus(editingId.value, values)
+    } else {
+      await api.createStatus(values)
+    }
     dialogOpen.value = false
     getStatuses()
+    emit.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      description: t('globals.messages.savedSuccessfully')
+    })
   } catch (error) {
-    console.error('Failed to create status:', error)
+    emit.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      variant: 'destructive',
+      description: handleHTTPError(error).message
+    })
   } finally {
     isLoading.value = false
   }

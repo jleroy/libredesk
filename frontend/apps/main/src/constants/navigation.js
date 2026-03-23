@@ -30,9 +30,27 @@ export const adminNavItems = [
     ]
   },
   {
+    titleKey: 'globals.terms.channel',
+    isTitleKeyPlural: true,
+    children: [
+      {
+        titleKey: 'globals.terms.inbox',
+        href: '/admin/inboxes',
+        permission: 'inboxes:manage',
+        isTitleKeyPlural: true
+      }
+    ]
+  },
+  {
     titleKey: 'globals.terms.conversation',
     isTitleKeyPlural: true,
     children: [
+      {
+        titleKey: 'globals.terms.status',
+        href: '/admin/conversations/statuses',
+        permission: 'status:manage',
+        isTitleKeyPlural: true
+      },
       {
         titleKey: 'globals.terms.tag',
         href: '/admin/conversations/tags',
@@ -40,9 +58,9 @@ export const adminNavItems = [
         isTitleKeyPlural: true
       },
       {
-        titleKey: 'globals.terms.macro',
-        href: '/admin/conversations/macros',
-        permission: 'macros:manage',
+        titleKey: 'globals.terms.customAttribute',
+        href: '/admin/custom-attributes',
+        permission: 'custom_attributes:manage',
         isTitleKeyPlural: true
       },
       {
@@ -50,23 +68,22 @@ export const adminNavItems = [
         href: '/admin/conversations/shared-views',
         permission: 'shared_views:manage',
         isTitleKeyPlural: true
-      },
-      {
-        titleKey: 'globals.terms.status',
-        href: '/admin/conversations/statuses',
-        permission: 'status:manage',
-        isTitleKeyPlural: true
       }
     ]
   },
   {
-    titleKey: 'globals.terms.inbox',
-    isTitleKeyPlural: true,
+    titleKey: 'globals.terms.productivity',
     children: [
       {
-        titleKey: 'globals.terms.inbox',
-        href: '/admin/inboxes',
-        permission: 'inboxes:manage',
+        titleKey: 'globals.terms.macro',
+        href: '/admin/conversations/macros',
+        permission: 'macros:manage',
+        isTitleKeyPlural: true
+      },
+      {
+        titleKey: 'globals.terms.automation',
+        href: '/admin/automations',
+        permission: 'automations:manage',
         isTitleKeyPlural: true
       }
     ]
@@ -102,43 +119,14 @@ export const adminNavItems = [
     ]
   },
   {
-    titleKey: 'globals.terms.automation',
-    isTitleKeyPlural: true,
-    children: [
-      {
-        titleKey: 'globals.terms.automation',
-        href: '/admin/automations',
-        permission: 'automations:manage',
-        isTitleKeyPlural: true
-      }
-    ]
-  },
-  {
-    titleKey: 'globals.terms.customAttribute',
-    isTitleKeyPlural: true,
-    children: [
-      {
-        titleKey: 'globals.terms.customAttribute',
-        href: '/admin/custom-attributes',
-        permission: 'custom_attributes:manage',
-        isTitleKeyPlural: true
-      }
-    ]
-  },
-  {
     titleKey: 'globals.terms.notification',
+    isTitleKeyPlural: true,
     children: [
       {
         titleKey: 'globals.terms.email',
         href: '/admin/notification',
         permission: 'notification_settings:manage'
-      }
-    ]
-  },
-  {
-    titleKey: 'globals.terms.template',
-    isTitleKeyPlural: true,
-    children: [
+      },
       {
         titleKey: 'globals.terms.template',
         href: '/admin/templates',

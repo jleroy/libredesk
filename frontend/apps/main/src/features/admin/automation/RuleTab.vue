@@ -61,6 +61,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import RuleList from './RuleList.vue'
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import {
@@ -72,7 +73,12 @@ import {
 } from '@shared-ui/components/ui/select'
 import { Settings } from 'lucide-vue-next'
 import draggable from 'vuedraggable'
-import api from '../../../api'
+import api from '@/api'
+import { useEmitter } from '@/composables/useEmitter'
+import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
+
+const { t } = useI18n()
+const emitter = useEmitter()
 
 const isLoading = ref(false)
 const rules = ref([])
@@ -124,6 +130,9 @@ const onDragEnd = async () => {
 const updateExecutionMode = async () => {
   await api.updateAutomationRulesExecutionMode({
     mode: executionMode.value
+  })
+  emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+    description: t('globals.messages.savedSuccessfully')
   })
 }
 

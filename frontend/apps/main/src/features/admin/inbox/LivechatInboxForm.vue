@@ -43,9 +43,6 @@
                 <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
               </FormControl>
             </FormItem>
-            <p class="!mt-2 text-muted-foreground text-sm">
-              {{ $t('admin.inbox.csatSurveys.description_2') }}
-            </p>
           </FormField>
 
           <FormField v-slot="{ componentField }" name="name">

@@ -1,32 +1,32 @@
 <template>
-  <div class="space-y-4">
-    <div class="flex flex-col" v-if="conversation.subject">
-      <p class="font-medium">{{ $t('globals.terms.subject') }}</p>
-      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4" />
-      <p v-else>
+  <div class="space-y-3">
+    <div v-if="conversation.subject">
+      <p class="sidebar-label">{{ $t('globals.terms.subject') }}</p>
+      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
+      <p v-else class="sidebar-value">
         {{ conversation.subject }}
       </p>
     </div>
 
-    <div class="flex flex-col">
-      <p class="font-medium">{{ $t('globals.terms.referenceNumber') }}</p>
-      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4" />
-      <p v-else>
+    <div>
+      <p class="sidebar-label">{{ $t('globals.terms.referenceNumber') }}</p>
+      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
+      <p v-else class="sidebar-value">
         {{ conversation.reference_number }}
       </p>
     </div>
-    <div class="flex flex-col">
-      <p class="font-medium">{{ $t('globals.terms.initiatedAt') }}</p>
-      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4" />
-      <p v-if="conversation.created_at">
+    <div>
+      <p class="sidebar-label">{{ $t('globals.terms.initiatedAt') }}</p>
+      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
+      <p v-if="conversation.created_at" class="sidebar-value">
         {{ format(conversation.created_at, 'PPpp') }}
       </p>
-      <p v-else>-</p>
+      <p v-else class="sidebar-value">-</p>
     </div>
 
-    <div class="flex flex-col">
-      <div class="flex justify-start items-center space-x-2">
-        <p class="font-medium">{{ $t('globals.terms.firstReplyAt') }}</p>
+    <div>
+      <div class="flex items-center gap-2">
+        <p class="sidebar-label">{{ $t('globals.terms.firstReplyAt') }}</p>
         <SlaBadge
           v-if="conversation.first_response_deadline_at"
           :dueAt="conversation.first_response_deadline_at"
@@ -34,18 +34,18 @@
           :key="`${conversation.uuid}-${conversation.first_response_deadline_at}-${conversation.first_reply_at}`"
         />
       </div>
-      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4" />
+      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
       <div v-else>
-        <p v-if="conversation.first_reply_at">
+        <p v-if="conversation.first_reply_at" class="sidebar-value">
           {{ format(conversation.first_reply_at, 'PPpp') }}
         </p>
-        <p v-else>-</p>
+        <p v-else class="sidebar-value">-</p>
       </div>
     </div>
 
-    <div class="flex flex-col">
-      <div class="flex justify-start items-center space-x-2">
-        <p class="font-medium">{{ $t('globals.terms.resolvedAt') }}</p>
+    <div>
+      <div class="flex items-center gap-2">
+        <p class="sidebar-label">{{ $t('globals.terms.resolvedAt') }}</p>
         <SlaBadge
           v-if="conversation.resolution_deadline_at"
           :dueAt="conversation.resolution_deadline_at"
@@ -53,18 +53,18 @@
           :key="`${conversation.uuid}-${conversation.resolution_deadline_at}-${conversation.resolved_at}`"
         />
       </div>
-      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4" />
+      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
       <div v-else>
-        <p v-if="conversation.resolved_at">
+        <p v-if="conversation.resolved_at" class="sidebar-value">
           {{ format(conversation.resolved_at, 'PPpp') }}
         </p>
-        <p v-else>-</p>
+        <p v-else class="sidebar-value">-</p>
       </div>
     </div>
 
-    <div class="flex flex-col">
-      <div class="flex justify-start items-center space-x-2">
-        <p class="font-medium">{{ $t('globals.terms.lastReplyAt') }}</p>
+    <div>
+      <div class="flex items-center gap-2">
+        <p class="sidebar-label">{{ $t('globals.terms.lastReplyAt') }}</p>
         <SlaBadge
           v-if="conversation.next_response_deadline_at"
           :dueAt="conversation.next_response_deadline_at"
@@ -72,28 +72,26 @@
           :key="`${conversation.uuid}-${conversation.next_response_deadline_at}-${conversation.next_response_met_at}`"
         />
       </div>
-      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4" />
-      <p v-if="conversation.last_reply_at">
+      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
+      <p v-if="conversation.last_reply_at" class="sidebar-value">
         {{ format(conversation.last_reply_at, 'PPpp') }}
       </p>
-      <p v-else>-</p>
+      <p v-else class="sidebar-value">-</p>
     </div>
 
-    <div class="flex flex-col" v-if="conversation.closed_at">
-      <p class="font-medium">{{ $t('globals.terms.closedAt') }}</p>
-      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4" />
-      <p v-else>
+    <div v-if="conversation.closed_at">
+      <p class="sidebar-label">{{ $t('globals.terms.closedAt') }}</p>
+      <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
+      <p v-else class="sidebar-value">
         {{ format(conversation.closed_at, 'PPpp') }}
       </p>
     </div>
 
-    <div class="flex flex-col" v-if="conversation.sla_policy_name">
-      <p class="font-medium">{{ $t('globals.terms.slaPolicy') }}</p>
-      <div>
-        <p>
-          {{ conversation.sla_policy_name }}
-        </p>
-      </div>
+    <div v-if="conversation.sla_policy_name">
+      <p class="sidebar-label">{{ $t('globals.terms.slaPolicy') }}</p>
+      <p class="sidebar-value">
+        {{ conversation.sla_policy_name }}
+      </p>
     </div>
 
     <CustomAttributes

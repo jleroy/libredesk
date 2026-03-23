@@ -48,58 +48,60 @@
       </FormItem>
     </FormField>
 
-    <FormField v-slot="{ componentField, handleChange }" name="visible_when">
-      <FormItem>
-        <FormLabel>{{ t('globals.messages.visibleWhen') }}</FormLabel>
-        <FormControl>
-          <SelectTag
-            :items="[
-              { label: t('globals.messages.replying'), value: 'replying' },
-              {
-                label: t('actions.startingConversation'),
-                value: 'starting_conversation'
-              },
-              {
-                label: t('actions.addingPrivateNotes'),
-                value: 'adding_private_note'
-              }
-            ]"
-            v-model="componentField.modelValue"
-            @update:modelValue="handleChange"
-          />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+    <div class="grid grid-cols-2 gap-4">
+      <FormField v-slot="{ componentField, handleChange }" name="visible_when">
+        <FormItem>
+          <FormLabel>{{ t('globals.messages.visibleWhen') }}</FormLabel>
+          <FormControl>
+            <SelectTag
+              :items="[
+                { label: t('globals.messages.replying'), value: 'replying' },
+                {
+                  label: t('actions.startingConversation'),
+                  value: 'starting_conversation'
+                },
+                {
+                  label: t('actions.addingPrivateNotes'),
+                  value: 'adding_private_note'
+                }
+              ]"
+              v-model="componentField.modelValue"
+              @update:modelValue="handleChange"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField
-      v-slot="{ componentField }"
-      name="visibility"
-      :validate-on-blur="false"
-      :validate-on-change="false"
-      :validate-on-input="false"
-      :validate-on-mount="false"
-      :validate-on-model-update="false"
-    >
-      <FormItem>
-        <FormLabel>{{ t('globals.terms.visibility') }}</FormLabel>
-        <FormControl>
-          <Select v-bind="componentField">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">{{ t('sharedView.allAgents') }}</SelectItem>
-                <SelectItem value="team">{{ t('globals.terms.team') }}</SelectItem>
-                <SelectItem value="user">{{ t('globals.terms.agent') }}</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField
+        v-slot="{ componentField }"
+        name="visibility"
+        :validate-on-blur="false"
+        :validate-on-change="false"
+        :validate-on-input="false"
+        :validate-on-mount="false"
+        :validate-on-model-update="false"
+      >
+        <FormItem>
+          <FormLabel>{{ t('globals.terms.visibility') }}</FormLabel>
+          <FormControl>
+            <Select v-bind="componentField">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="all">{{ t('sharedView.allAgents') }}</SelectItem>
+                  <SelectItem value="team">{{ t('globals.terms.team') }}</SelectItem>
+                  <SelectItem value="user">{{ t('globals.terms.agent') }}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+    </div>
 
     <FormField v-if="form.values.visibility === 'team'" v-slot="{ componentField }" name="team_id">
       <FormItem>
