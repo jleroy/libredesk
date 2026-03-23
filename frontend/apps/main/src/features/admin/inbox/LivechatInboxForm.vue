@@ -31,6 +31,23 @@
             </FormItem>
           </FormField>
 
+          <FormField v-slot="{ componentField, handleChange }" name="csat_enabled">
+            <FormItem class="flex flex-row items-center justify-between box p-4">
+              <div class="space-y-0.5">
+                <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
+                <FormDescription>
+                  {{ $t('admin.inbox.csatSurveys.description_1') }}
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
+              </FormControl>
+            </FormItem>
+            <p class="!mt-2 text-muted-foreground text-sm">
+              {{ $t('admin.inbox.csatSurveys.description_2') }}
+            </p>
+          </FormField>
+
           <FormField v-slot="{ componentField }" name="name">
             <FormItem>
               <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
@@ -49,16 +66,6 @@
               <FormControl>
                 <Input type="text" placeholder="" v-bind="componentField" />
               </FormControl>
-            </FormItem>
-          </FormField>
-
-          <FormField v-slot="{ componentField }" name="config.website_url">
-            <FormItem>
-              <FormLabel>{{ $t('admin.inbox.livechat.websiteUrl') }}</FormLabel>
-              <FormControl>
-                <Input type="url" placeholder="https://example.com" v-bind="componentField" />
-              </FormControl>
-              <FormDescription>{{ $t('admin.inbox.livechat.websiteUrl.description') }}</FormDescription>
             </FormItem>
           </FormField>
 
@@ -103,6 +110,16 @@
             </FormItem>
           </FormField>
 
+          <FormField v-slot="{ componentField }" name="config.website_url">
+            <FormItem>
+              <FormLabel>{{ $t('admin.inbox.livechat.websiteUrl') }}</FormLabel>
+              <FormControl>
+                <Input type="url" placeholder="https://example.com" v-bind="componentField" />
+              </FormControl>
+              <FormDescription>{{ $t('admin.inbox.livechat.websiteUrl.description') }}</FormDescription>
+            </FormItem>
+          </FormField>
+
           <!-- Email Fallback Inbox -->
           <FormField v-slot="{ componentField }" name="linked_email_inbox_id">
             <FormItem>
@@ -128,22 +145,6 @@
             </FormItem>
           </FormField>
 
-          <FormField v-slot="{ componentField, handleChange }" name="csat_enabled">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
-                <FormDescription>
-                  {{ $t('admin.inbox.csatSurveys.description_1') }}
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
-            </FormItem>
-            <p class="!mt-2 text-muted-foreground text-sm">
-              {{ $t('admin.inbox.csatSurveys.description_2') }}
-            </p>
-          </FormField>
         </div>
 
         <!-- Appearance Tab -->

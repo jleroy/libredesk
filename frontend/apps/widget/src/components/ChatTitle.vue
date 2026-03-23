@@ -82,7 +82,16 @@ const businessHoursStatus = computed(() => {
   const withinHoursMessage = config.chat_reply_expectation_message || ''
 
   const { status, isWithin } = getBusinessHoursStatus(businessHours, utcOffset, withinHoursMessage)
-  return isWithin ? null : status
+  if (!isWithin) {
+    return status
+  }
+
+  // Within business hours: show expectation message when agent is not online.
+  const assignee = chatStore.currentConversation?.assignee
+  if (assignee?.availability_status !== 'online' && withinHoursMessage) {
+    return withinHoursMessage
+  }
+  return null
 })
 
 const chatTitle = computed(() => {
