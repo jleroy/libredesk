@@ -1,7 +1,7 @@
 <template>
   <AuthLayout>
     <Card class="bg-card box">
-      <CardContent class="p-6 space-y-6">
+      <CardContent class="p-8 space-y-6">
         <div class="space-y-2 text-center">
           <CardTitle class="text-3xl font-bold text-foreground">{{
             t('auth.resetPassword')
@@ -11,21 +11,19 @@
 
         <form @submit.prevent="requestResetAction" class="space-y-4">
           <div class="space-y-2">
-            <Label for="email" class="text-sm font-medium text-foreground">{{
+            <Label for="email">{{
               t('globals.terms.email')
             }}</Label>
             <Input
               id="email"
               type="email"
-              :placeholder="t('auth.enterEmail')"
               v-model.trim="resetForm.email"
               :class="{ 'border-destructive': emailHasError }"
-              class="w-full bg-card border-border text-foreground placeholder:text-muted-foreground rounded py-2 px-3 focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-200 ease-in-out"
             />
           </div>
 
           <Button
-            class="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded py-2 transition-all duration-200 ease-in-out transform hover:scale-105"
+            class="w-full"
             :disabled="isLoading"
             type="submit"
           >

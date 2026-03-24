@@ -6,7 +6,7 @@
       id="login-container"
       ref="cardRef"
     >
-      <CardContent class="p-6 space-y-6">
+      <CardContent class="p-8 space-y-6">
         <div class="space-y-2 text-center">
           <CardTitle class="text-3xl font-bold text-foreground">
             {{ appSettingsStore.public_config?.['app.site_name'] || 'LIBREDESK' }}
@@ -21,7 +21,7 @@
             variant="outline"
             type="button"
             @click="redirectToOIDC(oidcProvider)"
-            class="w-full bg-card hover:bg-secondary text-foreground border-border rounded py-2 transition-all duration-200 ease-in-out transform hover:scale-105"
+            class="w-full"
           >
             <img
               :src="oidcProvider.logo_url"
@@ -44,22 +44,20 @@
 
         <form @submit.prevent="loginAction" class="space-y-4">
           <div class="space-y-2">
-            <Label for="email" class="text-sm font-medium text-foreground">{{
+            <Label for="email" >{{
               t('globals.terms.email')
             }}</Label>
             <Input
               id="email"
               type="text"
               autocomplete="username"
-              :placeholder="t('auth.enterEmail')"
               v-model.trim="loginForm.email"
               :class="{ 'border-destructive': emailHasError }"
-              class="w-full bg-card border-border text-foreground placeholder:text-muted-foreground rounded py-2 px-3 focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-200 ease-in-out"
             />
           </div>
 
           <div class="space-y-2">
-            <Label for="password" class="text-sm font-medium text-foreground">
+            <Label for="password" >
               {{ t('globals.terms.password') }}
             </Label>
             <div class="relative">
@@ -67,13 +65,13 @@
                 id="password"
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="current-password"
-                :placeholder="t('auth.enterPassword')"
                 v-model="loginForm.password"
                 :class="{ 'border-destructive': passwordHasError }"
-                class="w-full bg-card border-border text-foreground placeholder:text-muted-foreground rounded py-2 px-3 pr-10 focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-200 ease-in-out"
+                class="pr-10"
               />
               <button
                 type="button"
+                :aria-label="showPassword ? t('auth.hidePassword') : t('auth.showPassword')"
                 class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
                 @click="showPassword = !showPassword"
               >
@@ -93,7 +91,7 @@
           </div>
 
           <Button
-            class="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded py-2 transition-all duration-200 ease-in-out transform hover:scale-105"
+            class="w-full"
             :disabled="isLoading"
             type="submit"
           >

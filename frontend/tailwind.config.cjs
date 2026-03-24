@@ -202,7 +202,7 @@ module.exports = {
         'fade-out': 'fade-out 0.3s ease-in',
         'slide-in': 'slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         'slide-out': 'slide-out 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        'shake': 'shake 0.5s infinite',
+        'shake': 'shake 0.5s ease-in-out',
         'dot-flashing': 'dot-flashing 1s infinite linear alternate',
       }
     }

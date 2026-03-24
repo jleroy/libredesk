@@ -21,7 +21,7 @@
             />
 
             <div class="flex items-center gap-3">
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-foreground">
+              <h2 class="text-2xl font-bold text-foreground">
                 {{ contact.first_name }} {{ contact.last_name }}
               </h2>
               <Badge v-if="contact.type" variant="secondary">
@@ -29,7 +29,7 @@
               </Badge>
             </div>
 
-            <div class="text-xs text-gray-500">
+            <div class="text-xs text-muted-foreground">
               {{ $t('globals.terms.createdOn') }}
               {{ contact.created_at ? format(new Date(contact.created_at), 'PPP') : 'N/A' }}
             </div>
@@ -200,6 +200,7 @@ async function onUpload(file) {
     formData.append('email', form.values.email)
     formData.append('phone_number', form.values.phone_number)
     formData.append('phone_number_country_code', form.values.phone_number_country_code)
+    formData.append('country', form.values.country || '')
     formData.append('enabled', form.values.enabled)
     const { data } = await api.updateContact(contact.value.id, formData)
     contact.value.avatar_url = data.avatar_url

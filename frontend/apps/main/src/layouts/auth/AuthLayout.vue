@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-[#F9F9F9]">
+  <div class="min-h-screen flex flex-col bg-secondary">
     <main class="flex-1 flex items-center justify-center p-4">
       <div class="w-full max-w-[450px]">
         <slot></slot>
@@ -8,7 +8,7 @@
     <div class="flex justify-center mb-6">
       <a
         href="https://libredesk.io/"
-        class="text-[0.75rem] text-center text-[#aaa]"
+        class="text-xs text-center text-muted-foreground"
         target="_blank"
         rel="noopener noreferrer"
       >

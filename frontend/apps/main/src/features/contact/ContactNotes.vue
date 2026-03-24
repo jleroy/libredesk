@@ -2,7 +2,7 @@
   <div class="w-full space-y-6 pb-8 relative">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
-      <span class="text-xl font-semibold text-gray-900 dark:text-foreground">
+      <span class="text-xl font-semibold text-foreground">
         {{ $t('globals.terms.note', 2) }}
       </span>
       <Button
@@ -47,7 +47,7 @@
       <Card
         v-for="note in notes"
         :key="note.id"
-        class="overflow-hidden border-gray-2 dark:hover:border-gray-700 hover:border-gray-300 transition-all duration-200 box hover:shadow"
+        class="overflow-hidden hover:border-border transition-all duration-200 box hover:shadow"
       >
         <!-- Header -->
         <CardHeader class="bg-background border-b p-2">
@@ -60,7 +60,7 @@
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p class="text-sm font-medium text-gray-900 dark:text-foreground">
+                <p class="text-sm font-medium text-foreground">
                   {{ note.first_name }} {{ note.last_name }}
                 </p>
                 <p class="text-xs text-muted-foreground flex items-center">
@@ -111,19 +111,19 @@
     <!-- No notes message -->
     <div
       v-if="notes.length === 0 && !isAddingNote && !isLoading"
-      class="box border-dashed p-10 text-center bg-gray-50/50 mt-6 dark:bg-background"
+      class="box border-dashed p-10 text-center bg-muted/50 mt-6"
     >
       <div class="flex flex-col items-center">
-        <div class="rounded-full bg-gray-100 dark:bg-foreground p-4 mb-2">
-          <MessageSquareIcon class="text-gray-400 dark:text-background" size="25" />
+        <div class="rounded-full bg-muted p-4 mb-2">
+          <MessageSquareIcon class="text-muted-foreground" size="25" />
         </div>
-        <h3 class="mt-2 text-base font-medium text-gray-900 dark:text-foreground">
+        <h3 class="mt-2 text-base font-medium text-foreground">
           {{ $t('contact.notes.empty') }}
         </h3>
         <p class="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
           {{ $t('contact.notes.help') }}
         </p>
-        <Button variant="outline" class="mt-3 border-gray-300" @click="startAddingNote">
+        <Button variant="outline" class="mt-3" @click="startAddingNote">
           <PlusIcon class="mr-2" size="15" />
           {{ $t('contact.addNote') }}
         </Button>
