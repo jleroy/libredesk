@@ -569,6 +569,7 @@
   "globals.messages.lastUsed": "Senest brugt",
   "globals.messages.learnMore": "Læs mere",
   "globals.messages.markAllAsRead": "Markér alle som læst",
+  "globals.messages.markAsRead": "Mark as read",
   "globals.messages.markAsUnread": "Markér som ulæst",
   "globals.messages.maxLength": "Må højst være {max} tegn",
   "globals.messages.mustBeNumber": "Skal være et tal",

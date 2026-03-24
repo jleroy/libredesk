@@ -569,6 +569,7 @@
   "globals.messages.lastUsed": "शेवटचे वापरले",
   "globals.messages.learnMore": "अधिक जाणून घ्या",
   "globals.messages.markAllAsRead": "सर्व वाचलेले म्हणून चिन्हांकित करा",
+  "globals.messages.markAsRead": "Mark as read",
   "globals.messages.markAsUnread": "न वाचलेले म्हणून चिन्हांकित करा",
   "globals.messages.maxLength": "जास्तीत जास्त {max} अक्षरे असणे आवश्यक आहे",
   "globals.messages.mustBeNumber": "संख्या असावी",

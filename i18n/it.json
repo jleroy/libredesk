@@ -569,6 +569,7 @@
   "globals.messages.lastUsed": "Ultimo utilizzo",
   "globals.messages.learnMore": "Scopri di più",
   "globals.messages.markAllAsRead": "Segna tutto come letto",
+  "globals.messages.markAsRead": "Mark as read",
   "globals.messages.markAsUnread": "Segna come non letto",
   "globals.messages.maxLength": "Deve contenere al massimo {max} caratteri",
   "globals.messages.mustBeNumber": "Deve essere un numero",

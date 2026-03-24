@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col max-h-[32rem]" role="region" :aria-label="t('globals.terms.notification', 2)">
+  <div class="flex flex-col min-h-[20rem] max-h-[32rem]" role="region" :aria-label="t('globals.terms.notification', 2)">
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b">
       <h3 class="font-semibold text-sm">{{ t('globals.terms.notification', 2) }}</h3>
@@ -10,6 +10,7 @@
           size="sm"
           class="h-7 px-2"
           :title="t('globals.messages.markAllAsRead')"
+          :aria-label="t('globals.messages.markAllAsRead')"
           @click="handleMarkAllAsRead"
         >
           <CheckCheck class="h-3.5 w-3.5" />
@@ -20,6 +21,7 @@
           size="sm"
           class="h-7 px-2"
           :title="t('globals.messages.deleteAll')"
+          :aria-label="t('globals.messages.deleteAll')"
           @click="handleDeleteAll"
         >
           <Trash2 class="h-3.5 w-3.5" />
@@ -28,16 +30,15 @@
     </div>
 
     <!-- Notification List -->
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 flex flex-col overflow-y-auto">
       <!-- Loading State -->
-      <div v-if="notificationStore.isLoading && notificationStore.notifications.length === 0" class="p-4">
-        <div class="space-y-3">
-          <div v-for="i in 3" :key="i" class="flex gap-3">
-            <Skeleton class="h-8 w-8 rounded-full" />
-            <div class="flex-1 space-y-2">
-              <Skeleton class="h-3 w-3/4" />
-              <Skeleton class="h-3 w-1/2" />
-            </div>
+      <div v-if="notificationStore.isLoading && notificationStore.notifications.length === 0" class="divide-y">
+        <div v-for="i in 4" :key="i" class="flex gap-3 px-4 py-3">
+          <Skeleton class="h-8 w-8 rounded-full shrink-0" />
+          <div class="flex-1 space-y-1.5">
+            <Skeleton class="h-3.5" :class="i % 2 === 0 ? 'w-3/4' : 'w-4/5'" />
+            <Skeleton class="h-3 w-1/2" />
+            <Skeleton class="h-3 w-16" />
           </div>
         </div>
       </div>
@@ -45,7 +46,7 @@
       <!-- Empty State -->
       <div
         v-else-if="notificationStore.notifications.length === 0"
-        class="flex flex-col items-center justify-center py-8 text-muted-foreground"
+        class="flex flex-col items-center justify-center flex-1 text-muted-foreground"
       >
         <BellOff class="h-8 w-8 mb-2" />
         <p class="text-sm">{{ t('toast.noNotificationsFound') }}</p>
@@ -88,7 +89,8 @@
                 v-if="!notification.is_read"
                 variant="ghost"
                 size="sm"
-                class="h-6 w-6 p-0"
+                class="h-7 w-7 p-0"
+                :aria-label="t('globals.messages.markAsRead')"
                 @click.stop="handleMarkAsRead(notification)"
               >
                 <Check class="h-3.5 w-3.5" />
@@ -96,7 +98,8 @@
               <Button
                 variant="ghost"
                 size="sm"
-                class="h-6 w-6 p-0 hover:text-destructive"
+                class="h-7 w-7 p-0 hover:text-destructive"
+                :aria-label="t('globals.messages.delete')"
                 @click.stop="handleDelete(notification)"
               >
                 <X class="h-3.5 w-3.5" />
@@ -115,7 +118,7 @@
           :disabled="notificationStore.isLoading"
           @click="notificationStore.loadMore"
         >
-          {{ notificationStore.isLoading ? t('globals.messages.loading') : t('globals.terms.loadMore') }}
+          {{ notificationStore.isLoading ? t('globals.terms.loading') : t('globals.terms.loadMore') }}
         </Button>
       </div>
     </div>

@@ -569,6 +569,7 @@
   "globals.messages.lastUsed": "آخرین استفاده",
   "globals.messages.learnMore": "اطلاعات بیشتر",
   "globals.messages.markAllAsRead": "علامت‌گذاری همه به عنوان خوانده‌شده",
+  "globals.messages.markAsRead": "Mark as read",
   "globals.messages.markAsUnread": "علامت‌گذاری به عنوان خوانده‌نشده",
   "globals.messages.maxLength": "باید حداکثر {max} کاراکتر باشد",
   "globals.messages.mustBeNumber": "باید یک عدد باشد",

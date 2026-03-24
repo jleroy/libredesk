@@ -6,8 +6,8 @@
     </div>
     <div v-if="type === 'new_conversation'">
       <Select v-model="executionMode" v-if="rules.length > 0">
-        <SelectTrigger class="w-[280px]">
-          <Settings size="18" />
+        <SelectTrigger class="w-fit">
+          <Settings size="18" class="mr-2" />
           <SelectValue>{{
             executionMode === 'first_match'
               ? $t('admin.automation.executeFirstMatchingRule')

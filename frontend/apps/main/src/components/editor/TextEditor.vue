@@ -267,7 +267,7 @@ const buildExtensions = () => {
     // Always include mention extension - it gracefully handles missing getSuggestions
     CustomMention.configure({
       HTMLAttributes: {
-        class: 'mention'
+        class: 'ld-mention'
       },
       suggestion: mentionSuggestion
     })
@@ -444,10 +444,10 @@ defineExpose({ focus, extractMentions })
   }
 
   // Mention styling
-  .mention {
+  .ld-mention {
     background-color: hsl(var(--primary) / 0.1);
     border-radius: 0.25rem;
-    padding: 0.125rem 0.25rem;
+    padding: 0 0.25rem;
     color: hsl(var(--primary));
     font-weight: 500;
   }

@@ -569,6 +569,7 @@
   "globals.messages.lastUsed": "最終使用日時",
   "globals.messages.learnMore": "詳しく見る",
   "globals.messages.markAllAsRead": "すべて既読にする",
+  "globals.messages.markAsRead": "Mark as read",
   "globals.messages.markAsUnread": "未読にする",
   "globals.messages.maxLength": "{max}文字以内で入力してください",
   "globals.messages.mustBeNumber": "数字でなければなりません",
