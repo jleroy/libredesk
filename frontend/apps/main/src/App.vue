@@ -92,7 +92,7 @@
     </SidebarProvider>
 
     <!-- Main sidebar that collapses -->
-    <div class="flex-1">
+    <div class="flex-1 min-w-0">
       <Sidebar
         :userTeams="userStore.teams"
         :userViews="userViews"

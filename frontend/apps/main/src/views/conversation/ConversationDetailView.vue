@@ -17,8 +17,7 @@
       <!-- Sidebar Panel (collapsible) -->
       <ResizablePanel
         ref="sidebarPanelRef"
-        class="transition-all duration-300 ease-in-out"
-        :default-size="panelSizes[1]"
+:default-size="panelSizes[1]"
         :min-size="15"
         :max-size="40"
         :collapsible="true"

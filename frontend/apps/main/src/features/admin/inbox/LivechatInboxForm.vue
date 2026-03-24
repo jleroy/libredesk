@@ -23,7 +23,7 @@
           <FormField v-slot="{ componentField, handleChange }" name="enabled">
             <FormItem class="flex flex-row items-center justify-between box p-4">
               <div class="space-y-0.5">
-                <FormLabel class="text-base">{{ $t('globals.terms.enabled') }}</FormLabel>
+                <FormLabel class="text-base text-foreground">{{ $t('globals.terms.enabled') }}</FormLabel>
               </div>
               <FormControl>
                 <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
@@ -34,7 +34,7 @@
           <FormField v-slot="{ componentField, handleChange }" name="csat_enabled">
             <FormItem class="flex flex-row items-center justify-between box p-4">
               <div class="space-y-0.5">
-                <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
+                <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
                 <FormDescription>
                   {{ $t('admin.inbox.csatSurveys.description_1') }}
                 </FormDescription>
@@ -256,7 +256,7 @@
           <FormField v-slot="{ componentField, handleChange }" name="config.dark_mode">
             <FormItem class="flex flex-row items-center justify-between box p-4">
               <div class="space-y-0.5">
-                <FormLabel class="text-base">{{ $t('admin.inbox.livechat.darkMode') }}</FormLabel>
+                <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.livechat.darkMode') }}</FormLabel>
                 <FormDescription>{{
                   $t('admin.inbox.livechat.darkMode.description')
                 }}</FormDescription>
@@ -271,7 +271,7 @@
           <FormField v-slot="{ componentField, handleChange }" name="config.show_powered_by">
             <FormItem class="flex flex-row items-center justify-between box p-4">
               <div class="space-y-0.5">
-                <FormLabel class="text-base">{{
+                <FormLabel class="text-base text-foreground">{{
                   $t('admin.inbox.livechat.showPoweredBy')
                 }}</FormLabel>
                 <FormDescription>{{
@@ -389,7 +389,7 @@
             >
               <FormItem class="flex flex-row items-center justify-between box p-4">
                 <div class="space-y-0.5">
-                  <FormLabel class="text-base">{{
+                  <FormLabel class="text-base text-foreground">{{
                     $t('admin.inbox.livechat.noticeBanner.enabled')
                   }}</FormLabel>
                 </div>
@@ -433,7 +433,7 @@
             >
               <FormItem class="flex flex-row items-center justify-between box p-4">
                 <div class="space-y-0.5">
-                  <FormLabel class="text-base">{{
+                  <FormLabel class="text-base text-foreground">{{
                     $t('admin.inbox.livechat.showOfficeHoursInChat')
                   }}</FormLabel>
                   <FormDescription>{{
@@ -452,7 +452,7 @@
             >
               <FormItem class="flex flex-row items-center justify-between box p-4">
                 <div class="space-y-0.5">
-                  <FormLabel class="text-base">{{
+                  <FormLabel class="text-base text-foreground">{{
                     $t('admin.inbox.livechat.showOfficeHoursAfterAssignment')
                   }}</FormLabel>
                   <FormDescription>{{
@@ -498,7 +498,7 @@
               >
                 <FormItem class="flex flex-row items-center justify-between box p-4">
                   <div class="space-y-0.5">
-                    <FormLabel class="text-base">{{
+                    <FormLabel class="text-base text-foreground">{{
                       $t('admin.inbox.livechat.features.fileUpload')
                     }}</FormLabel>
                     <FormDescription>{{
@@ -514,7 +514,7 @@
               <FormField v-slot="{ componentField, handleChange }" name="config.features.emoji">
                 <FormItem class="flex flex-row items-center justify-between box p-4">
                   <div class="space-y-0.5">
-                    <FormLabel class="text-base">{{
+                    <FormLabel class="text-base text-foreground">{{
                       $t('admin.inbox.livechat.features.emoji')
                     }}</FormLabel>
                     <FormDescription>{{
@@ -533,7 +533,7 @@
               >
                 <FormItem class="flex flex-row items-center justify-between box p-4">
                   <div class="space-y-0.5">
-                    <FormLabel class="text-base">{{
+                    <FormLabel class="text-base text-foreground">{{
                       $t('admin.inbox.livechat.directToConversation')
                     }}</FormLabel>
                     <FormDescription>{{
@@ -656,7 +656,7 @@
                 >
                   <FormItem class="flex flex-row items-center justify-between box p-4">
                     <div class="space-y-0.5">
-                      <FormLabel class="text-base">{{
+                      <FormLabel class="text-base text-foreground">{{
                         $t('admin.inbox.livechat.allowStartConversation')
                       }}</FormLabel>
                       <FormDescription>{{
@@ -675,7 +675,7 @@
                 >
                   <FormItem class="flex flex-row items-center justify-between box p-4">
                     <div class="space-y-0.5">
-                      <FormLabel class="text-base">{{
+                      <FormLabel class="text-base text-foreground">{{
                         $t('admin.inbox.livechat.preventMultipleConversations')
                       }}</FormLabel>
                       <FormDescription>{{
@@ -694,7 +694,7 @@
                 >
                   <FormItem class="flex flex-row items-center justify-between box p-4">
                     <div class="space-y-0.5">
-                      <FormLabel class="text-base">{{
+                      <FormLabel class="text-base text-foreground">{{
                         $t('admin.inbox.livechat.preventReplyToClosedConversation')
                       }}</FormLabel>
                       <FormDescription>{{
@@ -731,7 +731,7 @@
                 >
                   <FormItem class="flex flex-row items-center justify-between box p-4">
                     <div class="space-y-0.5">
-                      <FormLabel class="text-base">{{
+                      <FormLabel class="text-base text-foreground">{{
                         $t('admin.inbox.livechat.allowStartConversation')
                       }}</FormLabel>
                       <FormDescription>{{
@@ -750,7 +750,7 @@
                 >
                   <FormItem class="flex flex-row items-center justify-between box p-4">
                     <div class="space-y-0.5">
-                      <FormLabel class="text-base">{{
+                      <FormLabel class="text-base text-foreground">{{
                         $t('admin.inbox.livechat.preventMultipleConversations')
                       }}</FormLabel>
                       <FormDescription>{{
@@ -769,7 +769,7 @@
                 >
                   <FormItem class="flex flex-row items-center justify-between box p-4">
                     <div class="space-y-0.5">
-                      <FormLabel class="text-base">{{
+                      <FormLabel class="text-base text-foreground">{{
                         $t('admin.inbox.livechat.preventReplyToClosedConversation')
                       }}</FormLabel>
                       <FormDescription>{{
@@ -914,6 +914,10 @@ const props = defineProps({
   submitLabel: {
     type: String,
     default: ''
+  },
+  isNewForm: {
+    type: Boolean,
+    default: false
   },
   isLoading: {
     type: Boolean,
@@ -1095,7 +1099,7 @@ const form = useForm({
 })
 
 const submitLabel = computed(() => {
-  return props.submitLabel || t('globals.messages.save')
+  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
 })
 
 const addExternalLink = () => {

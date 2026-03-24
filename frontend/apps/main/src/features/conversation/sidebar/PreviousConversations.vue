@@ -25,7 +25,7 @@
         <div class="flex flex-col flex-1 min-w-[120px]">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span class="font-medium text-sm truncate max-w-[300px]">
+              <span class="sidebar-value font-medium truncate block">
                 {{ conversation.subject }}
               </span>
             </TooltipTrigger>
@@ -33,13 +33,13 @@
               {{ conversation.subject }}
             </TooltipContent>
           </Tooltip>
-          <span class="text-xs text-muted-foreground truncate max-w-[400px]">
+          <span class="sidebar-label truncate block">
             {{ conversation.last_message }}
           </span>
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div class="flex gap-1 items-center text-xs text-muted-foreground flex-shrink-0">
+            <div class="sidebar-label flex gap-1 items-center flex-shrink-0">
               <span v-if="conversation.created_at">
                 {{ getRelativeTime(new Date(conversation.created_at)) }}
               </span>

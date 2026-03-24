@@ -2,34 +2,34 @@
   <CommandDialog :open="open" @update:open="toggleOpen" class="transform-gpu z-[51] !min-w-[50vw]">
     <CommandInput :placeholder="t('command.typeCmdOrSearch')" @keydown="onInputKeydown" />
     <CommandList
-      class="!min-h-[60vh] h-[60vh] !min-w-[50vw]"
+      class="!min-h-[50vh] h-[50vh] !min-w-[50vw]"
       :class="{ 'overflow-hidden': nestedCommand === 'apply-macro' }"
     >
       <CommandEmpty>
-        <p class="text-base text-muted-foreground">{{ $t('command.noCommandAvailable') }}</p>
+        <p class="text-sm text-muted-foreground">{{ $t('command.noCommandAvailable') }}</p>
       </CommandEmpty>
 
       <!-- Snooze Options -->
       <CommandGroup v-if="nestedCommand === 'snooze'" :heading="t('command.snoozeFor')">
-        <CommandItem value="1 hour" @select="handleSnooze(60)" class="text-base py-3">
+        <CommandItem value="1 hour" @select="handleSnooze(60)">
           1 {{ $t('globals.terms.hour') }}
         </CommandItem>
-        <CommandItem value="3 hours" @select="handleSnooze(180)" class="text-base py-3">
+        <CommandItem value="3 hours" @select="handleSnooze(180)">
           3 {{ $t('globals.terms.hour', 2) }}
         </CommandItem>
-        <CommandItem value="6 hours" @select="handleSnooze(360)" class="text-base py-3">
+        <CommandItem value="6 hours" @select="handleSnooze(360)">
           6 {{ $t('globals.terms.hour', 2) }}
         </CommandItem>
-        <CommandItem value="12 hours" @select="handleSnooze(720)" class="text-base py-3">
+        <CommandItem value="12 hours" @select="handleSnooze(720)">
           12 {{ $t('globals.terms.hour', 2) }}
         </CommandItem>
-        <CommandItem value="1 day" @select="handleSnooze(1440)" class="text-base py-3">
+        <CommandItem value="1 day" @select="handleSnooze(1440)">
           1 {{ $t('globals.terms.day') }}
         </CommandItem>
-        <CommandItem value="2 days" @select="handleSnooze(2880)" class="text-base py-3">
+        <CommandItem value="2 days" @select="handleSnooze(2880)">
           2 {{ $t('globals.terms.day', 2) }}
         </CommandItem>
-        <CommandItem value="pick date & time" @select="showCustomDialog" class="text-base py-3">
+        <CommandItem value="pick date & time" @select="showCustomDialog">
           {{ $t('globals.messages.pickDateAndTime') }}
         </CommandItem>
       </CommandGroup>
@@ -45,7 +45,7 @@
           <div class="min-h-[400px]">
             <div class="h-[60vh] grid grid-cols-12">
               <!-- Left Column: Macro List (30%) -->
-              <div class="col-span-4 pr-4 border-r overflow-y-auto h-full">
+              <div class="col-span-4 pr-2 border-r overflow-y-auto h-full">
                 <CommandItem
                   v-for="(macro, index) in macroStore.macroOptions"
                   :key="macro.value"
@@ -53,11 +53,11 @@
                   :data-index="index"
                   @select="handleApplyMacro(macro)"
                   @pointerenter="highlightedMacro = macro"
-                  class="px-3 py-3 rounded cursor-pointer transition-all duration-200 hover:bg-primary/10 hover:"
+                  class="px-2 py-2 rounded cursor-pointer transition-colors duration-150 hover:bg-accent"
                 >
-                  <div class="flex items-center gap-3">
-                    <Zap size="18" class="shrink-0" />
-                    <span class="text-base truncate w-full break-words whitespace-normal">{{
+                  <div class="flex items-center gap-2">
+                    <Zap :size="16" class="shrink-0" />
+                    <span class="text-sm w-full break-words whitespace-normal">{{
                       macro.label
                     }}</span>
                   </div>
@@ -65,34 +65,34 @@
               </div>
 
               <!-- Right Column: Macro Details (70%) -->
-              <div class="col-span-8 px-4 overflow-y-auto h-full pb-12">
-                <div class="space-y-4 text-base">
+              <div class="col-span-8 px-4 overflow-y-auto h-full pb-6">
+                <div class="space-y-3 text-sm">
                   <!-- Reply Preview -->
                   <div v-if="replyContent" class="space-y-2">
-                    <p class="text-base font-semibold text-foreground">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       {{ $t('command.replyPreview') }}
                     </p>
                     <Letter
                       :key="highlightedMacro?.value"
                       :html="replyContent"
                       :allowedSchemas="['cid', 'https', 'http', 'mailto']"
-                      class="w-full min-h-200 p-2 bg-muted/50 rounded overflow-auto shadow native-html"
+                      class="w-full min-h-[120px] p-3 bg-muted/30 rounded-md border overflow-auto native-html"
                     />
                   </div>
 
                   <!-- Actions -->
                   <div v-if="otherActions.length > 0" class="space-y-2">
-                    <p class="text-base font-semibold">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       {{ $t('globals.terms.action', 2) }}
                     </p>
-                    <div class="space-y-1.5 max-w-sm">
+                    <div class="space-y-1.5">
                       <div
                         v-for="action in otherActions"
                         :key="action.type"
-                        class="flex items-center gap-3 px-3 py-2.5 rounded text-base bg-muted/50 hover:bg-accent hover:text-accent-foreground transition duration-200 group"
+                        class="flex items-center gap-2 px-2.5 py-2 rounded-md text-sm bg-muted/50 hover:bg-accent hover:text-accent-foreground transition-colors duration-150 group"
                       >
                         <div
-                          class="p-1.5 rounded-full group-hover:bg-muted/20 transition duration-200"
+                          class="p-1 rounded-md bg-muted/30 group-hover:bg-muted/50 transition-colors duration-150"
                         >
                           <User v-if="action.type === 'assign_user'" :size="14" class="shrink-0" />
                           <Users
@@ -110,21 +110,7 @@
                             :size="14"
                             class="shrink-0"
                           />
-                          <Tags
-                            v-else-if="action.type === 'add_tags'"
-                            :size="14"
-                            class="shrink-0"
-                          />
-                          <Tags
-                            v-else-if="action.type === 'set_tags'"
-                            :size="14"
-                            class="shrink-0"
-                          />
-                          <Tags
-                            v-else-if="action.type === 'remove_tags'"
-                            :size="14"
-                            class="shrink-0"
-                          />
+                          <Tags v-else :size="14" class="shrink-0" />
                         </div>
                         <span class="truncate">{{ getActionLabel(action) }}</span>
                       </div>
@@ -134,9 +120,10 @@
                   <!-- Empty State -->
                   <div
                     v-if="!replyContent && otherActions.length === 0"
-                    class="flex items-center justify-center h-20"
+                    class="flex flex-col items-center justify-center h-32 gap-2"
                   >
-                    <p class="text-base text-muted-foreground italic">
+                    <Zap :size="20" class="text-muted-foreground/50" />
+                    <p class="text-sm text-muted-foreground">
                       {{ $t('command.selectAMacro') }}
                     </p>
                   </div>
@@ -156,25 +143,36 @@
         <CommandItem
           value="apply-macro"
           @select="setNestedCommand('apply-macro-to-existing-conversation')"
-          class="text-base py-3"
         >
           {{ $t('actions.applyMacro') }}
         </CommandItem>
-        <CommandItem value="conv-snooze" @select="setNestedCommand('snooze')" class="text-base py-3">
+        <CommandItem value="conv-snooze" @select="setNestedCommand('snooze')">
           {{ $t('globals.terms.snooze') }}
         </CommandItem>
-        <CommandItem value="conv-resolve" @select="resolveConversation" class="text-base py-3">
+        <CommandItem value="conv-resolve" @select="resolveConversation">
           {{ $t('globals.terms.resolve') }}
         </CommandItem>
       </CommandGroup>
     </CommandList>
 
     <!-- Navigation -->
-    <div class="mt-2 px-4 py-2 text-sm text-gray-500 flex space-x-4">
-      <span> {{ $t('command.enterToSelect') }}</span>
-      <span> {{ $t('command.navigateWithArrows') }}</span>
-      <span> {{ $t('command.closeWithEsc') }}</span>
-      <span> {{ $t('command.backspaceToParent') }}</span>
+    <div class="flex items-center gap-4 border-t px-3 py-2">
+      <span class="flex items-center gap-1 text-xs text-muted-foreground">
+        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Enter</kbd>
+        {{ $t('command.select') }}
+      </span>
+      <span class="flex items-center gap-1 text-xs text-muted-foreground">
+        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">&uarr;&darr;</kbd>
+        {{ $t('command.navigate') }}
+      </span>
+      <span class="flex items-center gap-1 text-xs text-muted-foreground">
+        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Esc</kbd>
+        {{ $t('command.close') }}
+      </span>
+      <span v-if="nestedCommand" class="flex items-center gap-1 text-xs text-muted-foreground">
+        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Backspace</kbd>
+        {{ $t('command.back') }}
+      </span>
     </div>
   </CommandDialog>
 
@@ -186,7 +184,7 @@
         <DialogDescription />
       </DialogHeader>
       <div class="grid gap-4 py-4">
-        <Popover>
+        <Popover :open="datePickerOpen" @update:open="datePickerOpen = $event">
           <PopoverTrigger as-child>
             <Button variant="outline" class="w-full justify-start text-left font-normal">
               <CalendarIcon class="mr-2 h-4 w-4" />
@@ -194,7 +192,7 @@
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0">
-            <Calendar mode="single" v-model="selectedDate" />
+            <Calendar mode="single" v-model="selectedDate" @update:model-value="datePickerOpen = false" />
           </PopoverContent>
         </Popover>
         <div class="grid gap-2">
@@ -250,6 +248,7 @@ const open = ref(false)
 const emitter = useEmitter()
 const nestedCommand = ref(null)
 const showDatePicker = ref(false)
+const datePickerOpen = ref(false)
 const selectedDate = ref(null)
 const selectedTime = ref('12:00')
 

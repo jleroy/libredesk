@@ -68,10 +68,10 @@
       <div v-else-if="currentStep === 2" class="space-y-6">
         <Button @click="goBack" variant="link" size="xs">← {{ $t('globals.messages.back') }}</Button>
         <div v-if="selectedChannel === 'email'">
-          <EmailInboxForm :initial-values="{}" :submitForm="submitForm" :isLoading="isLoading" />
+          <EmailInboxForm :initial-values="{}" :submitForm="submitForm" :isLoading="isLoading" :isNewForm="true" />
         </div>
         <div v-else-if="selectedChannel === 'livechat'">
-          <LivechatInboxForm :initial-values="{}" :submitForm="submitLiveChatForm" :isLoading="isLoading" :available-languages="availableLanguages" />
+          <LivechatInboxForm :initial-values="{}" :submitForm="submitLiveChatForm" :isLoading="isLoading" :isNewForm="true" :available-languages="availableLanguages" />
         </div>
       </div>
 

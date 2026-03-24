@@ -4,18 +4,18 @@
       <div
         v-for="action in actions"
         :key="action.type"
-        class="flex items-center border bg-background border-gray-200 rounded shadow-sm transition-all duration-300 ease-in-out hover:shadow-md group gap-2"
+        class="flex items-center border bg-background rounded transition-colors duration-150 hover:bg-accent/50 group gap-2"
       >
         <div class="flex items-center space-x-2 px-2">
           <component
             :is="getIcon(action.type)"
             size="16"
-            class="text-gray-500 text-primary"
+            class="text-muted-foreground"
           />
           <Tooltip>
             <TooltipTrigger as-child>
               <div
-                class="max-w-[12rem] overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-primary group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                class="max-w-[12rem] overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-foreground">
                 {{ getDisplayValue(action) }}
               </div>
             </TooltipTrigger>
@@ -26,7 +26,7 @@
         </div>
         <button
           @click.prevent="onRemove(action)"
-          class="p-2 text-gray-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 rounded transition-colors duration-300 ease-in-out"
+          class="p-2 text-muted-foreground hover:text-destructive focus:outline-none rounded transition-colors duration-150"
           title="Remove action"
         >
           <X size="14" />

@@ -1,28 +1,29 @@
 <template>
-  <div class="space-y-2">
+  <div>
     <div
       v-if="pageVisits.length === 0"
-      class="text-sm text-muted-foreground"
+      class="text-center text-sm text-muted-foreground py-4"
     >
       {{ t('globals.messages.noResults') }}
     </div>
-    <div
-      v-for="(page, idx) in pageVisits"
-      :key="idx"
-      class="flex items-center justify-between gap-2 py-1.5"
-    >
+    <div v-else class="space-y-1">
       <a
+        v-for="(page, idx) in pageVisits"
+        :key="idx"
         :href="page.url"
         target="_blank"
         rel="noopener"
-        class="text-xs truncate hover:underline"
-        :title="page.url"
+        class="block p-2 rounded hover:bg-muted"
       >
-        {{ page.title || page.url }}
+        <div class="flex items-start justify-between gap-2">
+          <span class="sidebar-value font-medium truncate" :title="page.url">
+            {{ page.title || page.url }}
+          </span>
+          <span v-if="page.time" class="sidebar-label flex-shrink-0">
+            {{ formatDate(page.time) }}
+          </span>
+        </div>
       </a>
-      <span v-if="page.time" class="text-[11px] text-muted-foreground flex-shrink-0">
-        {{ formatDate(page.time) }}
-      </span>
     </div>
   </div>
 </template>

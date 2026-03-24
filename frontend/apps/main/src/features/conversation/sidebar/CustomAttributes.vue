@@ -1,8 +1,8 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <div class="relative group/item" v-for="attribute in attributes" :key="attribute.id">
       <!-- Label -->
-      <div class="font-medium flex items-center" v-if="attribute.data_type !== 'checkbox'">
+      <div class="sidebar-label flex items-center" v-if="attribute.data_type !== 'checkbox'">
         <div class="flex items-center gap-1">
           <p>
             {{ attribute.name }}
@@ -19,7 +19,7 @@
       </div>
 
       <!-- Checkbox -->
-      <div class="font-medium flex items-center gap-2" v-else>
+      <div class="sidebar-label flex items-center gap-2" v-else>
         <Checkbox
           v-if="attribute.data_type === 'checkbox'"
           :disabled="loading"
@@ -50,29 +50,34 @@
       <template v-else-if="attribute.data_type !== 'checkbox'">
         <div
           v-if="!editingAttributeKey || editingAttributeKey !== attribute.key"
-          class="flex items-center gap-2"
+          class="flex items-center justify-between gap-1"
         >
-          <span class="break-all" v-if="attribute.data_type !== 'checkbox'">
+          <span class="sidebar-value break-all" v-if="attribute.data_type !== 'checkbox'">
             {{ customAttributes?.[attribute.key] ?? '-' }}
           </span>
-          <Pencil
-            size="12"
-            class="text-muted-foreground cursor-pointer flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-200"
-            @click="startEditing(attribute)"
-          />
-          <Trash2
-            v-if="customAttributes?.[attribute.key]"
-            size="12"
-            class="text-muted-foreground cursor-pointer flex-shrink-0 absolute right-0 top-1"
-            @click="deleteAttribute(attribute)"
-          />
+          <div class="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity duration-200 flex-shrink-0">
+            <button
+              class="p-1 rounded hover:bg-muted cursor-pointer transition-colors"
+              @click="startEditing(attribute)"
+            >
+              <Pencil size="12" class="text-muted-foreground" />
+            </button>
+            <button
+              v-if="customAttributes?.[attribute.key]"
+              class="p-1 rounded hover:bg-destructive/10 cursor-pointer transition-colors"
+              @click="deleteAttribute(attribute)"
+            >
+              <Trash2 size="12" class="text-muted-foreground hover:text-destructive" />
+            </button>
+          </div>
         </div>
         <div v-else>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5">
             <template v-if="attribute.data_type === 'text'">
               <Input
                 v-model="editingValue"
                 type="text"
+                class="h-7 text-xs px-2"
                 @keydown.enter="saveAttribute(attribute.key)"
               />
             </template>
@@ -80,6 +85,7 @@
               <Input
                 v-model="editingValue"
                 type="number"
+                class="h-7 text-xs px-2 hide-number-spinners"
                 @keydown.enter="saveAttribute(attribute.key)"
               />
             </template>
@@ -87,18 +93,19 @@
               <Checkbox v-model:checked="editingValue" />
             </template>
             <template v-else-if="attribute.data_type === 'date'">
-              <Input v-model="editingValue" type="date" />
+              <Input v-model="editingValue" type="date" class="h-7 text-xs px-2" />
             </template>
             <template v-else-if="attribute.data_type === 'link'">
               <Input
                 v-model="editingValue"
                 type="url"
+                class="h-7 text-xs px-2"
                 @keydown.enter="saveAttribute(attribute.key)"
               />
             </template>
             <template v-else-if="attribute.data_type === 'list'">
               <Select v-model="editingValue">
-                <SelectTrigger>
+                <SelectTrigger class="h-7 text-xs px-2">
                   <SelectValue :placeholder="t('placeholders.selectValue')" />
                 </SelectTrigger>
                 <SelectContent>
@@ -109,13 +116,13 @@
               </Select>
             </template>
             <Check
-              size="20"
-              class="text-muted-foreground cursor-pointer"
+              size="14"
+              class="text-muted-foreground cursor-pointer flex-shrink-0"
               @click="saveAttribute(attribute.key)"
             />
-            <X size="20" class="text-muted-foreground cursor-pointer" @click="cancelEditing" />
+            <X size="14" class="text-muted-foreground cursor-pointer flex-shrink-0" @click="cancelEditing" />
           </div>
-          <p v-if="errorMessage" class="text-red-500 text-xs mt-1">
+          <p v-if="errorMessage" class="text-destructive text-xs mt-1">
             {{ errorMessage }}
           </p>
         </div>

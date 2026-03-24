@@ -5,7 +5,7 @@ import {
   accountNavItems,
   contactNavItems
 } from '../../constants/navigation'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@shared-ui/components/ui/collapsible'
 import {
   Sidebar,
@@ -369,9 +369,9 @@ const viewToDelete = ref(null)
                 <div class="font-semibold text-xl">
                   <span>{{ t('globals.terms.inbox') }}</span>
                 </div>
-                <div class="mr-1 mt-1 hover:scale-110 transition-transform">
+                <div class="mr-1 mt-1 transition-colors">
                   <router-link :to="{ name: 'search' }">
-                    <Search size="18" stroke-width="2.5" />
+                    <Search size="18" stroke-width="2.5" class="text-muted-foreground hover:text-foreground" />
                   </router-link>
                 </div>
               </div>
@@ -383,11 +383,9 @@ const viewToDelete = ref(null)
           <SidebarGroup>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <a href="#" @click="emit('createConversation')">
+                <SidebarMenuButton @click="emit('createConversation')">
                     <Plus />
                     <span>{{ t('conversation.newConversation') }}</span>
-                  </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -400,13 +398,11 @@ const viewToDelete = ref(null)
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/mentioned')">
-                  <a href="#" @click.prevent="navigateToInbox('mentioned')">
+                <SidebarMenuButton :isActive="isActiveParent('/inboxes/mentioned')" @click="navigateToInbox('mentioned')">
                     <AtSign />
                     <span>
                       {{ t('globals.terms.mention', 2) }}
                     </span>
-                  </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -441,21 +437,18 @@ const viewToDelete = ref(null)
               >
                 <SidebarMenuItem>
                   <CollapsibleTrigger as-child>
-                    <SidebarMenuButton asChild>
-                      <router-link to="#">
-                        <!-- <Users /> -->
+                    <SidebarMenuButton>
                         <span>
                           {{ t('globals.terms.teamInbox', 2) }}
                         </span>
                         <ChevronRight
                           class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                         />
-                      </router-link>
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <SidebarMenuSub v-for="team in userTeams" :key="team.id">
-                      <SidebarMenuSubItem>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem v-for="team in userTeams" :key="team.id">
                         <SidebarMenuButton
                           size="sm"
                           :is-active="route.params.teamID == team.id"
@@ -475,9 +468,7 @@ const viewToDelete = ref(null)
               <Collapsible class="group/collapsible" defaultOpen v-model:open="viewInboxOpen" v-if="userStore.can(permissions.VIEW_MANAGE)">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton asChild>
-                      <router-link to="#" class="group/item !p-2">
-                        <!-- <SlidersHorizontal /> -->
+                    <SidebarMenuButton class="group/item !p-2">
                         <span>
                           {{ t('globals.terms.view', 2) }}
                         </span>
@@ -485,20 +476,20 @@ const viewToDelete = ref(null)
                           <Plus
                             size="18"
                             @click.stop="openCreateViewDialog"
-                            class="rounded cursor-pointer opacity-0 transition-all duration-200 group-hover/item:opacity-100 hover:bg-gray-200 hover:shadow-sm text-gray-600 hover:text-gray-800 transform hover:scale-105 active:scale-100 p-1"
+                            class="rounded cursor-pointer opacity-0 transition-colors duration-200 group-hover/item:opacity-100 hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-accent-foreground p-1"
                           />
                         </div>
                         <ChevronRight
                           class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                           v-if="userViews.length"
                         />
-                      </router-link>
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
-                    <SidebarMenuSub v-for="view in userViews" :key="view.id">
+                    <SidebarMenuSub>
                       <SidebarMenuSubItem
+                        v-for="view in userViews" :key="view.id"
                         @mouseenter="hoveredViewId = view.id"
                         @mouseleave="hoveredViewId = null"
                       >
@@ -549,21 +540,19 @@ const viewToDelete = ref(null)
               >
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton asChild>
-                      <router-link to="#" class="group/item !p-2">
+                    <SidebarMenuButton class="!p-2">
                         <span>
                           {{ t('globals.terms.sharedView', 2) }}
                         </span>
                         <ChevronRight
                           class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                         />
-                      </router-link>
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
-                    <SidebarMenuSub v-for="view in sharedViews" :key="view.id">
-                      <SidebarMenuSubItem>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem v-for="view in sharedViews" :key="view.id">
                         <SidebarMenuButton
                           size="sm"
                           :isActive="route.params.viewID == view.id"

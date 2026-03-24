@@ -125,7 +125,7 @@
           </div>
           <div class="grid grid-cols-4 items-center gap-4">
             <Label for="date" class="text-right"> {{ t('globals.terms.date') }} </Label>
-            <Popover>
+            <Popover :open="datePickerOpen" @update:open="datePickerOpen = $event">
               <PopoverTrigger as-child>
                 <Button
                   variant="outline"
@@ -145,7 +145,7 @@
                 </Button>
               </PopoverTrigger>
               <PopoverContent class="w-auto p-0">
-                <Calendar v-model="holidayDate" />
+                <Calendar v-model="holidayDate" @update:model-value="datePickerOpen = false" />
               </PopoverContent>
             </Popover>
           </div>
@@ -214,7 +214,7 @@ const props = defineProps({
 })
 
 const submitLabel = computed(() => {
-  return props.submitLabel || t('globals.messages.save')
+  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
 })
 
 let holidays = reactive([])
@@ -223,6 +223,7 @@ const holidayDate = ref(null)
 const selectedDays = ref({})
 const hours = ref({})
 const openHolidayForm = ref(false)
+const datePickerOpen = ref(false)
 const { t } = useI18n()
 
 const form = useForm({

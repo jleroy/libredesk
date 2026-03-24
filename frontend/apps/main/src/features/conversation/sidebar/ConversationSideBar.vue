@@ -7,42 +7,46 @@
           {{ $t('globals.terms.action', 2) }}
         </AccordionTrigger>
 
-        <!-- `Agent, team, and priority assignment -->
+        <!-- Agent, team, priority, and tags assignment -->
         <AccordionContent class="accordion-content--actions">
-          <!-- Agent assignment -->
-          <SelectComboBox
-            v-model="conversationStore.current.assigned_user_id"
-            :items="[{ value: 'none', label: t('globals.terms.none') }, ...usersStore.options]"
-            :placeholder="t('placeholders.selectAgent')"
-            @select="selectAgent"
-            type="user"
-          />
+          <div>
+            <SelectComboBox
+              v-model="conversationStore.current.assigned_user_id"
+              :items="[{ value: 'none', label: t('globals.terms.none') }, ...usersStore.options]"
+              :placeholder="t('placeholders.selectAgent')"
+              @select="selectAgent"
+              type="user"
+            />
+          </div>
 
-          <!-- Team assignment -->
-          <SelectComboBox
-            v-model="conversationStore.current.assigned_team_id"
-            :items="[{ value: 'none', label: t('globals.terms.none') }, ...teamsStore.options]"
-            :placeholder="t('placeholders.selectTeam')"
-            @select="selectTeam"
-            type="team"
-          />
+          <div>
+            <SelectComboBox
+              v-model="conversationStore.current.assigned_team_id"
+              :items="[{ value: 'none', label: t('globals.terms.none') }, ...teamsStore.options]"
+              :placeholder="t('placeholders.selectTeam')"
+              @select="selectTeam"
+              type="team"
+            />
+          </div>
 
-          <!-- Priority assignment -->
-          <SelectComboBox
-            v-model="conversationStore.current.priority_id"
-            :items="priorityOptions"
-            :placeholder="t('placeholders.selectPriority')"
-            @select="selectPriority"
-            type="priority"
-          />
+          <div>
+            <SelectComboBox
+              v-model="conversationStore.current.priority_id"
+              :items="priorityOptions"
+              :placeholder="t('placeholders.selectPriority')"
+              @select="selectPriority"
+              type="priority"
+            />
+          </div>
 
-          <!-- Tags assignment -->
-          <SelectTag
-            v-if="conversationStore.current"
-            v-model="conversationStore.current.tags"
-            :items="tags.map((tag) => ({ label: tag, value: tag }))"
-            :placeholder="t('placeholders.selectTags')"
-          />
+          <div>
+            <SelectTag
+              v-if="conversationStore.current"
+              v-model="conversationStore.current.tags"
+              :items="tags.map((tag) => ({ label: tag, value: tag }))"
+              :placeholder="t('placeholders.selectTags')"
+            />
+          </div>
         </AccordionContent>
       </AccordionItem>
 
@@ -82,7 +86,7 @@
         v-if="conversationStore.current?.inbox_channel === 'livechat'"
       >
         <AccordionTrigger class="accordion-trigger">
-          {{ $t('conversation.sidebar.lastBrowsedPages') }}
+          {{ $t('conversation.sidebar.lastVisitedPages') }}
         </AccordionTrigger>
         <AccordionContent class="accordion-content">
           <ConversationSideBarPageVisits />
@@ -267,6 +271,6 @@ const updateContactCustomAttributes = async (attributes) => {
 }
 
 :deep(.accordion-content--actions) {
-  @apply space-y-4 p-4;
+  @apply space-y-3 p-4;
 }
 </style>

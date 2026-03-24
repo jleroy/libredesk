@@ -39,8 +39,8 @@
         @click="$router.push({ name: 'contact-detail', params: { id: conversation?.contact_id } })"
       />
     </div>
-    <div class="text-sm text-muted-foreground flex gap-2 items-center">
-      <Mail size="16" class="flex-shrink-0" />
+    <div class="flex gap-2 items-center">
+      <Mail size="16" class="text-muted-foreground flex-shrink-0" />
       <Tooltip v-if="isLivechat && !conversationStore.conversation.loading">
         <TooltipTrigger as-child>
           <ShieldCheck v-if="isVerified" size="14" class="flex-shrink-0 text-green-600" />
@@ -51,31 +51,31 @@
       <span v-if="conversationStore.conversation.loading">
         <Skeleton class="w-32 h-4" />
       </span>
-      <span v-else-if="conversation?.contact?.email" class="break-all">
+      <span v-else-if="conversation?.contact?.email" class="sidebar-value break-all">
         {{ conversation?.contact?.email }}
       </span>
-      <span v-else class="text-muted-foreground">
+      <span v-else class="sidebar-label">
         {{ t('conversation.sidebar.notAvailable') }}
       </span>
     </div>
-    <div class="text-sm text-muted-foreground flex gap-2 items-center">
-      <Phone size="16" class="flex-shrink-0" />
+    <div class="flex gap-2 items-center">
+      <Phone size="16" class="text-muted-foreground flex-shrink-0" />
       <span v-if="conversationStore.conversation.loading">
         <Skeleton class="w-32 h-4" />
       </span>
-      <span v-else>
+      <span v-else class="sidebar-value">
         {{ phoneNumber }}
       </span>
     </div>
     <div
-      class="text-sm text-muted-foreground flex gap-2 items-center"
+      class="flex gap-2 items-center"
       v-if="conversation?.contact?.external_user_id"
     >
-      <IdCard size="16" class="flex-shrink-0" />
+      <IdCard size="16" class="text-muted-foreground flex-shrink-0" />
       <span v-if="conversationStore.conversation.loading">
         <Skeleton class="w-32 h-4" />
       </span>
-      <span v-else>
+      <span v-else class="sidebar-value">
         {{ conversation.contact.external_user_id }}
       </span>
     </div>
@@ -84,24 +84,24 @@
     <template v-if="isLivechat && !conversationStore.conversation.loading">
       <div
         v-if="conversation?.contact?.country"
-        class="text-sm text-muted-foreground flex gap-2 items-center"
+        class="flex gap-2 items-center"
       >
-        <Globe size="16" class="flex-shrink-0" />
-        <span>{{ countryName }}</span>
+        <Globe size="16" class="text-muted-foreground flex-shrink-0" />
+        <span class="sidebar-value">{{ countryName }}</span>
       </div>
       <div
         v-if="conversation?.meta?.ip"
-        class="text-sm text-muted-foreground flex gap-2 items-center"
+        class="flex gap-2 items-center"
       >
-        <Monitor size="16" class="flex-shrink-0" />
-        <span class="break-all">{{ conversation.meta.ip }}</span>
+        <Monitor size="16" class="text-muted-foreground flex-shrink-0" />
+        <span class="sidebar-value break-all">{{ conversation.meta.ip }}</span>
       </div>
       <div
         v-if="conversation?.meta?.user_agent"
-        class="text-sm text-muted-foreground flex gap-2 items-center"
+        class="flex gap-2 items-center"
       >
-        <Smartphone size="16" class="flex-shrink-0" />
-        <span class="break-all">{{ parsedUA }}</span>
+        <Smartphone size="16" class="text-muted-foreground flex-shrink-0" />
+        <span class="sidebar-value break-all">{{ parsedUA }}</span>
       </div>
     </template>
 

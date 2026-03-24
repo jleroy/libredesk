@@ -10,13 +10,14 @@ export const columns = [
       return h('div', { class: 'text-center' }, 'Name')
     },
     cell: function ({ row }) {
+      const emoji = row.original.emoji
       return h('div', { class: 'text-center' },
         h(RouterLink,
           {
             to: { name: 'edit-team', params: { id: row.original.id } },
             class: 'text-primary hover:underline'
           },
-          () => row.getValue('name')
+          () => [emoji ? `${emoji} ` : '', row.getValue('name')]
         )
       )
     }

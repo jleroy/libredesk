@@ -31,7 +31,7 @@
                     <template #footer>
                       <DialogFooter class="mt-10">
                         <Button type="submit" :isLoading="isLoading" :disabled="isLoading">
-                          {{ isEditing ? $t('globals.messages.update') : $t('globals.messages.save') }}
+                          {{ isEditing ? $t('globals.messages.save') : $t('globals.messages.create') }}
                         </Button>
                       </DialogFooter>
                     </template>

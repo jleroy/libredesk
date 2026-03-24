@@ -32,7 +32,7 @@
                   <TagsForm @submit.prevent="onSubmit">
                     <template #footer>
                       <DialogFooter class="mt-10">
-                        <Button type="submit">{{ isEditing ? t('globals.messages.update') : t('globals.messages.save') }}</Button>
+                        <Button type="submit">{{ isEditing ? t('globals.messages.save') : t('globals.messages.create') }}</Button>
                       </DialogFooter>
                     </template>
                   </TagsForm>

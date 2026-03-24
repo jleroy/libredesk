@@ -14,7 +14,7 @@
     <PopoverContent class="p-0">
       <Command>
         <CommandInput class="h-9" :placeholder="placeholder" />
-        <CommandEmpty>Not found.</CommandEmpty>
+        <CommandEmpty>{{ $t('globals.messages.notFound') }}</CommandEmpty>
         <CommandList>
           <CommandGroup>
             <CommandItem

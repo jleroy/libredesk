@@ -1,5 +1,17 @@
 <template>
   <form class="space-y-6 w-full">
+    <FormField name="is_active" v-slot="{ value, handleChange }" v-if="!isNewForm">
+      <FormItem>
+        <FormControl>
+          <div class="flex items-center space-x-2">
+            <Checkbox :checked="value" @update:checked="handleChange" />
+            <Label>{{ $t('globals.terms.active') }}</Label>
+          </div>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    </FormField>
+
     <FormField v-slot="{ componentField }" name="name">
       <FormItem>
         <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
@@ -71,18 +83,6 @@
           <Input type="password" v-bind="componentField" />
         </FormControl>
         <FormDescription>{{ $t('admin.webhook.secret.description') }}</FormDescription>
-        <FormMessage />
-      </FormItem>
-    </FormField>
-
-    <FormField name="is_active" v-slot="{ value, handleChange }" v-if="!isNewForm">
-      <FormItem>
-        <FormControl>
-          <div class="flex items-center space-x-2">
-            <Checkbox :checked="value" @update:checked="handleChange" />
-            <Label>{{ $t('globals.terms.active') }}</Label>
-          </div>
-        </FormControl>
         <FormMessage />
       </FormItem>
     </FormField>

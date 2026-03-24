@@ -7,7 +7,7 @@
           <PopoverTrigger @click="filtersOpen = !filtersOpen">
             <Button variant="outline" size="sm" class="flex items-center gap-2 h-8">
               <ListFilter size="14" />
-              <span>Filter</span>
+              <span>{{ t('globals.terms.filter', 1) }}</span>
               <span
                 v-if="filters.length > 0"
                 class="flex items-center justify-center bg-primary text-primary-foreground rounded-full size-4 text-xs"
@@ -55,8 +55,8 @@
                 <SelectValue :placeholder="orderByDirection" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem :value="'asc'">Ascending</SelectItem>
-                <SelectItem :value="'desc'">Descending</SelectItem>
+                <SelectItem :value="'asc'">{{ t('globals.terms.ascending') }}</SelectItem>
+                <SelectItem :value="'desc'">{{ t('globals.terms.descending') }}</SelectItem>
               </SelectContent>
             </Select>
           </PopoverContent>

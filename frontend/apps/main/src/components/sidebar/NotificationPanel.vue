@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col max-h-[32rem]">
+  <div class="flex flex-col max-h-[32rem]" role="region" :aria-label="t('globals.terms.notification', 2)">
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b">
       <h3 class="font-semibold text-sm">{{ t('globals.terms.notification', 2) }}</h3>
@@ -71,7 +71,7 @@
 
             <!-- Content -->
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium" :class="{ 'font-semibold': !notification.is_read }">
+              <p class="text-sm" :class="{ 'font-medium': !notification.is_read }">
                 {{ notification.title }}
               </p>
               <p v-if="notification.body" class="text-xs text-muted-foreground mt-0.5">

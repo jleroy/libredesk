@@ -5,12 +5,11 @@
       <FormItem ref="emojiPickerContainer" class="relative">
         <FormLabel>{{ $t('admin.team.emoji') }}</FormLabel>
         <FormControl>
-          <Input type="text" v-bind="componentField" @click="toggleEmojiPicker" />
+          <Input type="text" v-bind="componentField" readonly @click="toggleEmojiPicker" />
           <div v-if="isEmojiPickerVisible" class="absolute z-10 mt-2">
             <EmojiPicker :native="true" @select="onSelectEmoji" class="w-[300px]" />
           </div>
         </FormControl>
-        <FormDescription>{{ $t('admin.team.emoji.description') }}</FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -21,7 +20,6 @@
         <FormControl>
           <Input type="text" :placeholder="$t('globals.terms.name', 1)" v-bind="componentField" />
         </FormControl>
-        <FormDescription>{{ $t('admin.team.name.description') }}</FormDescription>
         <FormMessage />
       </FormItem>
     </FormField>
@@ -183,11 +181,12 @@ const props = defineProps({
   initialValues: { type: Object, required: false },
   submitForm: { type: Function, required: true },
   submitLabel: { type: String, default: '' },
+  isNewForm: { type: Boolean, default: false },
   isLoading: { type: Boolean }
 })
 
 const submitLabel = computed(() => {
-  return props.submitLabel || t('globals.messages.submit')
+  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
 })
 
 const form = useForm({

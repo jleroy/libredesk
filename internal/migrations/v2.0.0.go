@@ -160,5 +160,13 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
+	_, err = db.Exec(`
+		ALTER TABLE teams DROP CONSTRAINT IF EXISTS constraint_teams_on_emoji;
+		ALTER TABLE teams ADD CONSTRAINT constraint_teams_on_emoji CHECK (length(emoji) <= 50);
+	`)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

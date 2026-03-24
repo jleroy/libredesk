@@ -1,6 +1,7 @@
 import { h } from 'vue'
 import { RouterLink } from 'vue-router'
 import dropdown from './dataTableDropdown.vue'
+import { format } from 'date-fns'
 
 export const createColumns = (t) => [
   {
@@ -27,6 +28,15 @@ export const createColumns = (t) => [
     },
     cell: function ({ row }) {
       return h('div', { class: 'text-center' }, row.getValue('description'))
+    }
+  },
+  {
+    accessorKey: 'created_at',
+    header: function () {
+      return h('div', { class: 'text-center' }, t('globals.terms.createdAt'))
+    },
+    cell: function ({ row }) {
+      return h('div', { class: 'text-center text-sm' }, format(row.getValue('created_at'), 'PPpp'))
     }
   },
   {

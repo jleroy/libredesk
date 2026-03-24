@@ -354,7 +354,7 @@ const props = defineProps({
   submitLabel: {
     type: String,
     required: false,
-    default: 'Submit'
+    default: ''
   },
   isNewForm: {
     type: Boolean,
@@ -367,6 +367,9 @@ const props = defineProps({
   }
 })
 const { t } = useI18n()
+const submitLabel = computed(() => {
+  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
+})
 const teams = ref([])
 const roles = ref([])
 const emitter = useEmitter()

@@ -37,12 +37,12 @@ export const createOutgoingEmailTableColumns = (t) => [
     }
   },
   {
-    accessorKey: 'updated_at',
+    accessorKey: 'created_at',
     header: function () {
-      return h('div', { class: 'text-center' }, t('globals.terms.updatedAt'))
+      return h('div', { class: 'text-center' }, t('globals.terms.createdAt'))
     },
     cell: function ({ row }) {
-      return h('div', { class: 'text-center' }, format(row.getValue('updated_at'), 'PPpp'))
+      return h('div', { class: 'text-center' }, format(row.getValue('created_at'), 'PPpp'))
     }
   },
   {
@@ -83,12 +83,12 @@ export const createEmailNotificationTableColumns = (t) => [
   },
 
   {
-    accessorKey: 'updated_at',
+    accessorKey: 'created_at',
     header: function () {
-      return h('div', { class: 'text-center' }, t('globals.terms.updatedAt'))
+      return h('div', { class: 'text-center' }, t('globals.terms.createdAt'))
     },
     cell: function ({ row }) {
-      return h('div', { class: 'text-center' }, format(row.getValue('updated_at'), 'PPpp'))
+      return h('div', { class: 'text-center' }, format(row.getValue('created_at'), 'PPpp'))
     }
   },
   {

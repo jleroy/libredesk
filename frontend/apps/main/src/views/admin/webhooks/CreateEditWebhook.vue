@@ -8,7 +8,7 @@
       <template #footer>
         <div class="flex space-x-3">
           <Button type="submit" :isLoading="formLoading">
-            {{ isNewForm ? t('globals.messages.create') : t('globals.messages.update') }}
+            {{ isNewForm ? t('globals.messages.create') : t('globals.messages.save') }}
           </Button>
           <Button
             v-if="!isNewForm"

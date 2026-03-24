@@ -186,7 +186,7 @@
     <FormField v-slot="{ componentField, handleChange }" name="tls_skip_verify">
       <FormItem class="flex flex-row items-center justify-between box p-4">
         <div class="space-y-0.5">
-          <FormLabel class="text-base">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
+          <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
           <FormDescription>{{ $t('admin.inbox.skipTLSVerification.description') }}</FormDescription>
         </div>
         <FormControl>

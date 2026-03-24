@@ -4,7 +4,7 @@
       <div
         v-for="attachment in allAttachments"
         :key="attachment.uuid || attachment.tempId"
-        class="flex items-center bg-background border border-gray-200 rounded shadow-sm transition-all duration-300 ease-in-out hover:shadow-md group px-2 gap-2"
+        class="flex items-center bg-background border rounded transition-colors duration-150 hover:bg-accent/50 group px-2 gap-2"
       >
         <div class="flex items-center space-x-1 py-1">
           <DotLoader v-if="attachment.loading"/>
@@ -13,10 +13,10 @@
           <Tooltip>
             <TooltipTrigger as-child>
               <div
-                class="max-w-[12rem] overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-primary group-hover:text-gray-900 dark:group-hover:text-foreground"
+                class="max-w-[12rem] overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-foreground"
               >
                 {{ getAttachmentName(attachment.filename) }}
-                <span class="text-xs text-gray-500 ml-1">
+                <span class="text-xs text-muted-foreground ml-1">
                   {{ formatBytes(attachment.size) }}
                 </span>
               </div>
@@ -30,7 +30,7 @@
         <button
           v-if="!attachment.loading"
           @click.prevent="onDelete(attachment.uuid)"
-          class="text-gray-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 rounded transition-colors duration-300 ease-in-out"
+          class="text-muted-foreground hover:text-destructive focus:outline-none rounded transition-colors duration-150"
           title="Remove attachment"
         >
           <X size="14" />

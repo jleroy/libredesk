@@ -51,7 +51,7 @@
           <td
             v-for="key in keys"
             :key="key"
-            class="px-6 py-4 text-sm font-medium text-foreground whitespace-normal break-words"
+            class="p-4 text-sm text-foreground whitespace-normal break-words"
           >
             {{ item[key] }}
           </td>

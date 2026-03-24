@@ -41,6 +41,7 @@ const props = defineProps({
 
 const submitForm = async (values) => {
   try {
+    formLoading.value = true
     let toastDescription = ''
     if (props.id) {
       if (values.client_secret.includes('•')) {

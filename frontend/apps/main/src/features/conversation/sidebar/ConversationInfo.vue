@@ -3,7 +3,7 @@
     <div v-if="conversation.subject">
       <p class="sidebar-label">{{ $t('globals.terms.subject') }}</p>
       <Skeleton v-if="conversationStore.conversation.loading" class="w-32 h-4 mt-0.5" />
-      <p v-else class="sidebar-value">
+      <p v-else class="sidebar-value break-all">
         {{ conversation.subject }}
       </p>
     </div>

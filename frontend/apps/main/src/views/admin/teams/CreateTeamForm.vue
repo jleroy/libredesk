@@ -2,7 +2,7 @@
   <div class="mb-5">
     <CustomBreadcrumb :links="breadcrumbLinks" />
   </div>
-  <TeamForm :initial-values="{}" :submitForm="submitForm" :isLoading="formLoading" />
+  <TeamForm :initial-values="{}" :submitForm="submitForm" :isLoading="formLoading" :isNewForm="true" />
 </template>
 
 <script setup>

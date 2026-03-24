@@ -1,5 +1,17 @@
 <template>
   <form @submit="onSubmit" class="space-y-6">
+    <FormField name="enabled" v-slot="{ value, handleChange }" v-if="!isNewForm">
+      <FormItem>
+        <FormControl>
+          <div class="flex items-center space-x-2">
+            <Checkbox :checked="value" @update:checked="handleChange" />
+            <Label>{{ $t('globals.terms.enabled') }}</Label>
+          </div>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    </FormField>
+
     <div class="grid gap-6 md:grid-cols-2">
       <FormField v-slot="{ componentField }" name="provider">
         <FormItem>
@@ -86,17 +98,6 @@
         </FormItem>
       </FormField>
 
-      <FormField name="enabled" v-slot="{ value, handleChange }" v-if="!isNewForm">
-        <FormItem>
-          <FormControl>
-            <div class="flex items-center space-x-2">
-              <Checkbox :checked="value" @update:checked="handleChange" />
-              <Label>{{ $t('globals.terms.enabled') }}</Label>
-            </div>
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      </FormField>
     </div>
 
     <Button type="submit" :isLoading="isLoading"> {{ submitLabel }} </Button>
@@ -104,7 +105,7 @@
 </template>
 
 <script setup>
-import { watch } from 'vue'
+import { watch, computed } from 'vue'
 import { Button } from '@shared-ui/components/ui/button/index.js'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
@@ -155,7 +156,9 @@ const props = defineProps({
 })
 const { t } = useI18n()
 
-const submitLabel = props.submitLabel || t('globals.messages.save')
+const submitLabel = computed(() => {
+  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
+})
 
 const form = useForm({
   validationSchema: toTypedSchema(createFormSchema(t)),

@@ -90,6 +90,10 @@ const props = defineProps({
     required: false,
     default: () => ''
   },
+  isNewForm: {
+    type: Boolean,
+    default: false
+  },
   isLoading: {
     type: Boolean,
     required: false
@@ -99,7 +103,7 @@ const props = defineProps({
 const { t } = useI18n()
 
 const submitLabel = computed(() => {
-  return props.submitLabel || t('globals.messages.save')
+  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
 })
 
 // TODO: Prepare this by fetching all perms from the file, so we don't have to update this manually.

@@ -196,6 +196,14 @@
   @apply text-muted-foreground text-sm;
 }
 
+.sidebar-label {
+  @apply text-sm text-muted-foreground;
+}
+
+.sidebar-value {
+  @apply text-sm text-foreground;
+}
+
 .box {
   @apply border shadow rounded;
 }
@@ -265,6 +273,31 @@
 
 [data-radix-popper-content-wrapper] {
   z-index: 9999 !important;
+}
+
+// Emoji picker theme
+.v3-emoji-picker {
+  --v3-picker-bg: hsl(var(--popover)) !important;
+  --v3-picker-fg: hsl(var(--popover-foreground)) !important;
+  --v3-picker-border: hsl(var(--border)) !important;
+  --v3-picker-input-bg: hsl(var(--input)) !important;
+  --v3-picker-input-border: hsl(var(--border)) !important;
+  --v3-picker-input-focus-border: hsl(var(--ring)) !important;
+  --v3-picker-emoji-hover: hsl(var(--muted)) !important;
+}
+
+.dark .v3-emoji-picker {
+  --v3-group-image-filter: invert(1) !important;
+}
+
+// Hide number input spinners.
+.hide-number-spinners {
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 // Components

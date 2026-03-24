@@ -105,7 +105,7 @@ CREATE TABLE teams (
 	sla_policy_id INT REFERENCES sla_policies(id) ON DELETE SET NULL ON UPDATE CASCADE NULL,
 
 	timezone TEXT NULL,
-	CONSTRAINT constraint_teams_on_emoji CHECK (length(emoji) <= 10),
+	CONSTRAINT constraint_teams_on_emoji CHECK (length(emoji) <= 50),
 	CONSTRAINT constraint_teams_on_name CHECK (length("name") <= 140),
 	CONSTRAINT constraint_teams_on_timezone CHECK (length(timezone) <= 140),
 	CONSTRAINT constraint_teams_on_name_unique UNIQUE ("name")

@@ -127,7 +127,7 @@ const props = defineProps({
 const submitLabel = computed(() => {
   return (
     props.submitLabel ||
-    (props.initialValues.id ? t('globals.messages.update') : t('globals.messages.create'))
+    (props.initialValues.id ? t('globals.messages.save') : t('globals.messages.create'))
   )
 })
 

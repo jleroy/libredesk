@@ -32,7 +32,7 @@
     <FormField v-if="showFormFields" v-slot="{ componentField, handleChange }" name="enabled">
       <FormItem class="flex flex-row items-center justify-between box p-4">
         <div class="space-y-0.5">
-          <FormLabel class="text-base">{{ $t('globals.terms.enabled') }}</FormLabel>
+          <FormLabel class="text-base text-foreground">{{ $t('globals.terms.enabled') }}</FormLabel>
           <FormDescription>{{ $t('admin.inbox.enabled.description') }}</FormDescription>
         </div>
         <FormControl>
@@ -44,7 +44,7 @@
     <FormField v-if="showFormFields" v-slot="{ componentField, handleChange }" name="csat_enabled">
       <FormItem class="flex flex-row items-center justify-between box p-4">
         <div class="space-y-0.5">
-          <FormLabel class="text-base">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
+          <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
           <FormDescription>
             {{ $t('admin.inbox.csatSurveys.description_1') }}
           </FormDescription>
@@ -61,7 +61,7 @@
     <FormField v-if="showFormFields" v-slot="{ componentField, handleChange }" name="enable_plus_addressing">
       <FormItem class="flex flex-row items-center justify-between box p-4">
         <div class="space-y-0.5">
-          <FormLabel class="text-base">{{ $t('admin.inbox.enablePlusAddressing') }}</FormLabel>
+          <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.enablePlusAddressing') }}</FormLabel>
           <FormDescription>
             {{ $t('admin.inbox.enablePlusAddressing.description') }}
           </FormDescription>
@@ -359,7 +359,7 @@
       <FormField v-slot="{ componentField, handleChange }" name="imap.tls_skip_verify">
         <FormItem class="flex flex-row items-center justify-between box p-4">
           <div class="space-y-0.5">
-            <FormLabel class="text-base">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
+            <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
             <FormDescription>
               {{ $t('admin.inbox.skipTLSVerification.description') }}
             </FormDescription>
@@ -522,7 +522,7 @@
       <FormField v-slot="{ componentField, handleChange }" name="smtp.tls_skip_verify">
         <FormItem class="flex flex-row items-center justify-between box p-4">
           <div class="space-y-0.5">
-            <FormLabel class="text-base">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
+            <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
             <FormDescription>
               {{ $t('admin.inbox.skipTLSVerification.description') }}
             </FormDescription>
@@ -694,6 +694,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  isNewForm: {
+    type: Boolean,
+    default: false
+  },
   isLoading: {
     type: Boolean,
     default: false
@@ -787,7 +791,7 @@ const oauthClientId = computed(() => {
 })
 
 const submitLabel = computed(() => {
-  return props.submitLabel || t('globals.messages.save')
+  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
 })
 
 const onSubmit = form.handleSubmit(async (values) => {
