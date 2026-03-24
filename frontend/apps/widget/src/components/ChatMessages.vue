@@ -4,6 +4,7 @@
     <div
       v-if="isLoadingConversation"
       class="absolute inset-0 bg-background/80 backdrop-blur-sm z-10"
+      role="status"
     >
       <Spinner size="md" :text="$t('globals.terms.loading')" absolute />
     </div>
@@ -69,6 +70,8 @@
           <div
             v-if="hasQuotedContent(message.content)"
             @click="toggleQuote(message.uuid)"
+            role="button"
+            :aria-expanded="isQuotedTextVisible(message.uuid)"
             :class="[
               'text-xs cursor-pointer px-2 py-1 w-max rounded transition-all',
               message.author.type === 'contact' || message.author.type === 'visitor'

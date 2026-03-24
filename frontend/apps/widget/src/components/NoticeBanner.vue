@@ -1,5 +1,5 @@
 <template>
-  <div class="border rounded-lg p-4" v-if="noticeText">
+  <div class="border rounded-lg p-4" v-if="noticeText" role="status">
     <div class="flex items-start gap-3">
       <AlertTriangle class="flex-shrink-0 mt-1" size="16" />
       <p class="text-sm">{{ noticeText }}</p>

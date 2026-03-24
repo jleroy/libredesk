@@ -16,25 +16,24 @@
         class="p-4 hover:bg-accent/50 cursor-pointer transition-colors"
         @click="openConversation(conversation.uuid)"
       >
-        <div class="flex items-center justify-between gap-3">
-          <Avatar class="size-8 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <Avatar class="size-10 flex-shrink-0">
             <AvatarImage :src="getAvatarUrl(conversation)" />
             <AvatarFallback>{{ getAvatarFallback(conversation) }}</AvatarFallback>
           </Avatar>
           <div class="flex-1 min-w-0">
-            <h4 class="font-medium text-foreground text-sm truncate mb-1">
-              <span class="text-muted-foreground">{{ getSenderLabel(conversation.last_message.author) }}:</span>
-              {{ conversation.last_message.content }}
-            </h4>
-            <div v-if="conversation.last_message" class="text-xs text-muted-foreground">
-              {{ getRelativeTime(new Date(conversation.last_message.created_at)) }}
+            <div class="flex items-center justify-between mb-0.5">
+              <span class="text-sm font-medium text-foreground">{{ getSenderLabel(conversation.last_message.author) }}</span>
+              <span class="text-xs text-muted-foreground flex-shrink-0 ml-2">{{ getRelativeTime(new Date(conversation.last_message.created_at)) }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <p class="text-sm text-muted-foreground truncate flex-1 min-w-0">
+                {{ conversation.last_message.content }}
+              </p>
+              <UnreadCountBadge :count="conversation.unread_message_count" class="flex-shrink-0" />
             </div>
           </div>
-
-          <div class="flex items-center justify-center flex-shrink-0 gap-2">
-            <UnreadCountBadge :count="conversation.unread_message_count" />
-            <ArrowRight class="w-4 h-4" />
-          </div>
+          <ChevronRight class="w-4 h-4 text-muted-foreground flex-shrink-0" />
         </div>
       </div>
     </div>
@@ -43,7 +42,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { MessageCircleDashed, ArrowRight } from 'lucide-vue-next'
+import { MessageCircleDashed, ChevronRight } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useChatStore } from '@widget/store/chat.js'
 import { useWidgetStore } from '@widget/store/widget.js'

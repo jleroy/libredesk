@@ -52,24 +52,26 @@ export const useWidgetStore = defineStore('widget', () => {
     }
 
     const navigateToMessages = () => {
-        // Remember expanded state before leaving chat view
-        wasExpandedBeforeLeaving.value = isExpanded.value
-        
+        // Only remember expanded state when leaving from chat view
+        if (isInChatView.value) {
+            wasExpandedBeforeLeaving.value = isExpanded.value
+        }
+
         currentView.value = 'messages'
         isInChatView.value = false
-        // Auto-collapse when leaving chat view
         if (isExpanded.value) {
             collapseWidget()
         }
     }
 
     const navigateToHome = () => {
-        // Remember expanded state before leaving chat view
-        wasExpandedBeforeLeaving.value = isExpanded.value
-        
+        // Only remember expanded state when leaving from chat view
+        if (isInChatView.value) {
+            wasExpandedBeforeLeaving.value = isExpanded.value
+        }
+
         currentView.value = 'home'
         isInChatView.value = false
-        // Auto-collapse when leaving chat view
         if (isExpanded.value) {
             collapseWidget()
         }

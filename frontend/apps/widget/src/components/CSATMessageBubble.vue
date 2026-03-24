@@ -8,8 +8,9 @@
           v-for="rating in ratings"
           :key="rating.value"
           @click="selectedRating = rating.value"
-          class="flex flex-col items-center p-2 rounded-lg"
-          :class="{ 'scale-150': selectedRating === rating.value }"
+          :aria-label="rating.text"
+          class="flex flex-col items-center p-2 rounded-lg cursor-pointer hover:bg-muted transition-all"
+          :class="{ 'scale-125 bg-muted': selectedRating === rating.value }"
         >
           <span class="text-xl mb-1">{{ rating.emoji }}</span>
           <span class="text-xs text-muted-foreground">{{ rating.text }}</span>
@@ -33,7 +34,7 @@
       <button
         @click="submitRating"
         :disabled="(!selectedRating && !feedback.trim()) || isSubmitting"
-        class="w-full py-2 bg-primary text-primary-foreground rounded-md text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+        class="w-full py-2 bg-primary text-primary-foreground rounded-md text-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
       >
         <div v-if="isSubmitting" class="w-4 h-4 border border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
         <span v-if="isSubmitting">{{ t('globals.messages.submitting') }}</span>

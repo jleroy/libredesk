@@ -44,9 +44,7 @@
                 // Hide widget initially until Vue app is ready
                 this.widgetButtonWrapper.style.display = 'none';
                 this.iframe.addEventListener('load', () => {
-                    setTimeout(() => {
-                        this.sendMobileState();
-                    }, 2000);
+                    this.sendMobileState();
                 });
                 this.setupMobileDetection();
                 this.setupEventListeners();
@@ -263,6 +261,7 @@
 
         handleVueAppReady () {
             this.isVueAppReady = true;
+            this.sendMobileState();
             if (!this.hideDefaultLauncher) {
                 this.widgetButtonWrapper.style.display = '';
             }
@@ -300,14 +299,12 @@
                     this.iframe.style.position = 'fixed';
                     this.iframe.style.top = '0';
                     this.iframe.style.left = '0';
+                    this.iframe.style.right = '0';
+                    this.iframe.style.bottom = '0';
                     this.iframe.style.width = '100vw';
                     this.iframe.style.height = '100vh';
                     this.iframe.style.borderRadius = '0';
                     this.iframe.style.boxShadow = 'none';
-                    this.iframe.style.bottom = '';
-                    this.iframe.style.right = '';
-                    this.iframe.style.left = '';
-                    this.iframe.style.top = '0';
                     this.widgetButtonWrapper.style.display = 'none';
                 } else {
                     this.iframe.style.display = 'block';
@@ -321,9 +318,9 @@
 
                     // Apply expanded or normal height based on current state
                     if (this.isExpanded) {
-                        this.iframe.style.width = '650px';
-                        this.iframe.style.height = 'calc(100vh - 110px)';
-                        this.iframe.style.bottom = '90px';
+                        this.iframe.style.width = '750px';
+                        this.iframe.style.height = 'calc(100vh - 40px)';
+                        this.iframe.style.bottom = '20px';
                     } else {
                         this.iframe.style.height = '700px';
                         this.setLauncherPosition();
@@ -373,10 +370,10 @@
             if (this.iframe && this.isChatVisible && !this.isMobile) {
                 this.isExpanded = true;
 
-                // Expand to nearly full viewport height with gaps and wider
-                this.iframe.style.width = '650px';
-                this.iframe.style.height = 'calc(100vh - 110px)';
-                this.iframe.style.bottom = '90px';
+                // Expand to nearly full viewport height with small gap
+                this.iframe.style.width = '750px';
+                this.iframe.style.height = 'calc(100vh - 40px)';
+                this.iframe.style.bottom = '20px';
                 this.iframe.style.maxHeight = '';
 
                 // Send expanded state to iframe

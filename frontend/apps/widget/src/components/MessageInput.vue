@@ -11,6 +11,7 @@
             @keydown="handleKeydown"
             @input="handleTyping"
             :placeholder="$t('globals.terms.typeMessage')"
+            :disabled="isSending"
             class="w-full min-h-6 max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none focus-visible:ring-0 p-0 shadow-none"
             ref="messageInput"
           ></Textarea>
@@ -31,8 +32,9 @@
           <!-- Send Button -->
           <Button
             @click="sendMessage"
+            :aria-label="$t('globals.messages.send')"
             size="sm"
-            class="h-8 px-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed border-0"
+            class="h-9 w-9 p-0 rounded-full disabled:opacity-50 disabled:cursor-not-allowed border-0"
             :disabled="!newMessage.trim() || isUploading || isSending"
           >
             <div

@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center p-2 border-b border-border bg-background gap-3 relative">
     <div class="flex items-center gap-2 justify-start">
-      <Button @click="$emit('goBack')" variant="ghost" size="sm">
+      <Button @click="$emit('goBack')" variant="ghost" size="sm" :aria-label="$t('globals.messages.goBack')">
         <ArrowLeft />
       </Button>
       <ChatTitle />
@@ -14,6 +14,7 @@
         variant="ghost" 
         size="sm"
         :title="widgetStore.isExpanded ? $t('globals.terms.collapse') : $t('globals.terms.expand')"
+        :aria-label="widgetStore.isExpanded ? $t('globals.terms.collapse') : $t('globals.terms.expand')"
       >
         <Maximize2 v-if="!widgetStore.isExpanded" class="w-4 h-4" />
         <Minimize2 v-else class="w-4 h-4" />
