@@ -132,7 +132,6 @@
       </FormItem>
     </FormField>
 
-    <div class="md:col-span-2">
     <FormField name="allowed_file_upload_extensions" v-slot="{ componentField, handleChange }">
       <FormItem>
         <FormLabel>
@@ -153,7 +152,6 @@
         <FormMessage />
       </FormItem>
     </FormField>
-    </div>
     </div>
 
     <Button type="submit" :isLoading="formLoading"> {{ submitLabel }} </Button>

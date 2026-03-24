@@ -3,7 +3,8 @@
     variant="ghost"
     @click.stop="onClose"
     size="xs"
-    class="text-gray-400 dark:text-gray-500 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 w-6 h-6 p-0"
+    class="text-muted-foreground hover:text-foreground hover:bg-accent w-6 h-6 p-0"
+    :aria-label="ariaLabel"
   >
     <slot>
       <X size="16" />
@@ -19,6 +20,10 @@ defineProps({
   onClose: {
     type: Function,
     required: true
+  },
+  ariaLabel: {
+    type: String,
+    default: 'Close'
   }
 })
 </script>

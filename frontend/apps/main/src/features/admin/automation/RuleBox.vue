@@ -27,7 +27,7 @@
       <div class="space-y-5">
         <div v-for="(rule, index) in ruleGroup.rules" :key="rule" class="space-y-5">
           <div v-if="index > 0">
-            <hr class="border-t-2 border-dotted border-gray-200" />
+            <hr class="border-t-2 border-dotted border-border" />
           </div>
 
           <!-- Field -->
@@ -129,7 +129,7 @@
                   </TagsInputItem>
                   <TagsInputInput :placeholder="t('placeholders.selectValue')" />
                 </TagsInput>
-                <p class="text-xs text-gray-500 mt-1">
+                <p class="text-xs text-muted-foreground mt-1">
                   {{ $t('globals.messages.pressEnterToSelectAValue') }}
                 </p>
               </div>
@@ -174,7 +174,7 @@
               :defaultChecked="rule.case_sensitive_match"
               @update:checked="(value) => handleCaseSensitiveCheck(value, index)"
             />
-            <label> {{ $t('globals.messages.caseSensitiveMatch') }} </label>
+            <label for="terms"> {{ $t('globals.messages.caseSensitiveMatch') }} </label>
           </div>
         </div>
       </div>

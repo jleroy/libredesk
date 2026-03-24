@@ -31,7 +31,7 @@
           size="sm"
           variant="ghost"
           @click.prevent="editor?.chain().focus().toggleBold().run()"
-          :class="{ 'bg-gray-200 dark:bg-secondary': editor?.isActive('bold') }"
+          :class="{ 'bg-secondary': editor?.isActive('bold') }"
         >
           <Bold size="14" />
         </Button>
@@ -39,7 +39,7 @@
           size="sm"
           variant="ghost"
           @click.prevent="editor?.chain().focus().toggleItalic().run()"
-          :class="{ 'bg-gray-200 dark:bg-secondary': editor?.isActive('italic') }"
+          :class="{ 'bg-secondary': editor?.isActive('italic') }"
         >
           <Italic size="14" />
         </Button>
@@ -47,7 +47,7 @@
           size="sm"
           variant="ghost"
           @click.prevent="editor?.chain().focus().toggleBulletList().run()"
-          :class="{ 'bg-gray-200 dark:bg-secondary': editor?.isActive('bulletList') }"
+          :class="{ 'bg-secondary': editor?.isActive('bulletList') }"
         >
           <List size="14" />
         </Button>
@@ -56,7 +56,7 @@
           size="sm"
           variant="ghost"
           @click.prevent="editor?.chain().focus().toggleOrderedList().run()"
-          :class="{ 'bg-gray-200 dark:bg-secondary': editor?.isActive('orderedList') }"
+          :class="{ 'bg-secondary': editor?.isActive('orderedList') }"
         >
           <ListOrdered size="14" />
         </Button>
@@ -64,7 +64,7 @@
           size="sm"
           variant="ghost"
           @click.prevent="openLinkModal"
-          :class="{ 'bg-gray-200 dark:bg-secondary': editor?.isActive('link') }"
+          :class="{ 'bg-secondary': editor?.isActive('link') }"
         >
           <LinkIcon size="14" />
         </Button>

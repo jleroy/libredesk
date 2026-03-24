@@ -4,7 +4,6 @@
   </div>
   <Spinner v-if="isLoading"></Spinner>
   <div class="space-y-4">
-    <p>{{ formTitle }}</p>
     <div :class="{ 'opacity-50 transition-opacity duration-300': isLoading }">
       <form @submit="onSubmit">
         <div class="space-y-5">
@@ -20,7 +19,7 @@
                   <Checkbox :checked="value" @update:checked="handleChange" />
                 </FormControl>
                 <div class="space-y-1 leading-none">
-                  <FormLabel> {{ $t('globals.terms.enabled') }} </FormLabel>
+                  <FormLabel class="text-foreground"> {{ $t('globals.terms.enabled') }} </FormLabel>
                   <FormMessage />
                 </div>
               </FormItem>
@@ -32,7 +31,6 @@
                 <FormControl>
                   <Input type="text" placeholder="" v-bind="field" />
                 </FormControl>
-                <FormDescription>{{ $t('admin.automation.name.description') }}</FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
@@ -43,16 +41,13 @@
                 <FormControl>
                   <Input type="text" placeholder="" v-bind="field" />
                 </FormControl>
-                <FormDescription>{{
-                  $t('admin.automation.description.description')
-                }}</FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
 
             <FormField v-slot="{ componentField, handleInput }" name="type">
               <FormItem>
-                <FormLabel>Type</FormLabel>
+                <FormLabel>{{ $t('globals.terms.type') }}</FormLabel>
                 <FormControl>
                   <Select v-bind="componentField" @update:modelValue="handleInput">
                     <SelectTrigger>
@@ -75,7 +70,6 @@
                     </SelectContent>
                   </Select>
                 </FormControl>
-                <FormDescription>{{ $t('automation.typeOfRule') }}</FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
@@ -117,21 +111,13 @@
           <div class="flex justify-center">
             <div class="flex items-center space-x-2">
               <Button
-                :class="[
-                  groupOperator === 'AND'
-                    ? 'bg-black text-white dark:bg-white dark:text-black'
-                    : 'bg-gray-100 text-black dark:bg-secondary dark:text-white'
-                ]"
+                :variant="groupOperator === 'AND' ? 'default' : 'outline'"
                 @click.prevent="toggleGroupOperator('AND')"
               >
                 {{ $t('admin.automation.and') }}
               </Button>
               <Button
-                :class="[
-                  groupOperator === 'OR'
-                    ? 'bg-black text-white dark:bg-white dark:text-black'
-                    : 'bg-gray-100 text-black dark:bg-secondary dark:text-white'
-                ]"
+                :variant="groupOperator === 'OR' ? 'default' : 'outline'"
                 @click.prevent="toggleGroupOperator('OR')"
               >
                 {{ $t('admin.automation.or') }}
@@ -148,7 +134,7 @@
             :type="form.values.type"
             :groupIndex="1"
           />
-          <p class="font-semibold">{{ $t('admin.automation.performTheseActions') }}</p>
+          <p class="font-semibold mt-2">{{ $t('admin.automation.performTheseActions') }}</p>
 
           <ActionBox
             :actions="getActions()"
@@ -156,7 +142,7 @@
             @add-action="handleAddAction"
             @remove-action="handleRemoveAction"
           />
-          <Button type="submit" :isLoading="isLoading">{{ $t('globals.messages.save') }}</Button>
+          <Button type="submit" :isLoading="isLoading">{{ isNewForm ? $t('globals.messages.create') : $t('globals.messages.save') }}</Button>
         </div>
       </form>
     </div>
@@ -255,12 +241,6 @@ const breadcrumbPageLabel = () => {
   if (props.id > 0) return t('automation.editRule')
   return t('automation.newRule')
 }
-
-const formTitle = computed(() => {
-  return ''
-  // if (props.id > 0) return 'Edit existing rule'
-  // return 'Create new rule'
-})
 
 const isNewForm = computed(() => {
   return props.id ? false : true

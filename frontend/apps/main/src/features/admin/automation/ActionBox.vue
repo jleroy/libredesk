@@ -3,7 +3,7 @@
     <div class="space-y-5">
       <div v-for="(action, index) in actions" :key="index" class="space-y-5">
         <div v-if="index > 0">
-          <hr class="border-t-2 border-dotted border-gray-300" />
+          <hr class="border-t-2 border-dotted border-border" />
         </div>
 
         <div class="space-y-3">
