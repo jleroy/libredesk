@@ -24,6 +24,11 @@ export default defineConfig(({ mode }) => {
   return {
     base: isWidget ? '/widget/' : '/',
     css: {
+      preprocessorOptions: {
+        scss: {
+          api: 'modern',
+        },
+      },
       postcss: {
         plugins: [tailwind({ ...tailwindConfig, content: scopedContent }), autoprefixer()],
       },
@@ -72,6 +77,7 @@ export default defineConfig(({ mode }) => {
         ? path.resolve(__dirname, 'dist/widget')
         : path.resolve(__dirname, 'dist/main'),
       emptyOutDir: true,
+      chunkSizeWarningLimit: 600,
       rollupOptions: {
         output: {
           manualChunks: {
@@ -92,6 +98,7 @@ export default defineConfig(({ mode }) => {
               '@tiptap/extension-table-row',
             ],
             'forms': ['vee-validate', '@vee-validate/zod', 'zod'],
+            'codemirror': ['codemirror', '@codemirror/lang-html', '@codemirror/lang-javascript', '@codemirror/theme-one-dark'],
             'table': ['@tanstack/vue-table'],
             'misc': ['axios', 'date-fns', 'mitt', 'qs', 'vue-i18n'],
           },
