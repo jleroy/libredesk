@@ -245,24 +245,26 @@ const fetchCustomAttributes = async () => {
       ...(conversationAttrs.data?.data || [])
     ]
 
-    // Clean up orphaned custom attribute fields
-    const availableCustomAttrIds = customAttributes.value.map((attr) => attr.id)
+    // Build lookup map for custom attributes
+    const customAttrMap = new Map(customAttributes.value.map((attr) => [attr.id, attr]))
+
+    // Clean up orphaned fields and sync labels/types from current custom attribute definitions
     const cleanedFields = (prechatConfig.value.fields || []).filter((field) => {
-      // Keep default fields
       if (field.is_default) return true
-
-      // Keep custom fields that still exist
-      if (field.custom_attribute_id && availableCustomAttrIds.includes(field.custom_attribute_id))
-        return true
-
-      // Remove orphaned custom fields
+      if (field.custom_attribute_id && customAttrMap.has(field.custom_attribute_id)) return true
       return false
+    }).map((field) => {
+      if (!field.is_default && field.custom_attribute_id) {
+        const attr = customAttrMap.get(field.custom_attribute_id)
+        if (attr) {
+          field.label = attr.name
+          field.type = attr.data_type
+        }
+      }
+      return field
     })
 
-    // Update fields if any were removed
-    if (cleanedFields.length !== (prechatConfig.value.fields || []).length) {
-      prechatConfig.value.fields = cleanedFields
-    }
+    prechatConfig.value.fields = cleanedFields
   } catch (error) {
     console.error('Error fetching custom attributes:', error)
     customAttributes.value = []

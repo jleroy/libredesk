@@ -3,7 +3,7 @@
     <!-- Loading conversation overlay -->
     <div
       v-if="isLoadingConversation"
-      class="absolute inset-0 bg-background/80 backdrop-blur-sm z-10"
+      class="absolute inset-0 bg-background z-10"
       role="status"
     >
       <Spinner size="md" :text="$t('globals.terms.loading')" absolute />

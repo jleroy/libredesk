@@ -52,8 +52,10 @@ type conversationResp struct {
 }
 
 type customAttributeWidget struct {
-	ID     int      `json:"id"`
-	Values []string `json:"values"`
+	ID       int      `json:"id"`
+	Values   []string `json:"values"`
+	Name     string   `json:"-"`
+	DataType string   `json:"-"`
 }
 
 type chatInitReq struct {
@@ -1157,8 +1159,10 @@ func filterPreChatFormFields(fields []livechat.PreChatFormField, app *App) ([]li
 			continue
 		}
 		existingCustomAttrs[id] = customAttributeWidget{
-			ID:     attr.ID,
-			Values: attr.Values,
+			ID:       attr.ID,
+			Values:   attr.Values,
+			Name:     attr.Name,
+			DataType: attr.DataType,
 		}
 	}
 
@@ -1172,7 +1176,10 @@ func filterPreChatFormFields(fields []livechat.PreChatFormField, app *App) ([]li
 		}
 
 		// Only keep custom fields if their custom attribute exists
-		if _, exists := existingCustomAttrs[field.CustomAttributeID]; exists {
+		if attr, exists := existingCustomAttrs[field.CustomAttributeID]; exists {
+			// Sync label and type from the current custom attribute definition.
+			field.Label = attr.Name
+			field.Type = attr.DataType
 			filteredFields = append(filteredFields, field)
 		}
 	}
