@@ -93,7 +93,7 @@
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+                box-shadow: 0 2px 12px rgba(0,0,0,0.15);
                 transition: transform 0.3s ease;
             `;
 
@@ -178,7 +178,7 @@
                 position: fixed;
                 border: none;
                 border-radius: 12px;
-                box-shadow: 0 5px 80px rgba(0,0,0,0.3);
+                box-shadow: 0 4px 24px rgba(0,0,0,0.12);
                 z-index: 9999;
                 width: 400px;
                 height: 700px;
@@ -311,7 +311,7 @@
                     this.iframe.style.position = 'fixed';
                     this.iframe.style.width = '400px';
                     this.iframe.style.borderRadius = '12px';
-                    this.iframe.style.boxShadow = '0 5px 40px rgba(0,0,0,0.2)';
+                    this.iframe.style.boxShadow = '0 4px 24px rgba(0,0,0,0.12)';
                     this.iframe.style.top = '';
                     this.iframe.style.left = '';
                     this.widgetButtonWrapper.style.display = '';
