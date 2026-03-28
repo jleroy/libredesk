@@ -1017,5 +1017,6 @@
   "webhook.sentSuccessfully": "वेबहुक यशस्वीरित्या पाठवले",
   "widget.conversationClosed": "हे संभाषण बंद करण्यात आले आहे",
   "widget.ipBlocked": "प्रवेश नाकारला",
-  "widget.prechatForm.startChat": "चॅट सुरू करा"
+  "widget.prechatForm.startChat": "चॅट सुरू करा",
+  "globals.terms.participant": "Participant | Participants"
 }

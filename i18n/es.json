@@ -1017,5 +1017,6 @@
   "webhook.sentSuccessfully": "Webhook enviado correctamente",
   "widget.conversationClosed": "Esta conversación ha sido cerrada",
   "widget.ipBlocked": "Acceso denegado",
-  "widget.prechatForm.startChat": "Iniciar chat"
+  "widget.prechatForm.startChat": "Iniciar chat",
+  "globals.terms.participant": "Participant | Participants"
 }

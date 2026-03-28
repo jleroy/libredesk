@@ -1017,5 +1017,6 @@
   "webhook.sentSuccessfully": "Webhookが正常に送信されました",
   "widget.conversationClosed": "この会話はクローズされました",
   "widget.ipBlocked": "アクセスが拒否されました",
-  "widget.prechatForm.startChat": "チャットを開始"
+  "widget.prechatForm.startChat": "チャットを開始",
+  "globals.terms.participant": "Participant | Participants"
 }

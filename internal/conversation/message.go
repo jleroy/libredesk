@@ -676,6 +676,8 @@ func (m *Manager) getMessageActivityContent(activityType, newValue, actorName st
 		content = fmt.Sprintf("%s removed tag %s", actorName, newValue)
 	case models.ActivitySLASet:
 		content = fmt.Sprintf("%s set %s SLA policy", actorName, newValue)
+	case models.ActivityParticipantAdded:
+		content = fmt.Sprintf("%s joined the conversation", newValue)
 	default:
 		return "", fmt.Errorf("invalid activity type %s", activityType)
 	}
@@ -794,8 +796,11 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 	conversationUUID = conversation.UUID
 	senderID = conversation.Contact.ID
 
-	// Already a contact - return matched conversation.
+	// Already a contact - if same email, return as sender. If different email, let CreateContact resolve actual sender.
 	if conversation.Contact.Type == umodels.UserTypeContact {
+		if !strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+			return 0, conversationID, conversationUUID, nil
+		}
 		return senderID, conversationID, conversationUUID, nil
 	}
 

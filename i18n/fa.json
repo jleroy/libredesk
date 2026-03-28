@@ -1017,5 +1017,6 @@
   "webhook.sentSuccessfully": "Webhook با موفقیت ارسال شد",
   "widget.conversationClosed": "این مکالمه بسته شده است",
   "widget.ipBlocked": "دسترسی رد شد",
-  "widget.prechatForm.startChat": "شروع چت"
+  "widget.prechatForm.startChat": "شروع چت",
+  "globals.terms.participant": "Participant | Participants"
 }

@@ -1401,10 +1401,35 @@ func (c *Manager) UpdateConversationCustomAttributes(uuid string, customAttribut
 
 // addConversationParticipant adds a user as participant to a conversation.
 func (c *Manager) addConversationParticipant(userID int, conversationUUID string) error {
-	if _, err := c.q.InsertConversationParticipant.Exec(userID, conversationUUID); err != nil && !dbutil.IsUniqueViolationError(err) {
+	_, err := c.q.InsertConversationParticipant.Exec(userID, conversationUUID)
+	if err != nil {
+		if dbutil.IsUniqueViolationError(err) {
+			return nil // Already a participant.
+		}
 		c.lo.Error("error adding conversation participant", "user_id", userID, "conversation_uuid", conversationUUID, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+
+	// New participant added - log activity only for contacts (not agents) who differ from conversation contact.
+	conversation, convErr := c.GetConversation(0, conversationUUID, "")
+	if convErr == nil && conversation.ContactID != userID {
+		user, userErr := c.userStore.Get(userID, "", []string{})
+		if userErr == nil && user.Type == umodels.UserTypeContact {
+			participantName := user.Email.String
+			if user.FirstName != "" {
+				participantName = user.FirstName
+				if user.LastName != "" {
+					participantName += " " + user.LastName
+				}
+				participantName += " (" + user.Email.String + ")"
+			}
+			systemUser, sysErr := c.userStore.GetSystemUser()
+			if sysErr == nil {
+				c.InsertConversationActivity(models.ActivityParticipantAdded, conversationUUID, participantName, systemUser)
+			}
+		}
+	}
+
 	return nil
 }
 

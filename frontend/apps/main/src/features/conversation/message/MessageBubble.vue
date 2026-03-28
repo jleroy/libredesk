@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col text-left" :class="isOutgoing ? 'items-end' : 'items-start'">
     <!-- Sender Name -->
-    <div class="mb-1" :class="isOutgoing ? 'pr-[47px]' : 'pl-[47px]'">
+    <div class="mb-1 flex items-center gap-1" :class="isOutgoing ? 'pr-[47px]' : 'pl-[47px]'">
       <router-link
         v-if="!isOutgoing"
         :to="{ name: 'contact-detail', params: { id: message.author?.id } }"
@@ -19,6 +19,12 @@
       <p v-else class="text-muted-foreground text-sm font-medium">
         {{ getFullName }}
       </p>
+      <Tooltip v-if="isParticipant">
+        <TooltipTrigger>
+          <Info :size="14" class="text-muted-foreground" />
+        </TooltipTrigger>
+        <TooltipContent>{{ t('globals.terms.participant', 1) }}</TooltipContent>
+      </Tooltip>
     </div>
 
     <!-- Message Bubble -->
@@ -151,7 +157,7 @@ import { useConversationStore } from '@main/stores/conversation'
 import { useAppSettingsStore } from '@main/stores/appSettings'
 import { useUserStore } from '@main/stores/user'
 import { useI18n } from 'vue-i18n'
-import { Lock, Mail, RotateCcw, Check } from 'lucide-vue-next'
+import { Lock, Mail, RotateCcw, Check, Info } from 'lucide-vue-next'
 import { revertCIDToImageSrc } from '@shared-ui/utils/string.js'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import { Spinner } from '@shared-ui/components/ui/spinner'
@@ -174,10 +180,17 @@ const props = defineProps({
 
 const convStore = useConversationStore()
 const settingsStore = useAppSettingsStore()
+const { t } = useI18n()
 const userStore = useUserStore()
 const { t } = useI18n()
 
 const isSystemUser = computed(() => props.message.author?.email === 'System')
+const isParticipant = computed(() =>
+  !isOutgoing.value &&
+  props.message.sender_type === 'contact' &&
+  convStore.current?.contact?.id &&
+  props.message.author?.id !== convStore.current.contact.id
+)
 const canManageUsers = computed(() => !isSystemUser.value && userStore.can('users:manage'))
 
 // Direction helpers
