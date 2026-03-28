@@ -96,7 +96,6 @@ async function handleDelete() {
       model: 'webhook'
     })
     emit.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      title: 'Success',
       description: t('globals.messages.deletedSuccessfully')
     })
   } catch (error) {

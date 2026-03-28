@@ -15,6 +15,9 @@ import { EMITTER_EVENTS } from '../../../constants/emitterEvents.js'
 import { useEmitter } from '../../../composables/useEmitter'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { Spinner } from '@shared-ui/components/ui/spinner'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const team = ref({})
 const emitter = useEmitter()
@@ -23,8 +26,8 @@ const isLoading = ref(false)
 
 const breadcrumbLinks = [
 
-  { path: 'team-list', label: 'Teams' },
-  { path: '', label: 'Edit team' }
+  { path: 'team-list', label: t('globals.terms.team', 2) },
+  { path: '', label: t('globals.messages.edit') }
 ]
 
 const props = defineProps({
@@ -43,8 +46,7 @@ const updateTeam = async (payload) => {
     formLoading.value = true
     await api.updateTeam(team.value.id, payload)
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      title: 'Success',
-      description: "Updated successfully"
+      description: t('globals.messages.savedSuccessfully')
     })
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {

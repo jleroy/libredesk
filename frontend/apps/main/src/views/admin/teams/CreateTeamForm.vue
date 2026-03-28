@@ -14,13 +14,15 @@ import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { CustomBreadcrumb } from '@shared-ui/components/ui/breadcrumb'
 import { useRouter } from 'vue-router'
 import api from '../../../api'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const formLoading = ref(false)
 const router = useRouter()
 const emitter = useEmitter()
 const breadcrumbLinks = [
-  { path: 'team-list', label: 'Teams' },
-  { path: '', label: 'New team' }
+  { path: 'team-list', label: t('globals.terms.team', 2) },
+  { path: '', label: t('globals.messages.new') }
 ]
 
 const submitForm = (values) => {
@@ -32,8 +34,7 @@ const createTeam = async (values) => {
     formLoading.value = true
     await api.createTeam(values)
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      title: 'Success',
-      description: "Team created successfully"
+      description: t('globals.messages.savedSuccessfully')
     })
     router.push({ name: 'team-list' })
   } catch (error) {

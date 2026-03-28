@@ -2,12 +2,15 @@ import { h } from 'vue'
 import { RouterLink } from 'vue-router'
 import TeamDataTableDropdown from '@/features/admin/teams/TeamDataTableDropdown.vue'
 import { format } from 'date-fns'
+import { getI18n } from '@/i18n'
+
+const t = () => getI18n().global.t
 
 export const columns = [
   {
     accessorKey: 'name',
     header: function () {
-      return h('div', { class: 'text-center' }, 'Name')
+      return h('div', { class: 'text-center' }, t()('globals.terms.name', 1))
     },
     cell: function ({ row }) {
       const emoji = row.original.emoji
@@ -25,7 +28,7 @@ export const columns = [
   {
     accessorKey: 'created_at',
     header: function () {
-      return h('div', { class: 'text-center' }, 'Created at')
+      return h('div', { class: 'text-center' }, t()('globals.terms.createdAt'))
     },
     cell: function ({ row }) {
       return h(
@@ -38,7 +41,7 @@ export const columns = [
   {
     accessorKey: 'updated_at',
     header: function () {
-      return h('div', { class: 'text-center' }, 'Updated at')
+      return h('div', { class: 'text-center' }, t()('globals.terms.updatedAt'))
     },
     cell: function ({ row }) {
       return h(

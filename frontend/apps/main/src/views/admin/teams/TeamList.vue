@@ -3,7 +3,7 @@
   <div :class="{ 'transition-opacity duration-300 opacity-50': isLoading }">
     <div class="flex justify-end mb-5">
       <router-link :to="{ name: 'new-team' }">
-        <Button> New team </Button>
+        <Button> {{ $t('globals.messages.new') }} </Button>
       </router-link>
     </div>
     <div>

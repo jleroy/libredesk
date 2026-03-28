@@ -55,7 +55,6 @@ const submitForm = async (values) => {
       toastDescription = t('globals.messages.savedSuccessfully')
     }
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      title: 'Success',
       description: toastDescription
     })
   } catch (error) {

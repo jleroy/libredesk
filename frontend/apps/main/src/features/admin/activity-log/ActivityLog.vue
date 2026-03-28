@@ -84,7 +84,7 @@
       <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-2">
           <span class="text-sm text-muted-foreground">
-            {{ t('globals.terms.page') }} {{ page }} of {{ totalPages }}
+            {{ t('globals.messages.pageNofTotal', { page, total: totalPages }) }}
           </span>
           <Select v-model="perPage" @update:model-value="handlePerPageChange">
             <SelectTrigger class="h-8 w-[70px]">
