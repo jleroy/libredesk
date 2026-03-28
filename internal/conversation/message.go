@@ -698,10 +698,25 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		return models.Message{}, nil
 	}
 
-	// Try plus-addressing (resolves both sender + conversation).
+	// Resolve sender and conversation from plus addressing.
 	senderID, conversationID, conversationUUID, err := m.resolveSender(&in)
 	if err != nil {
 		return models.Message{}, err
+	}
+
+	// Find or create contact.
+	if senderID == 0 {
+		user := umodels.User{
+			FirstName: in.Contact.FirstName,
+			LastName:  in.Contact.LastName,
+			Email:     in.Contact.Email,
+			Type:      umodels.UserTypeContact,
+		}
+		if err := m.userStore.CreateContact(&user); err != nil {
+			return models.Message{}, fmt.Errorf("creating contact: %w", err)
+		}
+		senderID = user.ID
+		in.Contact.ID = senderID
 	}
 
 	// Match conversation if not already matched by plus-addressing.
@@ -713,29 +728,11 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		}
 	}
 
-	// Resolve sender with conversation context.
-	// For existing conversations, use the conversation's contact when emails match
-	// to avoid picking the wrong duplicate contact.
-	if senderID == 0 {
-		if !isNewConversation && conversationID > 0 {
-			conversation, convErr := m.GetConversation(conversationID, "", "")
-			if convErr == nil && strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-				senderID = conversation.ContactID
-				in.Contact.ID = senderID
-			}
-		}
-		// Still no sender - create/find contact by email.
-		if senderID == 0 {
-			user := umodels.User{
-				FirstName: in.Contact.FirstName,
-				LastName:  in.Contact.LastName,
-				Email:     in.Contact.Email,
-				Type:      umodels.UserTypeContact,
-			}
-			if err := m.userStore.CreateContact(&user); err != nil {
-				return models.Message{}, fmt.Errorf("creating contact: %w", err)
-			}
-			senderID = user.ID
+	// For existing conversations, override sender with the conversation's contact when emails match.
+	if !isNewConversation && conversationID > 0 {
+		conversation, convErr := m.GetConversation(conversationID, "", "")
+		if convErr == nil && strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+			senderID = conversation.ContactID
 			in.Contact.ID = senderID
 		}
 	}

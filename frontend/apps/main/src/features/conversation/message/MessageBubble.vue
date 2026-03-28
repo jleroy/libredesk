@@ -19,12 +19,6 @@
       <p v-else class="text-muted-foreground text-sm font-medium">
         {{ getFullName }}
       </p>
-      <Tooltip v-if="isParticipant">
-        <TooltipTrigger>
-          <Info :size="14" class="text-muted-foreground" />
-        </TooltipTrigger>
-        <TooltipContent>{{ t('globals.terms.participant', 1) }}</TooltipContent>
-      </Tooltip>
     </div>
 
     <!-- Message Bubble -->
@@ -206,9 +200,7 @@ const getFullName = computed(() => {
 
 const getAvatar = computed(() => {
   if (props.message.author?.avatar_url) return props.message.author.avatar_url
-  if (!isOutgoing.value && convStore.current?.contact?.email) {
-    return getGravatarUrl(convStore.current.contact.email)
-  }
+  if (props.message.author?.email) return getGravatarUrl(props.message.author.email)
   return ''
 })
 
