@@ -146,68 +146,66 @@ func (lc *LiveChat) Receive(ctx context.Context) error {
 
 // Send sends the passed message to the message receiver if they are connected to the live chat.
 func (lc *LiveChat) Send(message models.OutboundMessage) error {
-	if message.MessageReceiverID > 0 {
-		msgReceiverStr := strconv.Itoa(message.MessageReceiverID)
-		lc.clientsMutex.RLock()
-		clients, exists := lc.clients[msgReceiverStr]
-		lc.clientsMutex.RUnlock()
+	if message.MessageReceiverID <= 0 {
+		lc.lo.Warn("received empty receiver_id for live chat message", "message_id", message.UUID)
+		return nil
+	}
 
-		if exists {
-			sender, err := lc.userStore.GetAgent(message.SenderID, "")
-			if err != nil {
-				lc.lo.Error("failed to get sender name", "sender_id", message.SenderID, "error", err)
-				return fmt.Errorf("failed to get sender name: %w", err)
-			}
+	msgReceiverStr := strconv.Itoa(message.MessageReceiverID)
+	lc.clientsMutex.RLock()
+	defer lc.clientsMutex.RUnlock()
 
-			for _, client := range clients {
-				// Set `content` in all attachments to `null` as attachments are sent with URLs and live chat uses URLs to fetch the content.
-				for i := range message.Attachments {
-					if message.Attachments[i].Content != nil {
-						message.Attachments[i].Content = nil
-					}
-				}
+	clients, exists := lc.clients[msgReceiverStr]
+	if !exists {
+		lc.lo.Debug("websocket client not connected for live chat message", "receiver_id", msgReceiverStr, "message_id", message.UUID)
+		return ErrClientNotConnected
+	}
 
-				messageData := map[string]any{
-					"type": "new_message",
-					"data": models.ChatMessage{
-						UUID:             message.UUID,
-						ConversationUUID: message.ConversationUUID,
-						CreatedAt:        message.CreatedAt,
-						Content:          message.Content,
-						TextContent:      message.TextContent,
-						Meta:             message.Meta,
-						Author: models.MessageAuthor{
-							ID:                 message.SenderID,
-							FirstName:          sender.FirstName,
-							LastName:           sender.LastName,
-							AvatarURL:          sender.AvatarURL,
-							AvailabilityStatus: sender.AvailabilityStatus,
-							Type:               sender.Type,
-							LastActiveAt:       sender.LastActiveAt,
-						},
-						Attachments: message.Attachments,
-					},
-				}
+	sender, err := lc.userStore.GetAgent(message.SenderID, "")
+	if err != nil {
+		return fmt.Errorf("failed to get sender name: %w", err)
+	}
 
-				// Marshal and send to client's channel.
-				messageJSON, err := json.Marshal(messageData)
-				if err != nil {
-					lc.lo.Error("failed to marshal message data", "error", err)
-					continue
-				}
-				select {
-				case client.Channel <- messageJSON:
-					lc.lo.Info("message sent to live chat client", "client_id", client.ID, "message_id", message.UUID)
-				default:
-					lc.lo.Warn("client channel full, dropping message", "client_id", client.ID, "message_id", message.UUID)
-				}
-			}
-		} else {
-			lc.lo.Debug("websocket client not connected for live chat message", "receiver_id", msgReceiverStr, "message_id", message.UUID)
-			return ErrClientNotConnected
+	for i := range message.Attachments {
+		message.Attachments[i].Content = nil
+	}
+
+	messageData := map[string]any{
+		"type": "new_message",
+		"data": models.ChatMessage{
+			UUID:             message.UUID,
+			ConversationUUID: message.ConversationUUID,
+			CreatedAt:        message.CreatedAt,
+			Content:          message.Content,
+			TextContent:      message.TextContent,
+			Meta:             message.Meta,
+			Author: models.MessageAuthor{
+				ID:                 message.SenderID,
+				FirstName:          sender.FirstName,
+				LastName:           sender.LastName,
+				AvatarURL:          sender.AvatarURL,
+				AvailabilityStatus: sender.AvailabilityStatus,
+				Type:               sender.Type,
+				LastActiveAt:       sender.LastActiveAt,
+			},
+			Attachments: message.Attachments,
+		},
+	}
+
+	messageJSON, err := json.Marshal(messageData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message data: %w", err)
+	}
+
+	for _, client := range clients {
+		select {
+		case client.Channel <- messageJSON:
+			lc.lo.Info("message sent to live chat client", "client_id", client.ID, "message_id", message.UUID)
+		default:
+			lc.lo.Warn("client channel full, dropping message", "client_id", client.ID, "message_id", message.UUID)
 		}
 	}
-	lc.lo.Warn("received empty receiver_id for live chat message", "message_id", message.UUID, "receiver_id", message.MessageReceiverID)
+
 	return nil
 }
 
