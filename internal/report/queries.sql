@@ -6,7 +6,7 @@ SELECT
         'awaiting_response',
         COUNT(
             CASE
-                WHEN COALESCE(c.meta->'last_message'->>'sender_type', c.last_message_sender::text) = 'contact' THEN 1
+                WHEN c.last_message_sender = 'contact' THEN 1
             END
         ),
         'unassigned',
