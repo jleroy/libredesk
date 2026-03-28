@@ -182,7 +182,6 @@ const convStore = useConversationStore()
 const settingsStore = useAppSettingsStore()
 const { t } = useI18n()
 const userStore = useUserStore()
-const { t } = useI18n()
 
 const isSystemUser = computed(() => props.message.author?.email === 'System')
 const isParticipant = computed(() =>
