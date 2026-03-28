@@ -29,6 +29,10 @@
               </Badge>
             </div>
 
+            <div v-if="contact.external_user_id" class="text-sm text-muted-foreground">
+              {{ contact.external_user_id }}
+            </div>
+
             <div class="text-xs text-muted-foreground">
               {{ $t('globals.terms.createdOn') }}
               {{ contact.created_at ? format(new Date(contact.created_at), 'PPP') : 'N/A' }}

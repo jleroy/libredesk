@@ -698,7 +698,7 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		return models.Message{}, nil
 	}
 
-	// Resolve sender (contact/visitor) and optionally match conversation via plus-addressing.
+	// Try plus-addressing (resolves both sender + conversation).
 	senderID, conversationID, conversationUUID, err := m.resolveSender(&in)
 	if err != nil {
 		return models.Message{}, err
@@ -710,6 +710,33 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		conversationID, conversationUUID, isNewConversation, err = m.findOrCreateConversation(in)
 		if err != nil {
 			return models.Message{}, err
+		}
+	}
+
+	// Resolve sender with conversation context.
+	// For existing conversations, use the conversation's contact when emails match
+	// to avoid picking the wrong duplicate contact.
+	if senderID == 0 {
+		if !isNewConversation && conversationID > 0 {
+			conversation, convErr := m.GetConversation(conversationID, "", "")
+			if convErr == nil && strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+				senderID = conversation.ContactID
+				in.Contact.ID = senderID
+			}
+		}
+		// Still no sender - create/find contact by email.
+		if senderID == 0 {
+			user := umodels.User{
+				FirstName: in.Contact.FirstName,
+				LastName:  in.Contact.LastName,
+				Email:     in.Contact.Email,
+				Type:      umodels.UserTypeContact,
+			}
+			if err := m.userStore.CreateContact(&user); err != nil {
+				return models.Message{}, fmt.Errorf("creating contact: %w", err)
+			}
+			senderID = user.ID
+			in.Contact.ID = senderID
 		}
 	}
 
@@ -745,34 +772,19 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 	return msg, nil
 }
 
-// resolveSender resolves the sender for an incoming message. It checks plus-addressing
-// to detect continuity email replies from visitors and upgrades them to contacts.
-// Returns senderID, and optionally conversationID/UUID if matched via plus-addressing.
+// resolveSender resolves the sender for an incoming message via plus-addressing.
+// Returns senderID, and optionally conversationID/UUID if matched.
+// If sender is not resolved here, ProcessIncomingMessage handles it with conversation context.
 func (m *Manager) resolveSender(in *models.IncomingMessage) (senderID, conversationID int, conversationUUID string, err error) {
-	// Check plus-addressing to detect continuity email replies.
 	if in.ConversationUUIDFromReplyTo != "" {
 		senderID, conversationID, conversationUUID, err = m.resolveByPlusAddress(in)
 		if err != nil {
 			return 0, 0, "", err
 		}
-	}
-
-	// Find or create contact if not already resolved via plus-addressing.
-	if senderID == 0 {
-		user := umodels.User{
-			FirstName: in.Contact.FirstName,
-			LastName:  in.Contact.LastName,
-			Email:     in.Contact.Email,
-			Type:      umodels.UserTypeContact,
+		if senderID > 0 {
+			in.Contact.ID = senderID
 		}
-		if err := m.userStore.CreateContact(&user); err != nil {
-			return 0, 0, "", fmt.Errorf("creating contact: %w", err)
-		}
-		senderID = user.ID
 	}
-
-	in.Contact.ID = senderID
-
 	return senderID, conversationID, conversationUUID, nil
 }
 
