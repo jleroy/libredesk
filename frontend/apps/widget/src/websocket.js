@@ -158,6 +158,7 @@ export class WidgetWebSocketClient {
   setupNetworkListeners () {
     window.addEventListener('online', () => {
       if (this.socket?.readyState !== WebSocket.OPEN) {
+        this.reconnectAttempts = 0
         this.reconnectInterval = 1000
         this.reconnect()
       }

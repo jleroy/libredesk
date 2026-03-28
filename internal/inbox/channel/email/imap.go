@@ -343,7 +343,7 @@ func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, 
 	}
 
 	// Check if contact with this email is blocked / disabed, if so, ignore the message.
-	if contact, err := e.userStore.GetContact(0, fromAddress); err != nil {
+	if contact, err := e.userStore.GetContactOrVisitor(0, fromAddress); err != nil {
 		envErr, ok := err.(envelope.Error)
 		if !ok || envErr.ErrorType != envelope.NotFoundError {
 			e.lo.Error("error checking if user is blocked", "email", fromAddress, "error", err)

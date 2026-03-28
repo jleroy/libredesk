@@ -73,7 +73,7 @@ type MessageStore interface {
 
 // UserStore defines methods for fetching user information.
 type UserStore interface {
-	GetContact(id int, email string) (umodels.User, error)
+	GetContactOrVisitor(id int, email string) (umodels.User, error)
 	GetAgent(id int, email string) (umodels.User, error)
 }
 

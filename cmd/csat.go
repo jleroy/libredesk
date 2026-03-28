@@ -144,6 +144,11 @@ func handleSubmitCSATResponse(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid UUID", nil, envelope.InputError)
 	}
 
+	// Trim feedback if it exceeds max length.
+	if len(req.Feedback) > maxCsatFeedbackLength {
+		req.Feedback = req.Feedback[:maxCsatFeedbackLength]
+	}
+
 	// Update CSAT response
 	if err := app.csat.UpdateResponse(uuid, req.Rating, req.Feedback); err != nil {
 		return sendErrorEnvelope(r, err)

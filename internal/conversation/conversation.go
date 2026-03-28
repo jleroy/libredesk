@@ -54,7 +54,7 @@ var (
 )
 
 const (
-	conversationsListMaxPageSize = 100
+	conversationsListMaxPageSize = 500
 )
 
 // Manager handles the operations related to conversations
@@ -1469,7 +1469,7 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 
 	// Validate inputs
 	if pageSize > conversationsListMaxPageSize {
-		return "", nil, fmt.Errorf("invalid page size: must be between 1 and %d", conversationsListMaxPageSize)
+		pageSize = conversationsListMaxPageSize
 	}
 
 	if len(listTypes) == 0 {

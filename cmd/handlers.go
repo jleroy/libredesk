@@ -17,6 +17,8 @@ import (
 	"github.com/zerodha/fastglue"
 )
 
+const maxPageSize = 500
+
 // initHandlers initializes the HTTP routes and handlers for the application.
 func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Authentication.
@@ -258,11 +260,11 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	}))
 
 	// Live chat widget websocket.
-	g.GET("/widget/ws", handleWidgetWS)
+	g.GET("/widget/ws", rateLimit(handleWidgetWS, "widget"))
 
 	// Widget APIs.
-	g.GET("/api/v1/widget/chat/settings/launcher", handleGetChatLauncherSettings)
-	g.GET("/api/v1/widget/chat/settings", handleGetChatSettings)
+	g.GET("/api/v1/widget/chat/settings/launcher", rateLimit(handleGetChatLauncherSettings, "widget"))
+	g.GET("/api/v1/widget/chat/settings", rateLimit(handleGetChatSettings, "widget"))
 	g.POST("/api/v1/widget/chat/conversations/init", rateLimit(widgetAuth(handleChatInit), "widget"))
 	g.GET("/api/v1/widget/chat/conversations", rateLimit(widgetAuth(handleGetConversations), "widget"))
 	g.POST("/api/v1/widget/chat/conversations/{uuid}/update-last-seen", rateLimit(widgetAuth(handleChatUpdateLastSeen), "widget"))
@@ -363,7 +365,7 @@ func validateWidgetReferer(app *App, r *fastglue.Request, inboxID int) error {
 			"referer", referer,
 			"inbox_id", inboxID,
 			"trusted_domains", config.TrustedDomains)
-		return r.SendErrorEnvelope(http.StatusForbidden, "Widget not allowed from this origin: "+referer, nil, envelope.PermissionError)
+		return r.SendErrorEnvelope(http.StatusForbidden, "Widget not allowed from this origin", nil, envelope.PermissionError)
 	}
 	app.lo.Debug("widget request from trusted referer allowed", "referer", referer, "inbox_id", inboxID)
 	return nil
@@ -373,8 +375,11 @@ func validateWidgetReferer(app *App, r *fastglue.Request, inboxID int) error {
 func serveWidgetIndexPage(r *fastglue.Request) error {
 	app := r.Context.(*App)
 
-	// Extract inbox ID and validate trusted domains if present
+	// Extract and validate inbox ID.
 	inboxID := r.RequestCtx.QueryArgs().GetUintOrZero("inbox_id")
+	if inboxID <= 0 {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "inbox_id"), nil, envelope.InputError)
+	}
 	if err := validateWidgetReferer(app, r, inboxID); err != nil {
 		return err
 	}
@@ -488,7 +493,6 @@ func serveWidgetJS(r *fastglue.Request) error {
 }
 
 // getPagination extracts page and page_size from query params with defaults.
-// Defaults: page=1, pageSize=30
 func getPagination(r *fastglue.Request) (page, pageSize int) {
 	page, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
 	pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
@@ -497,6 +501,9 @@ func getPagination(r *fastglue.Request) (page, pageSize int) {
 	}
 	if pageSize < 1 {
 		pageSize = 30
+	}
+	if pageSize > maxPageSize {
+		pageSize = maxPageSize
 	}
 	return page, pageSize
 }

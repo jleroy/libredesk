@@ -80,7 +80,7 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 		authHeader := string(r.RequestCtx.Request.Header.Peek("Authorization"))
 
 		// For init endpoint, allow requests without JWT (visitor creation)
-		if authHeader == "" && strings.Contains(string(r.RequestCtx.Path()), "/conversations/init") {
+		if authHeader == "" && strings.HasSuffix(string(r.RequestCtx.Path()), "/conversations/init") {
 			return next(r)
 		}
 
@@ -93,7 +93,7 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 		// Verify JWT using inbox secret
 		claims, err := verifyStandardJWT(jwtToken, inbox.Secret.String)
 		if err != nil {
-			app.lo.Error("invalid JWT", "jwt", jwtToken, "error", err)
+			app.lo.Error("invalid widget JWT", "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
 		}
 

@@ -34,7 +34,7 @@ var (
 
 	minPassword     = 10
 	maxPassword     = 72
-	maxListPageSize = 100
+	maxListPageSize = 500
 
 	// ErrPasswordTooLong is returned when the password passed to
 	// GenerateFromPassword is too long (i.e. > 72 bytes).
@@ -173,6 +173,11 @@ func (u *Manager) Get(id int, email string, userType []string) (models.User, err
 		return user, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return user, nil
+}
+
+// GetContactOrVisitor retrieves a user by ID or email that is either a contact or visitor.
+func (u *Manager) GetContactOrVisitor(id int, email string) (models.User, error) {
+	return u.Get(id, email, []string{models.UserTypeContact, models.UserTypeVisitor})
 }
 
 // GetSystemUser retrieves the system user.

@@ -57,7 +57,7 @@ func handleGetContact(r *fastglue.Request) error {
 	if id <= 0 {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.InputError)
 	}
-	c, err := app.user.GetContact(id, "")
+	c, err := app.user.GetContactOrVisitor(id, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -74,7 +74,7 @@ func handleUpdateContact(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.InputError)
 	}
 
-	contact, err := app.user.GetContact(id, "")
+	contact, err := app.user.GetContactOrVisitor(id, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -171,7 +171,7 @@ func handleUpdateContact(r *fastglue.Request) error {
 	}
 
 	// Refetch contact and return it
-	contact, err = app.user.GetContact(id, "")
+	contact, err = app.user.GetContactOrVisitor(id, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -277,7 +277,7 @@ func handleBlockContact(r *fastglue.Request) error {
 
 	app.lo.Info("setting contact block status", "contact_id", contactID, "enabled", req.Enabled, "actor_id", auser.ID)
 
-	contact, err := app.user.GetContact(contactID, "")
+	contact, err := app.user.GetContactOrVisitor(contactID, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -286,7 +286,7 @@ func handleBlockContact(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	contact, err = app.user.GetContact(contactID, "")
+	contact, err = app.user.GetContactOrVisitor(contactID, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}

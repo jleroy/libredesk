@@ -74,14 +74,10 @@ func (u *Manager) UpdateContact(id int, user models.User) error {
 	return nil
 }
 
-func (u *Manager) GetContact(id int, email string) (models.User, error) {
-	return u.Get(id, email, []string{models.UserTypeContact, models.UserTypeVisitor})
-}
-
 // GetAllContacts returns a list of all contacts.
 func (u *Manager) GetContacts(page, pageSize int, order, orderBy string, filtersJSON string) ([]models.UserCompact, error) {
 	if pageSize > maxListPageSize {
-		return nil, envelope.NewError(envelope.InputError, u.i18n.Ts("globals.messages.pageTooLarge", "max", fmt.Sprintf("%d", maxListPageSize)), nil)
+		pageSize = maxListPageSize
 	}
 	if page < 1 {
 		page = 1

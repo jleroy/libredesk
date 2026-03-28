@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	maxMessagesPerPage = 100
+	maxMessagesPerPage = 500
 )
 
 // Run starts a pool of worker goroutines to handle message dispatching via inbox's channel and processes incoming messages. It scans for
