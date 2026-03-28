@@ -186,9 +186,9 @@ func handleChatInit(r *fastglue.Request) error {
 			}
 			isVisitor = false
 		} else {
-			// Non-visitor JWTs must include `external_user_id`.
 			if !claims.IsVisitor {
-				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "external_user_id"), nil, envelope.InputError)
+				app.lo.Warn("non-visitor JWT missing external_user_id")
+				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("globals.messages.badRequest"), nil, envelope.InputError)
 			}
 			isVisitor = true
 			contactID, err = getWidgetContactID(r)
@@ -744,12 +744,16 @@ func resolveOrCreateExternalContact(app *App, claims Claims, formData map[string
 				return 0, nil, emailErr
 			}
 		} else {
-			if setErr := app.user.SetExternalUserID(existingContact.ID, claims.ExternalUserID); setErr != nil {
-				app.lo.Error("error setting external user ID on existing contact", "contact_id", existingContact.ID, "error", setErr)
-				return 0, nil, setErr
+			// Only enrich if existing contact has no ext_id.
+			if existingContact.ExternalUserID.String == "" {
+				if setErr := app.user.SetExternalUserID(existingContact.ID, claims.ExternalUserID); setErr != nil {
+					app.lo.Error("error setting external user ID on existing contact", "contact_id", existingContact.ID, "error", setErr)
+					return 0, nil, setErr
+				}
+				convoAttrs := saveContactAttrsAndCollectConvoAttrs(app, existingContact.ID, &claims, formData, config)
+				return existingContact.ID, convoAttrs, nil
 			}
-			convoAttrs := saveContactAttrsAndCollectConvoAttrs(app, existingContact.ID, &claims, formData, config)
-			return existingContact.ID, convoAttrs, nil
+			// Contact has different ext_id - fall through to create new contact.
 		}
 	}
 
