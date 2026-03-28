@@ -94,10 +94,9 @@ export class WidgetWebSocketClient {
           const message = data.data
           chatStore.addMessageToConversation(message.conversation_uuid, message)
 
-          // Play notification sound if message is from agent and widget is not focused on this conversation
+          // Play notification sound if message is from agent and widget is not focused on this conversation.
           const widgetStore = useWidgetStore()
-          const userStore = useUserStore()
-          const isFromAgent = message.author?.id !== userStore.userID
+          const isFromAgent = message.author?.type === 'agent'
           const isViewingConversation = widgetStore.isOpen &&
             widgetStore.isInChatView &&
             chatStore.currentConversation?.uuid === message.conversation_uuid

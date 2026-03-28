@@ -992,10 +992,11 @@ const authenticatedIntegrationSnippet = computed(() => {
 
 // JavaScript API example
 const jsApiSnippet = computed(() => {
+  const inboxId = props.initialValues?.id || '<INBOX_ID>'
   return `// Hide the default launcher and open programmatically
 initLibredeskWidget({
-  baseURL: '...',
-  inboxID: 123,
+  baseURL: '${baseUrl.value}',
+  inboxID: ${inboxId},
   hideDefaultLauncher: true
 });
 
