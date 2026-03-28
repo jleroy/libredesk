@@ -184,12 +184,13 @@ const { t } = useI18n()
 const userStore = useUserStore()
 
 const isSystemUser = computed(() => props.message.author?.email === 'System')
-const isParticipant = computed(() =>
-  !isOutgoing.value &&
-  props.message.sender_type === 'contact' &&
-  convStore.current?.contact?.id &&
-  props.message.author?.id !== convStore.current.contact.id
-)
+const isParticipant = computed(() => {
+  if (isOutgoing.value || props.message.sender_type !== 'contact') return false
+  const fromEmail = props.message.meta?.from?.[0]
+  const contactEmail = convStore.current?.contact?.email
+  if (!fromEmail || !contactEmail) return false
+  return fromEmail.toLowerCase() !== contactEmail.toLowerCase()
+})
 const canManageUsers = computed(() => !isSystemUser.value && userStore.can('users:manage'))
 
 // Direction helpers
