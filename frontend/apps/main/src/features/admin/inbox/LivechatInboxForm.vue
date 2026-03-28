@@ -960,7 +960,7 @@ const jwtPayloadExample = computed(() => {
   return `{
   "external_user_id": "your_app_user_123",    // Required: Your system's unique user ID
   "email": "user@example.com",                // Required: User's email
-  "first_name": "John",                       // Optional: User's first name
+  "first_name": "John",                       // Required: User's first name
   "last_name": "Doe",                         // Optional: User's last name
   "contact_custom_attributes": {              // Optional: Contact-level attributes
     "plan": "premium",

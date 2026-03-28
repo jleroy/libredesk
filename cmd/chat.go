@@ -179,6 +179,9 @@ func handleChatInit(r *fastglue.Request) error {
 			if claims.Email == "" {
 				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "email"), nil, envelope.InputError)
 			}
+			if claims.FirstName == "" {
+				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "first_name"), nil, envelope.InputError)
+			}
 			contactID, conversationAttrs, err = resolveOrCreateExternalContact(app, *claims, req.FormData, config)
 			if err != nil {
 				app.lo.Error("error resolving or creating contact for external_user_id", "external_user_id", claims.ExternalUserID, "error", err)
