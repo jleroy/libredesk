@@ -8,26 +8,9 @@ import (
 
 // V2_0_0 updates the database schema to v2.0.0 (Live Chat feature).
 func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
-	// Add 'livechat' to the channels enum if not already present
-	var exists bool
-	err := db.Get(&exists, `
-		SELECT EXISTS (
-			SELECT 1
-			FROM pg_enum
-			WHERE enumlabel = 'livechat'
-			AND enumtypid = (
-				SELECT oid FROM pg_type WHERE typname = 'channels'
-			)
-		)
-	`)
+	_, err := db.Exec(`ALTER TYPE channels ADD VALUE IF NOT EXISTS 'livechat'`)
 	if err != nil {
 		return err
-	}
-	if !exists {
-		_, err = db.Exec(`ALTER TYPE channels ADD VALUE 'livechat'`)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Drop the foreign key constraint and column from conversations table first
