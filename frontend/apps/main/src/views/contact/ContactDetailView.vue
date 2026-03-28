@@ -29,11 +29,13 @@
               </Badge>
             </div>
 
-            <div v-if="contact.external_user_id" class="text-sm text-muted-foreground">
+            <div v-if="contact.external_user_id" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <IdCardIcon size="14" class="flex-shrink-0" />
               {{ contact.external_user_id }}
             </div>
 
-            <div class="text-xs text-muted-foreground">
+            <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CalendarIcon size="14" class="flex-shrink-0" />
               {{ $t('globals.terms.createdOn') }}
               {{ contact.created_at ? format(new Date(contact.created_at), 'PPP') : 'N/A' }}
             </div>
@@ -109,7 +111,7 @@ import {
   DialogDescription
 } from '@shared-ui/components/ui/dialog'
 import { useUserStore } from '../../stores/user'
-import { ShieldOffIcon, ShieldCheckIcon } from 'lucide-vue-next'
+import { ShieldOffIcon, ShieldCheckIcon, IdCardIcon, CalendarIcon } from 'lucide-vue-next'
 import ContactDetail from '@/layouts/contact/ContactDetail.vue'
 import api from '../../api'
 import ContactForm from '@/features/contact/ContactForm.vue'
