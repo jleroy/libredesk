@@ -1416,11 +1416,11 @@ func (c *Manager) addConversationParticipant(userID int, conversationUUID string
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// New participant added - log activity only for contacts (not agents) who differ from conversation contact.
+	// New participant added - log activity only for contacts with a different email than the conversation contact.
 	conversation, convErr := c.GetConversation(0, conversationUUID, "")
-	if convErr == nil && conversation.ContactID != userID {
+	if convErr == nil {
 		user, userErr := c.userStore.Get(userID, "", []string{})
-		if userErr == nil && user.Type == umodels.UserTypeContact {
+		if userErr == nil && user.Type == umodels.UserTypeContact && !strings.EqualFold(user.Email.String, conversation.Contact.Email.String) {
 			participantName := user.Email.String
 			if user.FirstName != "" {
 				participantName = user.FirstName

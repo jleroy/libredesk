@@ -179,7 +179,7 @@
             <Textarea
               v-model="messageText"
               :placeholder="$t('globals.terms.typeMessage')"
-              class="w-full min-h-20 max-h-32 resize-none"
+              class="w-full min-h-32 max-h-48 resize-none"
             />
           </div>
         </form>
