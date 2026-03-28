@@ -207,7 +207,7 @@ func New(
 	// Default continuity config
 	continuityConfig := ContinuityConfig{
 		BatchCheckInterval:  5 * time.Minute,
-		OfflineThreshold:    5 * time.Minute,
+		OfflineThreshold:    10 * time.Minute,
 		MinEmailInterval:    15 * time.Minute,
 		MaxMessagesPerEmail: 10,
 	}
