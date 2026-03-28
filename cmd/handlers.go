@@ -475,9 +475,8 @@ func serveWidgetStaticFiles(r *fastglue.Request) error {
 func serveWidgetJS(r *fastglue.Request) error {
 	app := r.Context.(*App)
 
-	// Set appropriate headers for JavaScript
 	r.RequestCtx.Response.Header.Set("Content-Type", "application/javascript")
-	r.RequestCtx.Response.Header.Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
+	r.RequestCtx.Response.Header.Set("Cache-Control", "no-cache")
 
 	// Serve the minified widget.js, falling back to the source file in dev mode.
 	file, err := app.fs.Get("static/widget.min.js")
