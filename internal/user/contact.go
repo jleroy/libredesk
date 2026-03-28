@@ -20,6 +20,24 @@ func (u *Manager) CreateContact(user *models.User) error {
 	user.Email = null.NewString(strings.ToLower(user.Email.String), user.Email.Valid)
 
 	if user.ExternalUserID.String != "" {
+		// Check if email matches an existing contact without ext_id — enrich it.
+		if user.Email.Valid && user.Email.String != "" {
+			existing, emailErr := u.GetContactByEmail(user.Email.String)
+			if emailErr != nil {
+				if envErr, ok := emailErr.(envelope.Error); ok && envErr.ErrorType != envelope.NotFoundError {
+					return emailErr
+				}
+			} else if existing.ExternalUserID.String == "" {
+				if setErr := u.SetExternalUserID(existing.ID, user.ExternalUserID.String); setErr == nil {
+					user.ID = existing.ID
+					return nil
+				}
+				// ext_id already belongs to another contact — fall through to upsert.
+				u.lo.Info("ext_id already exists on another contact, skipping enrichment", "contact_id", existing.ID, "ext_id", user.ExternalUserID.String)
+			}
+		}
+
+		// Upsert by ext_id — creates new or updates email/name on ext_id conflict.
 		if err := u.q.InsertContactWithExtID.QueryRow(user.Email, user.FirstName, user.LastName, password, user.AvatarURL, user.ExternalUserID, user.CustomAttributes).Scan(&user.ID); err != nil {
 			u.lo.Error("error inserting contact with external ID", "error", err)
 			return fmt.Errorf("inserting contact with external ID: %w", err)

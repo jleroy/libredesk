@@ -426,6 +426,12 @@ func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, con
 	if err := m.InsertMessage(&message); err != nil {
 		return models.Message{}, err
 	}
+
+	// Process post-message hooks (reopen, waiting since, automation, SLA).
+	if err := m.ProcessIncomingMessageHooks(conversationUUID, false); err != nil {
+		m.lo.Error("error processing incoming message hooks", "conversation_uuid", conversationUUID, "error", err)
+	}
+
 	return message, nil
 }
 
@@ -783,15 +789,6 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 		return 0, 0, "", fmt.Errorf("fetching conversation: %w", err)
 	}
 
-	// Verify sender email matches the conversations contact.
-	if !strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-		m.lo.Debug("plus-address UUID found but contact email mismatch, ignoring",
-			"conversation_uuid", in.ConversationUUIDFromReplyTo,
-			"conversation_contact", conversation.Contact.Email.String,
-			"message_contact", in.Contact.Email.String)
-		return 0, 0, "", nil
-	}
-
 	m.lo.Debug("matched conversation by plus-addressed Reply-To",
 		"conversation_uuid", conversation.UUID,
 		"contact_email", in.Contact.Email.String)
@@ -842,8 +839,8 @@ func (m *Manager) matchConversation(in *models.IncomingMessage) (int, string, bo
 			if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
 				return 0, "", false, fmt.Errorf("fetching conversation: %w", err)
 			}
-		} else if strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
-			m.lo.Info("matched conversation by reference number in subject", "ref_number", refNum, "conversation_contact_email", conversation.Contact.Email.String, "incoming_email", in.Contact.Email.String)
+		} else {
+			m.lo.Info("matched conversation by reference number in subject", "reference_number", refNum, "contact_email", conversation.Contact.Email.String, "incoming_email", in.Contact.Email.String)
 			return conversation.ID, conversation.UUID, false, nil
 		}
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"slices"
 	"strconv"
 	"time"
@@ -48,6 +49,7 @@ type createConversationRequest struct {
 	Email           string `json:"contact_email"`
 	FirstName       string `json:"first_name"`
 	LastName        string `json:"last_name"`
+	ExternalUserID  string `json:"external_user_id"`
 	Subject         string `json:"subject"`
 	Content         string `json:"content"`
 	Attachments     []int  `json:"attachments"`
@@ -772,9 +774,11 @@ func handleCreateConversation(r *fastglue.Request) error {
 
 	// Find or create contact.
 	contact := umodels.User{
-		Email:     null.StringFrom(req.Email),
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
+		Email:            null.StringFrom(req.Email),
+		FirstName:        req.FirstName,
+		LastName:         req.LastName,
+		ExternalUserID:   null.NewString(req.ExternalUserID, req.ExternalUserID != ""),
+		CustomAttributes: json.RawMessage(`{}`),
 	}
 	if err := app.user.CreateContact(&contact); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))

@@ -165,9 +165,9 @@ CREATE UNIQUE INDEX index_unique_users_on_email_when_type_is_agent
 CREATE UNIQUE INDEX index_unique_users_on_ext_id_when_type_is_contact 
 	ON users (external_user_id) 
 	WHERE type = 'contact' AND deleted_at IS NULL AND external_user_id IS NOT NULL;
-CREATE UNIQUE INDEX index_unique_users_on_email_when_type_is_contact
+CREATE UNIQUE INDEX index_unique_users_on_email_when_no_ext_id_contact
 	ON users (email)
-	WHERE type = 'contact' AND deleted_at IS NULL AND email IS NOT NULL;
+	WHERE type = 'contact' AND deleted_at IS NULL AND external_user_id IS NULL;
 
 DROP TABLE IF EXISTS user_roles CASCADE;
 CREATE TABLE user_roles (
