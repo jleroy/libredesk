@@ -1,6 +1,6 @@
 -- name: get-users-compact
 -- TODO: Remove hardcoded `type` of user in some queries in this file.
-SELECT COUNT(*) OVER() as total, users.id, users.avatar_url, users.type, users.created_at, users.updated_at, users.first_name, users.last_name, users.email, users.enabled
+SELECT COUNT(*) OVER() as total, users.id, users.avatar_url, users.type, users.created_at, users.updated_at, users.first_name, users.last_name, users.email, users.enabled, users.external_user_id
 FROM users
 WHERE users.email != 'System' AND users.deleted_at IS NULL AND type = ANY($1)
 
