@@ -133,8 +133,8 @@ const sendMessageToConversation = async (messageText) => {
 }
 
 const sendMessage = async () => {
-  // Empty?
-  if (!newMessage.value.trim()) return
+  // Empty or already sending?
+  if (!newMessage.value.trim() || isSending.value) return
 
   // Stop typing when sending message
   stopTyping()
