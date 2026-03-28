@@ -206,8 +206,8 @@ func New(
 
 	// Default continuity config
 	continuityConfig := ContinuityConfig{
-		BatchCheckInterval:  2 * time.Minute,
-		OfflineThreshold:    3 * time.Minute,
+		BatchCheckInterval:  5 * time.Minute,
+		OfflineThreshold:    5 * time.Minute,
 		MinEmailInterval:    15 * time.Minute,
 		MaxMessagesPerEmail: 10,
 	}
@@ -268,8 +268,8 @@ type queries struct {
 	GetContactPreviousConversations    *sqlx.Stmt `query:"get-contact-previous-conversations"`
 	GetConversationParticipants        *sqlx.Stmt `query:"get-conversation-participants"`
 	GetUserActiveConversationsCount    *sqlx.Stmt `query:"get-user-active-conversations-count"`
-	UpdateConversationWaitingSince      *sqlx.Stmt `query:"update-conversation-waiting-since"`
-	UpdateConversationReplyTimestamps   *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
+	UpdateConversationWaitingSince     *sqlx.Stmt `query:"update-conversation-waiting-since"`
+	UpdateConversationReplyTimestamps  *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
 	UpdateConversationContactLastSeen  *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
 	UpsertUserLastSeen                 *sqlx.Stmt `query:"upsert-user-last-seen"`
 	MarkConversationUnread             *sqlx.Stmt `query:"mark-conversation-unread"`
@@ -645,7 +645,6 @@ func (c *Manager) UpdateConversationLastMessage(conversation int, conversationUU
 	}
 	return nil
 }
-
 
 // UpdateConversationWaitingSince updates the waiting since timestamp for a conversation.
 func (c *Manager) UpdateConversationWaitingSince(conversationUUID string, at *time.Time) error {

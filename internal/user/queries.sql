@@ -360,7 +360,26 @@ WITH transfer_conversations AS (
 transfer_messages AS (
     UPDATE conversation_messages
     SET sender_id = $2
-    WHERE sender_id = $1 AND sender_type = 'contact'
+    WHERE conversation_id IN (SELECT id FROM transfer_conversations) AND sender_id = $1
+    RETURNING id
+),
+transfer_participants AS (
+    UPDATE conversation_participants
+    SET user_id = $2
+    WHERE user_id = $1 AND NOT EXISTS (
+        SELECT 1 FROM conversation_participants WHERE user_id = $2 AND conversation_id = conversation_participants.conversation_id
+    )
+    RETURNING id
+),
+delete_remaining_participants AS (
+    DELETE FROM conversation_participants
+    WHERE user_id = $1
+    RETURNING id
+),
+transfer_notes AS (
+    UPDATE contact_notes
+    SET contact_id = $2
+    WHERE contact_id = $1
     RETURNING id
 ),
 delete_visitor AS (
