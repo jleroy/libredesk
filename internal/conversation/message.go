@@ -705,7 +705,7 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 	// Match conversation if not already matched by plus-addressing.
 	var isNewConversation bool
 	if conversationID == 0 {
-		conversationID, conversationUUID, isNewConversation, err = m.matchConversation(&in)
+		conversationID, conversationUUID, isNewConversation, err = m.findOrCreateConversation(in)
 		if err != nil {
 			return models.Message{}, err
 		}
@@ -731,8 +731,7 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 		return models.Message{}, err
 	}
 
-	// When a customer replies to a continuity email (matched via plus-addressing or
-	// reference number), sync the message to their live chat widget via WebSocket.
+	// When a customer replies to a continuity emailsync the message to their live chat widget via WebSocket.
 	// No-op if the conversation's inbox isn't livechat.
 	m.broadcastMessageToWidgetClients(&msg)
 
@@ -789,18 +788,21 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 		return 0, 0, "", fmt.Errorf("fetching conversation: %w", err)
 	}
 
-	m.lo.Debug("matched conversation by plus-addressed Reply-To",
-		"conversation_uuid", conversation.UUID,
-		"contact_email", in.Contact.Email.String)
+	m.lo.Debug("matched conversation by plus-addressed Reply-To", "conversation_uuid", conversation.UUID, "contact_email", in.Contact.Email.String)
 
 	conversationID = conversation.ID
 	conversationUUID = conversation.UUID
 	senderID = conversation.Contact.ID
 
-	// Visitor replied to continuity email — proven email ownership.
-	// Upgrade to contact if no existing contact with the same email.
-	if conversation.Contact.Type != umodels.UserTypeVisitor {
+	// Already a contact - return matched conversation.
+	if conversation.Contact.Type == umodels.UserTypeContact {
 		return senderID, conversationID, conversationUUID, nil
+	}
+
+	// Visitor upgrade requires email match - proves email ownership.
+	// If a different email replied, thread the message but don't upgrade.
+	if !strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
+		return 0, conversationID, conversationUUID, nil
 	}
 
 	_, contactErr := m.userStore.Get(0, in.Contact.Email.String, []string{umodels.UserTypeContact})
@@ -819,34 +821,12 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 		return 0, 0, "", fmt.Errorf("upgrading visitor to contact: %w", err)
 	}
 
-	m.lo.Debug("upgraded visitor to contact",
-		"conversation_uuid", conversation.UUID,
-		"contact_id", conversation.Contact.ID)
+	m.lo.Debug("upgraded visitor to contact", "conversation_uuid", conversation.UUID, "contact_id", conversation.Contact.ID)
 
 	// Notify conversation subscribers that the contact type has changed.
 	m.BroadcastContactUpdate(conversation.ContactID, map[string]any{"type": umodels.UserTypeContact})
 
 	return senderID, conversationID, conversationUUID, nil
-}
-
-// matchConversation matches an incoming message to an existing conversation or creates a new one.
-// It tries matching by reference number in subject, then by in-reply-to/references headers.
-func (m *Manager) matchConversation(in *models.IncomingMessage) (int, string, bool, error) {
-	// Try to match conversation by reference number in subject (e.g., "RE: Test - #392").
-	if refNum := stringutil.ExtractReferenceNumber(in.Subject); refNum != "" {
-		conversation, err := m.GetConversation(0, "", refNum)
-		if err != nil {
-			if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
-				return 0, "", false, fmt.Errorf("fetching conversation: %w", err)
-			}
-		} else {
-			m.lo.Info("matched conversation by reference number in subject", "reference_number", refNum, "contact_email", conversation.Contact.Email.String, "incoming_email", in.Contact.Email.String)
-			return conversation.ID, conversation.UUID, false, nil
-		}
-	}
-
-	// Find conversation using references and in-reply-to headers, or create a new one.
-	return m.findOrCreateConversation(*in)
 }
 
 // ProcessIncomingLiveChatMessage handles incoming live chat messages.
