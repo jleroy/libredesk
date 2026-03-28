@@ -825,7 +825,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 		}
 	case umodels.UserTypeContact:
 		// Create contact message.
-		if _, err := app.conversation.CreateContactMessage(media, contact.ID, conversationUUID, req.Content, cmodels.ContentTypeHTML); err != nil {
+		if _, err := app.conversation.CreateContactMessage(media, contact.ID, conversationUUID, req.Content, cmodels.ContentTypeHTML, true); err != nil {
 			// Delete the conversation if message creation fails.
 			if err := app.conversation.DeleteConversation(conversationUUID); err != nil {
 				app.lo.Error("error deleting conversation", "error", err)

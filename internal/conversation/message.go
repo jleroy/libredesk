@@ -411,7 +411,7 @@ func (m *Manager) SendPrivateNote(media []mmodels.Media, senderID int, conversat
 }
 
 // CreateContactMessage creates a contact message in a conversation.
-func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, conversationUUID, content, contentType string) (models.Message, error) {
+func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, conversationUUID, content, contentType string, isNewConversation bool) (models.Message, error) {
 	message := models.Message{
 		ConversationUUID: conversationUUID,
 		SenderID:         contactID,
@@ -428,7 +428,7 @@ func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, con
 	}
 
 	// Process post-message hooks (reopen, waiting since, automation, SLA).
-	if err := m.ProcessIncomingMessageHooks(conversationUUID, false); err != nil {
+	if err := m.ProcessIncomingMessageHooks(conversationUUID, isNewConversation); err != nil {
 		m.lo.Error("error processing incoming message hooks", "conversation_uuid", conversationUUID, "error", err)
 	}
 
@@ -1176,7 +1176,7 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 	// This cycle continues for next response time SLA metric.
 	conversation, err := m.GetConversation(0, conversationUUID, "")
 	if err != nil {
-		m.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
+		m.lo.Error("error fetching conversation for incoming message hooks", "conversation_uuid", conversationUUID, "error", err)
 	} else {
 		// Trigger automations on incoming message event.
 		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming)

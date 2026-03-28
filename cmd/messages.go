@@ -235,7 +235,7 @@ func handleSendMessage(r *fastglue.Request) error {
 
 	// Create contact message.
 	if req.SenderType == umodels.UserTypeContact {
-		message, err := app.conversation.CreateContactMessage(media, int(conv.ContactID), cuuid, req.Message, cmodels.ContentTypeHTML)
+		message, err := app.conversation.CreateContactMessage(media, int(conv.ContactID), cuuid, req.Message, cmodels.ContentTypeHTML, false)
 		if err != nil {
 			return sendErrorEnvelope(r, err)
 		}
