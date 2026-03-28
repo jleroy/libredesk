@@ -416,7 +416,10 @@ func (c *Manager) GetContactChatConversations(contactID, inboxID int) ([]models.
 		if conversations[i].Assignee.ID == 0 {
 			conversations[i].Assignee = nil
 		}
-		c.signChatAssigneeAvatar(conversations[i].Assignee)
+		if conversations[i].Assignee != nil {
+			c.SignAvatarURL(&conversations[i].Assignee.AvatarURL)
+		}
+		c.SignAvatarURL(&conversations[i].LastChatMessage.Author.AvatarURL)
 	}
 	return conversations, nil
 }
@@ -431,18 +434,20 @@ func (c *Manager) GetChatConversation(conversationUUID string) (models.ChatConve
 	if conversation.Assignee.ID == 0 {
 		conversation.Assignee = nil
 	}
-	c.signChatAssigneeAvatar(conversation.Assignee)
+	if conversation.Assignee != nil {
+		c.SignAvatarURL(&conversation.Assignee.AvatarURL)
+	}
+	c.SignAvatarURL(&conversation.LastChatMessage.Author.AvatarURL)
 	return conversation, nil
 }
 
-// signChatAssigneeAvatar converts a raw /uploads/ avatar path to a signed URL.
-func (c *Manager) signChatAssigneeAvatar(assignee *umodels.ChatUser) {
-	if assignee == nil || !assignee.AvatarURL.Valid || assignee.AvatarURL.String == "" {
+// SignAvatarURL converts a raw /uploads/ avatar path to a signed URL.
+func (c *Manager) SignAvatarURL(avatarURL *null.String) {
+	if avatarURL == nil || !avatarURL.Valid || avatarURL.String == "" {
 		return
 	}
-	if strings.HasPrefix(assignee.AvatarURL.String, "/uploads/") {
-		avatarUUID := strings.TrimPrefix(assignee.AvatarURL.String, "/uploads/")
-		assignee.AvatarURL = null.StringFrom(c.mediaStore.GetSignedURL(avatarUUID))
+	if strings.HasPrefix(avatarURL.String, "/uploads/") {
+		*avatarURL = null.StringFrom(c.mediaStore.GetSignedURL(strings.TrimPrefix(avatarURL.String, "/uploads/")))
 	}
 }
 
@@ -697,6 +702,7 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	// Broadcast conversation update to widget clients with assignee info.
 	agent, err := c.userStore.GetAgent(assigneeID, "")
 	if err == nil {
+		c.SignAvatarURL(&agent.AvatarURL)
 		c.BroadcastConversationToWidget(uuid, conversation.ContactID, conversation.InboxID, map[string]any{
 			"assignee": map[string]any{
 				"id":                  agent.ID,

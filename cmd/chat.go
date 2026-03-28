@@ -467,6 +467,7 @@ func handleChatSendMessage(r *fastglue.Request) error {
 	for i := range message.Attachments {
 		message.Attachments[i].URL = app.media.GetSignedURL(message.Attachments[i].UUID)
 	}
+	app.conversation.SignAvatarURL(&message.Author.AvatarURL)
 
 	return r.SendEnvelope(cmodels.ChatMessage{
 		UUID:             message.UUID,
@@ -602,6 +603,7 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 	for i := range insertedMessage.Attachments {
 		insertedMessage.Attachments[i].URL = app.media.GetSignedURL(insertedMessage.Attachments[i].UUID)
 	}
+	app.conversation.SignAvatarURL(&insertedMessage.Author.AvatarURL)
 
 	return r.SendEnvelope(insertedMessage)
 }
