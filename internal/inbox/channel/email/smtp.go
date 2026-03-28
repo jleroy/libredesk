@@ -180,22 +180,15 @@ func (e *Email) Send(m models.OutboundMessage) error {
 	}
 	email.Headers.Set(headerLibredeskLoopPrevention, emailAddress)
 
-	// Set Reply-To with plus-addressing for conversation matching (if enabled)
-	// e.g., support@company.com → support+conv-{uuid}@company.com
-	if e.enablePlusAddressing && m.ConversationUUID != "" {
-		replyToAddr := buildPlusAddress(emailAddress, m.ConversationUUID)
-		email.Headers.Set("Reply-To", replyToAddr)
-		e.lo.Debug("Reply-To header set with plus-addressing", "reply_to", replyToAddr)
+	if m.ReplyTo != "" {
+		email.Headers.Set("Reply-To", m.ReplyTo)
+	} else if e.enablePlusAddressing && m.ConversationUUID != "" {
+		email.Headers.Set("Reply-To", buildPlusAddress(emailAddress, m.ConversationUUID))
 	}
 
 	// Attach SMTP level headers
 	for key, value := range e.headers {
 		email.Headers.Set(key, value)
-	}
-
-	// Set Reply-To header if specified
-	if m.ReplyTo != "" {
-		email.Headers.Set("Reply-To", m.ReplyTo)
 	}
 
 	// Set In-Reply-To header

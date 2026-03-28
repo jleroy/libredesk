@@ -184,22 +184,3 @@ Body`,
 		})
 	}
 }
-
-// mockEnvelope stores test header data
-type mockEnvelope struct {
-	headers map[string]string
-}
-
-// createMockEnvelope creates a minimal enmime.Envelope for testing
-func createMockEnvelope(headers map[string]string) *enmime.Envelope {
-	// Create a minimal email content with the required headers
-	var emailContent strings.Builder
-	for key, value := range headers {
-		emailContent.WriteString(key + ": " + value + "\r\n")
-	}
-	emailContent.WriteString("\r\n") // Empty line to separate headers from body
-	emailContent.WriteString("Test body content")
-
-	envelope, _ := enmime.ReadEnvelope(strings.NewReader(emailContent.String()))
-	return envelope
-}
