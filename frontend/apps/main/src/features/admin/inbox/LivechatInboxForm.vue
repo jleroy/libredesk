@@ -893,7 +893,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
 import { Plus, X } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
-import PreChatFormConfig from './PreChatFormConfig.vue'
+import PreChatFormConfig, { getDefaultPrechatFields } from './PreChatFormConfig.vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import CopyButton from '@/components/button/CopyButton.vue'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
@@ -929,7 +929,11 @@ const { t } = useI18n()
 const activeTab = ref('general')
 const selectedUserTab = ref('visitors')
 const externalLinks = ref([])
-const prechatConfig = ref({})
+const prechatConfig = ref({
+  enabled: false,
+  title: '',
+  fields: getDefaultPrechatFields()
+})
 
 const inboxStore = useInboxStore()
 const appSettingsStore = useAppSettingsStore()
@@ -1072,28 +1076,7 @@ const form = useForm({
       prechat_form: {
         enabled: false,
         title: '',
-        fields: [
-          {
-            key: 'name',
-            type: 'text',
-            label: 'Full name',
-            placeholder: 'Enter your name',
-            required: true,
-            enabled: true,
-            order: 1,
-            is_default: true
-          },
-          {
-            key: 'email',
-            type: 'email',
-            label: 'Email address',
-            placeholder: 'your@email.com',
-            required: true,
-            enabled: true,
-            order: 2,
-            is_default: true
-          }
-        ]
+        fields: getDefaultPrechatFields()
       }
     }
   }
@@ -1191,7 +1174,11 @@ watch(
 
     // Set prechat config
     if (newValues.config?.prechat_form) {
-      prechatConfig.value = JSON.parse(JSON.stringify(newValues.config.prechat_form))
+      const pc = JSON.parse(JSON.stringify(newValues.config.prechat_form))
+      if (!pc.fields || pc.fields.length === 0) {
+        pc.fields = getDefaultPrechatFields()
+      }
+      prechatConfig.value = pc
     }
 
     form.setValues(newValues)

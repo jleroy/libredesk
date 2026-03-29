@@ -144,6 +144,13 @@
   </div>
 </template>
 
+<script>
+export const getDefaultPrechatFields = () => [
+  { key: 'name', type: 'text', label: 'Full name', placeholder: 'Enter your name', required: true, enabled: true, order: 1, is_default: true },
+  { key: 'email', type: 'email', label: 'Email address', placeholder: 'your@email.com', required: true, enabled: true, order: 2, is_default: true }
+]
+</script>
+
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { Input } from '@shared-ui/components/ui/input'
@@ -158,28 +165,7 @@ const prechatConfig = defineModel({
   default: () => ({
     enabled: false,
     title: '',
-    fields: [
-      {
-        key: 'name',
-        type: 'text',
-        label: 'Full name',
-        placeholder: 'Enter your name',
-        required: true,
-        enabled: true,
-        order: 1,
-        is_default: true
-      },
-      {
-        key: 'email',
-        type: 'email',
-        label: 'Email address',
-        placeholder: 'your@email.com',
-        required: true,
-        enabled: true,
-        order: 2,
-        is_default: true
-      }
-    ]
+    fields: getDefaultPrechatFields()
   })
 })
 
