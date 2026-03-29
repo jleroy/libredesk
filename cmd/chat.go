@@ -591,7 +591,16 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 	}
 	app.conversation.SignAvatarURL(&insertedMessage.Author.AvatarURL)
 
-	return r.SendEnvelope(insertedMessage)
+	return r.SendEnvelope(cmodels.ChatMessage{
+		UUID:             insertedMessage.UUID,
+		CreatedAt:        insertedMessage.CreatedAt,
+		Content:          insertedMessage.Content,
+		TextContent:      insertedMessage.TextContent,
+		ConversationUUID: insertedMessage.ConversationUUID,
+		Status:           insertedMessage.Status,
+		Author:           insertedMessage.Author,
+		Attachments:      insertedMessage.Attachments,
+	})
 }
 
 // getContactConversation gets the contact ID from middleware, fetches the conversation,

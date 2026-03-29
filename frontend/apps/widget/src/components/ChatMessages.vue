@@ -260,6 +260,7 @@ onMounted(() => {
   setTimeout(() => {
     scrollToBottom()
   }, 200)
+
 })
 
 // Auto-scroll for user's own messages or when already at bottom
@@ -281,8 +282,10 @@ watch(
     // If widget is open, do:
     // - Check if new messages were added and handle scrolling behavior
     // - Also update the last seen timestamp if the widget is open
-    if (oldMessages && newMessages.length > oldMessages.length && widgetStore.isOpen) {
-      // Always on new message, update last seen timestamp if conversation is open
+    if (!oldMessages || !widgetStore.isOpen) return
+
+    if (newMessages.length > oldMessages.length) {
+      // New message added
       chatStore.updateCurrentConversationLastSeen()
 
       const newMessage = newMessages[newMessages.length - 1]
@@ -300,6 +303,9 @@ watch(
         // User is scrolled up and agent sent message - show unread count
         unreadMessages.value++
       }
+    } else if (isAtBottom.value) {
+      // Message content changed (e.g. pending replaced with attachment) — keep user at bottom.
+      scrollToBottom()
     }
   },
   { deep: true }

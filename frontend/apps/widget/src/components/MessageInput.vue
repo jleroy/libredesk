@@ -210,19 +210,14 @@ const handleFileUpload = async (files) => {
   )
 
   try {
-    // Upload files using the widget API
-    await api.uploadMedia(chatStore.currentConversation.uuid, files)
+    const resp = await api.uploadMedia(chatStore.currentConversation.uuid, files)
 
-    // Refresh conversation to get updated messages with attachments
-    const resp = await api.getChatConversation(chatStore.currentConversation.uuid)
-    const msgs = resp.data.data.messages
-
-    // Remove the pending message since we're replacing all messages
-    if (tempMessageID) {
-      chatStore.removeMessage(chatStore.currentConversation.uuid, tempMessageID)
+    if (tempMessageID && resp.data.data) {
+      chatStore.replaceMessage(chatStore.currentConversation.uuid, tempMessageID, resp.data.data)
     }
-
-    chatStore.replaceMessages(msgs)
+    if (resp.data.data) {
+      chatStore.updateConversationListLastMessage(chatStore.currentConversation.uuid, resp.data.data)
+    }
   } catch (error) {
     // Remove failed upload message
     if (tempMessageID) {
