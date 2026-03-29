@@ -112,29 +112,6 @@ func (h *Hub) SubscribeToConversation(client *Client, conversationUUID string) {
 	h.conversationClients[conversationUUID] = append(h.conversationClients[conversationUUID], client)
 }
 
-// UnsubscribeFromConversation unsubscribes a client from a conversation.
-func (h *Hub) UnsubscribeFromConversation(client *Client, conversationUUID string) {
-	h.conversationClientsMutex.Lock()
-	defer h.conversationClientsMutex.Unlock()
-	h.unsubscribeFromConversationUnsafe(client, conversationUUID)
-}
-
-// unsubscribeFromConversationUnsafe removes a client from conversation subscription without locking.
-// Must be called with conversationClientsMutex held.
-func (h *Hub) unsubscribeFromConversationUnsafe(client *Client, conversationUUID string) {
-	if clients, ok := h.conversationClients[conversationUUID]; ok {
-		for i, c := range clients {
-			if c == client {
-				h.conversationClients[conversationUUID] = append(clients[:i], clients[i+1:]...)
-				if len(h.conversationClients[conversationUUID]) == 0 {
-					delete(h.conversationClients, conversationUUID)
-				}
-				break
-			}
-		}
-	}
-}
-
 // removeClientFromAllConversations removes a client from all conversation subscriptions.
 // Must be called with conversationClientsMutex held.
 func (h *Hub) removeClientFromAllConversations(client *Client) {
