@@ -22,6 +22,7 @@ const (
 	ctxWidgetClaims    = "widget_claims"
 	ctxWidgetContactID = "widget_contact_id"
 	ctxWidgetInbox     = "widget_inbox"
+	ctxWidgetConfig    = "widget_config"
 
 	hdrWidgetInboxID    = "X-Libredesk-Inbox-ID"
 	hdrWidgetVisitorJWT = "X-Libredesk-Visitor-JWT"
@@ -75,8 +76,9 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 			}
 		}
 
-		// Always store inbox data in context
+		// Store inbox and parsed config in context for downstream handlers.
 		r.RequestCtx.SetUserValue(ctxWidgetInbox, inbox)
+		r.RequestCtx.SetUserValue(ctxWidgetConfig, config)
 
 		// Extract JWT from Authorization header (Bearer token)
 		authHeader := string(r.RequestCtx.Request.Header.Peek("Authorization"))
@@ -176,6 +178,19 @@ func getWidgetInbox(r *fastglue.Request) (imodels.Inbox, error) {
 		return imodels.Inbox{}, fmt.Errorf("invalid inbox type in context")
 	}
 	return inbox, nil
+}
+
+// getWidgetConfig extracts parsed livechat config from request context
+func getWidgetConfig(r *fastglue.Request) (livechat.Config, error) {
+	val := r.RequestCtx.UserValue(ctxWidgetConfig)
+	if val == nil {
+		return livechat.Config{}, fmt.Errorf("widget middleware not applied: missing config in context")
+	}
+	config, ok := val.(livechat.Config)
+	if !ok {
+		return livechat.Config{}, fmt.Errorf("invalid config type in context")
+	}
+	return config, nil
 }
 
 // getWidgetClaimsOptional extracts JWT claims from request context, returns nil if not set

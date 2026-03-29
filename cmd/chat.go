@@ -168,10 +168,9 @@ func handleChatInit(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
-	config, err := parseLiveChatConfig(inbox)
+	config, err := getWidgetConfig(r)
 	if err != nil {
-		app.lo.Error("error parsing live chat config", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("validation.invalidInbox"), nil, envelope.GeneralError)
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	// Handle authenticated user vs visitor.
@@ -411,12 +410,6 @@ func handleChatSendMessage(r *fastglue.Request) error {
 		return err
 	}
 
-	inbox, err := getWidgetInbox(r)
-	if err != nil {
-		app.lo.Error("error getting inbox from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
 	// Fetch sender.
 	sender, err := app.user.Get(senderID, "", []string{})
 	if err != nil {
@@ -426,10 +419,9 @@ func handleChatSendMessage(r *fastglue.Request) error {
 
 	// Check if replies to closed conversations are allowed.
 	if conversation.Status.String == cmodels.StatusClosed {
-		lcConfig, err := parseLiveChatConfig(inbox)
+		lcConfig, err := getWidgetConfig(r)
 		if err != nil {
-			app.lo.Error("error parsing live chat config", "error", err)
-			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("validation.invalidInbox"), nil, envelope.GeneralError)
+			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 		}
 
 		preventReply := lcConfig.Visitors.PreventReplyToClosedConversation
@@ -506,17 +498,10 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 		return err
 	}
 
-	inbox, err := getWidgetInbox(r)
-	if err != nil {
-		app.lo.Error("error getting inbox from middleware context", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
 	// Make sure file upload is enabled for the inbox.
-	config, err := parseLiveChatConfig(inbox)
+	config, err := getWidgetConfig(r)
 	if err != nil {
-		app.lo.Error("error parsing live chat config", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("validation.invalidInbox"), nil, envelope.GeneralError)
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	if !config.Features.FileUpload {
