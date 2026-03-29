@@ -125,7 +125,7 @@ func handleWidgetWS(r *fastglue.Request) error {
 				if userID == 0 || inboxID == 0 {
 					continue
 				}
-				handleWidgetTyping(app, msg.Data, inboxID, msg.JWT)
+				handleWidgetTyping(app, msg.Data, inboxID, userID, msg.JWT)
 
 			case WidgetMsgTypePageVisit:
 				if userID > 0 {
@@ -221,13 +221,18 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, jwtToken, cli
 	return client, liveChat, joinData.InboxID, userID, nil
 }
 
-func handleWidgetTyping(app *App, data json.RawMessage, inboxID int, jwtToken string) {
+func handleWidgetTyping(app *App, data json.RawMessage, inboxID, userID int, jwtToken string) {
 	var typingData WidgetTypingData
 	if err := json.Unmarshal(data, &typingData); err != nil || typingData.ConversationUUID == "" {
 		return
 	}
 
 	if _, err := validateWidgetMessageJWT(app, jwtToken, inboxID); err != nil {
+		return
+	}
+
+	conversation, err := app.conversation.GetConversation(0, typingData.ConversationUUID, "")
+	if err != nil || conversation.ContactID != userID {
 		return
 	}
 

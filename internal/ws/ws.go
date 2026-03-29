@@ -151,16 +151,6 @@ func (h *Hub) removeClientFromAllConversations(client *Client) {
 	}
 }
 
-// BroadcastToConversation broadcasts a message to all clients subscribed to a specific conversation.
-func (h *Hub) BroadcastToConversation(conversationUUID string, data []byte) {
-	h.conversationClientsMutex.RLock()
-	defer h.conversationClientsMutex.RUnlock()
-
-	for _, client := range h.conversationClients[conversationUUID] {
-		client.SendMessage(data, websocket.TextMessage)
-	}
-}
-
 // BroadcastTypingToConversation broadcasts typing status to all clients subscribed to a conversation except the sender.
 func (h *Hub) BroadcastTypingToConversation(conversationUUID string, typingMsg models.TypingMessage, sender *Client) {
 	h.conversationClientsMutex.RLock()
