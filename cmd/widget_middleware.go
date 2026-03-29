@@ -110,7 +110,7 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 		}
 
 		// Contact doesn't exist yet but JWT has external_user_id, create it so merge can proceed.
-		if contactID == 0 && claims.ExternalUserID != "" {
+		if contactID == 0 && claims.ExternalUserID != "" && claims.Email != "" && claims.FirstName != "" {
 			user := umodels.User{
 				FirstName:        claims.FirstName,
 				LastName:         claims.LastName,
