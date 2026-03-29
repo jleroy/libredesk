@@ -171,6 +171,10 @@ const sendMessage = async () => {
     emit('error', handleHTTPError(error).message)
   } finally {
     isSending.value = false
+    nextTick(() => {
+      const textarea = messageInput.value?.$el?.querySelector?.('textarea') || messageInput.value?.$el
+      textarea?.focus()
+    })
   }
 }
 

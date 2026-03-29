@@ -1705,7 +1705,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 		messages, _, err := m.GetConversationMessages(conversation.UUID, 1, 400, &private, []string{models.MessageIncoming, models.MessageOutgoing})
 		if err != nil {
 			m.lo.Error("error fetching conversation messages", "conversation_uuid", conversation.UUID, "error", err)
-			return resp, envelope.NewError(envelope.GeneralError, "error fetching messages", nil)
+			return resp, envelope.NewError(envelope.GeneralError, "Error fetching messages", nil)
 		}
 
 		m.ProcessCSATStatus(messages)
@@ -1713,6 +1713,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 		// Generate signed URLs for all attachments.
 		chatMessages := make([]models.ChatMessage, len(messages))
 		for i, msg := range messages {
+			m.SignAvatarURL(&msg.Author.AvatarURL)
 			attachments := msg.Attachments
 			for j := range attachments {
 				attachments[j].URL = m.mediaStore.GetSignedURL(attachments[j].UUID)
