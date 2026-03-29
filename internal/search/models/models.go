@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/volatiletech/null/v9"
+)
 
 type ConversationResult struct {
 	CreatedAt       time.Time `db:"created_at" json:"created_at"`
@@ -20,8 +24,9 @@ type MessageResult struct {
 }
 
 type ContactResult struct {
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	FirstName string    `db:"first_name" json:"first_name"`
-	LastName  string    `db:"last_name" json:"last_name"`
-	Email     string    `db:"email" json:"email"`
+	CreatedAt      time.Time   `db:"created_at" json:"created_at"`
+	FirstName      string      `db:"first_name" json:"first_name"`
+	LastName       string      `db:"last_name" json:"last_name"`
+	Email          string      `db:"email" json:"email"`
+	ExternalUserID null.String `db:"external_user_id" json:"external_user_id"`
 }

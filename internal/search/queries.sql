@@ -37,12 +37,13 @@ WHERE m.type != 'activity' and m.text_content ILIKE '%' || $1 || '%'
 LIMIT 30;
 
 -- name: search-contacts
-SELECT 
+SELECT
     id,
     created_at,
     first_name,
     last_name,
-    email
+    email,
+    external_user_id
 FROM users
 WHERE type = 'contact'
 AND deleted_at IS NULL

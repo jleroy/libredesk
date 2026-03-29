@@ -5,14 +5,14 @@
       <router-link
         v-if="!isOutgoing"
         :to="{ name: 'contact-detail', params: { id: message.author?.id } }"
-        class="text-muted-foreground text-sm font-medium hover:underline hover:text-primary"
+        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-primary transition-colors duration-200"
       >
         {{ getFullName }}
       </router-link>
       <router-link
         v-else-if="canManageUsers"
         :to="{ name: 'edit-agent', params: { id: message.author?.id } }"
-        class="text-muted-foreground text-sm font-medium hover:underline hover:text-primary"
+        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-primary transition-colors duration-200"
       >
         {{ getFullName }}
       </router-link>
@@ -72,7 +72,7 @@
           <div
             v-if="!isOutgoing && hasQuotedContent"
             @click="toggleQuote"
-            class="text-xs cursor-pointer text-muted-foreground px-2 py-1 w-max hover:bg-muted hover:text-primary rounded transition-all"
+            class="text-xs cursor-pointer text-muted-foreground px-2 py-1 w-max hover:bg-muted hover:text-primary rounded transition-colors duration-200"
           >
             {{ showQuotedText ? t('conversation.hideQuotedText') : t('conversation.showQuotedText') }}
           </div>
@@ -240,7 +240,7 @@ const bubbleClasses = computed(() => ({
   'bg-private': isOutgoing.value && props.message.private,
   'border border-border': isOutgoing.value && !props.message.private,
   'opacity-50 animate-pulse': isOutgoing.value && props.message.status === 'pending',
-  'border-red-400': isOutgoing.value && props.message.status === 'failed',
+  'border-destructive': isOutgoing.value && props.message.status === 'failed',
   relative: isOutgoing.value,
   // Incoming-specific: quoted text visibility
   'show-quoted-text': !isOutgoing.value && showQuotedText.value,

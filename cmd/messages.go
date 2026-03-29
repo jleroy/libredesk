@@ -22,6 +22,7 @@ type messageReq struct {
 	BCC         []string               `json:"bcc"`
 	SenderType  string                 `json:"sender_type"`
 	Mentions    []cmodels.MentionInput `json:"mentions"`
+	EchoID      string                 `json:"echo_id"`
 }
 
 // handleGetMessages returns messages for a conversation.
@@ -251,7 +252,11 @@ func handleSendMessage(r *fastglue.Request) error {
 		return r.SendEnvelope(message)
 	}
 
-	message, err := app.conversation.QueueReply(media, conv.InboxID, user.ID, conv.ContactID, cuuid, req.Message, req.To, req.CC, req.BCC, map[string]any{} /**meta**/)
+	meta := map[string]any{}
+	if req.EchoID != "" {
+		meta["echo_id"] = req.EchoID
+	}
+	message, err := app.conversation.QueueReply(media, conv.InboxID, user.ID, conv.ContactID, cuuid, req.Message, req.To, req.CC, req.BCC, meta)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}

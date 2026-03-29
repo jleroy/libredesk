@@ -12,17 +12,29 @@ import (
 // BroadcastNewMessage broadcasts a new message to all users.
 // lastMessage is the computed preview text (e.g., "Image" for media-only messages).
 func (m *Manager) BroadcastNewMessage(message *cmodels.Message, lastMessage string) {
+	data := map[string]any{
+		"conversation_uuid": message.ConversationUUID,
+		"content":           "",
+		"created_at":        message.CreatedAt.Format(time.RFC3339),
+		"uuid":              message.UUID,
+		"private":           message.Private,
+		"type":              message.Type,
+		"sender_type":       message.SenderType,
+	}
+
+	// Include echo_id from meta so clients can match WS events to pending messages.
+	var meta map[string]any
+	if len(message.Meta) > 0 {
+		if err := json.Unmarshal(message.Meta, &meta); err == nil {
+			if echoID, ok := meta["echo_id"].(string); ok && echoID != "" {
+				data["echo_id"] = echoID
+			}
+		}
+	}
+
 	m.broadcastToUsers([]int{}, wsmodels.Message{
 		Type: wsmodels.MessageTypeNewMessage,
-		Data: map[string]any{
-			"conversation_uuid": message.ConversationUUID,
-			"content":           "",
-			"created_at":        message.CreatedAt.Format(time.RFC3339),
-			"uuid":              message.UUID,
-			"private":           message.Private,
-			"type":              message.Type,
-			"sender_type":       message.SenderType,
-		},
+		Data: data,
 	})
 }
 

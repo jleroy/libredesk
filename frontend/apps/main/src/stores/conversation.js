@@ -638,6 +638,15 @@ export const useConversationStore = defineStore('conversation', () => {
 
     // Open conversation and message not in cache? Fetch from server.
     if (!messages.data.hasMessage(message.conversation_uuid, message.uuid)) {
+      // Match echo_id to pending message and swap its UUID so mergeMessageUpdate can find it.
+      const echoId = message.echo_id
+      if (echoId && messages.data.hasMessage(message.conversation_uuid, echoId)) {
+        messages.data.updateMessage(message.conversation_uuid, echoId, { uuid: message.uuid })
+        incrementMessageVersion()
+        updateAssigneeLastSeen(message.conversation_uuid)
+        return
+      }
+
       debouncedFetchParticipants(message.conversation_uuid)
       const fetchedMessage = await fetchMessage(message.conversation_uuid, message.uuid)
       if (fetchedMessage) {
@@ -701,7 +710,6 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function replacePendingMessage (conversationUUID, tempUUID, realMessage) {
     if (messages.data.hasMessage(conversationUUID, realMessage.uuid)) {
-      // WS already delivered the real message, just remove the temp.
       messages.data.removeMessage(conversationUUID, tempUUID)
     } else {
       messages.data.updateMessage(conversationUUID, tempUUID, realMessage)
@@ -721,17 +729,10 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  /**
-   * Update a single message property in the cache.
-   * 
-   * @param {Object} message - Message
-   */
   function mergeMessageUpdate (data) {
     const { conversation_uuid, uuid, ...fields } = data
     if (!messages.data.hasMessage(conversation_uuid, uuid)) return
-    for (const [field, value] of Object.entries(fields)) {
-      messages.data.updateMessageField(conversation_uuid, uuid, field, value)
-    }
+    messages.data.updateMessage(conversation_uuid, uuid, fields)
     incrementMessageVersion()
   }
 

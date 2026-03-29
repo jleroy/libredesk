@@ -393,11 +393,12 @@ const processSend = async (skipContactEmailCheck = false) => {
         mentions: isPrivate ? mentions.value : [],
         cc: parsedCC,
         bcc: parsedBCC,
-        to: parsedTo
+        to: parsedTo,
+        echo_id: isPrivate ? '' : tempUUID
       })
 
-      // Replace pending message with the real one from API response.
-      if (response?.data?.data) {
+      // Private notes are sent immediately so replace immediately.
+      if (isPrivate && response?.data?.data) {
         conversationStore.replacePendingMessage(convUUID, tempUUID, response.data.data)
       }
     } catch (error) {

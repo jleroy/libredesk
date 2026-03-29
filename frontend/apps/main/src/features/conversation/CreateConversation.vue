@@ -8,6 +8,7 @@
           </DialogTitle>
           <DialogDescription />
         </DialogHeader>
+
         <form @submit="createConversation" class="flex flex-col flex-1 overflow-hidden">
           <!-- Form Fields Section -->
           <div class="space-y-4 pb-2 flex-shrink-0">
@@ -21,6 +22,7 @@
                       :placeholder="t('conversation.searchContact')"
                       v-model="emailQuery"
                       @input="handleSearchContacts"
+                      @keydown="handleSearchKeydown"
                       autocomplete="off"
                     />
                   </FormControl>
@@ -30,16 +32,32 @@
                     v-if="searchResults.length"
                     class="absolute w-full z-50 mt-1 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
                   >
-                    <ul class="max-h-60 overflow-y-auto">
+                    <ul class="max-h-60 overflow-y-auto" role="listbox">
                       <li
-                        v-for="contact in searchResults"
+                        v-for="(contact, index) in searchResults"
                         :key="contact.email"
                         @click="selectContact(contact)"
-                        class="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                        role="option"
+                        :aria-selected="index === highlightedIndex"
+                        class="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors duration-200"
+                        :class="
+                          index === highlightedIndex
+                            ? 'bg-accent text-accent-foreground'
+                            : 'hover:bg-accent hover:text-accent-foreground'
+                        "
                       >
                         <div>
-                          <p class="font-medium">{{ contact.first_name }} {{ contact.last_name }}</p>
+                          <p class="font-medium">
+                            {{ contact.first_name }} {{ contact.last_name }}
+                          </p>
                           <p class="text-xs text-muted-foreground">{{ contact.email }}</p>
+                          <div
+                            v-if="contact.external_user_id"
+                            class="flex items-center gap-1 text-xs text-muted-foreground"
+                          >
+                            <IdCard :size="12" class="flex-shrink-0" />
+                            <span class="truncate">{{ contact.external_user_id }}</span>
+                          </div>
                         </div>
                       </li>
                     </ul>
@@ -53,7 +71,13 @@
                   <FormItem>
                     <FormLabel>{{ $t('globals.terms.firstName') }}</FormLabel>
                     <FormControl>
-                      <Input type="text" placeholder="" v-bind="componentField" :disabled="!!selectedContact" required />
+                      <Input
+                        type="text"
+                        placeholder=""
+                        v-bind="componentField"
+                        :disabled="!!selectedContact"
+                        required
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -63,7 +87,12 @@
                   <FormItem>
                     <FormLabel>{{ $t('globals.terms.lastName') }}</FormLabel>
                     <FormControl>
-                      <Input type="text" placeholder="" v-bind="componentField" :disabled="!!selectedContact" />
+                      <Input
+                        type="text"
+                        placeholder=""
+                        v-bind="componentField"
+                        :disabled="!!selectedContact"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -88,9 +117,7 @@
                     <FormControl>
                       <Select v-bind="componentField">
                         <SelectTrigger>
-                          <SelectValue
-                            :placeholder="t('placeholders.selectInbox')"
-                          />
+                          <SelectValue :placeholder="t('placeholders.selectInbox')" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
@@ -122,7 +149,10 @@
                     <FormControl>
                       <SelectComboBox
                         v-bind="componentField"
-                        :items="[{ value: 'none', label: t('globals.terms.none') }, ...teamStore.options]"
+                        :items="[
+                          { value: 'none', label: t('globals.terms.none') },
+                          ...teamStore.options
+                        ]"
                         :placeholder="t('placeholders.selectTeam')"
                         type="team"
                       />
@@ -141,7 +171,10 @@
                     <FormControl>
                       <SelectComboBox
                         v-bind="componentField"
-                        :items="[{ value: 'none', label: t('globals.terms.none') }, ...uStore.options]"
+                        :items="[
+                          { value: 'none', label: t('globals.terms.none') },
+                          ...uStore.options
+                        ]"
                         :placeholder="t('placeholders.selectAgent')"
                         type="user"
                       />
@@ -170,17 +203,24 @@
                       @send="createConversation"
                     />
 
-                    <!-- Macro preview -->
                     <MacroActionsPreview
-                      v-if="conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).actions?.length > 0"
-                      :actions="conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION)?.actions || []"
+                      v-if="
+                        conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).actions?.length >
+                        0
+                      "
+                      :actions="
+                        conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION)?.actions || []
+                      "
                       :onRemove="
-                        (action) => conversationStore.removeMacroAction(action, MACRO_CONTEXT.NEW_CONVERSATION)
+                        (action) =>
+                          conversationStore.removeMacroAction(
+                            action,
+                            MACRO_CONTEXT.NEW_CONVERSATION
+                          )
                       "
                       class="mt-2 flex-shrink-0"
                     />
 
-                    <!-- Attachments preview -->
                     <AttachmentsPreview
                       :attachments="mediaFiles"
                       :uploadingFiles="uploadingFiles"
@@ -224,7 +264,13 @@ import { Button } from '@shared-ui/components/ui/button'
 import { Input } from '@shared-ui/components/ui/input'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@shared-ui/components/ui/form'
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@shared-ui/components/ui/form'
 import { z } from 'zod'
 import { ref, watch, onUnmounted, nextTick, onMounted, computed } from 'vue'
 import AttachmentsPreview from '@/features/conversation/message/attachment/AttachmentsPreview.vue'
@@ -252,6 +298,7 @@ import Editor from '@/components/editor/TextEditor.vue'
 import { useMacroStore } from '@/stores/macro'
 import SelectComboBox from '@/components/combobox/SelectCombobox.vue'
 import { UserTypeAgent } from '@/constants/user'
+import { IdCard } from 'lucide-vue-next'
 import api from '@/api'
 
 const dialogOpen = defineModel({
@@ -292,17 +339,13 @@ const isDisabled = computed(() => {
 })
 
 const formSchema = z.object({
-  subject: z.string().min(
-    1,
-    t('validation.subjectCannotBeEmpty')
-  ),
-  content: z.string().min(
-    1,
-    t('validation.messageCannotBeEmpty')
-  ),
-  inbox_id: z.any().refine((val) => inboxStore.emailOptions.some((option) => option.value === val), {
-    message: t('globals.messages.required')
-  }),
+  subject: z.string().min(1, t('validation.subjectCannotBeEmpty')),
+  content: z.string().min(1, t('validation.messageCannotBeEmpty')),
+  inbox_id: z
+    .any()
+    .refine((val) => inboxStore.emailOptions.some((option) => option.value === val), {
+      message: t('globals.messages.required')
+    }),
   team_id: z.any().optional(),
   agent_id: z.any().optional(),
   contact_email: z.string().email(t('validation.invalidEmail')),
@@ -364,6 +407,7 @@ const handleSearchContacts = async () => {
     try {
       const resp = await api.searchContacts({ query })
       searchResults.value = [...resp.data.data]
+      highlightedIndex.value = -1
     } catch (error) {
       emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
         variant: 'destructive',
@@ -374,12 +418,32 @@ const handleSearchContacts = async () => {
   }, 300)
 }
 
+const highlightedIndex = ref(-1)
+
+const handleSearchKeydown = (e) => {
+  if (!searchResults.value.length) return
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    highlightedIndex.value = Math.min(highlightedIndex.value + 1, searchResults.value.length - 1)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    highlightedIndex.value = Math.max(highlightedIndex.value - 1, 0)
+  } else if (e.key === 'Enter' && highlightedIndex.value >= 0) {
+    e.preventDefault()
+    selectContact(searchResults.value[highlightedIndex.value])
+  } else if (e.key === 'Escape') {
+    searchResults.value.splice(0)
+    highlightedIndex.value = -1
+  }
+}
+
 const selectContact = (contact) => {
   selectedContact.value = contact
   emailQuery.value = contact.email
   form.setFieldValue('first_name', contact.first_name)
   form.setFieldValue('last_name', contact.last_name || '')
   searchResults.value.splice(0)
+  highlightedIndex.value = -1
 }
 
 const createConversation = form.handleSubmit(async (values) => {
@@ -426,7 +490,10 @@ const createConversation = form.handleSubmit(async (values) => {
 watch(
   () => conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).id,
   () => {
-    form.setFieldValue('content', conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).message_content)
+    form.setFieldValue(
+      'content',
+      conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).message_content
+    )
   },
   { deep: true }
 )
