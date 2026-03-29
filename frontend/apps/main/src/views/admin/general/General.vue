@@ -1,5 +1,5 @@
 <template>
-  <AdminPageWithHelp>
+  <AdminSplitLayout>
     <template #content>
       <div :class="{ 'opacity-50 transition-opacity duration-300': isLoading }">
         <GeneralSettingForm
@@ -13,14 +13,14 @@
     <template #help>
       <p>{{ $t('admin.general.help') }}</p>
     </template>
-  </AdminPageWithHelp>
+  </AdminSplitLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import GeneralSettingForm from '@/features/admin/general/GeneralSettingForm.vue'
-import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import api from '@/api'
 

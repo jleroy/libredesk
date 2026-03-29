@@ -1,7 +1,7 @@
 <template>
   <div>
     <Spinner v-if="isLoading" />
-    <AdminPageWithHelp>
+    <AdminSplitLayout>
       <template #content>
         <div :class="{ 'opacity-50 transition-opacity duration-300': isLoading }">
           <div class="flex justify-between mb-5">
@@ -65,7 +65,7 @@
       <template #help>
         <p>{{ $t('admin.customAttribute.help') }}</p>
       </template>
-    </AdminPageWithHelp>
+    </AdminSplitLayout>
   </div>
 </template>
 
@@ -92,7 +92,7 @@ import {
 } from '@shared-ui/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
 import { useStorage } from '@vueuse/core'
-import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import { useI18n } from 'vue-i18n'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import api from '../../../api'

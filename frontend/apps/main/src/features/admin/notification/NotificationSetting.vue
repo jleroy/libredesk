@@ -1,5 +1,5 @@
 <template>
-  <AdminPageWithHelp>
+  <AdminSplitLayout>
     <template #content>
       <div :class="{ 'opacity-50 transition-opacity duration-300': isLoading }">
         <Spinner v-if="isLoading" />
@@ -11,13 +11,13 @@
       <p>{{ $t('admin.notification.help.description') }}</p>
       <p>{{ $t('admin.notification.help.detail') }}</p>
     </template>
-  </AdminPageWithHelp>
+  </AdminSplitLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '@main/api'
-import AdminPageWithHelp from '@main/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@main/layouts/admin/AdminSplitLayout.vue'
 import { useI18n } from 'vue-i18n'
 import NotificationsForm from './NotificationSettingForm.vue'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'

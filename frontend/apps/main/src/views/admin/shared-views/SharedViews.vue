@@ -1,14 +1,14 @@
 <template>
-  <AdminPageWithHelp>
+  <AdminSplitLayout>
     <template #content>
       <router-view></router-view>
     </template>
     <template #help>
       <p>{{ $t('admin.sharedView.help') }}</p>
     </template>
-  </AdminPageWithHelp>
+  </AdminSplitLayout>
 </template>
 
 <script setup>
-import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 </script>

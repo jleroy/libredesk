@@ -1,7 +1,7 @@
 <template>
   <div>
     <Spinner v-if="isLoading" />
-    <AdminPageWithHelp>
+    <AdminSplitLayout>
       <template #content>
         <template v-if="router.currentRoute.value.path === '/admin/templates'">
           <div :class="{ 'opacity-50 transition-opacity duration-300': isLoading }">
@@ -55,7 +55,7 @@
           <p>{{ $t('globals.messages.learnMore') }}</p>
         </a>
       </template>
-    </AdminPageWithHelp>
+    </AdminSplitLayout>
   </div>
 </template>
 
@@ -73,7 +73,7 @@ import { useEmitter } from '../../../composables/useEmitter'
 import { EMITTER_EVENTS } from '../../../constants/emitterEvents.js'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
 import { useStorage } from '@vueuse/core'
-import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import { useI18n } from 'vue-i18n'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import api from '../../../api'

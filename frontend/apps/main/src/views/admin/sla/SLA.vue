@@ -1,5 +1,5 @@
 <template>
-  <AdminPageWithHelp>
+  <AdminSplitLayout>
     <template #content>
       <router-view />
     </template>
@@ -8,9 +8,9 @@
       <p>{{ $t('admin.sla.help.description') }}</p>
       <p>{{ $t('admin.sla.help.detail') }}</p>
     </template>
-  </AdminPageWithHelp>
+  </AdminSplitLayout>
 </template>
 
 <script setup>
-import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 </script>

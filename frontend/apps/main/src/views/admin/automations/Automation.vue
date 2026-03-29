@@ -1,5 +1,5 @@
 <template>
-  <AdminPageWithHelp>
+  <AdminSplitLayout>
     <template #content>
       <div v-if="router.currentRoute.value.name === 'automations'">
         <div class="flex justify-between mb-5">
@@ -20,7 +20,7 @@
       <p>{{ $t('admin.automation.help.description') }}</p>
       <p>{{ $t('admin.automation.help.detail') }}</p>
     </template>
-  </AdminPageWithHelp>
+  </AdminSplitLayout>
 </template>
 
 <script setup>
@@ -28,7 +28,7 @@ import { Button } from '@shared-ui/components/ui/button'
 import { useRouter } from 'vue-router'
 import { useStorage } from '@vueuse/core'
 import AutomationTabs from '@/features/admin/automation/AutomationTabs.vue'
-import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 
 const router = useRouter()
 const selectedTab = useStorage('automationsTab', 'new_conversation')

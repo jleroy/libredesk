@@ -1,7 +1,7 @@
 <template>
   <div>
     <Spinner v-if="isLoading" />
-    <AdminPageWithHelp>
+    <AdminSplitLayout>
       <template #content>
         <div :class="{ 'transition-opacity duration-300 opacity-50': isLoading }">
           <div class="flex justify-between mb-5">
@@ -49,14 +49,14 @@
       <template #help>
         <p>{{ $t('admin.tag.help') }}</p>
       </template>
-    </AdminPageWithHelp>
+    </AdminSplitLayout>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import DataTable from '@main/components/datatable/DataTable.vue'
-import AdminPageWithHelp from '@/layouts/admin/AdminPageWithHelp.vue'
+import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import { Spinner } from '@shared-ui/components/ui/spinner/index.js'
 import { createColumns } from '../../../features/admin/tags/dataTableColumns.js'
 import { Button } from '@shared-ui/components/ui/button/index.js'
