@@ -72,7 +72,6 @@ const setupParentMessageListeners = () => {
     } else if (event.data.type === 'SET_JWT_TOKEN') {
       if (event.data.jwt) {
         userStore.setSessionToken(event.data.jwt)
-        // Re-fetch conversations with the new auth token.
         chatStore.conversations = null
         chatStore.fetchConversations().then(() => {
           if (widgetStore.config?.direct_to_conversation && chatStore.hasConversations) {

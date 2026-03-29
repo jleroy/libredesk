@@ -100,21 +100,11 @@ const initChatConversation = async (messageText) => {
   chatStore.replaceMessages(messages)
 }
 
-const sendMessageToConversation = async (messageText) => {
-  // Add pending message immediately for existing conversation
-  const tempMessageID = chatStore.addPendingMessage(
-    chatStore.currentConversation.uuid,
-    messageText,
-    userStore.isVisitor ? 'visitor' : 'contact',
-    userStore.userID
-  )
-
-  // Send message in existing conversation.
+const sendMessageToConversation = async (messageText, tempMessageID) => {
   const messageResp = await api.sendChatMessage(chatStore.currentConversation.uuid, {
     message: messageText
   })
 
-  // Update the pending message with the actual message.
   if (tempMessageID && messageResp.data.data) {
     chatStore.replaceMessage(
       chatStore.currentConversation.uuid,
@@ -128,8 +118,6 @@ const sendMessageToConversation = async (messageText) => {
       messageResp.data.data
     )
   }
-
-  return tempMessageID
 }
 
 const sendMessage = async () => {
@@ -145,15 +133,22 @@ const sendMessage = async () => {
   // Clear input field immediately
   newMessage.value = ''
 
-  // Temporary message ID for pending messages.
+  // Add pending message before API call so we can remove it on failure.
   let tempMessageID = null
+  if (chatStore.currentConversation?.uuid) {
+    tempMessageID = chatStore.addPendingMessage(
+      chatStore.currentConversation.uuid,
+      messageText,
+      userStore.isVisitor ? 'visitor' : 'contact',
+      userStore.userID
+    )
+  }
   try {
     isSending.value = true
-    // No current conversation ID? Start a new conversation.
     if (!chatStore.currentConversation.uuid) {
       await initChatConversation(messageText)
     } else {
-      tempMessageID = await sendMessageToConversation(messageText)
+      await sendMessageToConversation(messageText, tempMessageID)
     }
     emit('error', '')
   } catch (error) {

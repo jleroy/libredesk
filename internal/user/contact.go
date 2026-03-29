@@ -17,6 +17,10 @@ func (u *Manager) CreateContact(user *models.User) error {
 		return fmt.Errorf("generating password: %w", err)
 	}
 
+	if len(user.CustomAttributes) == 0 {
+		user.CustomAttributes = []byte("{}")
+	}
+
 	user.Email = null.NewString(strings.ToLower(user.Email.String), user.Email.Valid)
 
 	if user.ExternalUserID.String != "" {

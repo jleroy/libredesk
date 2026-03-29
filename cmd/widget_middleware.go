@@ -10,6 +10,8 @@ import (
 	"github.com/abhinavxd/libredesk/internal/httputil"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
+	umodels "github.com/abhinavxd/libredesk/internal/user/models"
+	"github.com/volatiletech/null/v9"
 	realip "github.com/ferluci/fast-realip"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
@@ -105,6 +107,22 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 				app.lo.Error("error resolving user ID from JWT claims", "error", err)
 				return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 			}
+		}
+
+		// Contact doesn't exist yet but JWT has external_user_id, create it so merge can proceed.
+		if contactID == 0 && claims.ExternalUserID != "" {
+			user := umodels.User{
+				FirstName:        claims.FirstName,
+				LastName:         claims.LastName,
+				Email:            null.NewString(claims.Email, claims.Email != ""),
+				ExternalUserID:   null.NewString(claims.ExternalUserID, true),
+				CustomAttributes: marshalCustomAttributes(claims.ContactCustomAttributes, app),
+			}
+			if err := app.user.CreateContact(&user); err != nil {
+				app.lo.Error("error creating contact from JWT in middleware", "external_user_id", claims.ExternalUserID, "error", err)
+				return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+			}
+			contactID = user.ID
 		}
 
 		// Store authenticated data in request context for downstream handlers
