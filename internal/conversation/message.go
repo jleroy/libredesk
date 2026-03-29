@@ -274,6 +274,16 @@ func (m *Manager) RenderMessageInTemplate(channel string, message *models.Messag
 			},
 		}
 
+		// Expose message meta flags to the template.
+		var (
+			isContinuity bool
+			meta         map[string]any
+		)
+		if len(message.Meta) > 0 && json.Unmarshal(message.Meta, &meta) == nil {
+			isContinuity, _ = meta["continuity_email"].(bool)
+		}
+		data["IsContinuityEmail"] = isContinuity
+
 		// For automated replies set author fields to empty strings as the recipients will see name as System.
 		if sender.IsSystemUser() {
 			data["Author"] = map[string]any{
