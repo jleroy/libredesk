@@ -77,8 +77,9 @@ type conversationResponseWithBusinessHours struct {
 	WorkingHoursUTCOffset *int `json:"working_hours_utc_offset,omitempty"`
 }
 
-// handleGetChatLauncherSettings returns the live chat launcher settings for the widget
+// handleGetChatLauncherSettings returns the live chat launcher settings for the widget.
 func handleGetChatLauncherSettings(r *fastglue.Request) error {
+	r.RequestCtx.Response.Header.Set("Access-Control-Allow-Origin", "*")
 	_, config, err := validateLiveChatInbox(r)
 	if err != nil {
 		return sendErrorEnvelope(r, err)

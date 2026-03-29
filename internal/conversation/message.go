@@ -1212,6 +1212,7 @@ func (m *Manager) broadcastMessageToWidgetClients(message *models.Message) {
 		return
 	}
 
+	m.SignAvatarURL(&message.Author.AvatarURL)
 	liveChatInbox.BroadcastMessageToClients(message.ConversationUUID, conversation.ContactID, models.ChatMessage{
 		UUID:             message.UUID,
 		Status:           message.Status,

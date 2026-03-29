@@ -229,7 +229,7 @@ func main() {
 	automation.SetConversationStore(conversation)
 
 	// Start inboxes.
-	startInboxes(ctx, inbox, conversation, user)
+	startInboxes(ctx, inbox, conversation, user, conversation.SignAvatarURL)
 
 	go automation.Run(ctx, automationWorkers)
 	go autoassigner.Run(ctx, autoAssignInterval)

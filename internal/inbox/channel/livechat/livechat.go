@@ -10,6 +10,7 @@ import (
 
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/inbox"
+	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
 
@@ -108,16 +109,18 @@ type LiveChat struct {
 	lo           *logf.Logger
 	messageStore inbox.MessageStore
 	userStore    inbox.UserStore
+	signAvatarURL func(*null.String) // Signs a raw /uploads/ avatar path into a signed URL.
 	clients      map[string][]*Client // Maps user IDs to slices of clients (to handle multiple devices)
 	clientsMutex sync.RWMutex
 }
 
 // Opts holds the options required for the live chat inbox.
 type Opts struct {
-	ID     int
-	Config Config
-	From   string
-	Lo     *logf.Logger
+	ID           int
+	Config       Config
+	From         string
+	Lo           *logf.Logger
+	SignAvatarURL func(*null.String)
 }
 
 // New returns a new instance of the live chat inbox.
@@ -129,6 +132,7 @@ func New(store inbox.MessageStore, userStore inbox.UserStore, opts Opts) (*LiveC
 		lo:           opts.Lo,
 		messageStore: store,
 		userStore:    userStore,
+		signAvatarURL: opts.SignAvatarURL,
 		clients:      make(map[string][]*Client),
 	}
 	return lc, nil
@@ -170,6 +174,11 @@ func (lc *LiveChat) Send(message models.OutboundMessage) error {
 		message.Attachments[i].Content = nil
 	}
 
+	avatarURL := sender.AvatarURL
+	if lc.signAvatarURL != nil {
+		lc.signAvatarURL(&avatarURL)
+	}
+
 	messageData := map[string]any{
 		"type": "new_message",
 		"data": models.ChatMessage{
@@ -183,7 +192,7 @@ func (lc *LiveChat) Send(message models.OutboundMessage) error {
 				ID:                 message.SenderID,
 				FirstName:          sender.FirstName,
 				LastName:           sender.LastName,
-				AvatarURL:          sender.AvatarURL,
+				AvatarURL:          avatarURL,
 				AvailabilityStatus: sender.AvailabilityStatus,
 				Type:               sender.Type,
 				LastActiveAt:       sender.LastActiveAt,

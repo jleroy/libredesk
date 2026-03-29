@@ -65,6 +65,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	flag "github.com/spf13/pflag"
+	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
 
@@ -662,7 +663,7 @@ func initEmailInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrS
 }
 
 // initLiveChatInbox initializes the live chat inbox.
-func initLiveChatInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrStore inbox.UserStore) (inbox.Inbox, error) {
+func initLiveChatInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrStore inbox.UserStore, signAvatarURL func(*null.String)) (inbox.Inbox, error) {
 	var config livechat.Config
 
 	// Load JSON data into Koanf.
@@ -675,9 +676,10 @@ func initLiveChatInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, u
 	}
 
 	inbox, err := livechat.New(msgStore, usrStore, livechat.Opts{
-		ID:     inboxRecord.ID,
-		Config: config,
-		Lo:     initLogger("livechat_inbox"),
+		ID:            inboxRecord.ID,
+		Config:        config,
+		Lo:            initLogger("livechat_inbox"),
+		SignAvatarURL: signAvatarURL,
 	})
 
 	if err != nil {
@@ -690,13 +692,13 @@ func initLiveChatInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, u
 }
 
 // makeInboxInitializer creates an inbox initializer function.
-func makeInboxInitializer(mgr *inbox.Manager) func(imodels.Inbox, inbox.MessageStore, inbox.UserStore) (inbox.Inbox, error) {
+func makeInboxInitializer(mgr *inbox.Manager, signAvatarURL func(*null.String)) func(imodels.Inbox, inbox.MessageStore, inbox.UserStore) (inbox.Inbox, error) {
 	return func(inboxR imodels.Inbox, msgStore inbox.MessageStore, usrStore inbox.UserStore) (inbox.Inbox, error) {
 		switch inboxR.Channel {
 		case inbox.ChannelEmail:
 			return initEmailInbox(inboxR, msgStore, usrStore, mgr)
 		case inbox.ChannelLiveChat:
-			return initLiveChatInbox(inboxR, msgStore, usrStore)
+			return initLiveChatInbox(inboxR, msgStore, usrStore, signAvatarURL)
 		default:
 			return nil, fmt.Errorf("unknown inbox channel: %s", inboxR.Channel)
 		}
@@ -706,15 +708,15 @@ func makeInboxInitializer(mgr *inbox.Manager) func(imodels.Inbox, inbox.MessageS
 // reloadInboxes reloads all inboxes.
 func reloadInboxes(app *App) error {
 	app.lo.Info("reloading inboxes")
-	return app.inbox.Reload(ctx, makeInboxInitializer(app.inbox))
+	return app.inbox.Reload(ctx, makeInboxInitializer(app.inbox, app.conversation.SignAvatarURL))
 }
 
 // startInboxes registers the active inboxes and starts receiver for each.
-func startInboxes(ctx context.Context, mgr *inbox.Manager, msgStore inbox.MessageStore, usrStore inbox.UserStore) {
+func startInboxes(ctx context.Context, mgr *inbox.Manager, msgStore inbox.MessageStore, usrStore inbox.UserStore, signAvatarURL func(*null.String)) {
 	mgr.SetMessageStore(msgStore)
 	mgr.SetUserStore(usrStore)
 
-	if err := mgr.InitInboxes(makeInboxInitializer(mgr)); err != nil {
+	if err := mgr.InitInboxes(makeInboxInitializer(mgr, signAvatarURL)); err != nil {
 		log.Fatalf("error initializing inboxes: %v", err)
 	}
 
