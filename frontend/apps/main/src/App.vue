@@ -190,7 +190,8 @@ const { t } = useI18n()
 const notificationStore = useNotificationStore()
 
 // Update browser tab title with unread notification count.
-watch(() => notificationStore.unreadCount, (count) => {
+// Watch both unreadCount and route so the prefix is preserved after navigation.
+watch([() => notificationStore.unreadCount, () => route.fullPath], ([count]) => {
   const base = document.title.replace(/^\(\d+\)\s*/, '')
   document.title = count > 0 ? `(${count}) ${base}` : base
 })
