@@ -717,7 +717,7 @@ VALUES
 	('app.timezone', '"Asia/Kolkata"'::jsonb),
 	('app.business_hours_id', '""'::jsonb),
     ('notification.email.username', '"admin@yourcompany.com"'::jsonb),
-    ('notification.email.host', '"smtp.gmail.com"'::jsonb),
+    ('notification.email.host', '""'::jsonb),
     ('notification.email.port', '587'::jsonb),
     ('notification.email.password', '""'::jsonb),
     ('notification.email.max_conns', '5'::jsonb),

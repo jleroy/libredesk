@@ -219,7 +219,7 @@ func main() {
 		wsHub                       = initWS(user)
 		notifier                    = initNotifier()
 		userNotification            = initUserNotification(db, i18n)
-		notifDispatcher             = initNotifDispatcher(userNotification, notifier, wsHub)
+		notifDispatcher             = initNotifDispatcher(userNotification, notifier, wsHub, settings)
 		automation                  = initAutomationEngine(db, i18n)
 		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
 		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)

@@ -1034,11 +1034,12 @@ func initImporter(i18n *i18n.I18n) *importer.Importer {
 }
 
 // initNotifDispatcher initializes the notification dispatcher.
-func initNotifDispatcher(userNotification *notifier.UserNotificationManager, outbound *notifier.Service, wsHub *ws.Hub) *notifier.Dispatcher {
+func initNotifDispatcher(userNotification *notifier.UserNotificationManager, outbound *notifier.Service, wsHub *ws.Hub, settings *setting.Manager) *notifier.Dispatcher {
 	return notifier.NewDispatcher(notifier.DispatcherOpts{
 		InApp:    userNotification,
 		Outbound: outbound,
 		WSHub:    wsHub,
+		Settings: settings,
 		Lo:       initLogger("notification-dispatcher"),
 	})
 }

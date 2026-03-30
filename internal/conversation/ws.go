@@ -5,6 +5,7 @@ import (
 	"time"
 
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
+	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	wsmodels "github.com/abhinavxd/libredesk/internal/ws/models"
 )
@@ -152,6 +153,9 @@ func (m *Manager) BroadcastAgentStatusToWidget(agentID int, status string) {
 func (m *Manager) BroadcastConversationToWidget(conversationUUID string, contactID, inboxID int, data map[string]any) {
 	inboxInstance, err := m.inboxStore.Get(inboxID)
 	if err != nil {
+		if err == inbox.ErrInboxNotFound {
+			return
+		}
 		m.lo.Error("error getting inbox for widget conversation broadcast", "error", err, "inbox_id", inboxID)
 		return
 	}

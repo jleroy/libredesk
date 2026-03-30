@@ -100,7 +100,7 @@ const handleDeleteView = () => {
 
 // Navigation methods with conversation retention
 const navigateToInbox = (type) => {
-  if (conversationStore.hasConversationOpen && conversationStore.conversation.data?.uuid) {
+  if (conversationStore.isConversationOpen && conversationStore.conversation.data?.uuid) {
     router.push({
       name: 'inbox-conversation',
       params: {
@@ -117,7 +117,7 @@ const navigateToInbox = (type) => {
 }
 
 const navigateToTeamInbox = (teamID) => {
-  if (conversationStore.hasConversationOpen && conversationStore.conversation.data?.uuid) {
+  if (conversationStore.isConversationOpen && conversationStore.conversation.data?.uuid) {
     router.push({
       name: 'team-inbox-conversation',
       params: {
@@ -134,7 +134,7 @@ const navigateToTeamInbox = (teamID) => {
 }
 
 const navigateToViewInbox = (viewID) => {
-  if (conversationStore.hasConversationOpen && conversationStore.conversation.data?.uuid) {
+  if (conversationStore.isConversationOpen && conversationStore.conversation.data?.uuid) {
     router.push({
       name: 'view-inbox-conversation',
       params: {
@@ -389,11 +389,9 @@ const viewToDelete = ref(null)
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/assigned')">
-                  <router-link :to="{ name: 'inbox', params: { type: 'assigned' } }">
+                <SidebarMenuButton :isActive="isActiveParent('/inboxes/assigned')" @click="navigateToInbox('assigned')">
                     <User />
                     <span>{{ t('globals.terms.myInbox') }}</span>
-                  </router-link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -407,24 +405,20 @@ const viewToDelete = ref(null)
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/unassigned')">
-                  <router-link :to="{ name: 'inbox', params: { type: 'unassigned' } }">
+                <SidebarMenuButton :isActive="isActiveParent('/inboxes/unassigned')" @click="navigateToInbox('unassigned')">
                     <CircleDashed />
                     <span>
                       {{ t('globals.terms.unassigned') }}
                     </span>
-                  </router-link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild :isActive="isActiveParent('/inboxes/all')">
-                  <router-link :to="{ name: 'inbox', params: { type: 'all' } }">
+                <SidebarMenuButton :isActive="isActiveParent('/inboxes/all')" @click="navigateToInbox('all')">
                     <List />
                     <span>
                       {{ t('globals.messages.all') }}
                     </span>
-                  </router-link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -452,11 +446,9 @@ const viewToDelete = ref(null)
                         <SidebarMenuButton
                           size="sm"
                           :is-active="route.params.teamID == team.id"
-                          asChild
+                          @click="navigateToTeamInbox(team.id)"
                         >
-                          <router-link :to="{ name: 'team-inbox', params: { teamID: team.id } }">
-                            {{ team.emoji }}<span>{{ team.name }}</span>
-                          </router-link>
+                          {{ team.emoji }}<span>{{ team.name }}</span>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
@@ -496,34 +488,32 @@ const viewToDelete = ref(null)
                         <SidebarMenuButton
                           size="sm"
                           :isActive="route.params.viewID == view.id"
-                          asChild
+                          @click="navigateToViewInbox(view.id)"
                         >
-                          <router-link :to="{ name: 'view-inbox', params: { viewID: view.id } }">
-                            <span class="flex-1 truncate" :title="view.name">{{ view.name }}</span>
-                            <SidebarMenuAction
-                              @click.stop
-                              :class="[
-                                'mr-3',
-                                'md:opacity-0',
-                                'data-[state=open]:opacity-100',
-                                { 'md:opacity-100': hoveredViewId === view.id }
-                              ]"
-                            >
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild @click.prevent>
-                                  <EllipsisVertical />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                  <DropdownMenuItem @click="() => editView(view)">
-                                    <span>{{ t('globals.messages.edit') }}</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem @click="() => openDeleteConfirmation(view)">
-                                    <span>{{ t('globals.messages.delete') }}</span>
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </SidebarMenuAction>
-                          </router-link>
+                          <span class="flex-1 truncate" :title="view.name">{{ view.name }}</span>
+                          <SidebarMenuAction
+                            @click.stop
+                            :class="[
+                              'mr-3',
+                              'md:opacity-0',
+                              'data-[state=open]:opacity-100',
+                              { 'md:opacity-100': hoveredViewId === view.id }
+                            ]"
+                          >
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild @click.prevent>
+                                <EllipsisVertical />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem @click="() => editView(view)">
+                                  <span>{{ t('globals.messages.edit') }}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem @click="() => openDeleteConfirmation(view)">
+                                  <span>{{ t('globals.messages.delete') }}</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </SidebarMenuAction>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
@@ -556,13 +546,11 @@ const viewToDelete = ref(null)
                         <SidebarMenuButton
                           size="sm"
                           :isActive="route.params.viewID == view.id"
-                          asChild
+                          @click="navigateToViewInbox(view.id)"
                         >
-                          <router-link :to="{ name: 'view-inbox', params: { viewID: view.id } }">
-                            <span class="flex-1 truncate" :title="view.name">{{
-                              view.name
-                            }}</span>
-                          </router-link>
+                          <span class="flex-1 truncate" :title="view.name">{{
+                            view.name
+                          }}</span>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>

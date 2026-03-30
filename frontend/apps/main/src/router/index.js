@@ -90,20 +90,20 @@ const routes = [
         name: 'views',
         props: true,
         component: InboxLayout,
-        meta: { titleKey: 'globals.terms.inbox', hidePageHeader: true },
+        meta: { titleKey: 'globals.terms.view', hidePageHeader: true },
         children: [
           {
             path: '',
             name: 'view-inbox',
             component: () => import('@main/views/inbox/InboxView.vue'),
-            meta: { titleKey: 'globals.terms.inbox' },
+            meta: { titleKey: 'globals.terms.view' },
             children: [
               {
                 path: 'conversation/:uuid',
                 name: 'view-inbox-conversation',
                 component: () => import('@main/views/conversation/ConversationDetailView.vue'),
                 props: true,
-                meta: { titleKey: 'globals.terms.inbox', hidePageHeader: true }
+                meta: { titleKey: 'globals.terms.view', hidePageHeader: true }
               }
             ]
           }

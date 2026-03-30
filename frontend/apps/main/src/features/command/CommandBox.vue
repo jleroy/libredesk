@@ -138,7 +138,7 @@
       <CommandGroup
         :heading="t('globals.terms.conversation', 2)"
         value="conversations"
-        v-else-if="conversationStore.hasConversationOpen && !nestedCommand"
+        v-else-if="conversationStore.isConversationOpen && !nestedCommand"
       >
         <CommandItem
           value="apply-macro"
