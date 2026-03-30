@@ -16,7 +16,6 @@
                 conversation.contact.avatar_url || getGravatarUrl(conversation.contact.email) || ''
               "
               class="object-cover"
-              v-if="conversation.contact.avatar_url || ''"
             />
             <AvatarFallback>
               {{ conversation.contact.first_name.substring(0, 2).toUpperCase() }}
