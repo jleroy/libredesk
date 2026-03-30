@@ -459,6 +459,34 @@ const routes = [
             ]
           },
           {
+            path: 'context-links',
+            component: () => import('@main/views/admin/context-links/ContextLinks.vue'),
+            name: 'context-links',
+            meta: { titleKey: 'globals.terms.contextLink', titleCount: 2 },
+            children: [
+              {
+                path: '',
+                name: 'context-link-list',
+                component: () => import('@main/views/admin/context-links/ContextLinkList.vue')
+              },
+              {
+                path: ':id/edit',
+                props: true,
+                name: 'edit-context-link',
+                component: () =>
+                  import('@main/views/admin/context-links/CreateEditContextLink.vue'),
+                meta: { titleKey: 'contextLink.edit' }
+              },
+              {
+                path: 'new',
+                name: 'new-context-link',
+                component: () =>
+                  import('@main/views/admin/context-links/CreateEditContextLink.vue'),
+                meta: { titleKey: 'contextLink.new' }
+              }
+            ]
+          },
+          {
             path: 'conversations',
             meta: { titleKey: 'globals.terms.conversation', titleCount: 2 },
             children: [

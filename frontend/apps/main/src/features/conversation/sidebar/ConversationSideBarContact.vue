@@ -105,11 +105,26 @@
       </div>
     </template>
 
+    <!-- Context Links -->
+    <template v-if="contextLinks.length > 0 && !conversationStore.conversation.loading">
+      <div
+        v-for="app in contextLinks"
+        :key="app.id"
+        class="flex gap-2 items-center cursor-pointer group"
+        @click="openContextLink(app)"
+      >
+        <ExternalLink size="16" class="text-muted-foreground flex-shrink-0" />
+        <span class="sidebar-value group-hover:underline" :class="{ 'text-muted-foreground': loadingAppId === app.id }">
+          {{ app.name }}
+        </span>
+      </div>
+    </template>
+
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { ViewVerticalIcon } from '@radix-icons/vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
@@ -124,6 +139,7 @@ import { Skeleton } from '@shared-ui/components/ui/skeleton'
 import { useUserStore } from '@/stores/user'
 import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
 import { useI18n } from 'vue-i18n'
+import api from '../../../api'
 const conversationStore = useConversationStore()
 const emitter = useEmitter()
 const conversation = computed(() => conversationStore.current)
@@ -162,5 +178,31 @@ const parsedUA = computed(() => {
   if (os) parts.push(os[1].replace('_', ' '))
   return parts.length > 0 ? parts.join(' / ') : ua.substring(0, 60)
 })
+
+const contextLinks = ref([])
+const loadingAppId = ref(null)
+
+onMounted(async () => {
+  try {
+    const resp = await api.getActiveContextLinks()
+    contextLinks.value = resp.data.data || []
+  } catch {
+    // Silently ignore — context links are optional.
+  }
+})
+
+const openContextLink = async (app) => {
+  const uuid = conversation.value?.uuid
+  if (!uuid) return
+  try {
+    loadingAppId.value = app.id
+    const resp = await api.getContextLinkURL(app.id, uuid)
+    window.open(resp.data.data, '_blank')
+  } catch {
+    // Silently ignore.
+  } finally {
+    loadingAppId.value = null
+  }
+}
 
 </script>

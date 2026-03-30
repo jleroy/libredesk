@@ -654,6 +654,21 @@ CREATE TABLE webhooks (
 	CONSTRAINT constraint_webhooks_on_events_not_empty CHECK (array_length(events, 1) > 0)
 );
 
+DROP TABLE IF EXISTS context_links CASCADE;
+CREATE TABLE context_links (
+	id SERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ DEFAULT NOW(),
+	updated_at TIMESTAMPTZ DEFAULT NOW(),
+	name TEXT NOT NULL,
+	url_template TEXT NOT NULL,
+	signing_secret TEXT NOT NULL DEFAULT '',
+	token_expiry_seconds INT NOT NULL DEFAULT 1200,
+	is_active BOOLEAN DEFAULT true,
+	CONSTRAINT constraint_context_links_on_name CHECK (length(name) <= 255),
+	CONSTRAINT constraint_context_links_on_url_template CHECK (length(url_template) <= 2048),
+	CONSTRAINT constraint_context_links_on_signing_secret CHECK (length(signing_secret) <= 500)
+);
+
 DROP TABLE IF EXISTS user_notifications CASCADE;
 CREATE TABLE user_notifications (
 	id SERIAL PRIMARY KEY,
@@ -745,7 +760,7 @@ VALUES
 	(
 		'Admin',
 		'Role for users who have complete access to everything.',
-		'{webhooks:manage,activity_logs:manage,custom_attributes:manage,contacts:read_all,contacts:read,contacts:write,contacts:block,contact_notes:read,contact_notes:write,contact_notes:delete,conversations:write,ai:manage,general_settings:manage,notification_settings:manage,oidc:manage,conversations:read_all,conversations:read_unassigned,conversations:read_assigned,conversations:read_team_inbox,conversations:read_team_all,conversations:read,conversations:update_user_assignee,conversations:update_team_assignee,conversations:update_priority,conversations:update_status,conversations:update_tags,messages:read,messages:write,view:manage,shared_views:manage,status:manage,tags:manage,macros:manage,users:manage,teams:manage,automations:manage,inboxes:manage,roles:manage,reports:manage,templates:manage,business_hours:manage,sla:manage}'
+		'{webhooks:manage,context_links:manage,activity_logs:manage,custom_attributes:manage,contacts:read_all,contacts:read,contacts:write,contacts:block,contact_notes:read,contact_notes:write,contact_notes:delete,conversations:write,ai:manage,general_settings:manage,notification_settings:manage,oidc:manage,conversations:read_all,conversations:read_unassigned,conversations:read_assigned,conversations:read_team_inbox,conversations:read_team_all,conversations:read,conversations:update_user_assignee,conversations:update_team_assignee,conversations:update_priority,conversations:update_status,conversations:update_tags,messages:read,messages:write,view:manage,shared_views:manage,status:manage,tags:manage,macros:manage,users:manage,teams:manage,automations:manage,inboxes:manage,roles:manage,reports:manage,templates:manage,business_hours:manage,sla:manage}'
 	);
 
 

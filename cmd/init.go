@@ -21,6 +21,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/automation"
 	businesshours "github.com/abhinavxd/libredesk/internal/business_hours"
 	"github.com/abhinavxd/libredesk/internal/colorlog"
+	contextlink "github.com/abhinavxd/libredesk/internal/context_link"
 	"github.com/abhinavxd/libredesk/internal/conversation"
 	"github.com/abhinavxd/libredesk/internal/conversation/priority"
 	"github.com/abhinavxd/libredesk/internal/conversation/status"
@@ -972,6 +973,21 @@ func initReport(db *sqlx.DB, i18n *i18n.I18n) *report.Manager {
 	})
 	if err != nil {
 		log.Fatalf("error initializing report manager: %v", err)
+	}
+	return m
+}
+
+// initContextLink inits context link manager.
+func initContextLink(db *sqlx.DB, i18n *i18n.I18n) *contextlink.Manager {
+	var lo = initLogger("context-link")
+	m, err := contextlink.New(contextlink.Opts{
+		DB:            db,
+		Lo:            lo,
+		I18n:          i18n,
+		EncryptionKey: ko.MustString("app.encryption_key"),
+	})
+	if err != nil {
+		log.Fatalf("error initializing context link manager: %v", err)
 	}
 	return m
 }

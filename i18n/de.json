@@ -321,6 +321,7 @@
   "admin.role.users.manage": "Benutzer verwalten",
   "admin.role.view.manage": "Erstelle und verwalte Konversations-Ansichten",
   "admin.role.webhooks.manage": "Webhooks verwalten",
+  "admin.role.contextLinks.manage": "Kontextlinks verwalten",
   "admin.sharedView.help": "Erstellen Sie geteilte Ansichten, die für alle Agenten oder bestimmte Teams sichtbar sind.",
   "admin.sla.addBreachAlert": "Abbruchalarm hinzufügen",
   "admin.sla.addWarningAlert": "Warnmeldung hinzufügen",
@@ -1020,5 +1021,19 @@
   "widget.conversationClosed": "Diese Konversation wurde geschlossen",
   "widget.ipBlocked": "Zugriff verweigert",
   "widget.prechatForm.startChat": "Chat starten",
-  "globals.terms.participant": "Participant | Participants"
+  "globals.terms.participant": "Participant | Participants",
+  "admin.contextLink.help.description": "Kontextlinks erscheinen in der Seitenleiste der Konversation und ermöglichen es Agenten, externe Tools wie CRMs, Abrechnungssysteme oder interne Dashboards zu öffnen, wobei die Kontaktdaten automatisch übergeben werden.",
+  "admin.contextLink.help.detail": "Verwenden Sie {{token}} für eine vollständig verschlüsselte Nutzlast, die die externe App mit einem gemeinsamen Schlüssel entschlüsselt. Oder verwenden Sie einzelne Variablen wie {{email}}, {{phone}}, {{external_user_id}} für einfache URL-Links zu vertrauenswürdigen internen Tools.",
+  "confirm.deleteContextLink": "Diese Aktion kann nicht rückgängig gemacht werden. Dieser Kontextlink wird dauerhaft gelöscht.",
+  "globals.terms.contextLink": "Kontextlink | Kontextlinks",
+  "contextLink.edit": "Kontextlink bearbeiten",
+  "contextLink.new": "Neuer Kontextlink",
+  "contextLink.namePlaceholder": "Meine App",
+  "contextLink.urlTemplate": "URL-Vorlage",
+  "contextLink.urlTemplateHelp": "{{token}} ist ein base64-kodiertes, AES-256-GCM-verschlüsseltes Datenpaket mit allen Kontakt- und Agentenfeldern (erfordert Secret). Einzelne Variablen wie {{email}}, {{phone}}, {{external_user_id}}, {{contact_id}}, {{first_name}}, {{last_name}}, {{conversation_uuid}} werden als Klartext übergeben.",
+  "contextLink.secret": "Secret",
+  "contextLink.secretHelp": "Ein 32-Zeichen-Schlüssel, der zwischen Libredesk und der externen App geteilt wird. Wird verwendet, um das {{token}} zu verschlüsseln, sodass nur die externe App die Kontaktdaten lesen kann. Nicht erforderlich, wenn Sie nur einfache Variablen wie {{email}} verwenden.",
+  "contextLink.secretLengthError": "Secret muss genau 32 Zeichen lang sein.",
+  "contextLink.tokenExpiry": "Token-Ablaufzeit (Sekunden)",
+  "contextLink.tokenExpiryHelp": "Die externe App sollte Token ablehnen, die älter als dieser Wert sind. Wird als 'exp' (Ablaufzeitstempel) im verschlüsselten Token eingebunden."
 }

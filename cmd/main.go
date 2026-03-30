@@ -31,6 +31,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/abhinavxd/libredesk/internal/automation"
+	contextlink "github.com/abhinavxd/libredesk/internal/context_link"
 	"github.com/abhinavxd/libredesk/internal/conversation"
 	"github.com/abhinavxd/libredesk/internal/conversation/priority"
 	"github.com/abhinavxd/libredesk/internal/conversation/status"
@@ -104,6 +105,7 @@ type App struct {
 	customAttribute  *customAttribute.Manager
 	report           *report.Manager
 	webhook          *webhook.Manager
+	contextLink      *contextlink.Manager
 	rateLimit        *ratelimit.Limiter
 	redis            *redis.Client
 	importer         *importer.Importer
@@ -278,6 +280,7 @@ func main() {
 		ai:               initAI(db, i18n),
 		importer:         initImporter(i18n),
 		webhook:          webhook,
+		contextLink:      initContextLink(db, i18n),
 		rateLimit:        rateLimiter,
 		redis:            rdb,
 		userNotification: userNotification,

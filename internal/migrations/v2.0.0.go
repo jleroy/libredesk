@@ -151,5 +151,35 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
+	// Add context_links:manage permission to Admin role.
+	_, err = db.Exec(`
+		UPDATE roles
+		SET permissions = array_append(permissions, 'context_links:manage')
+		WHERE name = 'Admin' AND NOT ('context_links:manage' = ANY(permissions));
+	`)
+	if err != nil {
+		return err
+	}
+
+	// Add context_links table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS context_links (
+			id SERIAL PRIMARY KEY,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW(),
+			name TEXT NOT NULL,
+			url_template TEXT NOT NULL,
+			signing_secret TEXT NOT NULL DEFAULT '',
+			token_expiry_seconds INT NOT NULL DEFAULT 1200,
+			is_active BOOLEAN DEFAULT true,
+			CONSTRAINT constraint_context_links_on_name CHECK (length(name) <= 255),
+			CONSTRAINT constraint_context_links_on_url_template CHECK (length(url_template) <= 2048),
+			CONSTRAINT constraint_context_links_on_signing_secret CHECK (length(signing_secret) <= 500)
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

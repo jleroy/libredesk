@@ -252,7 +252,7 @@ export const useConversationStore = defineStore('conversation', () => {
     return conversation.data || {}
   })
 
-  const hasConversationOpen = computed(() => {
+  const isConversationOpen = computed(() => {
     return Object.keys(conversation.data || {}).length > 0
   })
 
@@ -597,7 +597,7 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  function conversationUUIDExists (uuid) {
+  function isConversationInList (uuid) {
     return conversations.data?.find(c => c.uuid === uuid) ? true : false
   }
 
@@ -723,7 +723,7 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   function addNewConversation (conversation) {
-    if (!conversationUUIDExists(conversation.uuid)) {
+    if (!isConversationInList(conversation.uuid)) {
       // Fetch list of conversations again.
       fetchFirstPageConversations()
     }
@@ -872,13 +872,13 @@ export const useConversationStore = defineStore('conversation', () => {
     conversationsList,
     conversationMessages,
     currentConversationHasMoreMessages,
-    hasConversationOpen,
+    isConversationOpen,
     current,
     currentContactName,
     currentTo,
     currentBCC,
     currentCC,
-    conversationUUIDExists,
+    isConversationInList,
     mergeConversationUpdate,
     mergeContactUpdate,
     addNewConversation,

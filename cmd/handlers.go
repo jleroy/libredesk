@@ -199,6 +199,16 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.PUT("/api/v1/webhooks/{id}/toggle", perm(handleToggleWebhook, "webhooks:manage"))
 	g.POST("/api/v1/webhooks/{id}/test", perm(handleTestWebhook, "webhooks:manage"))
 
+	// Context Links.
+	g.GET("/api/v1/context-links", perm(handleGetContextLinks, "context_links:manage"))
+	g.GET("/api/v1/context-links/active", auth(handleGetActiveContextLinks))
+	g.GET("/api/v1/context-links/{id}", perm(handleGetContextLink, "context_links:manage"))
+	g.POST("/api/v1/context-links", perm(handleCreateContextLink, "context_links:manage"))
+	g.PUT("/api/v1/context-links/{id}", perm(handleUpdateContextLink, "context_links:manage"))
+	g.DELETE("/api/v1/context-links/{id}", perm(handleDeleteContextLink, "context_links:manage"))
+	g.PUT("/api/v1/context-links/{id}/toggle", perm(handleToggleContextLink, "context_links:manage"))
+	g.GET("/api/v1/context-links/{id}/url", auth(handleGetContextLinkURL))
+
 	// Reports.
 	g.GET("/api/v1/reports/overview/sla", perm(handleOverviewSLA, "reports:manage"))
 	g.GET("/api/v1/reports/overview/counts", perm(handleOverviewCounts, "reports:manage"))

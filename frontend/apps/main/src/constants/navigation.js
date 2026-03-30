@@ -154,6 +154,12 @@ export const adminNavItems = [
         href: '/admin/webhooks',
         permission: 'webhooks:manage',
         isTitleKeyPlural: true
+      },
+      {
+        titleKey: 'globals.terms.contextLink',
+        href: '/admin/context-links',
+        permission: 'context_links:manage',
+        isTitleKeyPlural: true
       }
     ]
   }

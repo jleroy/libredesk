@@ -465,6 +465,22 @@ const deleteWebhook = (id) => http.delete(`/api/v1/webhooks/${id}`)
 const toggleWebhook = (id) => http.put(`/api/v1/webhooks/${id}/toggle`)
 const testWebhook = (id) => http.post(`/api/v1/webhooks/${id}/test`)
 
+const getContextLinks = () => http.get('/api/v1/context-links')
+const getContextLink = (id) => http.get(`/api/v1/context-links/${id}`)
+const createContextLink = (data) =>
+  http.post('/api/v1/context-links', data, {
+    headers: { 'Content-Type': 'application/json' }
+  })
+const updateContextLink = (id, data) =>
+  http.put(`/api/v1/context-links/${id}`, data, {
+    headers: { 'Content-Type': 'application/json' }
+  })
+const deleteContextLink = (id) => http.delete(`/api/v1/context-links/${id}`)
+const toggleContextLink = (id) => http.put(`/api/v1/context-links/${id}/toggle`)
+const getActiveContextLinks = () => http.get('/api/v1/context-links/active')
+const getContextLinkURL = (id, conversationUUID) =>
+  http.get(`/api/v1/context-links/${id}/url`, { params: { conversation_uuid: conversationUUID } })
+
 const generateAPIKey = (id) => 
   http.post(`/api/v1/agents/${id}/api-key`, {}, {
     headers: {
@@ -641,6 +657,14 @@ export default {
   deleteWebhook,
   toggleWebhook,
   testWebhook,
+  getContextLinks,
+  getContextLink,
+  createContextLink,
+  updateContextLink,
+  deleteContextLink,
+  toggleContextLink,
+  getActiveContextLinks,
+  getContextLinkURL,
   generateAPIKey,
   revokeAPIKey,
   initiateOAuthFlow,

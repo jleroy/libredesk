@@ -69,10 +69,12 @@ export class WebSocketClient {
           this.convStore.refreshConversationList()
           this.convStore.updateConversationMessage(data.data)
 
-          // Play notification sound for incoming contact messages not currently being viewed
+          // Play notification sound only for incoming contact messages
+          // that are in the agent's conversation list and not currently being viewed.
           const isFromContact = data.data.sender_type === 'contact'
           const isViewingConversation = this.convStore.conversation.data?.uuid === data.data.conversation_uuid
-          if (isFromContact && !isViewingConversation) {
+          const isInList = this.convStore.isConversationInList(data.data.conversation_uuid)
+          if (isFromContact && !isViewingConversation && isInList) {
             playNotificationSound()
           }
         },
