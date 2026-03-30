@@ -5,6 +5,7 @@ import InboxLayout from '@main/layouts/inbox/InboxLayout.vue'
 import AccountLayout from '@main/layouts/account/AccountLayout.vue'
 import AdminLayout from '@main/layouts/admin/AdminLayout.vue'
 import { useAppSettingsStore } from '../stores/appSettings'
+import { useNotificationStore } from '../stores/notification'
 import { getI18n } from '../i18n'
 
 const routes = [
@@ -571,6 +572,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const appSettingsStore = useAppSettingsStore()
+  const notificationStore = useNotificationStore()
   const siteName = appSettingsStore.settings?.['app.site_name'] || 'Libredesk'
   const i18n = getI18n()
   const typeKey = typeof to.meta?.typeKey === 'function' ? to.meta.typeKey(to) : ''
@@ -578,7 +580,8 @@ router.beforeEach((to, from, next) => {
   const pageTitle = titleKey && i18n
     ? i18n.global.t(titleKey, to.meta?.titleCount || 1)
     : ''
-  document.title = `${pageTitle} - ${siteName}`
+  const base = `${pageTitle} - ${siteName}`
+  document.title = notificationStore.unreadCount > 0 ? `(${notificationStore.unreadCount}) ${base}` : base
   next()
 })
 
