@@ -5,14 +5,9 @@ import (
 
 	"github.com/abhinavxd/libredesk/internal/notification/models"
 	wsmodels "github.com/abhinavxd/libredesk/internal/ws/models"
-	"github.com/jmoiron/sqlx/types"
 	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
-
-type settingsStore interface {
-	Get(key string) (types.JSONText, error)
-}
 
 // WSHub defines the interface for the Websocket hub.
 type WSHub interface {
@@ -49,49 +44,31 @@ type EmailNotification struct {
 
 // Dispatcher coordinates sending notifications through multiple channels: WS, DB, email.
 type Dispatcher struct {
-	inApp    *UserNotificationManager
-	outbound *Service
-	wsHub    WSHub
-	settings settingsStore
-	lo       *logf.Logger
+	inApp        *UserNotificationManager
+	outbound     *Service
+	wsHub        WSHub
+	emailEnabled bool
+	lo           *logf.Logger
 }
 
 // DispatcherOpts contains options for creating a new Dispatcher.
 type DispatcherOpts struct {
-	InApp    *UserNotificationManager
-	Outbound *Service
-	WSHub    WSHub
-	Settings settingsStore
-	Lo       *logf.Logger
+	InApp        *UserNotificationManager
+	Outbound     *Service
+	WSHub        WSHub
+	EmailEnabled bool
+	Lo           *logf.Logger
 }
 
 // NewDispatcher creates a new notification Dispatcher.
 func NewDispatcher(opts DispatcherOpts) *Dispatcher {
 	return &Dispatcher{
-		inApp:    opts.InApp,
-		outbound: opts.Outbound,
-		wsHub:    opts.WSHub,
-		settings: opts.Settings,
-		lo:       opts.Lo,
+		inApp:        opts.InApp,
+		outbound:     opts.Outbound,
+		wsHub:        opts.WSHub,
+		emailEnabled: opts.EmailEnabled,
+		lo:           opts.Lo,
 	}
-}
-
-// isEmailEnabled checks if email notifications are enabled in settings.
-func (d *Dispatcher) isEmailEnabled() bool {
-	if d.settings == nil {
-		return false
-	}
-	val, err := d.settings.Get("notification.email.enabled")
-	if err != nil {
-		d.lo.Error("error fetching email notification setting", "error", err)
-		return false
-	}
-	var enabled bool
-	if err := json.Unmarshal(val, &enabled); err != nil {
-		d.lo.Error("error parsing email notification setting", "error", err)
-		return false
-	}
-	return enabled
 }
 
 // Send sends a notification through all configured channels.
@@ -101,7 +78,7 @@ func (d *Dispatcher) Send(n Notification) {
 	for i, recipientID := range n.RecipientIDs {
 		d.sendToRecipient(recipientID, n)
 
-		if d.outbound != nil && n.Email != nil && d.isEmailEnabled() {
+		if d.outbound != nil && n.Email != nil && d.emailEnabled {
 			var email string
 			if i < len(n.Email.Recipients) {
 				email = n.Email.Recipients[i]
@@ -121,7 +98,7 @@ func (d *Dispatcher) SendWithEmails(n Notification, emails []EmailNotification) 
 	for i, recipientID := range n.RecipientIDs {
 		d.sendToRecipient(recipientID, n)
 
-		if d.outbound != nil && i < len(emails) && len(emails[i].Recipients) > 0 && d.isEmailEnabled() {
+		if d.outbound != nil && i < len(emails) && len(emails[i].Recipients) > 0 && d.emailEnabled {
 			e := emails[i]
 			d.sendEmail(recipientID, e.Recipients[0], e.Subject, e.Content, n.Type)
 		}
