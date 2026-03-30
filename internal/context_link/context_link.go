@@ -173,13 +173,14 @@ func (m *Manager) GenerateURL(link models.ContextLink, contact convmodels.Conver
 
 	// Substitute plain template variables with URL-encoded values.
 	replacements := map[string]string{
-		"{{email}}":             url.QueryEscape(contact.Email.String),
-		"{{phone}}":             url.QueryEscape(contact.PhoneNumber.String),
-		"{{external_user_id}}":  url.QueryEscape(contact.ExternalUserID.String),
-		"{{contact_id}}":        fmt.Sprintf("%d", contact.ID),
-		"{{first_name}}":        url.QueryEscape(contact.FirstName),
-		"{{last_name}}":         url.QueryEscape(contact.LastName),
-		"{{conversation_uuid}}": conversationUUID,
+		"{{email}}":              url.QueryEscape(contact.Email.String),
+		"{{phone}}":              url.QueryEscape(contact.PhoneNumber.String),
+		"{{phone_country_code}}": url.QueryEscape(contact.PhoneNumberCountryCode.String),
+		"{{external_user_id}}":   url.QueryEscape(contact.ExternalUserID.String),
+		"{{contact_id}}":         fmt.Sprintf("%d", contact.ID),
+		"{{first_name}}":         url.QueryEscape(contact.FirstName),
+		"{{last_name}}":          url.QueryEscape(contact.LastName),
+		"{{conversation_uuid}}":  conversationUUID,
 	}
 	for placeholder, value := range replacements {
 		u = strings.ReplaceAll(u, placeholder, value)
@@ -195,17 +196,18 @@ func (m *Manager) GenerateURL(link models.ContextLink, contact convmodels.Conver
 
 		now := time.Now()
 		payload := map[string]any{
-			"email":             contact.Email.String,
-			"phone":             contact.PhoneNumber.String,
-			"external_user_id":  contact.ExternalUserID.String,
-			"contact_id":        contact.ID,
-			"first_name":        contact.FirstName,
-			"last_name":         contact.LastName,
-			"conversation_uuid": conversationUUID,
-			"agent_id":          agent.ID,
-			"agent_email":       agent.Email,
-			"iat":               now.Unix(),
-			"exp":               now.Add(time.Duration(link.TokenExpirySeconds) * time.Second).Unix(),
+			"email":              contact.Email.String,
+			"phone":              contact.PhoneNumber.String,
+			"phone_country_code": contact.PhoneNumberCountryCode.String,
+			"external_user_id":   contact.ExternalUserID.String,
+			"contact_id":         contact.ID,
+			"first_name":         contact.FirstName,
+			"last_name":          contact.LastName,
+			"conversation_uuid":  conversationUUID,
+			"agent_id":           agent.ID,
+			"agent_email":        agent.Email,
+			"iat":                now.Unix(),
+			"exp":                now.Add(time.Duration(link.TokenExpirySeconds) * time.Second).Unix(),
 		}
 
 		plaintext, err := json.Marshal(payload)
@@ -226,7 +228,6 @@ func (m *Manager) GenerateURL(link models.ContextLink, contact convmodels.Conver
 
 	return u, nil
 }
-
 
 func (m *Manager) encryptSecret(secret string) (string, error) {
 	if secret == "" {
