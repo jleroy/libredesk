@@ -209,6 +209,14 @@ SET first_name = COALESCE($2, first_name),
     updated_at = now()
 WHERE id = $1 and type in ('contact', 'visitor');
 
+-- name: update-contact-basic-info
+UPDATE users
+SET first_name = COALESCE(NULLIF($2, ''), first_name),
+    last_name = COALESCE(NULLIF($3, ''), last_name),
+    email = COALESCE(NULLIF($4, ''), email),
+    updated_at = now()
+WHERE id = $1 AND type IN ('contact', 'visitor');
+
 -- name: get-notes
 SELECT 
     cn.id,

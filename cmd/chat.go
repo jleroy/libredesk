@@ -176,17 +176,13 @@ func handleChatInit(r *fastglue.Request) error {
 	// Handle authenticated user vs visitor.
 	if claims != nil {
 		if claims.ExternalUserID != "" {
-			if claims.Email == "" {
-				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "email"), nil, envelope.InputError)
-			}
-			if claims.FirstName == "" {
-				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "first_name"), nil, envelope.InputError)
-			}
-			contactID, conversationAttrs, err = resolveOrCreateExternalContact(app, *claims, req.FormData, config)
+			// Contact is already resolved/created by widgetAuth middleware.
+			contactID, err = getWidgetContactID(r)
 			if err != nil {
-				app.lo.Error("error resolving or creating contact for external_user_id", "external_user_id", claims.ExternalUserID, "error", err)
+				app.lo.Error("error getting contact ID from middleware context", "error", err)
 				return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 			}
+			conversationAttrs = saveContactAttrsAndCollectConvoAttrs(app, contactID, claims, req.FormData, config)
 			isVisitor = false
 		} else {
 			if !claims.IsVisitor {
@@ -716,70 +712,43 @@ func saveContactAttrsAndCollectConvoAttrs(app *App, contactID int, claims *Claim
 	return mergeCustomAttributes(jwtConvoAttrs, formConvoAttrs)
 }
 
-// resolveOrCreateExternalContact finds or creates a contact from JWT claims with external user ID.
-// It tries:
-//  1. lookup by external_user_id
-//  2. lookup by email and set external_user_id if found
-//  3. create new contact
-func resolveOrCreateExternalContact(app *App, claims Claims, formData map[string]any, config livechat.Config) (int, map[string]any, error) {
-	user, err := app.user.GetByExternalID(claims.ExternalUserID)
-	if err == nil {
-		convoAttrs := saveContactAttrsAndCollectConvoAttrs(app, user.ID, &claims, formData, config)
-		return user.ID, convoAttrs, nil
-	}
 
-	envErr, ok := err.(envelope.Error)
-	if ok && envErr.ErrorType != envelope.NotFoundError {
-		app.lo.Error("error fetching user by external ID", "external_user_id", claims.ExternalUserID, "error", err)
-		return 0, nil, err
-	}
-
-	// Not found by external_user_id, look up with email and enrich with ext user id.
-	if claims.Email != "" {
-		existingContact, emailErr := app.user.GetContactByEmail(strings.ToLower(claims.Email))
-		if emailErr != nil {
-			envErr, ok := emailErr.(envelope.Error)
-			if !ok || envErr.ErrorType != envelope.NotFoundError {
-				app.lo.Error("error fetching contact by email", "email", claims.Email, "error", emailErr)
-				return 0, nil, emailErr
-			}
-		} else {
-			// Only enrich if existing contact has no ext_id.
-			if existingContact.ExternalUserID.String == "" {
-				if setErr := app.user.SetExternalUserID(existingContact.ID, claims.ExternalUserID); setErr != nil {
-					app.lo.Error("error setting external user ID on existing contact", "contact_id", existingContact.ID, "error", setErr)
-					return 0, nil, setErr
-				}
-				convoAttrs := saveContactAttrsAndCollectConvoAttrs(app, existingContact.ID, &claims, formData, config)
-				return existingContact.ID, convoAttrs, nil
-			}
-			// Contact has different ext_id - fall through to create new contact.
+// resolveOrCreateExternalContact finds or creates a contact from JWT claims.
+// It tries: 1) lookup by external_user_id, 2) create new (which internally enriches by email if possible).
+// On every call it syncs name/email from JWT claims.
+func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
+	contactID, err := resolveUserIDFromClaims(app, claims)
+	if err != nil {
+		envErr, ok := err.(envelope.Error)
+		if ok && envErr.ErrorType != envelope.NotFoundError {
+			return 0, err
 		}
 	}
 
-	return createExternalUser(app, claims, formData, config)
-}
-
-// createExternalUser creates a new contact from JWT claims with external user ID.
-// Returns the new contact ID and conversation custom attributes.
-func createExternalUser(app *App, claims Claims, formData map[string]any, config livechat.Config) (int, map[string]any, error) {
-	formContactAttrs, formConvoAttrs := validateCustomAttributes(formData, config, app)
-	mergedContactAttrs := mergeCustomAttributes(claims.ContactCustomAttributes, formContactAttrs)
-
-	user := umodels.User{
-		FirstName:        claims.FirstName,
-		LastName:         claims.LastName,
-		Email:            null.NewString(claims.Email, claims.Email != ""),
-		ExternalUserID:   null.NewString(claims.ExternalUserID, claims.ExternalUserID != ""),
-		CustomAttributes: marshalCustomAttributes(mergedContactAttrs, app),
-	}
-	if err := app.user.CreateContact(&user); err != nil {
-		app.lo.Error("error creating contact with external ID", "external_user_id", claims.ExternalUserID, "error", err)
-		return 0, nil, err
+	// Sync name/email from JWT.
+	if contactID > 0 && claims.ExternalUserID != "" {
+		if err := app.user.UpdateContactBasicInfo(contactID, claims.FirstName, claims.LastName, claims.Email); err != nil {
+			app.lo.Error("error updating contact basic info", "contact_id", contactID, "error", err)
+		}
+		return contactID, nil
 	}
 
-	convoAttrs := mergeCustomAttributes(claims.ConversationCustomAttributes, formConvoAttrs)
-	return user.ID, convoAttrs, nil
+	// Create contact if not found.
+	if claims.ExternalUserID != "" {
+		user := umodels.User{
+			FirstName:        claims.FirstName,
+			LastName:         claims.LastName,
+			Email:            null.NewString(claims.Email, true),
+			ExternalUserID:   null.NewString(claims.ExternalUserID, true),
+			CustomAttributes: marshalCustomAttributes(claims.ContactCustomAttributes, app),
+		}
+		if err := app.user.CreateContact(&user); err != nil {
+			return 0, err
+		}
+		return user.ID, nil
+	}
+
+	return contactID, nil
 }
 
 // createVisitorContact creates a new visitor contact from form data.
