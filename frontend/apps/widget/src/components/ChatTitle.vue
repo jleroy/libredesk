@@ -75,7 +75,7 @@ const businessHoursStatus = computed(() => {
     return null
   }
 
-  const utcOffset = conversation.working_hours_utc_offset || 0
+  const utcOffset = conversation.working_hours_utc_offset ?? config.working_hours_utc_offset ?? 0
   const withinHoursMessage = config.chat_reply_expectation_message || ''
 
   const { status, isWithin } = getBusinessHoursStatus(businessHours, utcOffset, withinHoursMessage)

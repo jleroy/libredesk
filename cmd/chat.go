@@ -67,6 +67,7 @@ type chatSettingsResponse struct {
 	livechat.Config
 	BusinessHours          []bhmodels.BusinessHours      `json:"business_hours,omitempty"`
 	DefaultBusinessHoursID int                           `json:"default_business_hours_id,omitempty"`
+	WorkingHoursUTCOffset  *int                          `json:"working_hours_utc_offset,omitempty"`
 	CustomAttributes       map[int]customAttributeWidget `json:"custom_attributes,omitempty"`
 }
 
@@ -113,7 +114,7 @@ func handleGetChatSettings(r *fastglue.Request) error {
 			response.BusinessHours = businessHours
 		}
 
-		// Get default business hours ID from general settings which is the default / fallback.
+		// Get default business hours ID and UTC offset from general settings.
 		out, err := app.setting.GetByPrefix("app")
 		if err != nil {
 			app.lo.Error("error fetching general settings", "error", err)
@@ -122,6 +123,13 @@ func handleGetChatSettings(r *fastglue.Request) error {
 			if err := json.Unmarshal(out, &settings); err == nil {
 				if bhID, ok := settings["app.business_hours_id"].(string); ok {
 					response.DefaultBusinessHoursID, _ = strconv.Atoi(bhID)
+				}
+				if tz, ok := settings["app.timezone"].(string); ok && tz != "" {
+					if loc, err := time.LoadLocation(tz); err == nil {
+						_, offset := time.Now().In(loc).Zone()
+						offsetMinutes := offset / 60
+						response.WorkingHoursUTCOffset = &offsetMinutes
+					}
 				}
 			}
 		}
@@ -711,7 +719,6 @@ func saveContactAttrsAndCollectConvoAttrs(app *App, contactID int, claims *Claim
 	// Return merged conversation custom attributes (JWT takes precedence).
 	return mergeCustomAttributes(jwtConvoAttrs, formConvoAttrs)
 }
-
 
 // resolveOrCreateExternalContact finds or creates a contact from JWT claims.
 // It tries: 1) lookup by external_user_id, 2) create new (which internally enriches by email if possible).

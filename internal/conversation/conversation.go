@@ -1761,8 +1761,8 @@ func (m *Manager) calculateBusinessHoursInfo(conversation models.Conversation) (
 		}
 	}
 
-	// Fallback to general settings if no team business hours
-	if businessHoursID == nil {
+	// Fallback to general settings if no team business hours or no timezone
+	if businessHoursID == nil || timezone == "" {
 		out, err := m.settingsStore.GetByPrefix("app")
 		if err == nil {
 			var settings map[string]any
@@ -1770,13 +1770,17 @@ func (m *Manager) calculateBusinessHoursInfo(conversation models.Conversation) (
 			if err != nil {
 				m.lo.Error("error unmarshalling settings", "error", err)
 			} else {
-				if bhIDStr, ok := settings["app.business_hours_id"].(string); ok && bhIDStr != "" {
-					if bhID, err := strconv.Atoi(bhIDStr); err == nil {
-						businessHoursID = &bhID
+				if businessHoursID == nil {
+					if bhIDStr, ok := settings["app.business_hours_id"].(string); ok && bhIDStr != "" {
+						if bhID, err := strconv.Atoi(bhIDStr); err == nil {
+							businessHoursID = &bhID
+						}
 					}
 				}
-				if tz, ok := settings["app.timezone"].(string); ok {
-					timezone = tz
+				if timezone == "" {
+					if tz, ok := settings["app.timezone"].(string); ok {
+						timezone = tz
+					}
 				}
 			}
 		}
