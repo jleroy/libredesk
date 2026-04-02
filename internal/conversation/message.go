@@ -231,47 +231,65 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 	}
 }
 
-// RenderMessageInTemplate renders message content in template.
+// BuildTemplateData builds the common template data map for rendering message content variables.
+func (m *Manager) BuildTemplateData(conversationUUID string, senderID int) (map[string]any, error) {
+	conversation, err := m.GetConversation(0, conversationUUID, "")
+	if err != nil {
+		return nil, fmt.Errorf("fetching conversation: %w", err)
+	}
+
+	sender, err := m.userStore.GetAgent(senderID, "")
+	if err != nil {
+		return nil, fmt.Errorf("fetching message sender user: %w", err)
+	}
+
+	data := map[string]any{
+		"Conversation": map[string]any{
+			"ReferenceNumber": conversation.ReferenceNumber,
+			"Subject":         conversation.Subject.String,
+			"Priority":        conversation.Priority.String,
+			"UUID":            conversation.UUID,
+		},
+		"Contact": map[string]any{
+			"FirstName": conversation.Contact.FirstName,
+			"LastName":  conversation.Contact.LastName,
+			"FullName":  conversation.Contact.FullName(),
+			"Email":     conversation.Contact.Email.String,
+		},
+		"Recipient": map[string]any{
+			"FirstName": conversation.Contact.FirstName,
+			"LastName":  conversation.Contact.LastName,
+			"FullName":  conversation.Contact.FullName(),
+			"Email":     conversation.Contact.Email.String,
+		},
+		"Author": map[string]any{
+			"FirstName": sender.FirstName,
+			"LastName":  sender.LastName,
+			"FullName":  sender.FullName(),
+			"Email":     sender.Email.String,
+		},
+	}
+
+	// For automated replies set author fields to empty strings as the recipients will see name as System.
+	if sender.IsSystemUser() {
+		data["Author"] = map[string]any{
+			"FirstName": "",
+			"LastName":  "",
+			"FullName":  "",
+			"Email":     "",
+		}
+	}
+
+	return data, nil
+}
+
+// RenderMessageInTemplate renders message content in the email base template for sending.
 func (m *Manager) RenderMessageInTemplate(channel string, message *models.Message) error {
 	switch channel {
 	case inbox.ChannelEmail:
-		conversation, err := m.GetConversation(0, message.ConversationUUID, "")
+		data, err := m.BuildTemplateData(message.ConversationUUID, message.SenderID)
 		if err != nil {
-			m.lo.Error("error fetching conversation", "uuid", message.ConversationUUID, "error", err)
-			return fmt.Errorf("fetching conversation: %w", err)
-		}
-
-		sender, err := m.userStore.GetAgent(message.SenderID, "")
-		if err != nil {
-			m.lo.Error("error fetching message sender user", "sender_id", message.SenderID, "error", err)
-			return fmt.Errorf("fetching message sender user: %w", err)
-		}
-
-		data := map[string]any{
-			"Conversation": map[string]any{
-				"ReferenceNumber": conversation.ReferenceNumber,
-				"Subject":         conversation.Subject.String,
-				"Priority":        conversation.Priority.String,
-				"UUID":            conversation.UUID,
-			},
-			"Contact": map[string]any{
-				"FirstName": conversation.Contact.FirstName,
-				"LastName":  conversation.Contact.LastName,
-				"FullName":  conversation.Contact.FullName(),
-				"Email":     conversation.Contact.Email.String,
-			},
-			"Recipient": map[string]any{
-				"FirstName": conversation.Contact.FirstName,
-				"LastName":  conversation.Contact.LastName,
-				"FullName":  conversation.Contact.FullName(),
-				"Email":     conversation.Contact.Email.String,
-			},
-			"Author": map[string]any{
-				"FirstName": sender.FirstName,
-				"LastName":  sender.LastName,
-				"FullName":  sender.FullName(),
-				"Email":     sender.Email.String,
-			},
+			return err
 		}
 
 		// Expose message meta flags to the template.
@@ -283,16 +301,6 @@ func (m *Manager) RenderMessageInTemplate(channel string, message *models.Messag
 			isContinuity, _ = meta["continuity_email"].(bool)
 		}
 		data["IsContinuityEmail"] = isContinuity
-
-		// For automated replies set author fields to empty strings as the recipients will see name as System.
-		if sender.IsSystemUser() {
-			data["Author"] = map[string]any{
-				"FirstName": "",
-				"LastName":  "",
-				"FullName":  "",
-				"Email":     "",
-			}
-		}
 
 		message.Content, err = m.template.RenderEmailWithTemplate(data, message.Content)
 		if err != nil {
@@ -394,6 +402,11 @@ func (m *Manager) MarkMessageAsPending(uuid string) error {
 
 // SendPrivateNote inserts a private message in a conversation.
 func (m *Manager) SendPrivateNote(media []mmodels.Media, senderID int, conversationUUID, content string, mentions []models.MentionInput) (models.Message, error) {
+	// Best-effort render template variables before saving.
+	if data, err := m.BuildTemplateData(conversationUUID, senderID); err == nil {
+		content = m.template.RenderString(data, content)
+	}
+
 	message := models.Message{
 		ConversationUUID: conversationUUID,
 		SenderID:         senderID,
@@ -492,6 +505,11 @@ func (m *Manager) QueueReply(media []mmodels.Media, inboxID, senderID, contactID
 	if err != nil {
 		m.lo.Error("error marshalling message meta map to JSON", "error", err)
 		return models.Message{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+
+	// Best-effort render template variables before saving so agents see rendered content immediately.
+	if data, err := m.BuildTemplateData(conversationUUID, senderID); err == nil {
+		content = m.template.RenderString(data, content)
 	}
 
 	// Insert the message into the database

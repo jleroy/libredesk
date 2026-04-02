@@ -25,6 +25,20 @@ const (
 	TmplContent = "content"
 )
 
+// RenderString renders Go template variables in the given content string
+// without wrapping it in the base email template. Returns original content on any error.
+func (m *Manager) RenderString(data any, content string) string {
+	t, err := template.New("content").Funcs(m.funcMap).Parse(content)
+	if err != nil {
+		return content
+	}
+	var buf strings.Builder
+	if err := t.Execute(&buf, data); err != nil {
+		return content
+	}
+	return buf.String()
+}
+
 // RenderEmailWithTemplate renders content inside the default outgoing email template.
 func (m *Manager) RenderEmailWithTemplate(data any, content string) (string, error) {
 	m.mutex.RLock()
