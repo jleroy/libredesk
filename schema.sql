@@ -78,6 +78,7 @@ CREATE TABLE inboxes (
 	id SERIAL PRIMARY KEY,
 	created_at TIMESTAMPTZ DEFAULT NOW(),
 	updated_at TIMESTAMPTZ DEFAULT NOW(),
+	"uuid" UUID DEFAULT gen_random_uuid() NOT NULL UNIQUE,
 	"name" TEXT NOT NULL,
 	deleted_at TIMESTAMPTZ NULL,
 	channel channels NOT NULL,

@@ -1,8 +1,8 @@
 -- name: get-active-inboxes
-SELECT id, created_at, updated_at, "name", deleted_at, channel, enabled, csat_enabled, config, "from", linked_email_inbox_id FROM inboxes where enabled is TRUE and deleted_at is NULL;
+SELECT id, uuid, created_at, updated_at, "name", deleted_at, channel, enabled, csat_enabled, config, "from", linked_email_inbox_id FROM inboxes where enabled is TRUE and deleted_at is NULL;
 
 -- name: get-all-inboxes
-SELECT id, created_at, updated_at, "name", deleted_at, channel, enabled, csat_enabled, config, "from", linked_email_inbox_id FROM inboxes where deleted_at is NULL;
+SELECT id, uuid, created_at, updated_at, "name", deleted_at, channel, enabled, csat_enabled, config, "from", linked_email_inbox_id FROM inboxes where deleted_at is NULL;
 
 -- name: insert-inbox
 INSERT INTO inboxes
@@ -11,7 +11,10 @@ VALUES($1, $2, $3, $4, $5, $6, $7)
 RETURNING *
 
 -- name: get-inbox
-SELECT id, created_at, updated_at, "name", deleted_at, channel, enabled, csat_enabled, config, "from", secret, linked_email_inbox_id FROM inboxes where id = $1 and deleted_at is NULL;
+SELECT id, uuid, created_at, updated_at, "name", deleted_at, channel, enabled, csat_enabled, config, "from", secret, linked_email_inbox_id FROM inboxes where id = $1 and deleted_at is NULL;
+
+-- name: get-inbox-by-uuid
+SELECT id, uuid, created_at, updated_at, "name", deleted_at, channel, enabled, csat_enabled, config, "from", secret, linked_email_inbox_id FROM inboxes where uuid = $1 and deleted_at is NULL;
 
 -- name: update
 UPDATE inboxes

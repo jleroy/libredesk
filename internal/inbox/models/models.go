@@ -20,6 +20,7 @@ const (
 // Inbox represents a inbox record in DB.
 type Inbox struct {
 	ID                 int             `db:"id" json:"id"`
+	UUID               string          `db:"uuid" json:"uuid"`
 	CreatedAt          time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt          time.Time       `db:"updated_at" json:"updated_at"`
 	Name               string          `db:"name" json:"name"`

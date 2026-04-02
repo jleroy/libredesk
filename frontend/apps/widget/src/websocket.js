@@ -179,7 +179,7 @@ export class WidgetWebSocketClient {
           this.socket.send(JSON.stringify({
             type: 'ping',
             jwt: this.jwt,
-            inbox_id: this.inboxId ? parseInt(this.inboxId, 10) : null
+            inbox_id: this.inboxId || null
           }))
           if (Date.now() - this.lastPong > 60000) {
             console.warn('No pong received in 60 seconds, closing widget connection')
@@ -210,7 +210,7 @@ export class WidgetWebSocketClient {
       type: WS_EVENT.JOIN,
       jwt: this.jwt,
       data: {
-        inbox_id: parseInt(this.inboxId, 10)
+        inbox_id: this.inboxId
       }
     }
 

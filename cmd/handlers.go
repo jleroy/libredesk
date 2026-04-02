@@ -337,7 +337,7 @@ func serveIndexPage(r *fastglue.Request) error {
 }
 
 // validateWidgetReferer validates the Referer header against trusted domains configured in the live chat inbox settings.
-func validateWidgetReferer(app *App, r *fastglue.Request, inboxID int) error {
+func validateWidgetReferer(app *App, r *fastglue.Request, inboxUUID string) error {
 	// Get the Referer header from the request
 	referer := string(r.RequestCtx.Request.Header.Peek("Referer"))
 
@@ -347,9 +347,9 @@ func validateWidgetReferer(app *App, r *fastglue.Request, inboxID int) error {
 	}
 
 	// Get inbox configuration
-	inbox, err := app.inbox.GetDBRecord(inboxID)
+	inbox, err := app.inbox.GetDBRecord(inboxUUID)
 	if err != nil {
-		app.lo.Error("error fetching inbox for referer check", "inbox_id", inboxID, "error", err)
+		app.lo.Error("error fetching inbox for referer check", "inbox_uuid", inboxUUID, "error", err)
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundInbox"), nil, envelope.NotFoundError)
 	}
 
@@ -373,11 +373,11 @@ func validateWidgetReferer(app *App, r *fastglue.Request, inboxID int) error {
 	if !httputil.IsOriginTrusted(referer, config.TrustedDomains) {
 		app.lo.Warn("widget request from untrusted referer blocked",
 			"referer", referer,
-			"inbox_id", inboxID,
+			"inbox_uuid", inboxUUID,
 			"trusted_domains", config.TrustedDomains)
 		return r.SendErrorEnvelope(http.StatusForbidden, "Widget not allowed from this origin", nil, envelope.PermissionError)
 	}
-	app.lo.Debug("widget request from trusted referer allowed", "referer", referer, "inbox_id", inboxID)
+	app.lo.Debug("widget request from trusted referer allowed", "referer", referer, "inbox_uuid", inboxUUID)
 	return nil
 }
 
@@ -385,12 +385,12 @@ func validateWidgetReferer(app *App, r *fastglue.Request, inboxID int) error {
 func serveWidgetIndexPage(r *fastglue.Request) error {
 	app := r.Context.(*App)
 
-	// Extract and validate inbox ID.
-	inboxID := r.RequestCtx.QueryArgs().GetUintOrZero("inbox_id")
-	if inboxID <= 0 {
+	// Extract and validate inbox UUID.
+	inboxUUID := string(r.RequestCtx.QueryArgs().Peek("inbox_id"))
+	if inboxUUID == "" {
 		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "inbox_id"), nil, envelope.InputError)
 	}
-	if err := validateWidgetReferer(app, r, inboxID); err != nil {
+	if err := validateWidgetReferer(app, r, inboxUUID); err != nil {
 		return err
 	}
 

@@ -144,7 +144,7 @@ type mediaStore interface {
 
 type inboxStore interface {
 	Get(int) (inbox.Inbox, error)
-	GetDBRecord(int) (imodels.Inbox, error)
+	GetDBRecord(any) (imodels.Inbox, error)
 }
 
 type settingsStore interface {

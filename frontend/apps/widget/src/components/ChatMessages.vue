@@ -270,12 +270,13 @@ watch(
   (newMessages, oldMessages) => {
     if (!newMessages || newMessages.length === 0) return
 
-    // Check if this is a new conversation
+    // New conversation?
     const currentConvUUID = chatStore.currentConversation?.uuid
     if (currentConvUUID && currentConversationUUID.value !== currentConvUUID) {
       currentConversationUUID.value = currentConvUUID
       unreadMessages.value = 0
       scrollToBottom()
+      chatStore.updateCurrentConversationLastSeen()
       return
     }
 

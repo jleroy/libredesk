@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
@@ -34,21 +33,16 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
 
-		// Always extract and validate inbox_id from custom header
-		inboxIDHeader := string(r.RequestCtx.Request.Header.Peek(hdrWidgetInboxID))
-		if inboxIDHeader == "" {
+		// Always extract and validate inbox UUID from custom header.
+		inboxUUID := string(r.RequestCtx.Request.Header.Peek(hdrWidgetInboxID))
+		if inboxUUID == "" {
 			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.inbox}"), nil, envelope.InputError)
 		}
 
-		inboxID, err := strconv.Atoi(inboxIDHeader)
-		if err != nil || inboxID <= 0 {
-			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("validation.invalidInbox"), nil, envelope.InputError)
-		}
-
-		// Always fetch and validate inbox
-		inbox, err := app.inbox.GetDBRecord(inboxID)
+		// Fetch and validate inbox by UUID.
+		inbox, err := app.inbox.GetDBRecord(inboxUUID)
 		if err != nil {
-			app.lo.Error("error fetching inbox", "inbox_id", inboxID, "error", err)
+			app.lo.Error("error fetching inbox", "inbox_uuid", inboxUUID, "error", err)
 			return sendErrorEnvelope(r, err)
 		}
 

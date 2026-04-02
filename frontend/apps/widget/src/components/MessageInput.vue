@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { ArrowUp } from 'lucide-vue-next'
 import { Button } from '@shared-ui/components/ui/button'
 import { Textarea } from '@shared-ui/components/ui/textarea'
@@ -73,6 +73,17 @@ const newMessage = ref('')
 const isUploading = ref(false)
 const isSending = ref(false)
 const config = computed(() => widgetStore.config)
+
+const getTextareaEl = () => messageInput.value?.$el?.querySelector?.('textarea') || messageInput.value?.$el
+
+const focusTextarea = () => {
+  nextTick(() => getTextareaEl()?.focus())
+}
+
+onMounted(focusTextarea)
+watch(() => widgetStore.isOpen, (open) => {
+  if (open) focusTextarea()
+})
 
 // Setup typing indicator
 const { startTyping, stopTyping } = useTypingIndicator((isTyping) => {
@@ -166,10 +177,7 @@ const sendMessage = async () => {
     emit('error', handleHTTPError(error).message)
   } finally {
     isSending.value = false
-    nextTick(() => {
-      const textarea = messageInput.value?.$el?.querySelector?.('textarea') || messageInput.value?.$el
-      textarea?.focus()
-    })
+    focusTextarea()
   }
 }
 
@@ -231,7 +239,7 @@ const handleFileUpload = async (files) => {
 
 // Handle emoji selection.
 const handleEmojiSelect = (emoji) => {
-  const textarea = messageInput.value?.$el?.querySelector?.('textarea') || messageInput.value?.$el
+  const textarea = getTextareaEl()
   if (textarea && textarea.selectionStart !== undefined) {
     // Insert emoji at cursor position
     const start = textarea.selectionStart

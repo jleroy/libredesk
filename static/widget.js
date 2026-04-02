@@ -506,11 +506,6 @@
     // Global widget instance
     window.LibredeskWidget = LibredeskWidget;
 
-    // Auto-initialize if configuration is provided
-    if (window.LibredeskConfig) {
-        window.LibredeskWidget = new LibredeskWidget(window.LibredeskConfig);
-    }
-
     window.initLibredeskWidget = function (config = {}) {
         if (window.LibredeskWidget && window.LibredeskWidget instanceof LibredeskWidget) {
             console.warn('Libredesk Widget is already initialized');
@@ -519,5 +514,17 @@
         window.LibredeskWidget = new LibredeskWidget(config);
         return window.LibredeskWidget;
     };
+
+    // Auto-initialize from data attributes.
+    if (document.currentScript) {
+        const inboxID = document.currentScript.getAttribute('data-inbox-id');
+        const baseURL = document.currentScript.getAttribute('data-base-url');
+        if (inboxID && baseURL) {
+            window.initLibredeskWidget({
+                baseURL: baseURL,
+                inboxID: inboxID
+            });
+        }
+    }
 
 })();

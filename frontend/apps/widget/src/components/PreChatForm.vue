@@ -9,7 +9,7 @@
           {{ formTitle }}
         </div>
 
-        <form @submit.prevent="submitForm" class="space-y-4">
+        <form ref="formRef" @submit.prevent="submitForm" class="space-y-4">
           <!-- Dynamic fields -->
           <div v-for="field in sortedFields" :key="field.key" class="space-y-2">
             <!-- Text input -->
@@ -200,7 +200,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@shared-ui/components/ui/button'
@@ -240,6 +240,7 @@ const emit = defineEmits(['submit'])
 const { t } = useI18n()
 const widgetStore = useWidgetStore()
 const messageText = ref('')
+const formRef = ref(null)
 
 const config = computed(() => widgetStore.config?.prechat_form || {})
 const preChatFormEnabled = computed(() => config.value.enabled || false)
@@ -317,6 +318,18 @@ const getFieldOptions = (field) => {
   }
   return []
 }
+
+const focusFirstField = () => {
+  nextTick(() => {
+    const firstInput = formRef.value?.querySelector('input, textarea, select')
+    firstInput?.focus()
+  })
+}
+
+onMounted(focusFirstField)
+watch(() => widgetStore.isOpen, (open) => {
+  if (open) focusFirstField()
+})
 
 // Auto-submit when no fields to show (e.g., all fields excluded)
 watch(

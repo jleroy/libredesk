@@ -5,8 +5,7 @@ const VISITOR_JWT_KEY = 'libredesk_visitor_jwt'
 
 function getInboxIDFromQuery () {
     const params = new URLSearchParams(window.location.search)
-    const inboxId = params.get('inbox_id')
-    return inboxId ? parseInt(inboxId, 10) : null
+    return params.get('inbox_id') || null
 }
 
 export function setVisitorJWT (jwt) {

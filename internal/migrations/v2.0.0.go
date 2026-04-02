@@ -161,6 +161,13 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
+	_, err = db.Exec(`
+		ALTER TABLE inboxes ADD COLUMN IF NOT EXISTS uuid UUID DEFAULT gen_random_uuid() NOT NULL UNIQUE;
+	`)
+	if err != nil {
+		return err
+	}
+
 	// Add context_links table
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS context_links (

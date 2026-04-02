@@ -949,13 +949,11 @@ const baseUrl = computed(() => {
 
 // Generate integration snippet
 const integrationSnippet = computed(() => {
-  const inboxId = props.initialValues?.id || '<INBOX_ID>'
-  return `<script src="${baseUrl.value}/widget.js"><\/script>
-<script>
-  initLibredeskWidget({
-    baseURL: '${baseUrl.value}',
-    inboxID: ${inboxId}
-  });
+  const inboxUUID = props.initialValues?.uuid || '<INBOX_UUID>'
+  return `<script src="${baseUrl.value}/widget.js"
+  data-base-url="${baseUrl.value}"
+  data-inbox-id="${inboxUUID}"
+  defer>
 <\/script>`
 })
 
@@ -979,7 +977,7 @@ const jwtPayloadExample = computed(() => {
 
 // Authenticated integration snippet
 const authenticatedIntegrationSnippet = computed(() => {
-  const inboxId = props.initialValues?.id || '<INBOX_ID>'
+  const inboxUUID = props.initialValues?.uuid || '<INBOX_UUID>'
   return `<script src="${baseUrl.value}/widget.js"><\/script>
 <script>
   // Your server should generate this JWT token
@@ -988,7 +986,7 @@ const authenticatedIntegrationSnippet = computed(() => {
 
   initLibredeskWidget({
     baseURL: '${baseUrl.value}',
-    inboxID: ${inboxId},
+    inboxID: '${inboxUUID}',
     userJWT: userJWT
   });
 <\/script>`
@@ -996,11 +994,11 @@ const authenticatedIntegrationSnippet = computed(() => {
 
 // JavaScript API example
 const jsApiSnippet = computed(() => {
-  const inboxId = props.initialValues?.id || '<INBOX_ID>'
+  const inboxUUID = props.initialValues?.uuid || '<INBOX_UUID>'
   return `// Hide the default launcher and open programmatically
 initLibredeskWidget({
   baseURL: '${baseUrl.value}',
-  inboxID: ${inboxId},
+  inboxID: '${inboxUUID}',
   hideDefaultLauncher: true
 });
 

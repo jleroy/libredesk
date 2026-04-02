@@ -651,16 +651,16 @@ func userTypeLabel(isVisitor bool) string {
 // Used by public widget endpoints that don't require JWT authentication.
 func validateLiveChatInbox(r *fastglue.Request) (imodels.Inbox, livechat.Config, error) {
 	app := r.Context.(*App)
-	inboxID := r.RequestCtx.QueryArgs().GetUintOrZero("inbox_id")
+	inboxUUID := string(r.RequestCtx.QueryArgs().Peek("inbox_id"))
 
-	if inboxID <= 0 {
+	if inboxUUID == "" {
 		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.InputError,
 			app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	inbox, err := app.inbox.GetDBRecord(inboxID)
+	inbox, err := app.inbox.GetDBRecord(inboxUUID)
 	if err != nil {
-		app.lo.Error("error fetching inbox", "inbox_id", inboxID, "error", err)
+		app.lo.Error("error fetching inbox", "inbox_uuid", inboxUUID, "error", err)
 		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.GeneralError,
 			app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -686,7 +686,7 @@ func validateLiveChatInbox(r *fastglue.Request) (imodels.Inbox, livechat.Config,
 	if len(config.BlockedIPs) > 0 {
 		clientIP := realip.FromRequest(r.RequestCtx)
 		if httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
-			app.lo.Info("client IP blocked for live chat inbox", "client_id", clientIP, "inbox_id", inboxID)
+			app.lo.Info("client IP blocked for live chat inbox", "client_id", clientIP, "inbox_uuid", inboxUUID)
 			return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.PermissionError,
 				app.i18n.T("widget.ipBlocked"), nil)
 		}

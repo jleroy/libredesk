@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -98,8 +99,9 @@ type Manager struct {
 
 // Prepared queries.
 type queries struct {
-	GetInbox     *sqlx.Stmt `query:"get-inbox"`
-	GetActive    *sqlx.Stmt `query:"get-active-inboxes"`
+	GetInbox       *sqlx.Stmt `query:"get-inbox"`
+	GetInboxByUUID *sqlx.Stmt `query:"get-inbox-by-uuid"`
+	GetActive      *sqlx.Stmt `query:"get-active-inboxes"`
 	GetAll       *sqlx.Stmt `query:"get-all-inboxes"`
 	Update       *sqlx.Stmt `query:"update"`
 	Toggle       *sqlx.Stmt `query:"toggle"`
@@ -154,26 +156,42 @@ func (m *Manager) Get(id int) (Inbox, error) {
 	return i, nil
 }
 
-// GetDBRecord returns the inbox record from the DB.
-func (m *Manager) GetDBRecord(id int) (imodels.Inbox, error) {
+// GetDBRecord returns the inbox record from the DB by numeric ID or UUID.
+// If the identifier contains a dash, it's treated as a UUID; otherwise as a numeric ID.
+func (m *Manager) GetDBRecord(identifier any) (imodels.Inbox, error) {
 	var inbox imodels.Inbox
-	if err := m.queries.GetInbox.Get(&inbox, id); err != nil {
-		if err == sql.ErrNoRows {
+
+	// If it's a string with dashes, look up by UUID; otherwise by numeric ID.
+	str := fmt.Sprintf("%v", identifier)
+	if strings.Contains(str, "-") {
+		if err := m.queries.GetInboxByUUID.Get(&inbox, str); err != nil {
+			if err == sql.ErrNoRows {
+				return inbox, envelope.NewError(envelope.InputError, m.i18n.T("validation.notFoundInbox"), nil)
+			}
+			m.lo.Error("error fetching inbox", "error", err)
+			return inbox, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
+	} else {
+		id, err := strconv.Atoi(str)
+		if err != nil {
 			return inbox, envelope.NewError(envelope.InputError, m.i18n.T("validation.notFoundInbox"), nil)
 		}
-		m.lo.Error("error fetching inbox", "error", err)
-		return inbox, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		if err := m.queries.GetInbox.Get(&inbox, id); err != nil {
+			if err == sql.ErrNoRows {
+				return inbox, envelope.NewError(envelope.InputError, m.i18n.T("validation.notFoundInbox"), nil)
+			}
+			m.lo.Error("error fetching inbox", "error", err)
+			return inbox, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
 	}
 
-	// Decrypt sensitive fields in config
 	decryptedConfig, err := m.decryptInboxConfig(inbox.Config)
 	if err != nil {
-		m.lo.Error("error decrypting inbox config", "id", id, "error", err)
+		m.lo.Error("error decrypting inbox config", "identifier", identifier, "error", err)
 		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	inbox.Config = decryptedConfig
 
-	// Decrypt secret field
 	m.decryptInboxSecret(&inbox)
 
 	return inbox, nil
