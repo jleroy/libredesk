@@ -142,7 +142,7 @@ func (h *Hub) BroadcastTypingToConversation(conversationUUID string, typingMsg m
 
 	for _, client := range h.conversationClients[conversationUUID] {
 		// Don't send typing indicator back to the sender.
-		if client != sender {
+		if client.ID != sender.ID {
 			client.SendMessage(messageBytes, websocket.TextMessage)
 		}
 	}
