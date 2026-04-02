@@ -823,6 +823,10 @@ func handleCreateConversation(r *fastglue.Request) error {
 			}
 			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.errorSendingMessage"), nil))
 		}
+		// Trigger webhook for agent-initiated conversation, for contact intitiated the incoming message hooks handle it.
+		if c, err := app.conversation.GetConversation(0, conversationUUID, ""); err == nil {
+			app.webhook.TriggerEvent(wmodels.EventConversationCreated, c)
+		}
 	case umodels.UserTypeContact:
 		// Create contact message.
 		if _, err := app.conversation.CreateContactMessage(media, contact.ID, conversationUUID, req.Content, cmodels.ContentTypeHTML, true); err != nil {
@@ -845,12 +849,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 		app.conversation.UpdateConversationUserAssignee(conversationUUID, req.AssignedAgentID, user)
 	}
 
-	// Trigger webhook event for conversation created.
-	conversation, err := app.conversation.GetConversation(conversationID, "", "")
-	if err == nil {
-		app.webhook.TriggerEvent(wmodels.EventConversationCreated, conversation)
-	}
-
+	conversation, _ := app.conversation.GetConversation(conversationID, "", "")
 	return r.SendEnvelope(conversation)
 }
 
