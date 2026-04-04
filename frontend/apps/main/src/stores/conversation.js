@@ -87,6 +87,8 @@ export const useConversationStore = defineStore('conversation', () => {
     priority_first: 'conversation.sort.priorityFirst'
   }
 
+  let typingTimeout = null
+
   const conversations = reactive({
     data: [],
     listType: null,
@@ -798,7 +800,20 @@ export const useConversationStore = defineStore('conversation', () => {
     // Only update typing status for the current conversation
     if (conversation.data?.uuid !== conversation_uuid) return
 
+    if (typingTimeout) {
+      clearTimeout(typingTimeout)
+      typingTimeout = null
+    }
+
     conversation.isTyping = is_typing
+
+    // Auto-clear after 5s if no new typing event arrives.
+    if (is_typing) {
+      typingTimeout = setTimeout(() => {
+        conversation.isTyping = false
+        typingTimeout = null
+      }, 5000)
+    }
   }
 
   function sendTyping (isTyping, otherAttributes = {}) {

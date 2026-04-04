@@ -8,6 +8,7 @@ import { useUserStore } from './user.js'
 export const useChatStore = defineStore('chat', () => {
     const userStore = useUserStore()
     // State
+    let typingTimeout = null
     const isTyping = ref(false)
     const currentConversation = ref({})
     const conversations = ref(null)
@@ -167,10 +168,22 @@ export const useChatStore = defineStore('chat', () => {
 
     const setTypingStatus = (conversationUUID, status) => {
         if (!conversationUUID) return
-        if (currentConversation.value?.uuid !== conversationUUID) {
-            return
+        if (currentConversation.value?.uuid !== conversationUUID) return
+
+        if (typingTimeout) {
+            clearTimeout(typingTimeout)
+            typingTimeout = null
         }
+
         isTyping.value = status
+
+        // Auto-clear after 5s if no new typing event arrives.
+        if (status) {
+            typingTimeout = setTimeout(() => {
+                isTyping.value = false
+                typingTimeout = null
+            }, 5000)
+        }
     }
 
     const setCurrentConversation = (conversation) => {
