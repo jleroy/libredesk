@@ -716,9 +716,9 @@ func saveContactAttrsAndCollectConvoAttrs(app *App, contactID int, claims *Claim
 
 // resolveOrCreateExternalContact finds or creates a contact from JWT claims.
 // It tries: 1) lookup by external_user_id, 2) create new (which internally enriches by email if possible).
-// On every call it syncs name/email from JWT claims.
+// On every call it syncs name/email from JWT claims if they differ from stored values, to keep contact info up to date.
 func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
-	contactID, err := resolveUserIDFromClaims(app, claims)
+	user, err := resolveUserFromClaims(app, claims)
 	if err != nil {
 		envErr, ok := err.(envelope.Error)
 		if ok && envErr.ErrorType != envelope.NotFoundError {
@@ -726,12 +726,14 @@ func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
 		}
 	}
 
-	// Sync name/email from JWT.
-	if contactID > 0 && claims.ExternalUserID != "" {
-		if err := app.user.UpdateContactBasicInfo(contactID, claims.FirstName, claims.LastName, claims.Email); err != nil {
-			app.lo.Error("error updating contact basic info", "contact_id", contactID, "error", err)
+	// Sync name/email from JWT only if changed.
+	if user.ID > 0 && claims.ExternalUserID != "" {
+		if user.FirstName != claims.FirstName || user.LastName != claims.LastName || user.Email.String != claims.Email {
+			if err := app.user.UpdateContactBasicInfo(user.ID, claims.FirstName, claims.LastName, claims.Email); err != nil {
+				app.lo.Error("error updating contact basic info", "contact_id", user.ID, "error", err)
+			}
 		}
-		return contactID, nil
+		return user.ID, nil
 	}
 
 	// Create contact if not found.
@@ -749,7 +751,7 @@ func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
 		return user.ID, nil
 	}
 
-	return contactID, nil
+	return user.ID, nil
 }
 
 // createVisitorContact creates a new visitor contact from form data.
@@ -837,7 +839,7 @@ func buildConversationResponseWithBusinessHours(app *App, conversation cmodels.C
 
 // resolveUserIDFromClaims resolves the actual user ID from JWT claims,
 // handling both regular user_id and external_user_id cases
-func resolveUserIDFromClaims(app *App, claims Claims) (int, error) {
+func resolveUserFromClaims(app *App, claims Claims) (umodels.User, error) {
 	var (
 		user umodels.User
 		err  error
@@ -849,17 +851,17 @@ func resolveUserIDFromClaims(app *App, claims Claims) (int, error) {
 	case claims.ExternalUserID != "":
 		user, err = app.user.GetByExternalID(claims.ExternalUserID)
 	default:
-		return 0, errors.New("error fetching user")
+		return umodels.User{}, errors.New("error fetching user")
 	}
 
 	if err != nil {
 		app.lo.Error("error fetching user", "user_id", claims.UserID, "external_user_id", claims.ExternalUserID, "error", err)
-		return 0, errors.New("error fetching user")
+		return umodels.User{}, errors.New("error fetching user")
 	}
 	if !user.Enabled {
-		return 0, errors.New("user is disabled")
+		return umodels.User{}, errors.New("user is disabled")
 	}
-	return user.ID, nil
+	return user, nil
 }
 
 // verifyJWT verifies and validates a JWT token with proper signature verification

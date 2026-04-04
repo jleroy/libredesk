@@ -172,7 +172,7 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, jwtToken, cli
 		return nil, nil, "", 0, fmt.Errorf("JWT validation failed: %w", err)
 	}
 
-	userID, err := resolveUserIDFromClaims(app, claims)
+	user, err := resolveUserFromClaims(app, claims)
 	if err != nil {
 		return nil, nil, "", 0, fmt.Errorf("failed to resolve user ID from claims: %w", err)
 	}
@@ -194,7 +194,7 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, jwtToken, cli
 		return nil, nil, "", 0, fmt.Errorf("inbox is not a live chat inbox")
 	}
 
-	userIDStr := fmt.Sprintf("%d", userID)
+	userIDStr := fmt.Sprintf("%d", user.ID)
 	client, err := liveChat.AddClient(userIDStr)
 	if err != nil {
 		return nil, nil, "", 0, fmt.Errorf("adding client to live chat: %w", err)
@@ -218,7 +218,7 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, jwtToken, cli
 
 	app.lo.Debug("widget client joined live chat", "user_id", userIDStr, "inbox_uuid", joinData.InboxID)
 
-	return client, liveChat, joinData.InboxID, userID, nil
+	return client, liveChat, joinData.InboxID, user.ID, nil
 }
 
 func handleWidgetTyping(app *App, data json.RawMessage, inboxUUID string, userID int, jwtToken string) {
