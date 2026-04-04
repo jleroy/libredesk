@@ -3,14 +3,14 @@
     <ContextMenuTrigger asChild>
       <router-link
         :to="conversationRoute"
-        class="group relative block px-4 p-4 transition-all duration-200 ease-in-out cursor-pointer hover:bg-accent/20 dark:hover:bg-accent/60"
+        class="group relative block px-3 py-3 transition-all duration-200 ease-in-out cursor-pointer hover:bg-accent/20 dark:hover:bg-accent/60"
         :class="{
           'bg-accent/60': conversation.uuid === currentConversation?.uuid
         }"
       >
-        <div class="flex items-start gap-4">
+        <div class="flex items-start gap-3">
           <!-- Avatar -->
-          <Avatar class="w-12 h-12 rounded-full shadow">
+          <Avatar class="w-10 h-10 rounded-full">
             <AvatarImage
               :src="
                 conversation.contact.avatar_url || getGravatarUrl(conversation.contact.email) || ''
@@ -23,92 +23,86 @@
           </Avatar>
 
           <!-- Content container -->
-          <div class="flex-1 min-w-0 space-y-2">
-            <!-- Contact name and last message time -->
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-1.5 min-w-0">
-                <h3 class="text-sm font-semibold truncate">
+          <div class="flex-1 min-w-0 space-y-1">
+            <!-- Row 1: Contact name + inbox + time -->
+            <div class="flex items-baseline justify-between gap-2">
+              <div class="flex items-baseline gap-1.5 min-w-0">
+                <h3 class="text-sm font-semibold truncate text-foreground">
                   {{ contactFullName }}
                 </h3>
+                <span class="text-xs text-muted-foreground flex items-center gap-1 min-w-0">
+                  <component :is="conversation.inbox_channel === 'livechat' ? MessageSquare : Mail" class="w-3 h-3 flex-shrink-0" />
+                  <span class="truncate">{{ conversation.inbox_name }}</span>
+                </span>
               </div>
               <span
-                class="text-xs text-gray-400 whitespace-nowrap"
+                class="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 tabular-nums"
                 v-if="conversation.last_message_at"
               >
                 {{ relativeLastMessageTime }}
               </span>
             </div>
 
-            <!-- Subject -->
+            <!-- Row 2: Subject -->
             <p
               v-if="conversation.subject"
-              class="text-xs font-medium text-muted-foreground truncate"
+              class="text-xs text-muted-foreground truncate"
             >
               {{ conversation.subject }}
             </p>
 
-            <!-- Inbox name -->
-            <p class="text-xs text-gray-400 flex items-center gap-1.5">
-              <Mail class="w-3.5 h-3.5 text-gray-400/80" />
-              <span>{{ conversation.inbox_name }}</span>
-            </p>
-
-            <!-- Message preview and unread count -->
-            <div class="flex items-start justify-between gap-2">
-              <div class="text-sm flex items-center gap-1.5 flex-1 break-all text-muted-foreground">
+            <!-- Row 3: Message preview + unread count -->
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm flex-1 min-w-0 truncate text-muted-foreground">
                 <template v-if="hasDraftForConversation">
                   <span class="font-medium text-primary">{{ $t('globals.terms.draft') }}:</span>
                   {{ draftPreview }}
                 </template>
                 <template v-else>
                   <Reply
-                    class="text-green-600 flex-shrink-0"
-                    size="15"
+                    class="text-green-600 inline-block align-text-bottom mr-0.5"
+                    :size="14"
                     v-if="conversation.last_message_sender === 'agent'"
-                  />
-                  {{ trimmedLastMessage }}
+                  />{{ trimmedLastMessage }}
                 </template>
-              </div>
+              </p>
               <div
                 v-if="conversation.unread_message_count > 0"
-                class="flex items-center justify-center w-6 h-6 bg-green-600 text-white text-xs font-medium rounded-full"
+                class="flex items-center justify-center w-5 h-5 bg-green-600 text-white text-xs font-medium rounded-full flex-shrink-0"
               >
                 {{ conversation.unread_message_count }}
               </div>
             </div>
 
             <!-- SLA Badges -->
-            <div class="flex items-center">
-              <div :class="getSlaClass(frdStatus)">
-                <SlaBadge
-                  :dueAt="conversation.first_response_deadline_at"
-                  :actualAt="conversation.first_reply_at"
-                  :label="'FRD'"
-                  :showExtra="false"
-                  @status="frdStatus = $event"
-                  :key="`${conversation.uuid}-${conversation.first_response_deadline_at}-${conversation.first_reply_at}`"
-                />
-              </div>
-              <div :class="getSlaClass(rdStatus)">
-                <SlaBadge
-                  :dueAt="conversation.resolution_deadline_at"
-                  :actualAt="conversation.resolved_at"
-                  :label="'RD'"
-                  :showExtra="false"
-                  @status="rdStatus = $event"
-                  :key="`${conversation.uuid}-${conversation.resolution_deadline_at}-${conversation.resolved_at}`"
-                />
-              </div>
-              <div :class="getSlaClass(nrdStatus)">
-                <SlaBadge
-                  :dueAt="conversation.next_response_deadline_at"
-                  :actualAt="conversation.next_response_met_at"
-                  :label="'NRD'"
-                  :showExtra="false"
-                  @status="nrdStatus = $event"
-                  :key="`${conversation.uuid}-${conversation.next_response_deadline_at}-${conversation.next_response_met_at}`"
-                />
-              </div>
+            <div v-if="hasSlaDeadlines" class="flex items-center gap-1">
+              <SlaBadge
+                v-show="frdStatus === 'overdue' || frdStatus === 'remaining'"
+                :dueAt="conversation.first_response_deadline_at"
+                :actualAt="conversation.first_reply_at"
+                :label="'FRD'"
+                :showExtra="false"
+                @status="frdStatus = $event"
+                :key="`${conversation.uuid}-${conversation.first_response_deadline_at}-${conversation.first_reply_at}`"
+              />
+              <SlaBadge
+                v-show="rdStatus === 'overdue' || rdStatus === 'remaining'"
+                :dueAt="conversation.resolution_deadline_at"
+                :actualAt="conversation.resolved_at"
+                :label="'RD'"
+                :showExtra="false"
+                @status="rdStatus = $event"
+                :key="`${conversation.uuid}-${conversation.resolution_deadline_at}-${conversation.resolved_at}`"
+              />
+              <SlaBadge
+                v-show="nrdStatus === 'overdue' || nrdStatus === 'remaining'"
+                :dueAt="conversation.next_response_deadline_at"
+                :actualAt="conversation.next_response_met_at"
+                :label="'NRD'"
+                :showExtra="false"
+                @status="nrdStatus = $event"
+                :key="`${conversation.uuid}-${conversation.next_response_deadline_at}-${conversation.next_response_met_at}`"
+              />
             </div>
           </div>
         </div>
@@ -128,7 +122,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRelativeTime } from '@shared-ui/utils/datetime.js'
 import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
-import { Mail, Reply, MailOpen } from 'lucide-vue-next'
+import { Mail, MessageSquare, Reply, MailOpen } from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import {
   ContextMenu,
@@ -188,15 +182,18 @@ onUnmounted(() => {
 
 const trimmedLastMessage = computed(() => {
   const message = props.conversation.last_message || ''
-  return message.length > 100 ? message.slice(0, 100) + '...' : message
+  return message.length > 60 ? message.slice(0, 60) + '...' : message
 })
-
-const getSlaClass = (status) => (['overdue', 'remaining'].includes(status) ? 'mr-2' : '')
 
 const relativeLastMessageTime = computed(() => {
   return props.conversation.last_message_at
     ? getRelativeTime(props.conversation.last_message_at, now.value)
     : ''
+})
+
+const hasSlaDeadlines = computed(() => {
+  const c = props.conversation
+  return c.first_response_deadline_at || c.resolution_deadline_at || c.next_response_deadline_at
 })
 
 const hasDraftForConversation = computed(() => {
@@ -207,6 +204,6 @@ const draftPreview = computed(() => {
   const draft = conversationStore.getDraft(props.conversation.uuid)
   if (!draft?.content) return ''
   const text = draft.content.replace(/<[^>]*>/g, '').trim()
-  return text.length > 100 ? text.slice(0, 100) + '...' : text
+  return text.length > 60 ? text.slice(0, 60) + '...' : text
 })
 </script>

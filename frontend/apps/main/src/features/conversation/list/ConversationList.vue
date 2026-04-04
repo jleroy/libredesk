@@ -103,8 +103,8 @@
         <div
           v-if="!conversationStore.conversations.errorMessage"
           key="list"
-          class="divide-y divide-gray-200 dark:divide-gray-700"
-          :class="{ 'border-b dark:border-gray-700': hasConversations }"
+          class="divide-y divide-border"
+          :class="{ 'border-b border-border': hasConversations }"
         >
           <ConversationListItem
             v-for="conversation in conversationStore.conversationsList"
@@ -112,7 +112,7 @@
             :conversation="conversation"
             :currentConversation="conversationStore.current"
             :contactFullName="conversationStore.getContactFullName(conversation.uuid)"
-            class="transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+            class="transition-colors duration-200"
           />
         </div>
 

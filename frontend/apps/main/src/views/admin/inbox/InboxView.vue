@@ -5,22 +5,30 @@
     </template>
 
     <template #help>
-      <div class="flex flex-col justify-evenly h-full gap-4">
-        <div class="space-y-2">
-          <p class="text-lg">{{ $t('globals.terms.email') }}</p>
-          <p>{{ $t('admin.inbox.help.email') }}</p>
+      <div class="space-y-4">
+        <div class="space-y-1">
+          <p class="text-sm font-medium text-foreground">{{ $t('globals.terms.email') }}</p>
+          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.email') }}</p>
           <a
             href="https://docs.libredesk.io/configuration/connecting-inboxes"
             target="_blank"
             rel="noopener noreferrer"
-            class="link-style"
+            class="link-style text-sm"
           >
-            <p>{{ $t('globals.messages.learnMore') }}</p>
+            {{ $t('globals.messages.learnMore') }}
           </a>
         </div>
-        <div class="space-y-2">
-          <p class="text-lg">{{ $t('globals.terms.liveChat') }}</p>
-          <p>{{ $t('admin.inbox.help.livechat') }}</p>
+        <div class="space-y-1">
+          <p class="text-sm font-medium text-foreground">{{ $t('globals.terms.liveChat') }}</p>
+          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.livechat') }}</p>
+          <a
+            href="https://docs.libredesk.io/configuration/connecting-inboxes#live-chat"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link-style text-sm"
+          >
+            {{ $t('globals.messages.learnMore') }}
+          </a>
         </div>
       </div>
     </template>

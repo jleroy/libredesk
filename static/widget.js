@@ -11,7 +11,7 @@
     }
     window.__libredeskWidgetLoaded = true;
 
-    class LibredeskWidget {
+    class Libredesk {
         constructor(config = {}) {
             // Validate required config
             if (!config.baseURL) {
@@ -32,7 +32,10 @@
             this.isMobile = window.innerWidth <= 600;
             this.isExpanded = false;
             this.isVueAppReady = false;
-            this.hideDefaultLauncher = config.hideDefaultLauncher || false;
+            this.hideLauncher = config.hideLauncher || false;
+            this._onShowCallback = null;
+            this._onHideCallback = null;
+            this._onUnreadCountChangeCallback = null;
             this.init();
         }
 
@@ -262,7 +265,7 @@
         handleVueAppReady () {
             this.isVueAppReady = true;
             this.sendMobileState();
-            if (!this.hideDefaultLauncher) {
+            if (!this.hideLauncher) {
                 this.widgetButtonWrapper.style.display = '';
             }
 
@@ -333,6 +336,8 @@
                 // Switch to arrow icon
                 if (this.defaultIcon) this.defaultIcon.style.display = 'none';
                 this.arrowIcon.style.display = 'flex';
+
+                if (this._onShowCallback) this._onShowCallback();
             }
         }
 
@@ -352,11 +357,14 @@
                     this.unreadBadge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount.toString();
                     this.unreadBadge.style.display = 'flex';
                 }
+
+                if (this._onHideCallback) this._onHideCallback();
             }
         }
 
         updateUnreadCount (count) {
             this.unreadCount = count;
+            if (this._onUnreadCountChangeCallback) this._onUnreadCountChangeCallback(count);
 
             if (count > 0 && !this.isChatVisible) {
                 this.unreadBadge.textContent = count > 99 ? '99+' : count.toString();
@@ -499,32 +507,28 @@
         }
     }
 
-    LibredeskWidget.prototype.show = LibredeskWidget.prototype.showChat;
-    LibredeskWidget.prototype.hide = LibredeskWidget.prototype.hideChat;
-    LibredeskWidget.prototype.isVisible = function () { return this.isChatVisible; };
+    Libredesk.prototype.show = Libredesk.prototype.showChat;
+    Libredesk.prototype.hide = Libredesk.prototype.hideChat;
+    Libredesk.prototype.isVisible = function () { return this.isChatVisible; };
+    Libredesk.prototype.onShow = function (fn) { this._onShowCallback = fn; };
+    Libredesk.prototype.onHide = function (fn) { this._onHideCallback = fn; };
+    Libredesk.prototype.onUnreadCountChange = function (fn) { this._onUnreadCountChangeCallback = fn; fn(this.unreadCount); };
 
     // Global widget instance
-    window.LibredeskWidget = LibredeskWidget;
+    window.Libredesk = Libredesk;
 
-    window.initLibredeskWidget = function (config = {}) {
-        if (window.LibredeskWidget && window.LibredeskWidget instanceof LibredeskWidget) {
+    window.initLibredesk = function (config = {}) {
+        if (window.Libredesk && window.Libredesk instanceof Libredesk) {
             console.warn('Libredesk Widget is already initialized');
-            return window.LibredeskWidget;
+            return window.Libredesk;
         }
-        window.LibredeskWidget = new LibredeskWidget(config);
-        return window.LibredeskWidget;
+        window.Libredesk = new Libredesk(config);
+        return window.Libredesk;
     };
 
-    // Auto-initialize from data attributes.
-    if (document.currentScript) {
-        const inboxID = document.currentScript.getAttribute('data-inbox-id');
-        const baseURL = document.currentScript.getAttribute('data-base-url');
-        if (inboxID && baseURL) {
-            window.initLibredeskWidget({
-                baseURL: baseURL,
-                inboxID: inboxID
-            });
-        }
+    // Auto-initialize from global settings.
+    if (window.LibredeskSettings) {
+        window.initLibredesk(window.LibredeskSettings);
     }
 
 })();

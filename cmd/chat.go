@@ -33,16 +33,15 @@ const (
 	chatConversationRateLimitWindow = 24 * time.Hour
 )
 
-// Define JWT claims structure
+// Claims holds JWT claims for a JWT user.
 type Claims struct {
-	UserID                       int            `json:"user_id,omitempty"`
-	ExternalUserID               string         `json:"external_user_id,omitempty"`
-	IsVisitor                    bool           `json:"is_visitor,omitempty"`
-	Email                        string         `json:"email,omitempty"`
-	FirstName                    string         `json:"first_name,omitempty"`
-	LastName                     string         `json:"last_name,omitempty"`
-	ContactCustomAttributes      map[string]any `json:"contact_custom_attributes,omitempty"`
-	ConversationCustomAttributes map[string]any `json:"conversation_custom_attributes,omitempty"`
+	UserID                  int            `json:"user_id,omitempty"`
+	ExternalUserID          string         `json:"external_user_id,omitempty"`
+	IsVisitor               bool           `json:"is_visitor,omitempty"`
+	Email                   string         `json:"email,omitempty"`
+	FirstName               string         `json:"first_name,omitempty"`
+	LastName                string         `json:"last_name,omitempty"`
+	ContactCustomAttributes map[string]any `json:"contact_custom_attributes,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -696,19 +695,15 @@ func validateLiveChatInbox(r *fastglue.Request) (imodels.Inbox, livechat.Config,
 }
 
 // saveContactAttrsAndCollectConvoAttrs validates and saves contact custom attributes from JWT and form data.
-// Returns conversation custom attributes (merged from JWT + form) for the caller to apply after conversation creation.
+// Returns conversation custom attributes from the pre-chat form for the caller to apply after conversation creation.
 func saveContactAttrsAndCollectConvoAttrs(app *App, contactID int, claims *Claims, formData map[string]any, config livechat.Config) map[string]any {
-	var (
-		jwtContactAttrs map[string]any
-		jwtConvoAttrs   map[string]any
-	)
 	formContactAttrs, formConvoAttrs := validateCustomAttributes(formData, config, app)
+
+	// Merge JWT contact attributes with form contact attributes (JWT takes precedence).
+	var jwtContactAttrs map[string]any
 	if claims != nil {
 		jwtContactAttrs = claims.ContactCustomAttributes
-		jwtConvoAttrs = claims.ConversationCustomAttributes
 	}
-
-	// Save contact custom attributes (JWT takes precedence).
 	mergedContactAttrs := mergeCustomAttributes(jwtContactAttrs, formContactAttrs)
 	if len(mergedContactAttrs) > 0 {
 		if err := app.user.SaveCustomAttributes(contactID, mergedContactAttrs, false); err != nil {
@@ -716,8 +711,7 @@ func saveContactAttrsAndCollectConvoAttrs(app *App, contactID int, claims *Claim
 		}
 	}
 
-	// Return merged conversation custom attributes (JWT takes precedence).
-	return mergeCustomAttributes(jwtConvoAttrs, formConvoAttrs)
+	return formConvoAttrs
 }
 
 // resolveOrCreateExternalContact finds or creates a contact from JWT claims.

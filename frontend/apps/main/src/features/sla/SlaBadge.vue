@@ -57,7 +57,7 @@ watch(
 }
 
 .sla-overdue {
-  @apply bg-red-50/80 border-red-100 text-red-600 
+  @apply bg-red-50/80 border-red-100 text-red-600
          dark:bg-red-900/40 dark:border-red-800/20 dark:text-red-300;
 }
 
