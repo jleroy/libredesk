@@ -118,7 +118,7 @@ export const useChatStore = defineStore('chat', () => {
         messageCacheVersion.value++ // Trigger reactivity
     }
 
-    const loadConversation = async (conversationUUID, force = false) => {
+    const loadConversation = async (conversationUUID, force = false, silent = false) => {
         if (!conversationUUID) return false
 
         // If the conversation is already loaded, do not fetch again unless forced.
@@ -127,7 +127,7 @@ export const useChatStore = defineStore('chat', () => {
         }
 
         try {
-            isLoadingConversation.value = true
+            if (!silent) isLoadingConversation.value = true
             const resp = await api.getChatConversation(conversationUUID)
             const conversation = resp.data.data.conversation
             conversation.business_hours_id = resp.data.data.business_hours_id
@@ -184,7 +184,7 @@ export const useChatStore = defineStore('chat', () => {
         currentConversation.value = conversation
     }
 
-    const fetchConversations = async (force = false) => {
+    const fetchConversations = async (force = false, silent = false) => {
         // No session token means visitor, no conversations to fetch.
         if (!userStore.userSessionToken) {
             return true
@@ -196,7 +196,7 @@ export const useChatStore = defineStore('chat', () => {
         }
 
         try {
-            isLoadingConversations.value = true
+            if (!silent) isLoadingConversations.value = true
             const response = await api.getChatConversations()
             conversations.value = response.data.data || []
             return true

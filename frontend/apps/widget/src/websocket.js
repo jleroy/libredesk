@@ -26,6 +26,7 @@ export class WidgetWebSocketClient {
     this.isReconnecting = false
     this.manualClose = false
     this.pingInterval = null
+    this.lastSyncAt = 0
     this.lastPong = Date.now()
     this.jwt = null
     this.inboxId = null
@@ -162,16 +163,20 @@ export class WidgetWebSocketClient {
 
   setupNetworkListeners () {
     window.addEventListener('online', () => {
-      if (this.socket?.readyState !== WebSocket.OPEN) {
-        this.reconnectAttempts = 0
-        this.reconnectInterval = 1000
-        this.reconnect()
+      // Force reconnect to ensure a fresh connection after coming back online.
+      this.reconnectAttempts = 0
+      this.reconnectInterval = 1000
+      if (this.socket) {
+        this.socket.close()
       }
+      this.reconnect()
     })
 
     window.addEventListener('focus', () => {
       if (this.socket?.readyState !== WebSocket.OPEN) {
         this.reconnect()
+      } else {
+        this.syncMissedMessages()
       }
     })
   }
@@ -222,13 +227,17 @@ export class WidgetWebSocketClient {
     this.send(joinMessage)
   }
 
-  // Resync current conversation after reconnection to catch any missed messages.
+  // Silently refresh conversation list and current conversation to catch messages missed while WS was disconnected.
   syncMissedMessages () {
+    const now = Date.now()
+    if (now - this.lastSyncAt < 5000) return
+    this.lastSyncAt = now
+
     const chatStore = useChatStore()
-    chatStore.fetchConversations(true)
+    chatStore.fetchConversations(true, true)
     const currentConversationUUID = chatStore.currentConversation?.uuid
     if (currentConversationUUID) {
-      chatStore.loadConversation(currentConversationUUID, true)
+      chatStore.loadConversation(currentConversationUUID, true, true)
     }
   }
 
