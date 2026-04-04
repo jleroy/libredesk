@@ -6,13 +6,14 @@
       <div class="border border-input rounded-lg bg-background focus-within:border-secondary">
         <!-- Textarea Container -->
         <div class="p-2">
+          <!-- text-base (16px) is intentional. iOS Safari throws a zoom tantrum on anything smaller. Don't "fix" it. -->
           <Textarea
             v-model="newMessage"
             @keydown="handleKeydown"
             @input="handleTyping"
             :placeholder="$t('globals.terms.typeMessage')"
             :disabled="isSending"
-            class="w-full min-h-6 max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none focus-visible:ring-0 p-0 shadow-none"
+            class="w-full min-h-6 max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none focus-visible:ring-0 p-0 shadow-none text-base"
             ref="messageInput"
           ></Textarea>
         </div>

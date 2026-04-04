@@ -125,7 +125,7 @@ watch(
 <style scoped>
 .libredesk-widget-app {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 

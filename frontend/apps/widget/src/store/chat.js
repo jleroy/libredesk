@@ -184,14 +184,14 @@ export const useChatStore = defineStore('chat', () => {
         currentConversation.value = conversation
     }
 
-    const fetchConversations = async () => {
+    const fetchConversations = async (force = false) => {
         // No session token means visitor, no conversations to fetch.
         if (!userStore.userSessionToken) {
             return true
         }
 
-        // If conversations are already loaded and is an array, do not fetch again.
-        if (Array.isArray(conversations.value)) {
+        // If conversations are already loaded and is an array, do not fetch again unless forced.
+        if (!force && Array.isArray(conversations.value)) {
             return true
         }
 

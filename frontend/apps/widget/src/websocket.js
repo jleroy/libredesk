@@ -56,7 +56,7 @@ export class WidgetWebSocketClient {
 
   handleOpen () {
     this.reconnectInterval = 1000
-    const wasReconnecting = this.reconnectAttempts > 0
+    this.wasReconnecting = this.reconnectAttempts > 0
     this.reconnectAttempts = 0
     this.isReconnecting = false
     this.lastPong = Date.now()
@@ -67,9 +67,9 @@ export class WidgetWebSocketClient {
       this.joinInbox()
     }
 
-    // If this was a reconnection, sync current conversation messages
-    if (wasReconnecting) {
-      this.resyncCurrentConversation()
+    // If this was a reconnection, sync current conversation messages.
+    if (this.wasReconnecting) {
+      this.syncMissedMessages()
     }
   }
 
@@ -83,6 +83,11 @@ export class WidgetWebSocketClient {
           // Request current page info from parent after joining.
           if (window.parent && window.parent !== window) {
             window.parent.postMessage({ type: 'REQUEST_PAGE_INFO' }, '*')
+          }
+          // On first connect, resync to catch messages sent before WS was ready.
+          // Reconnections are already synced in handleOpen.
+          if (!this.wasReconnecting) {
+            this.syncMissedMessages()
           }
         },
         [WS_EVENT.PONG]: () => {
@@ -218,11 +223,12 @@ export class WidgetWebSocketClient {
   }
 
   // Resync current conversation after reconnection to catch any missed messages.
-  resyncCurrentConversation () {
+  syncMissedMessages () {
     const chatStore = useChatStore()
+    chatStore.fetchConversations(true)
     const currentConversationUUID = chatStore.currentConversation?.uuid
     if (currentConversationUUID) {
-      chatStore.loadConversation(currentConversationUUID)
+      chatStore.loadConversation(currentConversationUUID, true)
     }
   }
 

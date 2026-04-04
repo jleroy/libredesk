@@ -315,7 +315,7 @@
                     this.iframe.style.right = '0';
                     this.iframe.style.bottom = '0';
                     this.iframe.style.width = '100vw';
-                    this.iframe.style.height = '100vh';
+                    this.iframe.style.height = '100dvh';
                     this.iframe.style.borderRadius = '0';
                     this.iframe.style.boxShadow = 'none';
                     this.widgetButtonWrapper.style.display = 'none';
