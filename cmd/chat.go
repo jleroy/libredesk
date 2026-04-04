@@ -691,6 +691,19 @@ func validateLiveChatInbox(r *fastglue.Request) (imodels.Inbox, livechat.Config,
 		}
 	}
 
+	// Validate referer against trusted domains.
+	if len(config.TrustedDomains) > 0 {
+		referer := string(r.RequestCtx.Request.Header.Peek("Referer"))
+		if referer != "" && !httputil.IsOriginTrusted(referer, config.TrustedDomains) {
+			app.lo.Warn("widget request from untrusted referer blocked",
+				"referer", referer,
+				"inbox_uuid", inboxUUID,
+				"trusted_domains", config.TrustedDomains)
+			return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.PermissionError,
+				app.i18n.T("widget.ipBlocked"), nil)
+		}
+	}
+
 	return inbox, config, nil
 }
 

@@ -68,6 +68,18 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 			}
 		}
 
+		// Validate referer against trusted domains.
+		if len(config.TrustedDomains) > 0 {
+			referer := string(r.RequestCtx.Request.Header.Peek("Referer"))
+			if referer != "" && !httputil.IsOriginTrusted(referer, config.TrustedDomains) {
+				app.lo.Warn("widget request from untrusted referer blocked",
+					"referer", referer,
+					"inbox_uuid", inboxUUID,
+					"trusted_domains", config.TrustedDomains)
+				return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("widget.ipBlocked"), nil, envelope.PermissionError)
+			}
+		}
+
 		// Store inbox and parsed config in context for downstream handlers.
 		r.RequestCtx.SetUserValue(ctxWidgetInbox, inbox)
 		r.RequestCtx.SetUserValue(ctxWidgetConfig, config)

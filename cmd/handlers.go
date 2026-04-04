@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"mime"
 	"net/http"
 	"path"
@@ -10,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
-	"github.com/abhinavxd/libredesk/internal/httputil"
-	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	"github.com/abhinavxd/libredesk/internal/ws"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
@@ -336,62 +333,13 @@ func serveIndexPage(r *fastglue.Request) error {
 	return nil
 }
 
-// validateWidgetReferer validates the Referer header against trusted domains configured in the live chat inbox settings.
-func validateWidgetReferer(app *App, r *fastglue.Request, inboxUUID string) error {
-	// Get the Referer header from the request
-	referer := string(r.RequestCtx.Request.Header.Peek("Referer"))
-
-	// If no referer header is present, allow direct access.
-	if referer == "" {
-		return nil
-	}
-
-	// Get inbox configuration
-	inbox, err := app.inbox.GetDBRecord(inboxUUID)
-	if err != nil {
-		app.lo.Error("error fetching inbox for referer check", "inbox_uuid", inboxUUID, "error", err)
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundInbox"), nil, envelope.NotFoundError)
-	}
-
-	if !inbox.Enabled {
-		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("status.disabledInbox"), nil, envelope.InputError)
-	}
-
-	// Parse the live chat config
-	var config livechat.Config
-	if err := json.Unmarshal(inbox.Config, &config); err != nil {
-		app.lo.Error("error parsing live chat config for referer check", "error", err)
-		return r.SendErrorEnvelope(http.StatusInternalServerError, app.i18n.T("validation.invalidInbox"), nil, envelope.GeneralError)
-	}
-
-	// If trusted domains list is empty, allow all referers
-	if len(config.TrustedDomains) == 0 {
-		return nil
-	}
-
-	// Check if the referer matches any of the trusted domains
-	if !httputil.IsOriginTrusted(referer, config.TrustedDomains) {
-		app.lo.Warn("widget request from untrusted referer blocked",
-			"referer", referer,
-			"inbox_uuid", inboxUUID,
-			"trusted_domains", config.TrustedDomains)
-		return r.SendErrorEnvelope(http.StatusForbidden, "Widget not allowed from this origin", nil, envelope.PermissionError)
-	}
-	app.lo.Debug("widget request from trusted referer allowed", "referer", referer, "inbox_uuid", inboxUUID)
-	return nil
-}
-
 // serveWidgetIndexPage serves the widget index page of the application.
 func serveWidgetIndexPage(r *fastglue.Request) error {
 	app := r.Context.(*App)
 
-	// Extract and validate inbox UUID.
-	inboxUUID := string(r.RequestCtx.QueryArgs().Peek("inbox_id"))
-	if inboxUUID == "" {
-		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "inbox_id"), nil, envelope.InputError)
-	}
-	if err := validateWidgetReferer(app, r, inboxUUID); err != nil {
-		return err
+	// Validate inbox and referer/IP.
+	if _, _, err := validateLiveChatInbox(r); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 
 	// Prevent caching of the index page.
