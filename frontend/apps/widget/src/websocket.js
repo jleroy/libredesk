@@ -24,6 +24,7 @@ export class WidgetWebSocketClient {
     this.reconnectAttempts = 0
     this.maxReconnectAttempts = 50
     this.isReconnecting = false
+    this.reconnectTimer = null
     this.manualClose = false
     this.pingInterval = null
     this.lastSyncAt = 0
@@ -154,8 +155,9 @@ export class WidgetWebSocketClient {
     this.isReconnecting = true
     this.reconnectAttempts++
 
-    setTimeout(() => {
+    this.reconnectTimer = setTimeout(() => {
       this.isReconnecting = false
+      this.reconnectTimer = null
       this.connect()
       this.reconnectInterval = Math.min(this.reconnectInterval * 1.5, this.maxReconnectInterval)
     }, this.reconnectInterval)
@@ -163,9 +165,14 @@ export class WidgetWebSocketClient {
 
   setupNetworkListeners () {
     window.addEventListener('online', () => {
-      // Force reconnect to ensure a fresh connection after coming back online.
+      // Cancel any pending backoff timer and reconnect immediately.
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer)
+        this.reconnectTimer = null
+      }
       this.reconnectAttempts = 0
       this.reconnectInterval = 1000
+      this.isReconnecting = false
       if (this.socket) {
         this.socket.close()
       }
@@ -230,7 +237,7 @@ export class WidgetWebSocketClient {
   // Silently refresh conversation list and current conversation to catch messages missed while WS was disconnected.
   syncMissedMessages () {
     const now = Date.now()
-    if (now - this.lastSyncAt < 5000) return
+    if (now - this.lastSyncAt < 2000) return
     this.lastSyncAt = now
 
     const chatStore = useChatStore()
