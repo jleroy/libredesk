@@ -1,7 +1,7 @@
 <template>
   <Popover v-model:open="isOpen">
     <PopoverTrigger as-child>
-      <SidebarMenuButton size="md" class="relative" @click="handleOpen">
+      <SidebarMenuButton size="md" class="relative">
         <Bell class="h-5 w-5" />
         <span
           v-if="notificationStore.unreadCount > 0"
@@ -18,7 +18,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Bell } from 'lucide-vue-next'
 import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
 import { SidebarMenuButton } from '@shared-ui/components/ui/sidebar'
@@ -32,9 +32,9 @@ onMounted(() => {
   notificationStore.fetchStats()
 })
 
-const handleOpen = () => {
-  if (!isOpen.value) {
+watch(isOpen, (open) => {
+  if (open) {
     notificationStore.fetchNotifications()
   }
-}
+})
 </script>

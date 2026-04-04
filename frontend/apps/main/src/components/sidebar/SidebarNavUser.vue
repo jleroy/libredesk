@@ -26,9 +26,11 @@
       </SidebarMenuButton>
     </DropdownMenuTrigger>
     <DropdownMenuContent
-      class="w-[--radix-dropdown-menu-trigger-width] min-w-56"
-      side="bottom"
-      :side-offset="4"
+      class="min-w-56"
+      side="right"
+      align="end"
+      :side-offset="8"
+      :align-offset="40"
     >
       <DropdownMenuLabel class="font-normal space-y-2 px-2">
         <!-- User header -->
@@ -59,7 +61,7 @@
             />
           </div>
 
-          <div class="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-3">
+          <div class="border-t border-border pt-3 space-y-3">
             <!-- Away toggle -->
             <div class="flex items-center justify-between text-sm">
               <span class="text-muted-foreground">{{ t('navigation.away') }}</span>

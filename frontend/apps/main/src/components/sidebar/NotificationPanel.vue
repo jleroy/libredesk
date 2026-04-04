@@ -126,7 +126,6 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -151,10 +150,6 @@ const emit = defineEmits(['close'])
 const router = useRouter()
 const { t } = useI18n()
 const notificationStore = useNotificationStore()
-
-onMounted(() => {
-  notificationStore.fetchNotifications()
-})
 
 const getNotificationIcon = (type) => {
   const icons = {
