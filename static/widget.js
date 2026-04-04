@@ -193,7 +193,7 @@
             this.widgetButtonWrapper = widgetButtonWrapper;
 
             this.iframe = document.createElement('iframe');
-            this.iframe.src = `${this.config.baseURL}/widget/?inbox_id=${this.config.inboxID}`;
+            this.iframe.src = `${this.config.baseURL}/widget?inbox_id=${this.config.inboxID}`;
             this.iframe.style.cssText = `
                 position: fixed;
                 border: none;
