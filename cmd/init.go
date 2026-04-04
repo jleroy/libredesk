@@ -162,13 +162,6 @@ func initConstants() *constants {
 
 // initFS initializes the stuffbin FileSystem.
 func initFS() stuffbin.FileSystem {
-	var files = []string{
-		"frontend/dist/main",
-		"frontend/dist/widget",
-		"i18n",
-		"static",
-	}
-
 	// Get self executable path.
 	path, err := os.Executable()
 	if err != nil {
@@ -180,8 +173,15 @@ func initFS() stuffbin.FileSystem {
 
 	if err != nil {
 		if err == stuffbin.ErrNoID {
-			// The embed failed or the binary's already unstuffed or running in local / dev mode, use the local filesystem.
+			// Running in local/dev mode, use the local filesystem.
+			// Only include frontend dirs if they exist (frontend build is optional in dev).
 			colorlog.Red("binary unstuff failed, using local filesystem for static files")
+			files := []string{"i18n", "static"}
+			for _, d := range []string{"frontend/dist/main", "frontend/dist/widget"} {
+				if _, err := os.Stat(d); err == nil {
+					files = append(files, d)
+				}
+			}
 			fs, err = stuffbin.NewLocalFS("/", files...)
 			if err != nil {
 				log.Fatalf("error initializing local FS: %v", err)
