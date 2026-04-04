@@ -1,37 +1,48 @@
 import { ref, onUnmounted } from 'vue'
 
+const STOP_DELAY = 2000
+const RESEND_INTERVAL = 3000
+// Receiver auto-clear must be longer than RESEND_INTERVAL to avoid flicker.
+export const TYPING_RECEIVE_TIMEOUT = 5000
+
 export function useTypingIndicator (sendTypingCallback, otherAttributes = {}) {
-  const typingTimer = ref(null)
+  let typingTimer = null
+  let resendTimer = null
   const isCurrentlyTyping = ref(false)
 
   const startTyping = () => {
     if (!isCurrentlyTyping.value) {
       isCurrentlyTyping.value = true
       sendTypingCallback?.(true, otherAttributes)
+
+      resendTimer = setInterval(() => {
+        sendTypingCallback?.(true, otherAttributes)
+      }, RESEND_INTERVAL)
     }
 
-    // Clear existing timer
-    if (typingTimer.value) {
-      clearTimeout(typingTimer.value)
+    if (typingTimer) {
+      clearTimeout(typingTimer)
     }
 
-    // Set timer to stop typing after 2 seconds of inactivity
-    typingTimer.value = setTimeout(() => {
+    typingTimer = setTimeout(() => {
       stopTyping()
-    }, 2000)
+    }, STOP_DELAY)
   }
 
   const stopTyping = () => {
-    setTimeout(() => {
-      if (isCurrentlyTyping.value) {
-        isCurrentlyTyping.value = false
-        sendTypingCallback?.(false, otherAttributes)
-      }
-    }, 500)
+    if (typingTimer) {
+      clearTimeout(typingTimer)
+      typingTimer = null
+    }
 
-    if (typingTimer.value) {
-      clearTimeout(typingTimer.value)
-      typingTimer.value = null
+    if (resendTimer) {
+      clearInterval(resendTimer)
+      resendTimer = null
+    }
+
+    if (isCurrentlyTyping.value) {
+      isCurrentlyTyping.value = false
+      sendTypingCallback?.(false, otherAttributes)
     }
   }
 

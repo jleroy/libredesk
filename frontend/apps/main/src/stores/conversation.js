@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, watchEffect } from 'vue'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
+import { TYPING_RECEIVE_TIMEOUT } from '@shared-ui/composables/useTypingIndicator.js'
 import { deepMerge } from '@shared-ui/utils/object.js'
 import { computeRecipientsFromMessage } from '../utils/email-recipients'
 import { useEmitter } from '../composables/useEmitter'
@@ -807,12 +808,11 @@ export const useConversationStore = defineStore('conversation', () => {
 
     conversation.isTyping = is_typing
 
-    // Auto-clear after 5s if no new typing event arrives.
     if (is_typing) {
       typingTimeout = setTimeout(() => {
         conversation.isTyping = false
         typingTimeout = null
-      }, 5000)
+      }, TYPING_RECEIVE_TIMEOUT)
     }
   }
 

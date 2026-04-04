@@ -9,7 +9,7 @@ import vue from '@vitejs/plugin-vue'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const isWidget = mode === 'widget'
   const appPath = isWidget ? 'apps/widget' : 'apps/main'
 
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
   ]
 
   return {
-    base: isWidget ? '/widget/' : '/',
+    base: isWidget && command === 'build' ? '/widget/' : '/',
     css: {
       preprocessorOptions: {
         scss: {

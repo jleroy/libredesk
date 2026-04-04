@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 import api from '../api/index.js'
 import { deepMerge } from '@shared-ui/utils/object.js'
+import { TYPING_RECEIVE_TIMEOUT } from '@shared-ui/composables/useTypingIndicator.js'
 import MessageCache from '@main/utils/conversation-message-cache.js'
 import { useUserStore } from './user.js'
 
@@ -177,12 +178,11 @@ export const useChatStore = defineStore('chat', () => {
 
         isTyping.value = status
 
-        // Auto-clear after 5s if no new typing event arrives.
         if (status) {
             typingTimeout = setTimeout(() => {
                 isTyping.value = false
                 typingTimeout = null
-            }, 5000)
+            }, TYPING_RECEIVE_TIMEOUT)
         }
     }
 
