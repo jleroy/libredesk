@@ -90,7 +90,21 @@ export function getInitials (firstName = '', lastName = '') {
 export function parseTemplateVariables(text, userData) {
   if (!text) return text
 
-  return text
-    .replace(/\{\{\s*\.\s*FirstName\s*\}\}/gi, userData?.firstName || '')
-    .replace(/\{\{\s*\.\s*LastName\s*\}\}/gi, userData?.lastName || '')
+  const varMap = {
+    firstname: userData?.firstName || '',
+    lastname: userData?.lastName || ''
+  }
+
+  const resolveVar = (str) =>
+    str.replace(/\{\{\s*\.\s*(\w+)\s*\}\}/gi, (_, name) => varMap[name.toLowerCase()] || '')
+
+  // Process {{if .Var}}...{{else}}...{{end}} blocks first.
+  const result = text.replace(
+    /\{\{\s*if\s+\.(\w+)\s*\}\}(.*?)\{\{\s*else\s*\}\}(.*?)\{\{\s*end\s*\}\}/gi,
+    (_, varName, ifBlock, elseBlock) => {
+      return varMap[varName.toLowerCase()] ? resolveVar(ifBlock) : resolveVar(elseBlock)
+    }
+  )
+
+  return resolveVar(result)
 }

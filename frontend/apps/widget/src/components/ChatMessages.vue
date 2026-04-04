@@ -54,7 +54,7 @@
                       ? 'bg-destructive/60'
                       : 'bg-primary'
                 ]
-              : 'bg-background text-foreground rounded-bl-sm border border-border',
+              : 'bg-secondary text-secondary-foreground rounded-bl-sm',
             {
               'show-quoted-text': isQuotedTextVisible(message.uuid),
               'hide-quoted-text': !isQuotedTextVisible(message.uuid)
@@ -127,7 +127,7 @@
       <!-- Typing Indicator -->
       <div v-if="isTyping" class="flex flex-col items-start">
         <div
-          class="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-5 bg-background text-foreground rounded-bl-sm border border-border"
+          class="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-5 bg-secondary text-secondary-foreground rounded-bl-sm"
         >
           <TypingIndicator />
         </div>

@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"net/mail"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/httputil"
@@ -73,8 +76,8 @@ func handleCreateInbox(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	if err := reloadInboxes(app); err != nil {
-		app.lo.Error("error reloading inboxes", "error", err)
+	if err := reloadInbox(app, createdInbox.ID); err != nil {
+		app.lo.Error("error reloading inbox", "id", createdInbox.ID, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
@@ -117,8 +120,8 @@ func handleUpdateInbox(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	if err := reloadInboxes(app); err != nil {
-		app.lo.Error("error reloading inboxes", "error", err)
+	if err := reloadInbox(app, id); err != nil {
+		app.lo.Error("error reloading inbox", "id", id, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
@@ -147,8 +150,8 @@ func handleToggleInbox(r *fastglue.Request) error {
 		return err
 	}
 
-	if err := reloadInboxes(app); err != nil {
-		app.lo.Error("error reloading inboxes", "error", err)
+	if err := reloadInbox(app, id); err != nil {
+		app.lo.Error("error reloading inbox", "id", id, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
@@ -171,8 +174,8 @@ func handleDeleteInbox(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	if err := reloadInboxes(app); err != nil {
-		app.lo.Error("error reloading inboxes", "error", err)
+	if err := reloadInbox(app, id); err != nil {
+		app.lo.Error("error reloading inbox", "id", id, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 	return r.SendEnvelope(true)
@@ -204,6 +207,99 @@ func validateInbox(app *App, inbox imodels.Inbox) error {
 			if config.ShowOfficeHoursAfterAssignment && !config.ShowOfficeHoursInChat {
 				return envelope.NewError(envelope.InputError, "`show_office_hours_after_assignment` cannot be enabled when `show_office_hours_in_chat` is disabled", nil)
 			}
+			// Validate continuity settings - required when linked email inbox is set.
+			if inbox.LinkedEmailInboxID.Valid && inbox.LinkedEmailInboxID.Int > 0 {
+				if config.Continuity.OfflineThreshold == "" {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "offline_threshold"), nil)
+				}
+				if config.Continuity.MinEmailInterval == "" {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "min_email_interval"), nil)
+				}
+				if config.Continuity.MaxMessagesPerEmail == 0 {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "max_messages_per_email"), nil)
+				}
+			}
+			if config.Continuity.OfflineThreshold != "" {
+				d, err := time.ParseDuration(config.Continuity.OfflineThreshold)
+				if err != nil {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.invalidDuration", "name", "offline_threshold"), nil)
+				}
+				if d < time.Minute {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.minDuration", "name", "offline_threshold", "min", "1m"), nil)
+				}
+			}
+			if config.Continuity.MinEmailInterval != "" {
+				d, err := time.ParseDuration(config.Continuity.MinEmailInterval)
+				if err != nil {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.invalidDuration", "name", "min_email_interval"), nil)
+				}
+				if d < time.Minute {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.minDuration", "name", "min_email_interval", "min", "1m"), nil)
+				}
+			}
+			if config.Continuity.MaxMessagesPerEmail != 0 {
+				if config.Continuity.MaxMessagesPerEmail < 1 || config.Continuity.MaxMessagesPerEmail > 100 {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.minmaxNumber", "min", "1", "max", "100"), nil)
+				}
+			}
+
+			// Validate colors.
+			hexColorRegex := regexp.MustCompile(`^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$`)
+			if config.Colors.Primary == "" {
+				return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "primary color"), nil)
+			}
+			if !hexColorRegex.MatchString(config.Colors.Primary) {
+				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidColor"), nil)
+			}
+			if config.Colors.Secondary != "" && !hexColorRegex.MatchString(config.Colors.Secondary) {
+				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidColor"), nil)
+			}
+
+			// Validate launcher position.
+			if config.Launcher.Position != "left" && config.Launcher.Position != "right" {
+				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidValue"), nil)
+			}
+
+			// Validate launcher spacing (non-negative).
+			if config.Launcher.Spacing.Side < 0 || config.Launcher.Spacing.Bottom < 0 {
+				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidValue"), nil)
+			}
+
+			// Validate external links.
+			for _, link := range config.ExternalLinks {
+				if strings.TrimSpace(link.Text) == "" {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "link text"), nil)
+				}
+				if _, err := url.ParseRequestURI(link.URL); err != nil {
+					return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
+				}
+			}
+
+			// Validate URLs if set.
+			for _, u := range []string{config.LogoURL, config.Launcher.LogoURL, config.WebsiteURL} {
+				if u != "" {
+					if _, err := url.ParseRequestURI(u); err != nil {
+						return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
+					}
+				}
+			}
+
+			// Validate trusted domains.
+			// Valid formats: example.com, *.example.com, sub.example.com, example.com:8080
+			for _, domain := range config.TrustedDomains {
+				d := strings.TrimSpace(domain)
+				if d == "" {
+					continue
+				}
+				if strings.Contains(d, "://") || strings.Contains(d, "/") || strings.Contains(d, " ") {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.invalidDomain", "domain", d), nil)
+				}
+				// Wildcard must be at the start followed by a dot.
+				if strings.Contains(d, "*") && !strings.HasPrefix(d, "*.") {
+					return envelope.NewError(envelope.InputError, app.i18n.Ts("validation.invalidDomain", "domain", d), nil)
+				}
+			}
+
 			// Validate blocked IPs entries.
 			for _, entry := range config.BlockedIPs {
 				if !httputil.ValidateIPOrCIDR(entry) {

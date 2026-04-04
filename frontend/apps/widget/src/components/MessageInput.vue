@@ -3,7 +3,7 @@
     <!-- Message Input -->
     <div class="p-2">
       <!-- Unified Input Container -->
-      <div class="border border-input rounded-lg bg-background focus-within:border-primary">
+      <div class="border border-input rounded-lg bg-background focus-within:border-secondary">
         <!-- Textarea Container -->
         <div class="p-2">
           <Textarea

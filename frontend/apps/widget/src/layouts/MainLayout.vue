@@ -10,7 +10,7 @@
           <ChatView v-else />
         </TabsContent>
       </div>
-      <TabsList class="grid grid-cols-2 h-auto bg-background border-t rounded-none p-0">
+      <TabsList v-if="!widgetStore.isChatView" class="grid grid-cols-2 h-auto bg-background border-t rounded-none p-0">
         <TabsTrigger value="home" class="flex items-center justify-center gap-2 py-2.5 rounded-none shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-muted-foreground">
           <House class="w-[18px] h-[18px]" />
           <span class="text-sm">{{ $t('globals.terms.home') }}</span>
@@ -21,12 +21,16 @@
         </TabsTrigger>
       </TabsList>
       <div
-        v-if="widgetStore.config?.show_powered_by !== false"
-        class="text-center flex items-center justify-center"
+        v-if="widgetStore.config?.show_powered_by !== false && widgetStore.isChatView"
+        class="flex items-center justify-center pb-1.5"
       >
-        <span class="text-[10px] text-muted-foreground"
-          >{{ $t('globals.messages.poweredBy') }} <a href="https://libredesk.io" target="_blank">Libredesk</a></span
+        <a
+          href="https://libredesk.io"
+          target="_blank"
+          class="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors no-underline"
         >
+          {{ $t('globals.messages.poweredBy') }} <span class="font-medium">Libredesk</span>
+        </a>
       </div>
 
       <!-- Network Connection Banner -->

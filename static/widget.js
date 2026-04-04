@@ -5,7 +5,6 @@
 (function () {
     'use strict';
 
-    // Prevent multiple initializations
     if (window.__libredeskWidgetLoaded) {
         return;
     }
@@ -13,13 +12,19 @@
 
     class Libredesk {
         constructor(config = {}) {
-            // Validate required config
             if (!config.baseURL) {
                 throw new Error('baseURL is required');
             }
             if (!config.inboxID) {
                 throw new Error('inboxID is required');
             }
+
+            this.IFRAME_BORDER_RADIUS = '24px';
+            this.IFRAME_BOX_SHADOW = '0 4px 24px rgba(0,0,0,0.12)';
+            this.IFRAME_WIDTH = '400px';
+            this.IFRAME_HEIGHT = '700px';
+            this.EXPANDED_WIDTH = '750px';
+            this.MOBILE_BREAKPOINT = 600;
 
             this.config = config;
             this.iframe = null;
@@ -29,14 +34,25 @@
             this.isChatVisible = false;
             this.widgetSettings = null;
             this.unreadCount = 0;
-            this.isMobile = window.innerWidth <= 600;
+            this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
             this.isExpanded = false;
-            this.isVueAppReady = false;
             this.hideLauncher = config.hideLauncher || false;
             this._onShowCallback = null;
             this._onHideCallback = null;
             this._onUnreadCountChangeCallback = null;
+            this._boundHandleMessage = (e) => this.handleMessage(e);
+            this._boundHandleResize = () => this.handleResize();
             this.init();
+        }
+
+        postToIframe (data) {
+            if (this.iframe && this.iframe.contentWindow) {
+                this.iframe.contentWindow.postMessage(data, '*');
+            }
+        }
+
+        formatBadgeCount (count) {
+            return count > 99 ? '99+' : count.toString();
         }
 
         async init () {
@@ -44,7 +60,6 @@
                 await this.fetchWidgetSettings();
                 this.createElements();
                 this.setLauncherPosition();
-                // Hide widget initially until Vue app is ready
                 this.widgetButtonWrapper.style.display = 'none';
                 this.iframe.addEventListener('load', () => {
                     this.sendMobileState();
@@ -78,12 +93,10 @@
             }
         }
 
-        // Create launcher and iframe elements.
         createElements () {
             const launcher = this.widgetSettings.launcher;
             const colors = this.widgetSettings.colors;
 
-            // Create toggle button
             this.toggleButton = document.createElement('div');
             this.toggleButton.style.cssText = `
                 position: fixed;
@@ -100,7 +113,6 @@
                 transition: transform 0.3s ease;
             `;
 
-            // Create icon element or arrow based on state
             this.iconContainer = document.createElement('div');
             this.iconContainer.style.cssText = `
                 width: 100%;
@@ -123,13 +135,20 @@
                 this.iconContainer.appendChild(this.defaultIcon);
             }
 
-            // Create downward arrow SVG
             this.arrowIcon = document.createElement('div');
-            this.arrowIcon.innerHTML = `
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M7 10L12 15L17 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            `;
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', '24');
+            svg.setAttribute('height', '24');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.setAttribute('fill', 'none');
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'M7 10L12 15L17 10');
+            path.setAttribute('stroke', 'white');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            svg.appendChild(path);
+            this.arrowIcon.appendChild(svg);
             this.arrowIcon.style.cssText = `
                 width: 100%;
                 height: 100%;
@@ -141,7 +160,6 @@
 
             this.toggleButton.appendChild(this.iconContainer);
 
-            // Create unread badge
             this.unreadBadge = document.createElement('div');
             this.unreadBadge.style.cssText = `
                 position: absolute;
@@ -174,17 +192,16 @@
             this.toggleButton.style.position = 'relative';
             this.widgetButtonWrapper = widgetButtonWrapper;
 
-            // Create iframe
             this.iframe = document.createElement('iframe');
             this.iframe.src = `${this.config.baseURL}/widget/?inbox_id=${this.config.inboxID}`;
             this.iframe.style.cssText = `
                 position: fixed;
                 border: none;
-                border-radius: 12px;
-                box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+                border-radius: ${this.IFRAME_BORDER_RADIUS};
+                box-shadow: ${this.IFRAME_BOX_SHADOW};
                 z-index: 9999;
-                width: 400px;
-                height: 700px;
+                width: ${this.IFRAME_WIDTH};
+                height: ${this.IFRAME_HEIGHT};
                 transition: all 0.3s ease;
                 display: none;
             `;
@@ -194,112 +211,105 @@
         }
 
         sendMobileState () {
-            this.isMobile = window.innerWidth <= 600;
-            // Send message to iframe to update mobile state there.
-            if (this.iframe && this.iframe.contentWindow) {
-                this.iframe.contentWindow.postMessage({
-                    type: 'SET_MOBILE_STATE',
-                    isMobile: this.isMobile
-                }, '*');
-            }
+            this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
+            this.postToIframe({
+                type: 'SET_MOBILE_STATE',
+                isMobile: this.isMobile
+            });
+        }
+
+        sendPageInfo () {
+            this.postToIframe({
+                type: 'PAGE_VISIT',
+                url: window.location.href,
+                title: document.title || ''
+            });
         }
 
         setLauncherPosition () {
-            const launcher = this.widgetSettings.launcher;
-            const spacing = launcher.spacing;
-            const position = launcher.position;
-            const side = position === 'right' ? 'right' : 'left';
+            const spacing = this.widgetSettings.launcher.spacing;
+            const side = this.widgetSettings.launcher.position === 'right' ? 'right' : 'left';
 
-            // Position button wrapper (which contains the toggle button and badge)
             this.widgetButtonWrapper.style.bottom = `${spacing.bottom}px`;
             this.widgetButtonWrapper.style[side] = `${spacing.side}px`;
 
-            // Position iframe
             this.iframe.style.bottom = `${spacing.bottom + 80}px`;
             this.iframe.style[side] = `${spacing.side}px`;
         }
 
+        handleMessage (event) {
+            if (event.source !== this.iframe.contentWindow) return;
+
+            switch (event.data.type) {
+                case 'VUE_APP_READY':
+                    this.handleVueAppReady();
+                    break;
+                case 'CLOSE_WIDGET':
+                    this.hideChat();
+                    break;
+                case 'UPDATE_UNREAD_COUNT':
+                    this.updateUnreadCount(event.data.count);
+                    break;
+                case 'EXPAND_WIDGET':
+                    this.expandWidget();
+                    break;
+                case 'COLLAPSE_WIDGET':
+                    this.collapseWidget();
+                    break;
+                case 'REQUEST_PAGE_INFO':
+                    this.sendPageInfo();
+                    break;
+            }
+        }
+
         setupEventListeners () {
             this.toggleButton.addEventListener('click', () => this.toggle());
+            window.addEventListener('message', this._boundHandleMessage);
+        }
 
-            // Listen for messages from the iframe (Vue widget app)
-            window.addEventListener('message', (event) => {
-                // Verify the message is from our iframe.
-                if (event.source === this.iframe.contentWindow) {
-                    if (event.data.type === 'VUE_APP_READY') {
-                        this.handleVueAppReady();
-                    } else if (event.data.type === 'CLOSE_WIDGET') {
-                        this.hideChat();
-                    } else if (event.data.type === 'UPDATE_UNREAD_COUNT') {
-                        this.updateUnreadCount(event.data.count);
-                    } else if (event.data.type === 'EXPAND_WIDGET') {
-                        this.expandWidget();
-                    } else if (event.data.type === 'COLLAPSE_WIDGET') {
-                        this.collapseWidget();
-                    } else if (event.data.type === 'REQUEST_PAGE_INFO') {
-                        this.iframe.contentWindow.postMessage({
-                            type: 'PAGE_VISIT',
-                            url: window.location.href,
-                            title: document.title || ''
-                        }, '*');
-                    }
-                }
-            });
+        handleResize () {
+            this.sendMobileState();
+            if (this.isChatVisible) {
+                this.showChat();
+            }
         }
 
         setupMobileDetection () {
-            window.addEventListener('resize', () => {
-                this.sendMobileState();
-                if (this.isChatVisible) {
-                    this.showChat();
-                }
-            });
-            window.addEventListener('orientationchange', () => {
-                this.sendMobileState();
-                if (this.isChatVisible) {
-                    this.showChat();
-                }
-            });
+            window.addEventListener('resize', this._boundHandleResize);
+            window.addEventListener('orientationchange', this._boundHandleResize);
         }
 
         handleVueAppReady () {
-            this.isVueAppReady = true;
             this.sendMobileState();
             if (!this.hideLauncher) {
                 this.widgetButtonWrapper.style.display = '';
             }
 
-            // Send JWT token if provided in config
             if (this.config.userJWT) {
-                this.iframe.contentWindow.postMessage({
+                this.postToIframe({
                     type: 'SET_JWT_TOKEN',
                     jwt: this.config.userJWT
-                }, '*');
+                });
             }
         }
 
         toggle () {
             if (this.isChatVisible) {
                 this.hideChat();
-                // Send WIDGET_CLOSED event to iframe
-                if (this.iframe && this.iframe.contentWindow) {
-                    this.iframe.contentWindow.postMessage({ type: 'WIDGET_CLOSED' }, '*');
-                }
+                this.postToIframe({ type: 'WIDGET_CLOSED' });
             } else {
                 this.showChat();
-                // Send WIDGET_OPENED event to iframe
-                if (this.iframe && this.iframe.contentWindow) {
-                    this.iframe.contentWindow.postMessage({ type: 'WIDGET_OPENED' }, '*');
-                }
+                this.postToIframe({ type: 'WIDGET_OPENED' });
             }
         }
 
         showChat () {
             if (this.iframe) {
-                this.isMobile = window.innerWidth <= 600;
+                this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
+                this.iframe.style.display = 'block';
+                this.iframe.style.position = 'fixed';
+
                 if (this.isMobile) {
-                    this.iframe.style.display = 'block';
-                    this.iframe.style.position = 'fixed';
                     this.iframe.style.top = '0';
                     this.iframe.style.left = '0';
                     this.iframe.style.right = '0';
@@ -310,22 +320,19 @@
                     this.iframe.style.boxShadow = 'none';
                     this.widgetButtonWrapper.style.display = 'none';
                 } else {
-                    this.iframe.style.display = 'block';
-                    this.iframe.style.position = 'fixed';
-                    this.iframe.style.width = '400px';
-                    this.iframe.style.borderRadius = '12px';
-                    this.iframe.style.boxShadow = '0 4px 24px rgba(0,0,0,0.12)';
+                    this.iframe.style.width = this.IFRAME_WIDTH;
+                    this.iframe.style.borderRadius = this.IFRAME_BORDER_RADIUS;
+                    this.iframe.style.boxShadow = this.IFRAME_BOX_SHADOW;
                     this.iframe.style.top = '';
                     this.iframe.style.left = '';
                     this.widgetButtonWrapper.style.display = '';
 
-                    // Apply expanded or normal height based on current state
                     if (this.isExpanded) {
-                        this.iframe.style.width = '750px';
+                        this.iframe.style.width = this.EXPANDED_WIDTH;
                         this.iframe.style.height = 'calc(100vh - 40px)';
                         this.iframe.style.bottom = '20px';
                     } else {
-                        this.iframe.style.height = '700px';
+                        this.iframe.style.height = this.IFRAME_HEIGHT;
                         this.setLauncherPosition();
                     }
                 }
@@ -333,7 +340,6 @@
                 this.toggleButton.style.transform = 'scale(0.9)';
                 this.unreadBadge.style.display = 'none';
 
-                // Switch to arrow icon
                 if (this.defaultIcon) this.defaultIcon.style.display = 'none';
                 this.arrowIcon.style.display = 'flex';
 
@@ -348,13 +354,11 @@
                 this.toggleButton.style.transform = 'scale(1)';
                 this.widgetButtonWrapper.style.display = '';
 
-                // Switch back to default icon
                 if (this.defaultIcon) this.defaultIcon.style.display = 'block';
                 this.arrowIcon.style.display = 'none';
 
-                // Restore unread badge if there are still unread messages
                 if (this.unreadCount > 0) {
-                    this.unreadBadge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount.toString();
+                    this.unreadBadge.textContent = this.formatBadgeCount(this.unreadCount);
                     this.unreadBadge.style.display = 'flex';
                 }
 
@@ -367,7 +371,7 @@
             if (this._onUnreadCountChangeCallback) this._onUnreadCountChangeCallback(count);
 
             if (count > 0 && !this.isChatVisible) {
-                this.unreadBadge.textContent = count > 99 ? '99+' : count.toString();
+                this.unreadBadge.textContent = this.formatBadgeCount(count);
                 this.unreadBadge.style.display = 'flex';
             } else {
                 this.unreadBadge.style.display = 'none';
@@ -377,39 +381,21 @@
         expandWidget () {
             if (this.iframe && this.isChatVisible && !this.isMobile) {
                 this.isExpanded = true;
-
-                // Expand to nearly full viewport height with small gap
-                this.iframe.style.width = '750px';
+                this.iframe.style.width = this.EXPANDED_WIDTH;
                 this.iframe.style.height = 'calc(100vh - 40px)';
                 this.iframe.style.bottom = '20px';
-                this.iframe.style.maxHeight = '';
-
-                // Send expanded state to iframe
-                this.iframe.contentWindow.postMessage({
-                    type: 'WIDGET_EXPANDED',
-                    isExpanded: true
-                }, '*');
+                this.postToIframe({ type: 'WIDGET_EXPANDED', isExpanded: true });
             }
         }
 
         collapseWidget () {
             if (this.iframe && this.isChatVisible && !this.isMobile) {
                 this.isExpanded = false;
-
-                // Reset to original size and position
-                this.iframe.style.width = '400px';
-                this.iframe.style.height = '700px';
-                this.iframe.style.maxHeight = '';
+                this.iframe.style.width = this.IFRAME_WIDTH;
+                this.iframe.style.height = this.IFRAME_HEIGHT;
                 this.iframe.style.top = '';
-
-                // Restore launcher position
                 this.setLauncherPosition();
-
-                // Send collapsed state to iframe
-                this.iframe.contentWindow.postMessage({
-                    type: 'WIDGET_EXPANDED',
-                    isExpanded: false
-                }, '*');
+                this.postToIframe({ type: 'WIDGET_EXPANDED', isExpanded: false });
             }
         }
 
@@ -424,18 +410,9 @@
                 if (url === self._lastPageURL) return;
                 self._lastPageURL = url;
                 // Defer to let SPA frameworks update document.title after route change.
-                setTimeout(() => {
-                    if (self.iframe && self.iframe.contentWindow) {
-                        self.iframe.contentWindow.postMessage({
-                            type: 'PAGE_VISIT',
-                            url: url,
-                            title: document.title || ''
-                        }, '*');
-                    }
-                }, 100);
+                setTimeout(() => { self.sendPageInfo(); }, 100);
             };
 
-            // Monkey-patch history methods.
             history.pushState = function () {
                 self._origPushState.apply(this, arguments);
                 onPageChange();
@@ -445,54 +422,36 @@
                 onPageChange();
             };
 
-            // Hash routing and browser back/forward.
             this._onPopState = onPageChange;
             this._onHashChange = onPageChange;
             window.addEventListener('popstate', this._onPopState);
             window.addEventListener('hashchange', this._onHashChange);
 
-            // Fallback polling for edge cases.
             this._pageTrackInterval = setInterval(onPageChange, 7000);
-
-            // Send initial page.
             onPageChange();
         }
 
         stopPageTracking () {
-            if (this._origPushState) {
-                history.pushState = this._origPushState;
-            }
-            if (this._origReplaceState) {
-                history.replaceState = this._origReplaceState;
-            }
-            if (this._onPopState) {
-                window.removeEventListener('popstate', this._onPopState);
-            }
-            if (this._onHashChange) {
-                window.removeEventListener('hashchange', this._onHashChange);
-            }
-            if (this._pageTrackInterval) {
-                clearInterval(this._pageTrackInterval);
-            }
+            if (this._origPushState) history.pushState = this._origPushState;
+            if (this._origReplaceState) history.replaceState = this._origReplaceState;
+            if (this._onPopState) window.removeEventListener('popstate', this._onPopState);
+            if (this._onHashChange) window.removeEventListener('hashchange', this._onHashChange);
+            if (this._pageTrackInterval) clearInterval(this._pageTrackInterval);
         }
 
         setUser (jwt) {
-            if (this.iframe && this.iframe.contentWindow) {
-                this.iframe.contentWindow.postMessage({
-                    type: 'SET_JWT_TOKEN',
-                    jwt: jwt
-                }, '*');
-            }
+            this.postToIframe({ type: 'SET_JWT_TOKEN', jwt: jwt });
         }
 
         logout () {
-            if (this.iframe && this.iframe.contentWindow) {
-                this.iframe.contentWindow.postMessage({ type: 'CLEAR_SESSION' }, '*');
-            }
+            this.postToIframe({ type: 'CLEAR_SESSION' });
         }
 
         destroy () {
             this.stopPageTracking();
+            window.removeEventListener('message', this._boundHandleMessage);
+            window.removeEventListener('resize', this._boundHandleResize);
+            window.removeEventListener('orientationchange', this._boundHandleResize);
             if (this.widgetButtonWrapper) {
                 document.body.removeChild(this.widgetButtonWrapper);
                 this.widgetButtonWrapper = null;
@@ -504,6 +463,9 @@
                 this.iframe = null;
             }
             this.isChatVisible = false;
+            this._onShowCallback = null;
+            this._onHideCallback = null;
+            this._onUnreadCountChangeCallback = null;
         }
     }
 
@@ -514,7 +476,6 @@
     Libredesk.prototype.onHide = function (fn) { this._onHideCallback = fn; };
     Libredesk.prototype.onUnreadCountChange = function (fn) { this._onUnreadCountChangeCallback = fn; fn(this.unreadCount); };
 
-    // Global widget instance
     window.Libredesk = Libredesk;
 
     window.initLibredesk = function (config = {}) {
@@ -526,7 +487,6 @@
         return window.Libredesk;
     };
 
-    // Auto-initialize from global settings.
     if (window.LibredeskSettings) {
         window.initLibredesk(window.LibredeskSettings);
     }

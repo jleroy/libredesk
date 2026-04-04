@@ -129,10 +129,8 @@ unsnooze_interval = "5m"
 draft_retention_period = "360h"
 
 [conversation.continuity]
-offline_threshold = "10m"
+# How often to check for offline conversations in database to send continuity emails
 batch_check_interval = "5m"
-max_messages_per_email = 10
-min_email_interval = "15m"
 
 [sla]
 # How often to evaluate SLA compliance for conversations

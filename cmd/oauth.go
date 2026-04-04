@@ -286,9 +286,9 @@ func handleOAuthCallback(r *fastglue.Request) error {
 			return r.Redirect("/admin/inboxes?error=inbox_update_failed", fasthttp.StatusFound, nil, "")
 		}
 
-		// Reload inboxes to apply new tokens
-		if err := reloadInboxes(app); err != nil {
-			app.lo.Error("Failed to reload inboxes", "error", err)
+		// Reload inbox to apply new tokens.
+		if err := reloadInbox(app, existingInbox.ID); err != nil {
+			app.lo.Error("error reloading inbox", "id", existingInbox.ID, "error", err)
 		}
 
 		return r.Redirect("/admin/inboxes?success=oauth_reconnected", fasthttp.StatusFound, nil, "")
@@ -334,15 +334,15 @@ func handleOAuthCallback(r *fastglue.Request) error {
 		Config:      json.RawMessage(configJSON),
 	}
 
-	_, err = app.inbox.Create(newInbox)
+	createdInbox, err := app.inbox.Create(newInbox)
 	if err != nil {
 		app.lo.Error("Failed to create inbox", "error", err)
 		return r.Redirect("/admin/inboxes?error=inbox_creation_failed", fasthttp.StatusFound, nil, "")
 	}
 
-	// Reload inboxes to start the new inbox
-	if err := reloadInboxes(app); err != nil {
-		app.lo.Error("Failed to reload inboxes", "error", err)
+	// Reload inbox to start the new inbox.
+	if err := reloadInbox(app, createdInbox.ID); err != nil {
+		app.lo.Error("error reloading inbox", "id", createdInbox.ID, "error", err)
 	}
 
 	return r.Redirect("/admin/inboxes?success=oauth_connected", fasthttp.StatusFound, nil, "")

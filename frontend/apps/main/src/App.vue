@@ -11,7 +11,7 @@
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <SidebarMenuButton asChild :isActive="route.path.startsWith('/inboxes')">
-                        <router-link :to="{ name: 'inboxes' }">
+                        <router-link :to="lastInboxPath || { name: 'inboxes' }">
                           <Inbox />
                         </router-link>
                       </SidebarMenuButton>
@@ -126,6 +126,7 @@
 
 <script setup>
 import { onMounted, ref, watch } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { RouterView } from 'vue-router'
 import { useUserStore } from './stores/user'
 import { initWS } from './websocket.js'
@@ -172,6 +173,17 @@ import api from '@main/api'
 
 const route = useRoute()
 const emitter = useEmitter()
+
+// Remember last inbox path so navigating back from admin/contacts/reports restores it
+const lastInboxPath = useStorage('lastInboxPath', '')
+watch(
+  () => route.path,
+  (path) => {
+    if (path.startsWith('/inboxes') && path !== '/inboxes/search') {
+      lastInboxPath.value = path.replace(/\/conversation\/[^/]+$/, '')
+    }
+  }
+)
 const userStore = useUserStore()
 const conversationStore = useConversationStore()
 const usersStore = useUsersStore()

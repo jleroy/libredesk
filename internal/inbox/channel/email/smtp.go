@@ -134,19 +134,6 @@ func (e *Email) Send(m models.OutboundMessage) error {
 		e.smtpPoolsMu.Unlock()
 	}
 
-	// Select a random SMTP server if there are multiple
-	e.smtpPoolsMu.RLock()
-	var (
-		serverCount = len(e.smtpPools)
-		server      *smtppool.Pool
-	)
-	if serverCount > 1 {
-		server = e.smtpPools[rand.Intn(serverCount)]
-	} else {
-		server = e.smtpPools[0]
-	}
-	e.smtpPoolsMu.RUnlock()
-
 	// Prepare attachments if there are any
 	var attachments []smtppool.Attachment
 	if m.Attachments != nil {
@@ -227,6 +214,19 @@ func (e *Email) Send(m models.OutboundMessage) error {
 		if len(m.AltContent) > 0 {
 			email.Text = []byte(m.AltContent)
 		}
+	}
+
+	e.smtpPoolsMu.RLock()
+	defer e.smtpPoolsMu.RUnlock()
+
+	var (
+		serverCount = len(e.smtpPools)
+		server      *smtppool.Pool
+	)
+	if serverCount > 1 {
+		server = e.smtpPools[rand.Intn(serverCount)]
+	} else {
+		server = e.smtpPools[0]
 	}
 	return server.Send(email)
 }

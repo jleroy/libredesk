@@ -257,22 +257,10 @@ func initConversations(
 	dispatcher *notifier.Dispatcher,
 ) *conversation.Manager {
 	continuityConfig := &conversation.ContinuityConfig{}
-
 	if ko.Exists("conversation.continuity.batch_check_interval") {
 		continuityConfig.BatchCheckInterval = ko.MustDuration("conversation.continuity.batch_check_interval")
 	}
 
-	if ko.Exists("conversation.continuity.offline_threshold") {
-		continuityConfig.OfflineThreshold = ko.MustDuration("conversation.continuity.offline_threshold")
-	}
-
-	if ko.Exists("conversation.continuity.min_email_interval") {
-		continuityConfig.MinEmailInterval = ko.MustDuration("conversation.continuity.min_email_interval")
-	}
-
-	if ko.Exists("conversation.continuity.max_messages_per_email") {
-		continuityConfig.MaxMessagesPerEmail = ko.MustInt("conversation.continuity.max_messages_per_email")
-	}
 	c, err := conversation.New(hub, i18n, sla, status, priority, inboxStore, userStore, teamStore, mediaStore, settings, csat, automationEngine, template, webhook, dispatcher, conversation.Opts{
 		DB:                       db,
 		Lo:                       initLogger("conversation_manager"),
@@ -706,10 +694,10 @@ func makeInboxInitializer(mgr *inbox.Manager, signAvatarURL func(*null.String)) 
 	}
 }
 
-// reloadInboxes reloads all inboxes.
-func reloadInboxes(app *App) error {
-	app.lo.Info("reloading inboxes")
-	return app.inbox.Reload(ctx, makeInboxInitializer(app.inbox, app.conversation.SignAvatarURL))
+// reloadInbox reloads a single inbox by ID using the signal-aware context.
+func reloadInbox(app *App, id int) error {
+	app.lo.Info("reloading inbox", "id", id)
+	return app.inbox.ReloadInbox(app.ctx, id, makeInboxInitializer(app.inbox, app.conversation.SignAvatarURL))
 }
 
 // startInboxes registers the active inboxes and starts receiver for each.

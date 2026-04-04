@@ -7,7 +7,7 @@
       target="_blank"
       class="block no-underline"
     >
-      <Card class="hover:bg-accent transition-colors cursor-pointer rounded-md">
+      <Card class="hover:bg-secondary/50 transition-colors cursor-pointer rounded-md">
         <CardContent class="p-4">
           <div class="flex justify-between items-center">
             <span class="text-sm text-primary font-medium">

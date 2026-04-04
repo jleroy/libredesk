@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isGoDuration } from '@shared-ui/utils/string'
 
 export const createFormSchema = (t) => z.object({
   name: z.string().min(1, { message: t('globals.messages.required') }),
@@ -40,11 +41,19 @@ export const createFormSchema = (t) => z.object({
       primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
         message: t('validation.invalidColor')
       }),
+      secondary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
+        message: t('validation.invalidColor')
+      }).optional().or(z.literal('')),
     }),
     features: z.object({
       file_upload: z.boolean(),
       emoji: z.boolean(),
     }),
+    continuity: z.object({
+      offline_threshold: z.string().min(1, { message: t('globals.messages.required') }).refine(isGoDuration, { message: t('validation.invalidDuration') }),
+      max_messages_per_email: z.number().min(1).max(100),
+      min_email_interval: z.string().min(1, { message: t('globals.messages.required') }).refine(isGoDuration, { message: t('validation.invalidDuration') }),
+    }).optional(),
     direct_to_conversation: z.boolean().default(false),
     trusted_domains: z.string().optional(),
     blocked_ips: z.string().optional(),

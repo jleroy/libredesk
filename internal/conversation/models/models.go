@@ -78,6 +78,7 @@ type ContinuityUnreadMessage struct {
 	SenderFirstName null.String `db:"sender.first_name"`
 	SenderLastName  null.String `db:"sender.last_name"`
 	SenderType      string      `db:"sender.type"`
+	AttachmentNames string      `db:"attachment_names"`
 }
 
 type LastChatMessage struct {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/inbox"
@@ -35,6 +36,13 @@ type PreChatFormField struct {
 	CustomAttributeID int    `json:"custom_attribute_id"`
 }
 
+// ContinuityConfig holds per-inbox conversation continuity settings.
+type ContinuityConfig struct {
+	OfflineThreshold    string `json:"offline_threshold"`
+	MaxMessagesPerEmail int    `json:"max_messages_per_email"`
+	MinEmailInterval    string `json:"min_email_interval"`
+}
+
 // Config holds the live chat inbox configuration.
 type Config struct {
 	BrandName        string `json:"brand_name"`
@@ -50,7 +58,8 @@ type Config struct {
 		StartConversationButtonText      string `json:"start_conversation_button_text"`
 	} `json:"users"`
 	Colors struct {
-		Primary string `json:"primary"`
+		Primary   string `json:"primary"`
+		Secondary string `json:"secondary"`
 	} `json:"colors"`
 	Features struct {
 		Emoji      bool `json:"emoji"`
@@ -79,15 +88,16 @@ type Config struct {
 		URL  string `json:"url"`
 		Text string `json:"text"`
 	} `json:"external_links"`
-	TrustedDomains                 []string `json:"trusted_domains"`
-	BlockedIPs                     []string `json:"blocked_ips"`
-	DirectToConversation           bool     `json:"direct_to_conversation"`
-	GreetingMessage                string   `json:"greeting_message"`
-	ChatIntroduction               string   `json:"chat_introduction"`
-	IntroductionMessage            string   `json:"introduction_message"`
-	ShowOfficeHoursInChat          bool     `json:"show_office_hours_in_chat"`
-	ShowOfficeHoursAfterAssignment bool     `json:"show_office_hours_after_assignment"`
-	ChatReplyExpectationMessage    string   `json:"chat_reply_expectation_message"`
+	TrustedDomains                 []string         `json:"trusted_domains"`
+	BlockedIPs                     []string         `json:"blocked_ips"`
+	DirectToConversation           bool             `json:"direct_to_conversation"`
+	GreetingMessage                string           `json:"greeting_message"`
+	ChatIntroduction               string           `json:"chat_introduction"`
+	IntroductionMessage            string           `json:"introduction_message"`
+	Continuity                     ContinuityConfig `json:"continuity"`
+	ShowOfficeHoursInChat          bool             `json:"show_office_hours_in_chat"`
+	ShowOfficeHoursAfterAssignment bool             `json:"show_office_hours_after_assignment"`
+	ChatReplyExpectationMessage    string           `json:"chat_reply_expectation_message"`
 	PreChatForm                    struct {
 		Enabled bool               `json:"enabled"`
 		Title   string             `json:"title"`
@@ -97,43 +107,53 @@ type Config struct {
 
 // Client represents a connected chat client
 type Client struct {
-	ID      string
-	Channel chan []byte
+	ID        string
+	Channel   chan []byte
+	closed    atomic.Bool
+	closeOnce sync.Once
+}
+
+// CloseChannel closes the client's channel exactly once. Safe to call multiple times.
+func (c *Client) CloseChannel() {
+	c.closeOnce.Do(func() {
+		c.closed.Store(true)
+		close(c.Channel)
+	})
 }
 
 // LiveChat represents the live chat inbox.
 type LiveChat struct {
-	id           int
-	config       Config
-	from         string
-	lo           *logf.Logger
-	messageStore inbox.MessageStore
-	userStore    inbox.UserStore
-	signAvatarURL func(*null.String) // Signs a raw /uploads/ avatar path into a signed URL.
-	clients      map[string][]*Client // Maps user IDs to slices of clients (to handle multiple devices)
-	clientsMutex sync.RWMutex
+	id            int
+	config        Config
+	from          string
+	lo            *logf.Logger
+	messageStore  inbox.MessageStore
+	userStore     inbox.UserStore
+	signAvatarURL func(*null.String)   // Signs a raw /uploads/ avatar path into a signed URL.
+	clients       map[string][]*Client // Maps user IDs to slices of clients (to handle multiple devices)
+	clientsMutex  sync.RWMutex
 }
 
 // Opts holds the options required for the live chat inbox.
 type Opts struct {
-	ID           int
-	Config       Config
-	From         string
-	Lo           *logf.Logger
+	ID            int
+	Config        Config
+	From          string
+	Lo            *logf.Logger
 	SignAvatarURL func(*null.String)
 }
 
 // New returns a new instance of the live chat inbox.
 func New(store inbox.MessageStore, userStore inbox.UserStore, opts Opts) (*LiveChat, error) {
 	lc := &LiveChat{
-		id:           opts.ID,
-		config:       opts.Config,
-		from:         opts.From,
-		lo:           opts.Lo,
-		messageStore: store,
-		userStore:    userStore,
+		id:            opts.ID,
+		config:        opts.Config,
+		from:          opts.From,
+		lo:            opts.Lo,
+		messageStore:  store,
+		userStore:     userStore,
 		signAvatarURL: opts.SignAvatarURL,
-		clients:      make(map[string][]*Client),
+		clients:       make(map[string][]*Client),
 	}
 	return lc, nil
 }
@@ -207,6 +227,9 @@ func (lc *LiveChat) Send(message models.OutboundMessage) error {
 	}
 
 	for _, client := range clients {
+		if client.closed.Load() {
+			continue
+		}
 		select {
 		case client.Channel <- messageJSON:
 			lc.lo.Info("message sent to live chat client", "client_id", client.ID, "message_id", message.UUID)
@@ -218,8 +241,16 @@ func (lc *LiveChat) Send(message models.OutboundMessage) error {
 	return nil
 }
 
-// Close closes the live chat channel.
+// Close closes all connected client channels and clears the client map.
 func (lc *LiveChat) Close() error {
+	lc.clientsMutex.Lock()
+	defer lc.clientsMutex.Unlock()
+	for _, clients := range lc.clients {
+		for _, c := range clients {
+			c.CloseChannel()
+		}
+	}
+	lc.clients = make(map[string][]*Client)
 	return nil
 }
 
@@ -300,6 +331,9 @@ func (lc *LiveChat) BroadcastTypingToClients(conversationUUID string, contactID 
 	contactIDStr := strconv.Itoa(contactID)
 	if clients, exists := lc.clients[contactIDStr]; exists {
 		for _, client := range clients {
+			if client.closed.Load() {
+				continue
+			}
 			select {
 			case client.Channel <- messageJSON:
 				lc.lo.Debug("typing status sent to widget client", "contact_id", contactID, "client_id", client.ID, "conversation_uuid", conversationUUID, "is_typing", isTyping)
@@ -329,6 +363,9 @@ func (lc *LiveChat) BroadcastMessageToClients(conversationUUID string, contactID
 	contactIDStr := strconv.Itoa(contactID)
 	if clients, exists := lc.clients[contactIDStr]; exists {
 		for _, client := range clients {
+			if client.closed.Load() {
+				continue
+			}
 			select {
 			case client.Channel <- messageJSON:
 			default:
@@ -358,6 +395,9 @@ func (lc *LiveChat) BroadcastConversationToClients(conversationUUID string, cont
 	contactIDStr := strconv.Itoa(contactID)
 	if clients, exists := lc.clients[contactIDStr]; exists {
 		for _, client := range clients {
+			if client.closed.Load() {
+				continue
+			}
 			select {
 			case client.Channel <- messageJSON:
 				lc.lo.Debug("conversation update sent to widget client", "contact_id", contactID, "client_id", client.ID, "conversation_uuid", conversationUUID)
@@ -367,4 +407,3 @@ func (lc *LiveChat) BroadcastConversationToClients(conversationUUID string, cont
 		}
 	}
 }
-

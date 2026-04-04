@@ -9,11 +9,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/abhinavxd/libredesk/internal/attachment"
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
+	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/lib/pq"
 	"github.com/volatiletech/null/v9"
+)
+
+const (
+	defaultOfflineThreshold    = 10 * time.Minute
+	defaultMinEmailInterval    = 15 * time.Minute
+	defaultMaxMessagesPerEmail = 10
 )
 
 // RunContinuity starts a goroutine that sends continuity emails containing unread outgoing messages to contacts who have been offline for a configured duration.
@@ -33,28 +39,38 @@ func (m *Manager) RunContinuity(ctx context.Context) {
 	}
 }
 
-// processContinuityEmails finds offline livechat conversations and sends batched unread messages emails to contacts
+// processContinuityEmails finds offline livechat conversations and sends batched unread messages emails to contacts.
 func (m *Manager) processContinuityEmails() error {
-	var (
-		offlineThresholdMinutes = int(m.continuityConfig.OfflineThreshold.Minutes())
-		minEmailIntervalMinutes = int(m.continuityConfig.MinEmailInterval.Minutes())
-		maxMessagesPerEmail     = m.continuityConfig.MaxMessagesPerEmail
-		conversations           []models.ContinuityConversation
-	)
-
-	m.lo.Debug("fetching offline conversations for continuity emails", "offline_threshold_minutes", offlineThresholdMinutes, "min_email_interval_minutes", minEmailIntervalMinutes)
-
-	if err := m.q.GetOfflineLiveChatConversations.Select(&conversations, offlineThresholdMinutes, minEmailIntervalMinutes); err != nil {
-		return fmt.Errorf("error fetching offline conversations: %w", err)
+	inboxes, err := m.inboxStore.GetAll()
+	if err != nil {
+		return fmt.Errorf("fetching inboxes: %w", err)
 	}
 
-	m.lo.Debug("fetched offline conversations for continuity emails", "count", len(conversations))
-
-	for _, conv := range conversations {
-		m.lo.Info("sending continuity email for conversation", "conversation_uuid", conv.UUID, "contact_email", conv.ContactEmail.String)
-		if err := m.sendContinuityEmail(conv, maxMessagesPerEmail); err != nil {
-			m.lo.Error("error sending continuity email", "conversation_uuid", conv.UUID, "error", err)
+	for _, inb := range inboxes {
+		if inb.Channel != "livechat" || !inb.Enabled || !inb.LinkedEmailInboxID.Valid || inb.LinkedEmailInboxID.Int == 0 {
 			continue
+		}
+
+		offlineThreshold, minEmailInterval, maxMessages := m.parseContinuityConfig(inb.Config)
+		offlineThresholdMinutes := int(offlineThreshold.Minutes())
+		minEmailIntervalMinutes := int(minEmailInterval.Minutes())
+
+		m.lo.Debug("fetching offline conversations for continuity emails", "inbox_id", inb.ID, "offline_threshold_minutes", offlineThresholdMinutes, "min_email_interval_minutes", minEmailIntervalMinutes, "max_messages_per_email", maxMessages)
+
+		var conversations []models.ContinuityConversation
+		if err := m.q.GetOfflineLiveChatConversations.Select(&conversations, offlineThresholdMinutes, minEmailIntervalMinutes, inb.ID); err != nil {
+			m.lo.Error("error fetching offline conversations", "inbox_id", inb.ID, "error", err)
+			continue
+		}
+
+		m.lo.Debug("fetched offline conversations", "inbox_id", inb.ID, "count", len(conversations))
+
+		for _, conv := range conversations {
+			m.lo.Info("sending continuity email for conversation", "conversation_uuid", conv.UUID, "contact_email", conv.ContactEmail.String)
+			if err := m.sendContinuityEmail(conv, maxMessages); err != nil {
+				m.lo.Error("error sending continuity email", "conversation_uuid", conv.UUID, "error", err)
+				continue
+			}
 		}
 	}
 
@@ -69,7 +85,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	)
 
 	if conv.ContactEmail.String == "" {
-		m.lo.Debug("no contact email for conversation, skipping continuity email", "conversation_uuid", conv.UUID)
+		m.lo.Warn("no contact email for conversation, skipping continuity email", "conversation_uuid", conv.UUID)
 		return fmt.Errorf("no contact email for conversation")
 	}
 
@@ -87,9 +103,10 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	}()
 
 	m.lo.Debug("fetching unread messages for continuity email", "conversation_uuid", conv.UUID, "contact_last_seen_at", conv.ContactLastSeenAt, "max_messages", maxMessages)
+
 	var unreadMessages []models.ContinuityUnreadMessage
 	if err := m.q.GetUnreadMessages.Select(&unreadMessages, conv.ID, conv.ContactLastSeenAt, maxMessages); err != nil {
-		return fmt.Errorf("error fetching unread messages: %w", err)
+		return fmt.Errorf("fetching unread messages: %w", err)
 	}
 	m.lo.Debug("fetched unread messages for continuity email", "conversation_uuid", conv.UUID, "unread_count", len(unreadMessages))
 
@@ -104,7 +121,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	}
 	linkedEmailInbox, err := m.inboxStore.Get(conv.LinkedEmailInboxID.Int)
 	if err != nil {
-		return fmt.Errorf("error fetching linked email inbox: %w", err)
+		return fmt.Errorf("fetching linked email inbox: %w", err)
 	}
 
 	// Fetch livechat inbox config for website URL
@@ -121,13 +138,6 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	// Build email content with all unread messages
 	emailContent := m.buildContinuityEmailContent(unreadMessages, websiteURL)
 
-	// Collect attachments from all unread messages
-	attachments, err := m.collectAttachmentsFromMessages(unreadMessages)
-	if err != nil {
-		m.lo.Error("error collecting attachments from messages", "conversation_uuid", conv.UUID, "error", err)
-		return fmt.Errorf("error collecting attachments for continuity email: %w", err)
-	}
-
 	// Reuse saved subject for threading, or build from first message on first email
 	emailSubject := conv.ContinuityEmailSubject.String
 	if emailSubject == "" {
@@ -143,13 +153,13 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	// Generate unique Message-ID for threading
 	sourceID, err := stringutil.GenerateEmailMessageID(conv.UUID, linkedEmailInbox.FromAddress())
 	if err != nil {
-		return fmt.Errorf("error generating message ID: %w", err)
+		return fmt.Errorf("generating message ID: %w", err)
 	}
 
 	// Get system user for sending the email
 	systemUser, err := m.userStore.GetSystemUser()
 	if err != nil {
-		return fmt.Errorf("error fetching system user: %w", err)
+		return fmt.Errorf("fetching system user: %w", err)
 	}
 
 	messageIDs := make([]int, len(unreadMessages))
@@ -163,7 +173,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	})
 	if err != nil {
 		m.lo.Error("error marshalling continuity email meta", "error", err, "conversation_uuid", conv.UUID)
-		return fmt.Errorf("error marshalling continuity email meta: %w", err)
+		return fmt.Errorf("marshalling continuity email meta: %w", err)
 	}
 
 	message = models.Message{
@@ -183,12 +193,11 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		To:                []string{conv.ContactEmail.String},
 		Subject:           emailSubject,
 		Meta:              metaJSON,
-		Attachments:       attachments,
 	}
 
 	// Insert message into database
 	if err := m.InsertMessage(&message); err != nil {
-		return fmt.Errorf("error inserting continuity message: %w", err)
+		return fmt.Errorf("inserting continuity message: %w", err)
 	}
 
 	// Get all message source IDs for References header and threading
@@ -212,7 +221,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		// Clean up the inserted message on failure
 		cleanUp = true
 		m.lo.Error("error rendering email template for continuity email", "error", err, "message_id", message.ID, "message_uuid", message.UUID, "conversation_uuid", conv.UUID)
-		return fmt.Errorf("error rendering email template: %w", err)
+		return fmt.Errorf("rendering email template: %w", err)
 	}
 
 	// Build Reply-To with plus-addressing for conversation tracking
@@ -241,7 +250,6 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		References:        references,
 		InReplyTo:         inReplyTo,
 		ReplyTo:           replyTo,
-		Attachments:       attachments,
 		Meta:              message.Meta,
 		CreatedAt:         message.CreatedAt,
 	}
@@ -251,7 +259,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		// Clean up the inserted message on failure
 		cleanUp = true
 		m.lo.Error("error sending continuity email", "error", err, "message_id", message.ID, "message_uuid", message.UUID, "conversation_uuid", conv.UUID)
-		return fmt.Errorf("error sending continuity email: %w", err)
+		return fmt.Errorf("sending continuity email: %w", err)
 	}
 
 	// Mark original messages as sent via continuity email.
@@ -263,7 +271,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	lastMessageTime := unreadMessages[len(unreadMessages)-1].CreatedAt
 	if _, err := m.q.UpdateContinuityEmailTracking.Exec(conv.ID, emailSubject, lastMessageTime); err != nil {
 		m.lo.Error("error updating continuity email tracking", "conversation_uuid", conv.UUID, "error", err)
-		return fmt.Errorf("error updating continuity email tracking: %w", err)
+		return fmt.Errorf("updating continuity email tracking: %w", err)
 	}
 
 	m.lo.Info("sent conversation continuity email",
@@ -297,12 +305,23 @@ func (m *Manager) buildContinuityEmailContent(unreadMessages []models.Continuity
 		}
 		fmt.Fprintf(&content, `<div style="border-left:2px solid #e0e0e0;padding-left:12px;margin-bottom:8px;%s">`+
 			`<div style="font-size:12px;color:#888;margin-bottom:2px"><strong>%s</strong> · %s</div>`+
-			`<div>%s</div></div>`,
+			`<div>%s</div>`,
 			marginTop,
 			html.EscapeString(senderName),
 			html.EscapeString(timestamp),
 			msg.Content)
-		content.WriteString("\n")
+
+		// Show attachment placeholders if the message had attachments. (We don't send actual attachments to continuity emails)
+		if msg.AttachmentNames != "" {
+			for name := range strings.SplitSeq(msg.AttachmentNames, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					fmt.Fprintf(&content, `<div style="font-size:12px;color:#888;margin-top:4px">&#128206; %s</div>`, html.EscapeString(name))
+				}
+			}
+		}
+
+		content.WriteString("</div>\n")
 	}
 
 	footerText := m.i18n.T("admin.inbox.livechat.continuityEmailFooter")
@@ -317,18 +336,29 @@ func (m *Manager) buildContinuityEmailContent(unreadMessages []models.Continuity
 	return content.String()
 }
 
-// collectAttachmentsFromMessages collects all attachments from unread messages for the continuity email
-func (m *Manager) collectAttachmentsFromMessages(unreadMessages []models.ContinuityUnreadMessage) (attachment.Attachments, error) {
-	var allAttachments attachment.Attachments
-
-	for _, msg := range unreadMessages {
-		msgAttachments, err := m.fetchMessageAttachments(msg.ID)
-		if err != nil {
-			m.lo.Error("error fetching attachments for message", "error", err, "message_id", msg.ID)
-			continue
-		}
-		allAttachments = append(allAttachments, msgAttachments...)
+// parseContinuityConfig reads per-inbox continuity settings, falling back to defaults.
+func (m *Manager) parseContinuityConfig(configJSON json.RawMessage) (time.Duration, time.Duration, int) {
+	var cfg struct {
+		Continuity livechat.ContinuityConfig `json:"continuity"`
 	}
 
-	return allAttachments, nil
+	offlineThreshold := defaultOfflineThreshold
+	minEmailInterval := defaultMinEmailInterval
+	maxMessages := defaultMaxMessagesPerEmail
+
+	if err := json.Unmarshal(configJSON, &cfg); err != nil {
+		return offlineThreshold, minEmailInterval, maxMessages
+	}
+
+	if d, err := time.ParseDuration(cfg.Continuity.OfflineThreshold); err == nil && d > 0 {
+		offlineThreshold = d
+	}
+	if d, err := time.ParseDuration(cfg.Continuity.MinEmailInterval); err == nil && d > 0 {
+		minEmailInterval = d
+	}
+	if cfg.Continuity.MaxMessagesPerEmail > 0 {
+		maxMessages = cfg.Continuity.MaxMessagesPerEmail
+	}
+
+	return offlineThreshold, minEmailInterval, maxMessages
 }

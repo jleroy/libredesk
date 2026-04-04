@@ -145,6 +145,7 @@ type mediaStore interface {
 type inboxStore interface {
 	Get(int) (inbox.Inbox, error)
 	GetDBRecord(any) (imodels.Inbox, error)
+	GetAll() ([]imodels.Inbox, error)
 }
 
 type settingsStore interface {
@@ -165,10 +166,7 @@ type webhookStore interface {
 
 // ContinuityConfig holds configuration for conversation continuity emails
 type ContinuityConfig struct {
-	BatchCheckInterval  time.Duration
-	OfflineThreshold    time.Duration
-	MinEmailInterval    time.Duration
-	MaxMessagesPerEmail int
+	BatchCheckInterval time.Duration
 }
 
 // Opts holds the options for creating a new Manager.
@@ -206,25 +204,13 @@ func New(
 
 	// Default continuity config
 	continuityConfig := ContinuityConfig{
-		BatchCheckInterval:  5 * time.Minute,
-		OfflineThreshold:    10 * time.Minute,
-		MinEmailInterval:    15 * time.Minute,
-		MaxMessagesPerEmail: 10,
+		BatchCheckInterval: 5 * time.Minute,
 	}
 
 	// Override with provided config if available
 	if opts.ContinuityConfig != nil {
 		if opts.ContinuityConfig.BatchCheckInterval > 0 {
 			continuityConfig.BatchCheckInterval = opts.ContinuityConfig.BatchCheckInterval
-		}
-		if opts.ContinuityConfig.OfflineThreshold > 0 {
-			continuityConfig.OfflineThreshold = opts.ContinuityConfig.OfflineThreshold
-		}
-		if opts.ContinuityConfig.MinEmailInterval > 0 {
-			continuityConfig.MinEmailInterval = opts.ContinuityConfig.MinEmailInterval
-		}
-		if opts.ContinuityConfig.MaxMessagesPerEmail > 0 {
-			continuityConfig.MaxMessagesPerEmail = opts.ContinuityConfig.MaxMessagesPerEmail
 		}
 	}
 

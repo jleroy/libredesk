@@ -73,6 +73,7 @@ const (
 
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
+	ctx              context.Context
 	fs               stuffbin.FileSystem
 	consts           atomic.Value
 	auth             *auth_.Auth
@@ -125,7 +126,6 @@ func main() {
 	// Load command line flags into Koanf.
 	initFlags()
 
-	// Version flag.
 	if ko.Bool("version") {
 		fmt.Println(buildString)
 		os.Exit(0)
@@ -137,19 +137,15 @@ func main() {
 	// Load the config files into Koanf.
 	initConfig(ko)
 
-	// Init stuffbin fs.
 	fs := initFS()
 
-	// Init DB.
 	db := initDB()
 
-	// Installer.
 	if ko.Bool("install") {
 		install(ctx, db, fs, ko.Bool("idempotent-install"), !ko.Bool("yes"))
 		os.Exit(0)
 	}
 
-	// Set system user password.
 	if ko.Bool("set-system-user-password") {
 		setSystemUserPass(ctx, db)
 		os.Exit(0)
@@ -165,20 +161,17 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Upgrade.
 	if ko.Bool("upgrade") {
 		upgrade(db, fs, !ko.Bool("yes"))
 		os.Exit(0)
 	}
 
-	// Check for pending upgrade.
 	checkPendingUpgrade(db)
 
 	// Load app settings from DB into the Koanf instance.
 	settings := initSettings(db)
 	loadSettings(settings)
 
-	// Validate config.
 	validateConfig(ko)
 
 	// Fallback for config typo. Logs a warning but continues to work with the incorrect key.
@@ -248,6 +241,7 @@ func main() {
 	go userNotification.RunNotificationCleaner(ctx)
 
 	var app = &App{
+		ctx:              ctx,
 		lo:               lo,
 		fs:               fs,
 		sla:              sla,

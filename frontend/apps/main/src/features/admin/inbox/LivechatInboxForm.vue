@@ -57,53 +57,10 @@
 
           <FormField v-slot="{ componentField }" name="config.brand_name">
             <FormItem>
-              <FormLabel>{{
-                $t('globals.terms.brandName')
-              }}</FormLabel>
+              <FormLabel>{{ $t('globals.terms.brandName') }}</FormLabel>
               <FormControl>
                 <Input type="text" placeholder="" v-bind="componentField" />
               </FormControl>
-            </FormItem>
-          </FormField>
-
-          <!-- Language -->
-          <FormField v-slot="{ componentField }" name="config.language">
-            <FormItem>
-              <FormLabel>{{ $t('globals.terms.language') }}</FormLabel>
-              <FormControl>
-                <Select v-bind="componentField">
-                  <SelectTrigger>
-                    <SelectValue :placeholder="$t('admin.general.language.placeholder')" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">{{ $t('admin.inbox.livechat.language.auto') }}</SelectItem>
-                    <SelectItem v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
-                      {{ lang.name }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormDescription> </FormDescription>
-            </FormItem>
-          </FormField>
-
-          <!-- Fallback Language (shown only when auto-detect is selected) -->
-          <FormField v-if="form.values.config?.language === 'auto'" v-slot="{ componentField }" name="config.fallback_language">
-            <FormItem>
-              <FormLabel>{{ $t('admin.inbox.livechat.fallbackLanguage') }}</FormLabel>
-              <FormControl>
-                <Select v-bind="componentField">
-                  <SelectTrigger>
-                    <SelectValue :placeholder="$t('admin.general.language.placeholder')" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
-                      {{ lang.name }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormDescription>{{ $t('admin.inbox.livechat.fallbackLanguage.description') }}</FormDescription>
             </FormItem>
           </FormField>
 
@@ -117,30 +74,109 @@
             </FormItem>
           </FormField>
 
-          <!-- Email Fallback Inbox -->
-          <FormField v-slot="{ componentField }" name="linked_email_inbox_id">
-            <FormItem>
-              <FormLabel>{{ $t('admin.inbox.livechat.conversationContinuity') }}</FormLabel>
-              <FormControl>
-                <Select v-bind="componentField">
-                  <SelectTrigger>
-                    <SelectValue
-                      :placeholder="$t('placeholders.selectInbox')"
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem :value="0">{{ $t('globals.terms.none') }}</SelectItem>
-                    <SelectItem v-for="inbox in emailInboxes" :key="inbox.id" :value="inbox.id">
-                      {{ inbox.name }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormDescription>
-                {{ $t('admin.inbox.livechat.conversationContinuity.description') }}
-              </FormDescription>
-            </FormItem>
-          </FormField>
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Language -->
+            <FormField v-slot="{ componentField }" name="config.language">
+              <FormItem>
+                <FormLabel>{{ $t('globals.terms.language') }}</FormLabel>
+                <FormControl>
+                  <Select v-bind="componentField">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('admin.general.language.placeholder')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">{{ $t('admin.inbox.livechat.language.auto') }}</SelectItem>
+                      <SelectItem v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                        {{ lang.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+              </FormItem>
+            </FormField>
+
+            <!-- Fallback Language (shown only when auto-detect is selected) -->
+            <FormField v-if="form.values.config?.language === 'auto'" v-slot="{ componentField }" name="config.fallback_language">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.fallbackLanguage') }}</FormLabel>
+                <FormControl>
+                  <Select v-bind="componentField">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('admin.general.language.placeholder')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+                        {{ lang.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormDescription>{{ $t('admin.inbox.livechat.fallbackLanguage.description') }}</FormDescription>
+              </FormItem>
+            </FormField>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Email Fallback Inbox -->
+            <FormField v-slot="{ componentField }" name="linked_email_inbox_id">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.conversationContinuity') }}</FormLabel>
+                <FormControl>
+                  <Select v-bind="componentField">
+                    <SelectTrigger>
+                      <SelectValue
+                        :placeholder="$t('placeholders.selectInbox')"
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem :value="0">{{ $t('globals.terms.none') }}</SelectItem>
+                      <SelectItem v-for="inbox in emailInboxes" :key="inbox.id" :value="inbox.id">
+                        {{ inbox.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormDescription>
+                  {{ $t('admin.inbox.livechat.conversationContinuity.description') }}
+                </FormDescription>
+              </FormItem>
+            </FormField>
+
+            <template v-if="form.values.linked_email_inbox_id">
+            <FormField v-slot="{ componentField }" name="config.continuity.offline_threshold">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.continuity.offlineThreshold') }}</FormLabel>
+                <FormControl>
+                  <Input type="text" placeholder="10m" v-bind="componentField" />
+                </FormControl>
+                <FormDescription>{{ $t('admin.inbox.livechat.continuity.offlineThreshold.description') }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+
+            <FormField v-slot="{ componentField }" name="config.continuity.max_messages_per_email">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.continuity.maxMessagesPerEmail') }}</FormLabel>
+                <FormControl>
+                  <Input type="number" :min="1" :max="100" placeholder="10" v-bind="componentField" />
+                </FormControl>
+                <FormDescription>{{ $t('admin.inbox.livechat.continuity.maxMessagesPerEmail.description') }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+
+            <FormField v-slot="{ componentField }" name="config.continuity.min_email_interval">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.continuity.minEmailInterval') }}</FormLabel>
+                <FormControl>
+                  <Input type="text" placeholder="15m" v-bind="componentField" />
+                </FormControl>
+                <FormDescription>{{ $t('admin.inbox.livechat.continuity.minEmailInterval.description') }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+            </template>
+          </div>
 
         </div>
 
@@ -167,7 +203,16 @@
             <div class="grid grid-cols-2 gap-4">
               <FormField v-slot="{ componentField }" name="config.colors.primary">
                 <FormItem>
-                  <FormLabel>{{ $t('admin.inbox.livechat.colors.primary') }}</FormLabel>
+                  <FormLabel>{{ $t('globals.terms.primaryColor', 1) }}</FormLabel>
+                  <FormControl>
+                    <Input type="color" v-bind="componentField" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+              <FormField v-slot="{ componentField }" name="config.colors.secondary">
+                <FormItem>
+                  <FormLabel>{{ $t('globals.terms.secondaryColor', 1) }}</FormLabel>
                   <FormControl>
                     <Input type="color" v-bind="componentField" />
                   </FormControl>
@@ -1040,11 +1085,17 @@ const form = useForm({
         text: 'Our response times are slower than usual. We regret the inconvenience caused.'
       },
       colors: {
-        primary: '#2563eb'
+        primary: '#2563eb',
+        secondary: '#f1f5f9'
       },
       features: {
         file_upload: true,
         emoji: true
+      },
+      continuity: {
+        offline_threshold: '10m',
+        max_messages_per_email: 10,
+        min_email_interval: '15m'
       },
       direct_to_conversation: false,
       trusted_domains: '',
@@ -1123,9 +1174,10 @@ const onSubmit = form.handleSubmit(async (values) => {
     )
   }
 
-  // if linked email inbox id is 0, nullify the field
-  if (values.linked_email_inbox_id === 0) {
+  // if no linked email inbox, nullify and clear continuity config
+  if (!values.linked_email_inbox_id) {
     values.linked_email_inbox_id = null
+    values.config.continuity = {}
   }
 
   // Sync prechat config to form values before submission.

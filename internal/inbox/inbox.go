@@ -84,13 +84,19 @@ type Opts struct {
 	Concurrency int
 }
 
+// receiverState tracks a *single*s inbox receiver goroutine.
+type receiverState struct {
+	cancel context.CancelFunc
+	done   chan struct{} // closed when the goroutine exits
+}
+
 type Manager struct {
 	mu            sync.RWMutex
 	queries       queries
 	inboxes       map[int]Inbox
 	lo            *logf.Logger
 	i18n          *i18n.I18n
-	receivers     map[int]context.CancelFunc
+	receivers     map[int]receiverState
 	msgStore      MessageStore
 	usrStore      UserStore
 	wg            sync.WaitGroup
@@ -102,12 +108,12 @@ type queries struct {
 	GetInbox       *sqlx.Stmt `query:"get-inbox"`
 	GetInboxByUUID *sqlx.Stmt `query:"get-inbox-by-uuid"`
 	GetActive      *sqlx.Stmt `query:"get-active-inboxes"`
-	GetAll       *sqlx.Stmt `query:"get-all-inboxes"`
-	Update       *sqlx.Stmt `query:"update"`
-	Toggle       *sqlx.Stmt `query:"toggle"`
-	SoftDelete   *sqlx.Stmt `query:"soft-delete"`
-	InsertInbox  *sqlx.Stmt `query:"insert-inbox"`
-	UpdateConfig *sqlx.Stmt `query:"update-config"`
+	GetAll         *sqlx.Stmt `query:"get-all-inboxes"`
+	Update         *sqlx.Stmt `query:"update"`
+	Toggle         *sqlx.Stmt `query:"toggle"`
+	SoftDelete     *sqlx.Stmt `query:"soft-delete"`
+	InsertInbox    *sqlx.Stmt `query:"insert-inbox"`
+	UpdateConfig   *sqlx.Stmt `query:"update-config"`
 }
 
 // New returns a new inbox manager.
@@ -120,7 +126,7 @@ func New(lo *logf.Logger, db *sqlx.DB, i18n *i18n.I18n, encryptionKey string) (*
 	m := &Manager{
 		lo:            lo,
 		inboxes:       make(map[int]Inbox),
-		receivers:     make(map[int]context.CancelFunc),
+		receivers:     make(map[int]receiverState),
 		queries:       q,
 		i18n:          i18n,
 		encryptionKey: encryptionKey,
@@ -288,54 +294,33 @@ func (m *Manager) InitInboxes(initFn initFn) error {
 	return nil
 }
 
-// Reload hot reloads the inboxes with the given init function.
-func (m *Manager) Reload(ctx context.Context, initFn initFn) error {
+// ReloadInbox reloads a single inbox by ID. It stops the old receiver,
+// fetches the current state from DB, and re-initializes if active.
+func (m *Manager) ReloadInbox(ctx context.Context, id int, initFn initFn) error {
+	// Stop old receiver and close old inbox.
+	m.stopInbox(id)
+
+	// Fetch current inbox state from DB.
+	record, err := m.GetDBRecord(id)
+	if err != nil {
+		// Not found (e.g. deleted) - already removed above.
+		return nil
+	}
+
+	// Only re-init if enabled.
+	if !record.Enabled {
+		return nil
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Cancel all existing receivers.
-	for _, cancel := range m.receivers {
-		cancel()
-	}
-	m.receivers = make(map[int]context.CancelFunc)
-
-	// Close existing inboxes.
-	for _, inb := range m.inboxes {
-		inb.Close()
-	}
-
-	// Clear and reload inboxes.
-	m.inboxes = make(map[int]Inbox)
-	inboxRecords, err := m.getActive()
+	inbox, err := initFn(record, m.msgStore, m.usrStore)
 	if err != nil {
-		return fmt.Errorf("error fetching active inboxes: %v", err)
+		return fmt.Errorf("initializing inbox %s: %w", record.Name, err)
 	}
-
-	// Initialize new inboxes.
-	for _, inboxRecord := range inboxRecords {
-		inbox, err := initFn(inboxRecord, m.msgStore, m.usrStore)
-		if err != nil {
-			m.lo.Error("error initializing inbox during reload",
-				"name", inboxRecord.Name,
-				"channel", inboxRecord.Channel,
-				"error", err)
-			continue
-		}
-		m.inboxes[inbox.Identifier()] = inbox
-	}
-
-	// Start new receivers.
-	for _, inb := range m.inboxes {
-		receiverCtx, cancel := context.WithCancel(ctx)
-		m.receivers[inb.Identifier()] = cancel
-
-		go func(inbox Inbox) {
-			if err := inbox.Receive(receiverCtx); err != nil {
-				m.lo.Error("error starting inbox receiver", "error", err)
-			}
-		}(inb)
-	}
-
+	m.inboxes[inbox.Identifier()] = inbox
+	m.startReceiver(ctx, inbox)
 	return nil
 }
 
@@ -493,21 +478,53 @@ func (m *Manager) UpdateConfig(id int, config json.RawMessage) error {
 	return nil
 }
 
+// stopInbox cancels the receiver for a single inbox, waits for its goroutine
+// to exit, then closes the inbox. Caller must NOT hold m.mu.
+func (m *Manager) stopInbox(id int) {
+	m.mu.Lock()
+	rs, hasReceiver := m.receivers[id]
+	if hasReceiver {
+		rs.cancel()
+		delete(m.receivers, id)
+	}
+	m.mu.Unlock()
+
+	// Wait outside lock so the receiver goroutine can finish.
+	if hasReceiver {
+		<-rs.done
+	}
+
+	m.mu.Lock()
+	if inb, ok := m.inboxes[id]; ok {
+		inb.Close()
+		delete(m.inboxes, id)
+	}
+	m.mu.Unlock()
+}
+
+// startReceiver starts a receiver goroutine for the given inbox.
+// Caller must hold m.mu.
+func (m *Manager) startReceiver(ctx context.Context, inb Inbox) {
+	done := make(chan struct{})
+	receiverCtx, cancel := context.WithCancel(ctx)
+	m.receivers[inb.Identifier()] = receiverState{cancel: cancel, done: done}
+
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+		defer close(done)
+		if err := inb.Receive(receiverCtx); err != nil {
+			m.lo.Error("error starting inbox receiver", "error", err)
+		}
+	}()
+}
+
 // Start starts the receiver for each inbox.
 func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, inb := range m.inboxes {
-		receiverCtx, cancel := context.WithCancel(ctx)
-		m.receivers[inb.Identifier()] = cancel
-
-		m.wg.Add(1)
-		go func(inbox Inbox) {
-			defer m.wg.Done()
-			if err := inbox.Receive(receiverCtx); err != nil {
-				m.lo.Error("error starting inbox receiver", "error", err)
-			}
-		}(inb)
+		m.startReceiver(ctx, inb)
 	}
 	return nil
 }
@@ -515,19 +532,19 @@ func (m *Manager) Start(ctx context.Context) error {
 // Close closes all inboxes.
 func (m *Manager) Close() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	// Cancel all receivers.
-	for _, cancel := range m.receivers {
-		cancel()
+	for _, rs := range m.receivers {
+		rs.cancel()
 	}
 
 	// Close all inboxes.
 	for _, inb := range m.inboxes {
 		inb.Close()
 	}
+	m.mu.Unlock()
 
-	// Wait for all workers to finish.
+	// Wait for all receiver goroutines to finish.
 	m.wg.Wait()
 }
 

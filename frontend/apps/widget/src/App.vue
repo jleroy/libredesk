@@ -33,6 +33,7 @@ const widgetConfig = getCurrentInstance().appContext.config.globalProperties.$wi
 if (widgetConfig) {
   widgetStore.updateConfig(widgetConfig)
   applyCSSColor('--primary', widgetConfig.colors?.primary)
+  applyCSSColor('--secondary', widgetConfig.colors?.secondary)
 }
 
 onMounted(async () => {

@@ -748,7 +748,8 @@ WHERE i.channel = 'livechat'
   )
   AND u.email > ''
   AND (c.last_continuity_email_sent_at IS NULL
-       OR c.last_continuity_email_sent_at < NOW() - MAKE_INTERVAL(mins => $2));
+       OR c.last_continuity_email_sent_at < NOW() - MAKE_INTERVAL(mins => $2))
+  AND c.inbox_id = $3;
 
 -- name: get-unread-messages
 SELECT
@@ -756,7 +757,7 @@ SELECT
     m.created_at,
     m.updated_at,
     m.status,
-    m.type, 
+    m.type,
     m.content,
     m.text_content,
     m.uuid,
@@ -766,7 +767,8 @@ SELECT
     m.meta,
     u.first_name as "sender.first_name",
     u.last_name as "sender.last_name",
-    u.type as "sender.type"
+    u.type as "sender.type",
+    COALESCE((SELECT string_agg(md.filename, ',') FROM media md WHERE md.model_id = m.id AND md.model_type = 'messages'), '') AS attachment_names
 FROM conversation_messages m
 LEFT JOIN users u ON u.id = m.sender_id
 WHERE m.conversation_id = $1

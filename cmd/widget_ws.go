@@ -88,7 +88,7 @@ func handleWidgetWS(r *fastglue.Request) error {
 			conn.Close()
 			if client != nil && liveChat != nil {
 				liveChat.RemoveClient(client)
-				close(client.Channel)
+				client.CloseChannel()
 			}
 		}()
 
@@ -105,7 +105,7 @@ func handleWidgetWS(r *fastglue.Request) error {
 				// Clean up previous client on re-join.
 				if client != nil && liveChat != nil {
 					liveChat.RemoveClient(client)
-					close(client.Channel)
+					client.CloseChannel()
 					client = nil
 					liveChat = nil
 				}
