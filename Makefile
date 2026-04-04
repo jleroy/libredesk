@@ -85,15 +85,9 @@ build-backend: $(STUFFBIN)
 		-ldflags="-X 'main.buildString=${BUILDSTR}' -X 'main.versionString=${VERSION}' -X 'github.com/abhinavxd/libredesk/internal/version.Version=${VERSION}' -s -w" \
 		-o ${BIN} cmd/*.go
 
-# Minify widget.js for production.
-.PHONY: minify-widget
-minify-widget:
-	@echo "→ Minifying widget.js..."
-	@cd ${FRONTEND_DIR} && pnpm exec esbuild ../static/widget.js --minify --outfile=../static/widget.min.js
-
 # Main build target: builds both frontend and backend, then stuffs static assets into the binary.
 .PHONY: build
-build: frontend-build minify-widget build-backend stuff
+build: frontend-build build-backend stuff
 	@echo "→ Build successful. Current version: $(VERSION)"
 
 # Stuff static assets into the binary using stuffbin.

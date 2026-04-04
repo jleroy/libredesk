@@ -488,13 +488,9 @@ func serveWidgetJS(r *fastglue.Request) error {
 	r.RequestCtx.Response.Header.Set("Content-Type", "application/javascript")
 	r.RequestCtx.Response.Header.Set("Cache-Control", "no-cache")
 
-	// Serve the minified widget.js, falling back to the source file in dev mode.
-	file, err := app.fs.Get("static/widget.min.js")
+	file, err := app.fs.Get("static/widget.js")
 	if err != nil {
-		file, err = app.fs.Get("static/widget.js")
-		if err != nil {
-			return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
-		}
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
 	r.RequestCtx.SetBody(file.ReadBytes())
