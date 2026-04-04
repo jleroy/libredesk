@@ -1074,7 +1074,7 @@ const form = useForm({
           bottom: 20
         }
       },
-      greeting_message: 'Hello {{.FirstName}}',
+      greeting_message: 'Hello {{.FirstName | there}}',
       introduction_message: 'How can we help?',
       chat_introduction: 'Ask us anything, or share your feedback.',
       show_office_hours_in_chat: false,

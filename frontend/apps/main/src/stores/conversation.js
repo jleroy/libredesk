@@ -586,6 +586,7 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   async function updateAssigneeLastSeen (uuid) {
+    markConversationAsRead(uuid)
     try {
       await api.updateAssigneeLastSeen(uuid)
     } catch (error) {
@@ -662,7 +663,9 @@ export const useConversationStore = defineStore('conversation', () => {
         }, 100)
       }
 
-      updateAssigneeLastSeen(message.conversation_uuid)
+      if (!document.hidden) {
+        updateAssigneeLastSeen(message.conversation_uuid)
+      }
     }
   }
 

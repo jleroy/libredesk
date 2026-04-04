@@ -79,32 +79,13 @@ export function getInitials (firstName = '', lastName = '') {
 }
 
 /**
- * Parses template variables in text and replaces them with user data.
- * Mimics Go's text/template whitespace handling - flexible with spaces/tabs inside delimiters.
- * Supports {{.FirstName}} and {{.LastName}} variables.
- *
- * @param {string} text - The text containing template variables
- * @param {Object} userData - Object containing firstName and lastName
- * @returns {string} - Text with variables replaced
+ * Replaces {{.Key}} or {{.Key | fallback}} placeholders with values from data.
+ * Keys are case-insensitive. e.g. Hi {{.FirstName | there}}
  */
-export function parseTemplateVariables(text, userData) {
-  if (!text) return text
+export function renderTemplate(text, data) {
+  if (!text || !data) return text
 
-  const varMap = {
-    firstname: userData?.firstName || '',
-    lastname: userData?.lastName || ''
-  }
-
-  const resolveVar = (str) =>
-    str.replace(/\{\{\s*\.\s*(\w+)\s*\}\}/gi, (_, name) => varMap[name.toLowerCase()] || '')
-
-  // Process {{if .Var}}...{{else}}...{{end}} blocks first.
-  const result = text.replace(
-    /\{\{\s*if\s+\.(\w+)\s*\}\}(.*?)\{\{\s*else\s*\}\}(.*?)\{\{\s*end\s*\}\}/gi,
-    (_, varName, ifBlock, elseBlock) => {
-      return varMap[varName.toLowerCase()] ? resolveVar(ifBlock) : resolveVar(elseBlock)
-    }
+  return text.replace(/\{\{\s*\.(\w+)(?:\s*\|\s*([^}]*))?\s*\}\}/gi, (_, key, fallback) =>
+    data[Object.keys(data).find(k => k.toLowerCase() === key.toLowerCase())] || fallback?.trim() || ''
   )
-
-  return resolveVar(result)
 }

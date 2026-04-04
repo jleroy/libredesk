@@ -108,7 +108,7 @@ export class WidgetWebSocketClient {
             widgetStore.isInChatView &&
             chatStore.currentConversation?.uuid === message.conversation_uuid
 
-          if (isFromAgent && !isViewingConversation) {
+          if (isFromAgent && (!isViewingConversation || document.hidden)) {
             playNotificationSound()
           }
         },

@@ -145,6 +145,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
+import { useDocumentVisibility } from '@vueuse/core'
 import { useWidgetStore } from '../store/widget.js'
 import { useChatStore } from '../store/chat.js'
 import { useRelativeTime } from '@widget/composables/useRelativeTime.js'
@@ -247,6 +248,13 @@ const scrollToBottom = () => {
   })
 }
 
+const visibility = useDocumentVisibility()
+watch(visibility, (state) => {
+  if (state === 'visible' && widgetStore.isOpen && chatStore.currentConversation?.uuid) {
+    chatStore.updateCurrentConversationLastSeen()
+  }
+})
+
 onMounted(() => {
   // Update last seen timestamp only when widget is actually visible.
   if (widgetStore.isOpen) {
@@ -260,7 +268,6 @@ onMounted(() => {
   setTimeout(() => {
     scrollToBottom()
   }, 200)
-
 })
 
 // Auto-scroll for user's own messages or when already at bottom
@@ -287,7 +294,9 @@ watch(
 
     if (newMessages.length > oldMessages.length) {
       // New message added
-      chatStore.updateCurrentConversationLastSeen()
+      if (!document.hidden) {
+        chatStore.updateCurrentConversationLastSeen()
+      }
 
       const newMessage = newMessages[newMessages.length - 1]
 

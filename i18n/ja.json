@@ -178,7 +178,7 @@
   "admin.inbox.livechat.features.fileUpload": "ファイルアップロード",
   "admin.inbox.livechat.features.fileUpload.description": "ユーザーがチャットでファイルをアップロードできるようにします",
   "admin.inbox.livechat.greetingMessage": "挨拶メッセージ",
-  "admin.inbox.livechat.greetingMessage.variables": "利用可能な変数: {'{{.FirstName}}'}, {'{{.LastName}}'}. 条件分岐に対応、例: こんにちは {'{{if .FirstName}}'}{'{{.FirstName}}'}.{'{{else}}'}ゲスト.{'{{end}}'}",
+  "admin.inbox.livechat.greetingMessage.variables": "利用可能な変数: {'{{.FirstName}}'}, {'{{.LastName}}'}. | でフォールバックを指定、例: こんにちは {'{{.FirstName | ゲスト}}'}",
   "admin.inbox.livechat.installation.identity.addJwt": "署名済みJWTをLibredeskSettingsに追加してください：",
   "admin.inbox.livechat.installation.identity.description": "ログイン済みユーザーを検証し、会話が実際のアカウントに紐づけられ、他のユーザーになりすますことができないようにします。",
   "admin.inbox.livechat.installation.identity.howItWorks": "サーバーでユーザー情報を含む署名済みJWTを生成します。セキュリティタブのシークレットキーを使用し、HS256アルゴリズムで署名してください。",

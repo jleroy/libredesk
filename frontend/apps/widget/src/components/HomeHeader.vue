@@ -20,7 +20,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useUserStore } from '@widget/store/user.js'
-import { parseTemplateVariables } from '@shared-ui/utils/string.js'
+import { renderTemplate } from '@shared-ui/utils/string.js'
 
 const props = defineProps({
   config: {
@@ -37,10 +37,10 @@ const userData = computed(() => ({
 }))
 
 const parsedGreeting = computed(() =>
-  parseTemplateVariables(props.config.greeting_message, userData.value)
+  renderTemplate(props.config.greeting_message, userData.value)
 )
 
 const parsedIntroduction = computed(() =>
-  parseTemplateVariables(props.config.introduction_message, userData.value)
+  renderTemplate(props.config.introduction_message, userData.value)
 )
 </script>

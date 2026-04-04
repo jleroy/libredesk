@@ -178,7 +178,7 @@
   "admin.inbox.livechat.features.fileUpload": "फाइल अपलोड",
   "admin.inbox.livechat.features.fileUpload.description": "वापरकर्त्यांना चॅटमध्ये फाइल अपलोड करण्याची परवानगी द्या",
   "admin.inbox.livechat.greetingMessage": "स्वागत संदेश",
-  "admin.inbox.livechat.greetingMessage.variables": "उपलब्ध व्हेरिएबल्स: {'{{.FirstName}}'}, {'{{.LastName}}'}. अटींना समर्थन देते, उदा. नमस्कार {'{{if .FirstName}}'}{'{{.FirstName}}'}.{'{{else}}'}मित्रा.{'{{end}}'}",
+  "admin.inbox.livechat.greetingMessage.variables": "उपलब्ध व्हेरिएबल्स: {'{{.FirstName}}'}, {'{{.LastName}}'}. | ने पर्यायी मूल्य द्या, उदा. नमस्कार {'{{.FirstName | मित्रा}}'}",
   "admin.inbox.livechat.installation.identity.addJwt": "स्वाक्षरी केलेला JWT LibredeskSettings मध्ये जोडा:",
   "admin.inbox.livechat.installation.identity.description": "लॉग-इन केलेल्या वापरकर्त्यांची पडताळणी करा जेणेकरून संभाषणे त्यांच्या खऱ्या खात्यांशी जोडली जातील आणि वापरकर्ते एकमेकांची तोतयागिरी करू शकणार नाहीत.",
   "admin.inbox.livechat.installation.identity.howItWorks": "तुमचा सर्व्हर वापरकर्त्याच्या तपशीलांसह स्वाक्षरी केलेला JWT तयार करतो. सुरक्षा टॅबमधील गुप्त की वापरून HS256 अल्गोरिदमने त्यावर स्वाक्षरी करा.",

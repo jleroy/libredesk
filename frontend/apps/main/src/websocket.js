@@ -74,7 +74,7 @@ export class WebSocketClient {
           const isFromContact = data.data.sender_type === 'contact'
           const isViewingConversation = this.convStore.conversation.data?.uuid === data.data.conversation_uuid
           const isInList = this.convStore.isConversationInList(data.data.conversation_uuid)
-          if (isFromContact && !isViewingConversation && isInList) {
+          if (isFromContact && isInList && (!isViewingConversation || document.hidden)) {
             playNotificationSound()
           }
         },

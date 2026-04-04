@@ -44,7 +44,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useStorage } from '@vueuse/core'
+import { useStorage, useDocumentVisibility } from '@vueuse/core'
 import { ChevronLeft } from 'lucide-vue-next'
 import { useConversationStore } from '@main/stores/conversation'
 import { useEmitter } from '@main/composables/useEmitter'
@@ -99,6 +99,13 @@ onMounted(() => {
       sidebarPanelRef.value.collapse()
     }
   })
+})
+
+const visibility = useDocumentVisibility()
+watch(visibility, (state) => {
+  if (state === 'visible' && props.uuid) {
+    conversationStore.updateAssigneeLastSeen(props.uuid)
+  }
 })
 
 onUnmounted(() => {

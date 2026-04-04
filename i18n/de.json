@@ -178,7 +178,7 @@
   "admin.inbox.livechat.features.fileUpload": "Datei-Upload",
   "admin.inbox.livechat.features.fileUpload.description": "Benutzern erlauben, Dateien im Chat hochzuladen",
   "admin.inbox.livechat.greetingMessage": "Begrüßungsnachricht",
-  "admin.inbox.livechat.greetingMessage.variables": "Verfügbare Variablen: {'{{.FirstName}}'}, {'{{.LastName}}'}. Unterstützt Bedingungen, z.B. Hallo {'{{if .FirstName}}'}{'{{.FirstName}}'}.{'{{else}}'}dort.{'{{end}}'}",
+  "admin.inbox.livechat.greetingMessage.variables": "Verfügbare Variablen: {'{{.FirstName}}'}, {'{{.LastName}}'}. Nutze | als Fallback, z.B. Hallo {'{{.FirstName | dort}}'}",
   "admin.inbox.livechat.installation.identity.addJwt": "Fuegen Sie das signierte JWT zu LibredeskSettings hinzu:",
   "admin.inbox.livechat.installation.identity.description": "Verifizieren Sie angemeldete Benutzer, damit Konversationen mit ihren echten Konten verknuepft werden und sich Benutzer nicht gegenseitig ausgeben koennen.",
   "admin.inbox.livechat.installation.identity.howItWorks": "Ihr Server erstellt ein signiertes JWT mit den Benutzerdaten. Verwenden Sie den geheimen Schluessel aus dem Sicherheits-Tab, um es mit dem HS256-Algorithmus zu signieren.",

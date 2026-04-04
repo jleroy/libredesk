@@ -791,7 +791,7 @@ func createVisitorContact(app *App, formData map[string]any, config livechat.Con
 		return 0, "", nil, err
 	}
 
-	newJWT, err := generateUserJWTWithSecret(visitor.ID, true, time.Now().Add(87600*time.Hour), []byte(inbox.Secret.String)) // 10 years
+	newJWT, err := generateUserJWTWithSecret(visitor.ID, true, finalName, "", time.Now().Add(87600*time.Hour), []byte(inbox.Secret.String)) // 10 years
 	if err != nil {
 		app.lo.Error("error generating visitor JWT", "error", err)
 		return 0, "", nil, err
@@ -919,10 +919,12 @@ func verifyStandardJWT(jwtToken string, inboxSecret string) (Claims, error) {
 }
 
 // generateUserJWTWithSecret generates a JWT token for a user with a specific secret
-func generateUserJWTWithSecret(userID int, isVisitor bool, expirationTime time.Time, secret []byte) (string, error) {
+func generateUserJWTWithSecret(userID int, isVisitor bool, firstName, lastName string, expirationTime time.Time, secret []byte) (string, error) {
 	claims := &Claims{
 		UserID:    userID,
 		IsVisitor: isVisitor,
+		FirstName: firstName,
+		LastName:  lastName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

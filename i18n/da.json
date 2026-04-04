@@ -178,7 +178,7 @@
   "admin.inbox.livechat.features.fileUpload": "Filupload",
   "admin.inbox.livechat.features.fileUpload.description": "Tillad brugere at uploade filer i chat",
   "admin.inbox.livechat.greetingMessage": "Velkomstbesked",
-  "admin.inbox.livechat.greetingMessage.variables": "Tilgængelige variabler: {'{{.FirstName}}'}, {'{{.LastName}}'}. Understøtter betingelser, f.eks. Hej {'{{if .FirstName}}'}{'{{.FirstName}}'}.{'{{else}}'}der.{'{{end}}'}",
+  "admin.inbox.livechat.greetingMessage.variables": "Tilgængelige variabler: {'{{.FirstName}}'}, {'{{.LastName}}'}. Brug | som fallback, f.eks. Hej {'{{.FirstName | der}}'}",
   "admin.inbox.livechat.installation.identity.addJwt": "Tilføj den signerede JWT til LibredeskSettings:",
   "admin.inbox.livechat.installation.identity.description": "Bekræft indloggede brugere, så samtaler knyttes til deres rigtige konti, og brugere ikke kan udgive sig for hinanden.",
   "admin.inbox.livechat.installation.identity.howItWorks": "Din server genererer en signeret JWT med brugerens oplysninger. Brug den hemmelige nøgle fra fanen Sikkerhed til at signere den med HS256-algoritmen.",

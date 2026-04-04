@@ -178,7 +178,7 @@
   "admin.inbox.livechat.features.fileUpload": "Caricamento file",
   "admin.inbox.livechat.features.fileUpload.description": "Consenti agli utenti di caricare file in chat",
   "admin.inbox.livechat.greetingMessage": "Messaggio di benvenuto",
-  "admin.inbox.livechat.greetingMessage.variables": "Variabili disponibili: {'{{.FirstName}}'}, {'{{.LastName}}'}. Supporta condizionali, ad es. Ciao {'{{if .FirstName}}'}{'{{.FirstName}}'}.{'{{else}}'}amico.{'{{end}}'}",
+  "admin.inbox.livechat.greetingMessage.variables": "Variabili disponibili: {'{{.FirstName}}'}, {'{{.LastName}}'}. Usa | come valore predefinito, ad es. Ciao {'{{.FirstName | amico}}'}",
   "admin.inbox.livechat.installation.identity.addJwt": "Aggiungi il JWT firmato a LibredeskSettings:",
   "admin.inbox.livechat.installation.identity.description": "Verifica gli utenti collegati in modo che le conversazioni siano collegate ai loro account reali e gli utenti non possano impersonarsi a vicenda.",
   "admin.inbox.livechat.installation.identity.howItWorks": "Il tuo server genera un JWT firmato contenente i dati dell'utente. Usa la chiave segreta dalla scheda Sicurezza per firmarlo con l'algoritmo HS256.",

@@ -178,7 +178,7 @@
   "admin.inbox.livechat.features.fileUpload": "بارگذاری فایل",
   "admin.inbox.livechat.features.fileUpload.description": "اجازه بارگذاری فایل به کاربران در چت",
   "admin.inbox.livechat.greetingMessage": "پیام خوش‌آمدگویی",
-  "admin.inbox.livechat.greetingMessage.variables": "متغیرهای در دسترس: {'{{.FirstName}}'}, {'{{.LastName}}'}. از شرط‌ها پشتیبانی می‌کند، مثلا سلام {'{{if .FirstName}}'}{'{{.FirstName}}'}.{'{{else}}'}دوست.{'{{end}}'}",
+  "admin.inbox.livechat.greetingMessage.variables": "متغیرهای در دسترس: {'{{.FirstName}}'}, {'{{.LastName}}'}. از | برای مقدار جایگزین استفاده کنید، مثلا سلام {'{{.FirstName | دوست}}'}",
   "admin.inbox.livechat.installation.identity.addJwt": "JWT امضا شده را به LibredeskSettings اضافه کنید:",
   "admin.inbox.livechat.installation.identity.description": "کاربران وارد شده را تایید کنید تا مکالمات به حساب‌های واقعی آن‌ها متصل شود و کاربران نتوانند هویت یکدیگر را جعل کنند.",
   "admin.inbox.livechat.installation.identity.howItWorks": "سرور شما یک JWT امضا شده حاوی اطلاعات کاربر تولید می‌کند. از کلید رمز در تب امنیت برای امضای آن با الگوریتم HS256 استفاده کنید.",
