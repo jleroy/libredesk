@@ -68,8 +68,7 @@ export const useChatStore = defineStore('chat', () => {
     const addMessageToConversation = (conversationUUID, message) => {
         messageCache.addMessage(conversationUUID, message)
         messageCacheVersion.value++ // Trigger reactivity
-        // Check if we should increment unread count (message from other user)
-        const shouldIncrementUnread = message.author.id !== userStore.userID
+        const shouldIncrementUnread = message.author?.type === 'agent'
         updateConversationListLastMessage(conversationUUID, message, shouldIncrementUnread)
     }
 
