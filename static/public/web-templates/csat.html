@@ -2,7 +2,7 @@
 {{ template "header" . }}
 <div class="csat-container">
     <div class="csat-header">
-        <h2>{{ L.T "csat.rateYourInteraction" }}</h2>
+        <p class="csat-subtitle">{{ L.T "csat.rateYourInteraction" }}</p>
     </div>
 
     <form action="/csat/{{ .Data.CSAT.UUID }}" method="POST" class="csat-form" novalidate>
@@ -10,319 +10,334 @@
             <div class="rating-options">
                 <input type="radio" id="rating-1" name="rating" value="1" required>
                 <label for="rating-1" class="rating-option" tabindex="0">
-                    <div class="emoji-wrapper">
-                        <span class="emoji">😢</span>
-                    </div>
-                    <span class="rating-text">{{ L.T "csat.rating.poor" }}</span>
+                    <span class="emoji-circle"><span class="emoji">😢</span></span>
+                    <span class="rating-label">{{ L.T "globals.terms.poor" }}</span>
                 </label>
 
                 <input type="radio" id="rating-2" name="rating" value="2">
                 <label for="rating-2" class="rating-option" tabindex="0">
-                    <div class="emoji-wrapper">
-                        <span class="emoji">😕</span>
-                    </div>
-                    <span class="rating-text">{{ L.T "csat.rating.fair" }}</span>
+                    <span class="emoji-circle"><span class="emoji">😕</span></span>
+                    <span class="rating-label">{{ L.T "globals.terms.fair" }}</span>
                 </label>
 
                 <input type="radio" id="rating-3" name="rating" value="3">
                 <label for="rating-3" class="rating-option" tabindex="0">
-                    <div class="emoji-wrapper">
-                        <span class="emoji">😊</span>
-                    </div>
-                    <span class="rating-text">{{ L.T "csat.rating.good" }}</span>
+                    <span class="emoji-circle"><span class="emoji">😊</span></span>
+                    <span class="rating-label">{{ L.T "globals.terms.good" }}</span>
                 </label>
 
                 <input type="radio" id="rating-4" name="rating" value="4">
                 <label for="rating-4" class="rating-option" tabindex="0">
-                    <div class="emoji-wrapper">
-                        <span class="emoji">😃</span>
-                    </div>
-                    <span class="rating-text">{{ L.T "csat.rating.great" }}</span>
+                    <span class="emoji-circle"><span class="emoji">😃</span></span>
+                    <span class="rating-label">{{ L.T "globals.terms.great" }}</span>
                 </label>
 
                 <input type="radio" id="rating-5" name="rating" value="5">
                 <label for="rating-5" class="rating-option" tabindex="0">
-                    <div class="emoji-wrapper">
-                        <span class="emoji">🤩</span>
-                    </div>
-                    <span class="rating-text">{{ L.T "csat.rating.excellent" }}</span>
+                    <span class="emoji-circle"><span class="emoji">🤩</span></span>
+                    <span class="rating-label">{{ L.T "globals.terms.excellent" }}</span>
                 </label>
             </div>
-            <!-- Validation message for rating -->
-            <div class="validation-message" id="ratingValidationMessage"
-                style="display: none; color: #dc2626; text-align: center; margin-top: 10px; font-size: 0.9em;">
+            <div class="validation-msg" id="ratingValidationMessage">
                 {{ L.Ts "globals.messages.pleaseSelect" "name" "rating" }}
             </div>
         </div>
 
-        <div class="feedback-container">
-            <label for="feedback" class="feedback-label">{{ L.T "globals.messages.additionalFeedback" }}</label>
-            <textarea id="feedback" name="feedback" placeholder="" rows="6" maxlength="1000"
-                onkeyup="updateCharCount(this)"></textarea>
-            <div class="char-counter">
-                <span id="charCount">0</span>/1000
-            </div>
+        <div class="feedback-group">
+            <label for="feedback">{{ L.T "globals.messages.additionalFeedback" }}</label>
+            <textarea id="feedback" name="feedback" rows="3" maxlength="1000"
+                oninput="updateCharCount(this)"></textarea>
+            <div class="char-count"><span id="charCount">0</span> / 1000</div>
         </div>
 
-        <button type="submit" class="button submit-button">{{ L.T "globals.messages.submit" }}</button>
+        <button type="submit" class="button submit-button" id="submitBtn">
+            <span class="btn-text">{{ L.T "globals.messages.submit" }}</span>
+            <span class="btn-loading" style="display:none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83"/></svg>
+            </span>
+        </button>
     </form>
 </div>
 
 <script>
-    function updateCharCount (textarea) {
-        const counter = document.getElementById('charCount');
-        const count = textarea.value.length;
-        counter.textContent = count;
-
-        const charCounter = counter.parentElement;
-        if (count > 900) {
-            charCounter.classList.add('near-limit');
-        } else {
-            charCounter.classList.remove('near-limit');
-        }
+    function updateCharCount(el) {
+        var c = document.getElementById('charCount');
+        c.textContent = el.value.length;
+        c.parentElement.classList.toggle('warn', el.value.length > 900);
     }
 
-    // Make sure a rating is selected before submitting the form
-    document.querySelector('.csat-form').addEventListener('submit', function (e) {
-        const rating = document.querySelector('input[name="rating"]:checked');
-        const feedback = document.querySelector('#feedback');
-        const validationMsg = document.getElementById('ratingValidationMessage');
+    document.querySelector('.csat-form').addEventListener('submit', function(e) {
+        var rating = document.querySelector('input[name="rating"]:checked');
+        var msg = document.getElementById('ratingValidationMessage');
+        var btn = document.getElementById('submitBtn');
 
         if (!rating) {
             e.preventDefault();
-            validationMsg.style.display = 'block';
-
-            // Hide the message after 10 seconds
-            setTimeout(() => {
-                validationMsg.style.display = 'none';
-            }, 10000);
-        } else {
-            validationMsg.style.display = 'none';
+            msg.classList.add('show');
+            setTimeout(function() { msg.classList.remove('show'); }, 4000);
+            return;
         }
+        msg.classList.remove('show');
+        btn.disabled = true;
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.btn-loading').style.display = 'inline-flex';
     });
 
-    // Hide validation message when a rating is selected
-    document.querySelectorAll('input[name="rating"]').forEach(function (radio) {
-        radio.addEventListener('change', function () {
-            const validationMsg = document.getElementById('ratingValidationMessage');
-            validationMsg.style.display = 'none';
+    document.querySelectorAll('input[name="rating"]').forEach(function(r) {
+        r.addEventListener('change', function() {
+            document.getElementById('ratingValidationMessage').classList.remove('show');
         });
+    });
+
+    // Stagger entrance animation
+    document.querySelectorAll('.rating-option').forEach(function(el, i) {
+        el.style.animationDelay = (i * 0.06) + 's';
     });
 </script>
 
 <style>
     .csat-container {
-        background: #fff;
-        max-width: 700px;
-        margin: 30px auto 15px auto;
+        max-width: 540px;
+        margin: 0 auto;
     }
 
     .csat-header {
         text-align: center;
-        margin-bottom: 40px;
+        margin-bottom: 2rem;
     }
 
-    .csat-header h1 {
-        font-size: 2em;
-        color: #1a1a1a;
-        margin-bottom: 10px;
+    .csat-subtitle {
+        font-size: 1.15em;
+        font-weight: 600;
+        color: var(--primary-color);
+        letter-spacing: -0.01em;
+        margin: 0;
     }
 
-    .conversation-subject {
-        color: #666;
-        font-size: 1.1em;
-    }
-
-    .csat-form {
-        max-width: 600px;
-        margin: 0 auto;
-    }
-
+    /* Rating options */
     .rating-container {
-        margin-bottom: 40px;
+        margin-bottom: 2rem;
     }
 
     .rating-options {
         display: flex;
         justify-content: center;
-        gap: 15px;
-        margin-top: 30px;
-        align-items: center;
+        gap: 8px;
     }
 
     .rating-options input[type="radio"] {
-        display: none;
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
     }
 
     .rating-option {
         display: flex;
         flex-direction: column;
         align-items: center;
+        gap: 6px;
         cursor: pointer;
-        transition: all 0.3s ease;
-        padding: 12px;
-        position: relative;
-        min-width: 90px;
-        flex-shrink: 0;
+        padding: 12px 10px;
+        border-radius: 12px;
+        transition: transform 0.18s ease, background-color 0.18s ease;
+        min-width: 72px;
+        animation: fadeUp 0.35s ease both;
     }
 
     .rating-option:hover {
+        background: var(--secondary-color);
         transform: translateY(-3px);
     }
 
-    .rating-option:focus {
-        outline: 2px solid #3b82f6;
+    .rating-option:focus-visible {
+        outline: 2px solid var(--primary-color);
         outline-offset: 2px;
-        border-radius: 8px;
     }
 
-    .rating-options input[type="radio"]:checked+.rating-option {
+    .rating-options input[type="radio"]:checked + .rating-option {
+        background: var(--secondary-color);
         transform: translateY(-3px);
     }
 
-
-    .emoji-wrapper {
-        background: #f8fafc;
-        border-radius: 50%;
-        width: 65px;
-        height: 65px;
+    /* Emoji circle */
+    .emoji-circle {
+        width: 52px;
+        height: 52px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 8px;
-        transition: all 0.3s ease;
-        border: 2px solid #e2e8f0;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border-radius: 50%;
+        border: 2px solid var(--border-color);
+        background: var(--background-color);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+        overflow: hidden;
     }
 
-    .rating-option:hover .emoji-wrapper {
-        transform: scale(1.05);
-        background: #f1f5f9;
-        border-color: #3b82f6;
-        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.15);
+    .rating-option:hover .emoji-circle {
+        border-color: var(--primary-color);
     }
 
-    .rating-options input[type="radio"]:checked+.rating-option .emoji-wrapper {
-        transform: scale(1.05);
-        background: #dbeafe;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    .rating-options input[type="radio"]:checked + .rating-option .emoji-circle {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--shadow-color);
+        transform: scale(1.08);
     }
 
     .emoji {
-        font-size: 2.2em;
+        font-size: 1.6em;
         line-height: 1;
-        transform: translateY(1px);
-    }
-
-    .rating-text {
-        font-size: 0.85em;
-        text-align: center;
-        color: #64748b;
-        font-weight: 500;
-        line-height: 1.2;
-    }
-
-    .feedback-container {
-        margin-bottom: 30px;
-    }
-
-    .feedback-label {
         display: block;
-        margin-bottom: 10px;
-        font-size: 1.1em;
-        color: #333;
     }
 
-    textarea {
-        width: 100%;
-        padding: 15px;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        font-size: 1em;
-        line-height: 1.5;
-        resize: vertical;
-        transition: border-color 0.3s ease;
-    }
-
-    textarea:focus {
-        border-color: #3b82f6;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .char-counter {
-        margin-top: 8px;
-        text-align: right;
-        color: #666;
-        font-size: 0.9em;
-    }
-
-    .char-counter.near-limit {
-        color: #ff5722;
+    .rating-label {
+        font-size: 0.72em;
         font-weight: 500;
+        color: var(--text-color);
+        opacity: 0.5;
+        transition: opacity 0.18s ease;
+        text-align: center;
     }
 
+    .rating-option:hover .rating-label {
+        opacity: 0.8;
+    }
+
+    .rating-options input[type="radio"]:checked + .rating-option .rating-label {
+        opacity: 1;
+        font-weight: 600;
+    }
+
+    /* Validation */
+    .validation-msg {
+        text-align: center;
+        margin-top: 0.5rem;
+        font-size: 0.82em;
+        color: #dc2626;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.25s ease, opacity 0.25s ease;
+    }
+
+    .validation-msg.show {
+        max-height: 2rem;
+        opacity: 1;
+    }
+
+    /* Feedback */
+    .feedback-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .feedback-group label {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-size: 0.88em;
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    .feedback-group textarea {
+        width: 100%;
+        padding: 0.65rem 0.85rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        font-size: 0.92em;
+        font-family: inherit;
+        line-height: 1.55;
+        resize: vertical;
+        color: var(--text-color);
+        background: var(--background-color);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .feedback-group textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--shadow-color);
+    }
+
+    .char-count {
+        margin-top: 0.25rem;
+        text-align: right;
+        font-size: 0.72em;
+        color: var(--text-color);
+        opacity: 0.35;
+        transition: color 0.18s ease, opacity 0.18s ease;
+    }
+
+    .char-count.warn {
+        color: #dc2626;
+        opacity: 0.9;
+    }
+
+    /* Submit */
     .submit-button {
         width: 100%;
-        margin-top: 20px;
-        padding: 15px 30px;
-        font-size: 1.1em;
-        font-weight: 500;
-        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
     }
 
-    @media screen and (max-width: 600px) {
-        .csat-container {
-            margin: 0;
-            padding: 20px;
-            border-radius: 0;
-        }
+    .submit-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+    }
 
-        .rating-options {
-            gap: 8px;
-        }
+    .btn-loading {
+        display: inline-flex;
+        animation: spin 0.8s linear infinite;
+    }
 
-        .rating-option {
-            min-width: 70px;
-            padding: 8px;
+    /* Animations */
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
         }
-
-        .emoji-wrapper {
-            width: 50px;
-            height: 50px;
-        }
-
-        .emoji {
-            font-size: 1.8em;
-        }
-
-        .rating-text {
-            font-size: 0.8em;
+        to {
+            opacity: 1;
+            transform: translateY(0);
         }
     }
 
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
     @media screen and (max-width: 480px) {
         .rating-options {
-            gap: 5px;
+            gap: 4px;
         }
 
         .rating-option {
-            min-width: 60px;
-            padding: 6px;
+            min-width: 58px;
+            padding: 10px 6px;
         }
 
-        .emoji-wrapper {
-            width: 45px;
-            height: 45px;
+        .emoji-circle {
+            width: 44px;
+            height: 44px;
         }
 
         .emoji {
-            font-size: 1.6em;
+            font-size: 1.3em;
         }
 
-        .rating-text {
-            font-size: 0.75em;
+        .rating-label {
+            font-size: 0.65em;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .rating-option {
+            animation: none;
+        }
+        .btn-loading {
+            animation-duration: 2s;
         }
     }
 </style>

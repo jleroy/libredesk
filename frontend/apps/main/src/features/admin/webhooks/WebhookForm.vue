@@ -140,7 +140,7 @@ const webhookEvents = ref([
         label: 'Conversation Assigned'
       },
       {
-        value: 'conversation.unassigned',
+        value: 'globals.terms.unassigned',
         label: 'Conversation Unassigned'
       }
     ]

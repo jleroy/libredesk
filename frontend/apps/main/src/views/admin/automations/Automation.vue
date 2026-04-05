@@ -5,7 +5,7 @@
         <div class="flex justify-between mb-5">
           <div class="ml-auto">
             <Button @click="newRule">{{
-              $t('automation.new')
+              $t('automation.newRule')
             }}</Button>
           </div>
         </div>

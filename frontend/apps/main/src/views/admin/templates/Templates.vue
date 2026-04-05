@@ -52,7 +52,7 @@
           rel="noopener noreferrer"
           class="link-style"
         >
-          {{ $t('globals.messages.learnMore') }}
+          {{ $t('globals.terms.learnMore') }}
         </a>
       </template>
     </AdminSplitLayout>

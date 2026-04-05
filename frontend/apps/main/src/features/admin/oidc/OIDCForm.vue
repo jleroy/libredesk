@@ -58,7 +58,7 @@
 
       <FormField v-slot="{ componentField }" name="logo_url" v-if="form.values.provider === 'Custom'">
         <FormItem v-auto-animate>
-          <FormLabel>{{ $t('admin.general.logoURL') }}</FormLabel>
+          <FormLabel>{{ $t('globals.terms.logoUrl') }}</FormLabel>
           <FormControl>
             <Input type="text" placeholder="https://example.com/logo.svg" v-bind="componentField" />
           </FormControl>

@@ -6,7 +6,7 @@
       <router-link :to="{ name: 'new-inbox' }">
         <Button>
           {{
-            $t('inbox.new')
+            $t('inbox.newInbox')
           }}
         </Button>
       </router-link>

@@ -31,7 +31,7 @@
               <div
                 class="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-3"
               ></div>
-              {{ t('auth.sending') }}
+              {{ t('globals.messages.sending') }}
             </span>
             <span v-else>{{ t('auth.sendResetLink') }}</span>
           </Button>

@@ -4,7 +4,7 @@
       v-if="pageVisits.length === 0"
       class="text-center text-sm text-muted-foreground py-4"
     >
-      {{ t('globals.messages.noResults') }}
+      {{ t('globals.messages.noResultsFound') }}
     </div>
     <div v-else class="space-y-1">
       <a

@@ -37,7 +37,7 @@
         </SelectItem>
         <SelectItem value="custom">
           {{
-            $t('dateFilter.custom')
+            $t('globals.terms.custom')
           }}
         </SelectItem>
       </SelectContent>

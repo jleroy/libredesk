@@ -50,7 +50,7 @@
                 <ComboBox
                   v-bind="componentField"
                   :items="allCountries"
-                  :placeholder="t('globals.messages.select')"
+                  :placeholder="t('globals.terms.select')"
                   :buttonClass="'rounded-r-none border-r-0'"
                 >
                   <template #item="{ item }">
@@ -106,7 +106,7 @@
               <ComboBox
                 v-bind="componentField"
                 :items="countryOptions"
-                :placeholder="t('globals.messages.select')"
+                :placeholder="t('globals.terms.select')"
               >
                 <template #item="{ item }">
                   <div class="flex items-center gap-2">

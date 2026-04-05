@@ -3,7 +3,7 @@
     <TabsList class="grid w-full grid-cols-3 mb-5">
       <TabsTrigger value="new_conversation">
         {{
-          $t('conversation.new')
+          $t('conversation.newConversation')
         }}
       </TabsTrigger>
       <TabsTrigger value="conversation_update">

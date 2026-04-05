@@ -36,8 +36,8 @@
                 <SelectValue :placeholder="orderByDirection" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem :value="'asc'">{{ $t('contact.ascending') }}</SelectItem>
-                <SelectItem :value="'desc'">{{ $t('contact.descending') }}</SelectItem>
+                <SelectItem :value="'asc'">{{ $t('globals.terms.ascending') }}</SelectItem>
+                <SelectItem :value="'desc'">{{ $t('globals.terms.descending') }}</SelectItem>
               </SelectContent>
             </Select>
           </PopoverContent>

@@ -159,7 +159,7 @@
     <div class="flex items-center gap-4 border-t px-3 py-2">
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
         <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Enter</kbd>
-        {{ $t('command.select') }}
+        {{ $t('globals.terms.select') }}
       </span>
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
         <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">&uarr;&darr;</kbd>
@@ -167,11 +167,11 @@
       </span>
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
         <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Esc</kbd>
-        {{ $t('command.close') }}
+        {{ $t('globals.messages.close') }}
       </span>
       <span v-if="nestedCommand" class="flex items-center gap-1 text-xs text-muted-foreground">
         <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Backspace</kbd>
-        {{ $t('command.back') }}
+        {{ $t('globals.messages.back') }}
       </span>
     </div>
   </CommandDialog>

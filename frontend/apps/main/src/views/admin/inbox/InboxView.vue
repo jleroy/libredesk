@@ -15,7 +15,7 @@
             rel="noopener noreferrer"
             class="link-style text-sm"
           >
-            {{ $t('globals.messages.learnMore') }}
+            {{ $t('globals.terms.learnMore') }}
           </a>
         </div>
         <div class="space-y-1">
@@ -27,7 +27,7 @@
             rel="noopener noreferrer"
             class="link-style text-sm"
           >
-            {{ $t('globals.messages.learnMore') }}
+            {{ $t('globals.terms.learnMore') }}
           </a>
         </div>
       </div>

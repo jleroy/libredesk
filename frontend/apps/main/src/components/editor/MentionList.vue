@@ -20,7 +20,7 @@
     </button>
   </div>
   <div v-else-if="query" class="mention-list bg-background border rounded-lg shadow-lg p-3">
-    <span class="text-sm text-muted-foreground">{{ $t('globals.messages.noResults') }}</span>
+    <span class="text-sm text-muted-foreground">{{ $t('globals.messages.noResultsFound') }}</span>
   </div>
 </template>
 

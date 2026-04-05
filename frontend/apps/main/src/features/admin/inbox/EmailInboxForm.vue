@@ -628,7 +628,7 @@
           {{ $t('globals.messages.cancel') }}
         </Button>
         <Button @click="submitOAuthCredentials" :disabled="isSubmittingOAuth">
-          {{ isSubmittingOAuth ? $t('globals.messages.connecting') : $t('globals.messages.continue') }}
+          {{ isSubmittingOAuth ? $t('globals.messages.connecting') : $t('globals.terms.continue') }}
         </Button>
       </DialogFooter>
     </DialogContent>

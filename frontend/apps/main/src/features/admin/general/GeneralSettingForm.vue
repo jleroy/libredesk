@@ -105,7 +105,7 @@
 
     <FormField v-slot="{ field }" name="logo_url" :value="props.initialValues.logo_url">
       <FormItem>
-        <FormLabel>{{ t('admin.general.logoURL') }}</FormLabel>
+        <FormLabel>{{ t('globals.terms.logoUrl') }}</FormLabel>
         <FormControl>
           <Input type="text" placeholder="" v-bind="field" />
         </FormControl>

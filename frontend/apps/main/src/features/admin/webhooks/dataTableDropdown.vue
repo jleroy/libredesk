@@ -18,7 +18,7 @@
         }}
       </DropdownMenuItem>
       <DropdownMenuItem @click="handleTest">
-        {{ $t('actions.sendTest') }}
+        {{ $t('webhook.sendTest') }}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem @click="() => (alertOpen = true)" class="text-destructive">

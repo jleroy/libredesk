@@ -19,7 +19,7 @@
 
       <div class="mb-4">
         <label class="text-xs text-muted-foreground mb-2 block">
-          {{ t('globals.messages.additionalFeedbackOptional') }}
+          {{ t('globals.messages.additionalFeedback') }}
         </label>
         <textarea
           v-model="feedback"

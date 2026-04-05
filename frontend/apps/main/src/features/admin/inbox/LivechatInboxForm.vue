@@ -3,15 +3,15 @@
     <!-- Main Tabs -->
     <Tabs v-model="activeTab" class="w-full">
       <TabsList class="flex flex-wrap gap-1 h-auto p-1 w-fit">
-        <TabsTrigger value="general">{{ $t('admin.inbox.livechat.tabs.general') }}</TabsTrigger>
+        <TabsTrigger value="general">{{ $t('globals.terms.general') }}</TabsTrigger>
         <TabsTrigger value="appearance">{{
           $t('admin.inbox.livechat.tabs.appearance')
         }}</TabsTrigger>
         <TabsTrigger value="messages">{{ $t('admin.inbox.livechat.tabs.messages') }}</TabsTrigger>
-        <TabsTrigger value="features">{{ $t('admin.inbox.livechat.tabs.features') }}</TabsTrigger>
+        <TabsTrigger value="features">{{ $t('globals.terms.features') }}</TabsTrigger>
         <TabsTrigger value="prechat">{{ $t('admin.inbox.livechat.tabs.prechat') }}</TabsTrigger>
-        <TabsTrigger value="users">{{ $t('admin.inbox.livechat.tabs.users') }}</TabsTrigger>
-        <TabsTrigger value="security">{{ $t('admin.inbox.livechat.tabs.security') }}</TabsTrigger>
+        <TabsTrigger value="users">{{ $t('globals.terms.users') }}</TabsTrigger>
+        <TabsTrigger value="security">{{ $t('globals.terms.security') }}</TabsTrigger>
         <TabsTrigger value="installation">{{
           $t('admin.inbox.livechat.tabs.installation')
         }}</TabsTrigger>
@@ -185,7 +185,7 @@
           <!-- Logo URL -->
           <FormField v-slot="{ componentField }" name="config.logo_url">
             <FormItem>
-              <FormLabel>{{ $t('admin.inbox.livechat.logoUrl') }}</FormLabel>
+              <FormLabel>{{ $t('globals.terms.logoUrl') }}</FormLabel>
               <FormControl>
                 <Input
                   type="url"
@@ -534,7 +534,7 @@
 
           <!-- Chat Features -->
           <div class="space-y-4">
-            <h4 class="font-medium text-foreground">{{ $t('admin.inbox.livechat.features') }}</h4>
+            <h4 class="font-medium text-foreground">{{ $t('globals.terms.features') }}</h4>
 
             <div class="space-y-3">
               <FormField
@@ -673,7 +673,7 @@
                 {{ $t('admin.inbox.livechat.userSettings.visitors') }}
               </TabsTrigger>
               <TabsTrigger value="users">
-                {{ $t('admin.inbox.livechat.userSettings.users') }}
+                {{ $t('globals.terms.users') }}
               </TabsTrigger>
             </TabsList>
 

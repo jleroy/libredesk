@@ -12,7 +12,7 @@
           <!-- No results message -->
           <div v-if="items.length === 0" class="p-8 text-center text-muted-foreground">
             <div class="text-lg font-medium mb-2">
-              {{ $t('globals.messages.noResults') }}
+              {{ $t('globals.messages.noResultsFound') }}
             </div>
             <div class="text-sm">{{ $t('search.adjustSearchTerms') }}</div>
           </div>
