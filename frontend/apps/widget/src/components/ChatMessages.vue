@@ -256,11 +256,6 @@ watch(visibility, (state) => {
 })
 
 onMounted(() => {
-  // Update last seen timestamp only when widget is actually visible.
-  if (widgetStore.isOpen) {
-    chatStore.updateCurrentConversationLastSeen()
-  }
-
   // Check initial scroll position
   checkIfAtBottom()
 

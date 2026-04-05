@@ -1,7 +1,7 @@
 <template>
   <div
     class="libredesk-widget-app text-foreground bg-background"
-    :class="{ dark: widgetStore.config.dark_mode }"
+    :class="{ dark: widgetStore.config.dark_mode, mobile: widgetStore.isMobileFullScreen }"
     @click.once="initAudioContext"
     @touchstart.once="initAudioContext"
   >
@@ -17,6 +17,7 @@ import { useWidgetStore } from './store/widget.js'
 import { useChatStore } from '@widget/store/chat.js'
 import { useUserStore } from './store/user.js'
 import { initWidgetWS, closeWidgetWebSocket, sendPageVisit } from './websocket.js'
+import api, { setApiSessionToken, initVisitorToken, establishSession } from '@widget/api/index.js'
 import { useUnreadCount } from './composables/useUnreadCount.js'
 import { initAudioContext } from '@shared-ui/composables/useNotificationSound.js'
 import { applyCSSColor } from '@shared-ui/utils/color.js'
@@ -36,32 +37,26 @@ if (widgetConfig) {
   applyCSSColor('--secondary', widgetConfig.colors?.secondary)
 }
 
-onMounted(async () => {
-  initializeWebSocket()
-
+onMounted(() => {
   setupParentMessageListeners()
-
-  let success
-  if (widgetStore.config?.direct_to_conversation) {
-    success = await chatStore.fetchConversations()
-    if (success && chatStore.hasConversations) {
-      const latest = chatStore.getConversations[0]
-      await chatStore.loadConversation(latest.uuid)
-    }
-    if (success) widgetStore.navigateToChat()
-  } else {
-    success = await chatStore.fetchConversations()
-  }
-
-  if (!success) return
-
-  // Initialization failed, don't show widget.
   window.parent.postMessage({ type: 'VUE_APP_READY' }, '*')
 })
 
+const fetchInitialConversations = async () => {
+  if (widgetStore.config?.direct_to_conversation) {
+    const success = await chatStore.fetchConversations()
+    if (success && chatStore.hasConversations) {
+      await chatStore.loadConversation(chatStore.getConversations[0].uuid)
+    }
+    if (success) widgetStore.navigateToChat()
+  } else {
+    await chatStore.fetchConversations()
+  }
+}
+
 // Listen for messages from parent window (widget.js)
 const setupParentMessageListeners = () => {
-  window.addEventListener('message', (event) => {
+  window.addEventListener('message', async (event) => {
     if (event.data.type == 'WIDGET_CLOSED') {
       widgetStore.setOpen(false)
     } else if (event.data.type === 'WIDGET_OPENED') {
@@ -70,15 +65,43 @@ const setupParentMessageListeners = () => {
       widgetStore.setMobileFullScreen(event.data.isMobile)
     } else if (event.data.type === 'WIDGET_EXPANDED') {
       widgetStore.setExpanded(event.data.isExpanded)
+    } else if (event.data.type === 'SESSION_DATA') {
+      if (event.data.visitorToken) {
+        initVisitorToken(event.data.visitorToken)
+      }
+      const sessionToken = event.data.sessionToken
+      if (sessionToken) {
+        userStore.setSessionToken(sessionToken)
+        setApiSessionToken(sessionToken)
+        // Fetch user metadata for returning visitors.
+        // Guard against stale response if SET_JWT_TOKEN exchange replaced the token.
+        try {
+          const meResp = await api.getAuthMe()
+          if (userStore.userSessionToken === sessionToken) {
+            userStore.setUserMeta(meResp.data.data)
+          }
+        } catch {
+          if (userStore.userSessionToken === sessionToken) {
+            userStore.clearSessionToken()
+          }
+        }
+      }
+      fetchInitialConversations()
     } else if (event.data.type === 'SET_JWT_TOKEN') {
       if (event.data.jwt) {
-        userStore.setSessionToken(event.data.jwt)
-        chatStore.conversations = null
-        chatStore.fetchConversations().then(() => {
-          if (widgetStore.config?.direct_to_conversation && chatStore.hasConversations) {
-            chatStore.loadConversation(chatStore.getConversations[0].uuid)
-          }
-        })
+        try {
+          const resp = await api.exchangeJWTForSession(event.data.jwt)
+          const { session_token, user } = resp.data.data
+          establishSession(session_token, user, userStore)
+          chatStore.conversations = null
+          chatStore.fetchConversations().then(() => {
+            if (widgetStore.config?.direct_to_conversation && chatStore.hasConversations) {
+              chatStore.loadConversation(chatStore.getConversations[0].uuid)
+            }
+          })
+        } catch (err) {
+          console.error('Failed to exchange JWT for session:', err)
+        }
       }
     } else if (event.data.type === 'CLEAR_SESSION') {
       userStore.clearSessionToken()
@@ -88,14 +111,13 @@ const setupParentMessageListeners = () => {
   })
 }
 
-// Initialize WebSocket only when JWT token exists
 const initializeWebSocket = () => {
-  const jwt = userStore.userSessionToken
-  if (jwt) {
+  const token = userStore.userSessionToken
+  if (token) {
     const urlParams = new URLSearchParams(window.location.search)
     const inboxId = urlParams.get('inbox_id')
     if (inboxId) {
-      initWidgetWS(jwt, inboxId)
+      initWidgetWS(token, inboxId)
     } else {
       console.error('Cannot initialize WebSocket: missing `inbox_id`')
     }
@@ -104,17 +126,11 @@ const initializeWebSocket = () => {
   }
 }
 
-// Re-initialize WebSocket when user gets authenticated
-const handleUserAuthentication = () => {
-  initializeWebSocket()
-}
-
-// Watch for changes in user session token to initialize WebSocket
 watch(
   () => userStore.userSessionToken,
   (newToken) => {
     if (newToken) {
-      handleUserAuthentication()
+      initializeWebSocket()
     } else {
       closeWidgetWebSocket()
     }
@@ -132,5 +148,12 @@ watch(
 .widget-container {
   width: 100%;
   height: 100%;
+}
+
+/* iOS Safari auto-zooms on focus when font-size < 16px. Force 16px on mobile to prevent it. */
+.mobile :deep(input),
+.mobile :deep(textarea),
+.mobile :deep(select) {
+  font-size: 16px;
 }
 </style>

@@ -29,13 +29,13 @@ export class WidgetWebSocketClient {
     this.pingInterval = null
     this.lastSyncAt = 0
     this.lastPong = Date.now()
-    this.jwt = null
+    this.token = null
     this.inboxId = null
   }
 
-  init (jwt, inboxId) {
+  init (token, inboxId) {
     this.manualClose = false
-    this.jwt = jwt
+    this.token = token
     this.inboxId = inboxId
     this.connect()
     this.setupNetworkListeners()
@@ -65,7 +65,7 @@ export class WidgetWebSocketClient {
     this.setupPing()
 
     // Auto-join inbox after connection if inbox_id is set.
-    if (this.inboxId && this.jwt) {
+    if (this.inboxId && this.token) {
       this.joinInbox()
     }
 
@@ -82,14 +82,8 @@ export class WidgetWebSocketClient {
       const data = JSON.parse(event.data)
       const handlers = {
         [WS_EVENT.JOINED]: () => {
-          // Request current page info from parent after joining.
           if (window.parent && window.parent !== window) {
             window.parent.postMessage({ type: 'REQUEST_PAGE_INFO' }, '*')
-          }
-          // On first connect, resync to catch messages sent before WS was ready.
-          // Reconnections are already synced in handleOpen.
-          if (!this.wasReconnecting) {
-            this.syncMissedMessages()
           }
         },
         [WS_EVENT.PONG]: () => {
@@ -179,11 +173,13 @@ export class WidgetWebSocketClient {
       this.reconnect()
     })
 
-    window.addEventListener('focus', () => {
-      if (this.socket?.readyState !== WebSocket.OPEN) {
-        this.reconnect()
-      } else {
-        this.syncMissedMessages()
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        if (this.socket?.readyState !== WebSocket.OPEN) {
+          this.reconnect()
+        } else {
+          this.syncMissedMessages()
+        }
       }
     })
   }
@@ -195,7 +191,7 @@ export class WidgetWebSocketClient {
         try {
           this.socket.send(JSON.stringify({
             type: 'ping',
-            jwt: this.jwt,
+            token: this.token,
             inbox_id: this.inboxId || null
           }))
           if (Date.now() - this.lastPong > 60000) {
@@ -218,14 +214,14 @@ export class WidgetWebSocketClient {
   }
 
   joinInbox () {
-    if (!this.inboxId || !this.jwt) {
-      console.error('Cannot join inbox: missing inbox_id or JWT')
+    if (!this.inboxId || !this.token) {
+      console.error('Cannot join inbox: missing inbox_id or token')
       return
     }
 
     const joinMessage = {
       type: WS_EVENT.JOIN,
-      jwt: this.jwt,
+      token: this.token,
       data: {
         inbox_id: this.inboxId
       }
@@ -251,7 +247,7 @@ export class WidgetWebSocketClient {
   sendTyping (isTyping = true, conversationUUID = null) {
     const typingMessage = {
       type: WS_EVENT.TYPING,
-      jwt: this.jwt,
+      token: this.token,
       data: {
         conversation_uuid: conversationUUID,
         is_typing: isTyping
@@ -279,19 +275,18 @@ export class WidgetWebSocketClient {
 
 let widgetWSClient
 
-export function initWidgetWS (jwt, inboxId) {
+export function initWidgetWS (token, inboxId) {
   if (!widgetWSClient) {
     widgetWSClient = new WidgetWebSocketClient()
-    widgetWSClient.init(jwt, inboxId)
+    widgetWSClient.init(token, inboxId)
   } else {
-    // Update JWT and inbox_id and rejoin if connection exists
-    widgetWSClient.jwt = jwt
+    widgetWSClient.token = token
     widgetWSClient.inboxId = inboxId
     if (widgetWSClient.socket?.readyState === WebSocket.OPEN) {
       widgetWSClient.joinInbox()
     } else {
       // If connection is not open, reconnect
-      widgetWSClient.init(jwt, inboxId)
+      widgetWSClient.init(token, inboxId)
     }
   }
   return widgetWSClient

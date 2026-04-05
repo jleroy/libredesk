@@ -6,14 +6,13 @@
       <div class="border border-input rounded-lg bg-background focus-within:border-secondary">
         <!-- Textarea Container -->
         <div class="p-2">
-          <!-- text-base (16px) is intentional. iOS Safari throws a zoom tantrum on anything smaller. Don't "fix" it. -->
           <Textarea
             v-model="newMessage"
             @keydown="handleKeydown"
             @input="handleTyping"
             :placeholder="$t('globals.terms.typeMessage')"
             :disabled="isSending"
-            class="w-full min-h-6 max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none focus-visible:ring-0 p-0 shadow-none text-base"
+            class="w-full max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none focus-visible:ring-0 p-0 shadow-none" style="min-height:20px;height:20px"
             ref="messageInput"
           ></Textarea>
         </div>
@@ -63,7 +62,7 @@ import { sendWidgetTyping } from '../websocket.js'
 import { convertTextToHtml } from '@shared-ui/utils/string.js'
 import { useTypingIndicator } from '@shared-ui/composables/useTypingIndicator.js'
 import MessageInputActions from './MessageInputActions.vue'
-import api, { setVisitorJWT } from '@widget/api/index.js'
+import api, { establishSession } from '@widget/api/index.js'
 
 const emit = defineEmits(['error'])
 const widgetStore = useWidgetStore()
@@ -95,13 +94,12 @@ const { startTyping, stopTyping } = useTypingIndicator((isTyping) => {
 
 const initChatConversation = async (messageText) => {
   const resp = await api.initChatConversation({ message: messageText })
-  const { conversation, jwt, messages, business_hours_id, working_hours_utc_offset } = resp.data.data
+  const { conversation, session_token, user, messages, business_hours_id, working_hours_utc_offset } = resp.data.data
   conversation.business_hours_id = business_hours_id
   conversation.working_hours_utc_offset = working_hours_utc_offset
 
-  if (!userStore.userSessionToken && jwt) {
-    userStore.setSessionToken(jwt)
-    setVisitorJWT(jwt)
+  if (!userStore.userSessionToken && session_token) {
+    establishSession(session_token, user, userStore, true)
   }
 
   // Add the new conversation to the list

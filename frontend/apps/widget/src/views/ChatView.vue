@@ -35,7 +35,7 @@ import { useUserStore } from '../store/user.js'
 import { useChatStore } from '../store/chat.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { convertTextToHtml } from '@shared-ui/utils/string.js'
-import api, { setVisitorJWT } from '@widget/api/index.js'
+import api, { establishSession } from '@widget/api/index.js'
 import WidgetError from '@widget/components/WidgetError.vue'
 import ChatHeader from '@widget/components/ChatHeader.vue'
 import ChatMessages from '@widget/components/ChatMessages.vue'
@@ -113,13 +113,12 @@ const handlePreChatFormSubmit = async ({ formData, message }) => {
     }
 
     const resp = await api.initChatConversation(payload)
-    const { conversation, jwt, messages, business_hours_id, working_hours_utc_offset } = resp.data.data
+    const { conversation, session_token, user, messages, business_hours_id, working_hours_utc_offset } = resp.data.data
     conversation.business_hours_id = business_hours_id
     conversation.working_hours_utc_offset = working_hours_utc_offset
 
-    if (!userStore.userSessionToken && jwt) {
-      userStore.setSessionToken(jwt)
-      setVisitorJWT(jwt)
+    if (!userStore.userSessionToken && session_token) {
+      establishSession(session_token, user, userStore, true)
     }
 
     chatStore.addConversationToList(conversation)

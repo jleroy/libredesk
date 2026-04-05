@@ -1,40 +1,58 @@
 import axios from 'axios'
-import { parseJWT } from '@shared-ui/utils/string'
 
-const VISITOR_JWT_KEY = 'libredesk_visitor_jwt'
+let _sessionToken = ''
+let _visitorToken = ''
+
+function postToParent (data) {
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage(data, '*')
+    }
+}
 
 function getInboxIDFromQuery () {
     const params = new URLSearchParams(window.location.search)
     return params.get('inbox_id') || null
 }
 
-export function setVisitorJWT (jwt) {
-    localStorage.setItem(VISITOR_JWT_KEY, jwt)
+export function setApiSessionToken (token) {
+    _sessionToken = token || ''
 }
 
-export function clearVisitorJWT () {
-    localStorage.removeItem(VISITOR_JWT_KEY)
+export function setVisitorToken (token) {
+    _visitorToken = token
+    postToParent({ type: 'STORE_VISITOR_TOKEN', token })
 }
 
-export function getVisitorJWT () {
-    return localStorage.getItem(VISITOR_JWT_KEY)
+export function clearVisitorToken () {
+    _visitorToken = ''
+    postToParent({ type: 'CLEAR_VISITOR_TOKEN' })
 }
 
-// Returns visitor JWT if current user is authenticated (for merge).
-function getVisitorJWTForMerge (sessionToken) {
-    const visitorJWT = getVisitorJWT()
-    if (!visitorJWT || !sessionToken) {
+export function getVisitorToken () {
+    return _visitorToken || null
+}
+
+export function initVisitorToken (token) {
+    _visitorToken = token || ''
+}
+
+// Establishes a new session from a server response containing session_token and user metadata.
+// When isNewVisitor is true, also stores the token as the visitor token (for merge flow).
+export function establishSession (sessionToken, user, userStore, isNewVisitor = false) {
+    userStore.setSessionToken(sessionToken)
+    setApiSessionToken(sessionToken)
+    if (user) userStore.setUserMeta(user)
+    if (isNewVisitor) setVisitorToken(sessionToken)
+    postToParent({ type: 'STORE_SESSION', token: sessionToken })
+}
+
+// Returns visitor token if current user is a verified contact (for merge).
+function getVisitorTokenForMerge () {
+    const vt = getVisitorToken()
+    if (!vt || !_sessionToken || vt === _sessionToken) {
         return null
     }
-    try {
-        const claims = parseJWT(sessionToken)
-        if (claims && !claims.is_visitor && claims.external_user_id) {
-            return visitorJWT
-        }
-    } catch {
-        // Ignore JWT parse errors
-    }
-    return null
+    return vt
 }
 
 const http = axios.create({
@@ -50,22 +68,19 @@ http.interceptors.request.use((request) => {
 
     // Add authentication headers for widget API endpoints
     if (request.url && request.url.includes('/api/v1/widget/')) {
-        const libredeskSession = localStorage.getItem('libredesk_session')
         const inboxId = getInboxIDFromQuery()
 
-        // Add JWT to Authorization header
-        if (libredeskSession) {
-            request.headers['Authorization'] = `Bearer ${libredeskSession}`
+        if (_sessionToken) {
+            request.headers['Authorization'] = `Bearer ${_sessionToken}`
         }
 
-        // Add inbox ID to custom header
         if (inboxId) {
             request.headers['X-Libredesk-Inbox-ID'] = inboxId.toString()
         }
 
-        const visitorJWTForMerge = getVisitorJWTForMerge(libredeskSession)
-        if (visitorJWTForMerge) {
-            request.headers['X-Libredesk-Visitor-JWT'] = visitorJWTForMerge
+        const visitorTokenForMerge = getVisitorTokenForMerge()
+        if (visitorTokenForMerge) {
+            request.headers['X-Libredesk-Visitor-Token'] = visitorTokenForMerge
         }
     }
 
@@ -74,7 +89,7 @@ http.interceptors.request.use((request) => {
 
 http.interceptors.response.use((response) => {
     if (response.headers['x-libredesk-clear-visitor']) {
-        clearVisitorJWT()
+        clearVisitorToken()
     }
     return response
 })
@@ -84,6 +99,8 @@ const getWidgetSettings = (inboxID) => http.get('/api/v1/widget/chat/settings', 
 })
 const getLanguage = (lang) => http.get(`/api/v1/lang/${lang}`)
 const getAvailableLanguages = () => http.get('/api/v1/lang')
+const exchangeJWTForSession = (jwt) => http.post('/api/v1/widget/chat/auth/exchange', { jwt })
+const getAuthMe = () => http.get('/api/v1/widget/chat/auth/me')
 const initChatConversation = (data) => http.post('/api/v1/widget/chat/conversations/init', data)
 const getChatConversations = () => http.get('/api/v1/widget/chat/conversations')
 const getChatConversation = (uuid) => http.get(`/api/v1/widget/chat/conversations/${uuid}`)
@@ -91,44 +108,13 @@ const sendChatMessage = (uuid, data) => http.post(`/api/v1/widget/chat/conversat
 const closeChatConversation = (uuid) => http.post(`/api/v1/widget/chat/conversations/${uuid}/close`)
 const uploadMedia = (conversationUUID, files) => {
     const formData = new FormData()
-
-    // Only add conversation UUID to form data now
     formData.append('conversation_uuid', conversationUUID)
-
-    // Add files
     for (let i = 0; i < files.length; i++) {
         formData.append('files', files[i])
     }
-
-    // Get authentication data for headers
-    const libredeskSession = localStorage.getItem('libredesk_session')
-    const inboxId = getInboxIDFromQuery()
-
-    const headers = {
-        'Content-Type': 'multipart/form-data'
-    }
-
-    // Add authentication headers
-    if (libredeskSession) {
-        headers['Authorization'] = `Bearer ${libredeskSession}`
-    }
-    if (inboxId) {
-        headers['X-Libredesk-Inbox-ID'] = inboxId.toString()
-    }
-
-    const visitorJWTForMerge = getVisitorJWTForMerge(libredeskSession)
-    if (visitorJWTForMerge) {
-        headers['X-Libredesk-Visitor-JWT'] = visitorJWTForMerge
-    }
-
-    return axios.post('/api/v1/widget/media/upload', formData, {
-        headers,
+    return http.post('/api/v1/widget/media/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 30000
-    }).then((response) => {
-        if (response.headers['x-libredesk-clear-visitor']) {
-            clearVisitorJWT()
-        }
-        return response
     })
 }
 const updateConversationLastSeen = (uuid) => http.post(`/api/v1/widget/chat/conversations/${uuid}/update-last-seen`)
@@ -142,6 +128,8 @@ export default {
     getWidgetSettings,
     getLanguage,
     getAvailableLanguages,
+    exchangeJWTForSession,
+    getAuthMe,
     initChatConversation,
     getChatConversations,
     getChatConversation,

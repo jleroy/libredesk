@@ -55,6 +55,59 @@
             return count > 99 ? '99+' : count.toString();
         }
 
+        getCookieName (type) {
+            return 'libredesk-' + type + '-' + this.config.inboxID;
+        }
+
+        getCookieDomain () {
+            if (this.config.cookieDomain) return this.config.cookieDomain;
+            if (this._cookieDomain !== undefined) return this._cookieDomain;
+            var hostname = window.location.hostname;
+            if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname === 'localhost') {
+                this._cookieDomain = '';
+                return '';
+            }
+            var parts = hostname.split('.');
+            for (var i = parts.length - 1; i >= 0; i--) {
+                var domain = '.' + parts.slice(i).join('.');
+                document.cookie = '__ld_test__=1;domain=' + domain + ';path=/';
+                if (document.cookie.indexOf('__ld_test__') !== -1) {
+                    document.cookie = '__ld_test__=;domain=' + domain + ';path=/;max-age=0';
+                    this._cookieDomain = domain;
+                    return domain;
+                }
+            }
+            this._cookieDomain = '';
+            return '';
+        }
+
+        setCookie (name, value) {
+            var domain = this.getCookieDomain();
+            var maxAge = 365 * 24 * 60 * 60;
+            var cookie = name + '=' + encodeURIComponent(value) + ';path=/;max-age=' + maxAge + ';SameSite=Lax';
+            if (domain) {
+                cookie += ';domain=' + domain;
+            }
+            if (window.location.protocol === 'https:') {
+                cookie += ';Secure';
+            }
+            document.cookie = cookie;
+        }
+
+        getCookie (name) {
+            var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        deleteCookie (name) {
+            var domain = this.getCookieDomain();
+            var cookie = name + '=;path=/;max-age=0;SameSite=Lax';
+            if (domain) {
+                cookie += ';domain=' + domain;
+            }
+            document.cookie = cookie;
+        }
+
         async init () {
             try {
                 await this.fetchWidgetSettings();
@@ -259,6 +312,15 @@
                 case 'REQUEST_PAGE_INFO':
                     this.sendPageInfo();
                     break;
+                case 'STORE_SESSION':
+                    this.setCookie(this.getCookieName('session'), event.data.token);
+                    break;
+                case 'STORE_VISITOR_TOKEN':
+                    this.setCookie(this.getCookieName('visitor'), event.data.token);
+                    break;
+                case 'CLEAR_VISITOR_TOKEN':
+                    this.deleteCookie(this.getCookieName('visitor'));
+                    break;
             }
         }
 
@@ -285,6 +347,16 @@
                 this.widgetButtonWrapper.style.display = '';
             }
 
+            // Send stored session cookies to iframe.
+            var sessionToken = this.getCookie(this.getCookieName('session'));
+            var visitorToken = this.getCookie(this.getCookieName('visitor'));
+            this.postToIframe({
+                type: 'SESSION_DATA',
+                sessionToken: sessionToken || '',
+                visitorToken: visitorToken || ''
+            });
+
+            // External identity JWT - iframe will exchange it for a session token.
             if (this.config.userJWT) {
                 this.postToIframe({
                     type: 'SET_JWT_TOKEN',
@@ -444,6 +516,8 @@
         }
 
         logout () {
+            this.deleteCookie(this.getCookieName('session'));
+            this.deleteCookie(this.getCookieName('visitor'));
             this.postToIframe({ type: 'CLEAR_SESSION' });
         }
 

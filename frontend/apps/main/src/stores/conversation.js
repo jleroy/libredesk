@@ -7,6 +7,7 @@ import { computeRecipientsFromMessage } from '../utils/email-recipients'
 import { useEmitter } from '../composables/useEmitter'
 import { EMITTER_EVENTS } from '../constants/emitterEvents'
 import { subscribeToConversation, sendTypingIndicator } from '@main/websocket'
+import { playNotificationSound } from '@shared-ui/composables/useNotificationSound'
 import MessageCache from '../utils/conversation-message-cache'
 import { getI18n } from '../i18n'
 import { useDebounceFn } from '@vueuse/core'
@@ -516,6 +517,20 @@ export const useConversationStore = defineStore('conversation', () => {
     if (!conversations.data) conversations.data = []
     conversations.data.push(...newConversations)
     conversations.total = apiResponse.total
+
+    // Play notification sound for new conversations that were pending.
+    if (pendingNotificationUUIDs.size > 0) {
+      let shouldPlay = false
+      for (const uuid of pendingNotificationUUIDs) {
+        if (isConversationInList(uuid)) {
+          shouldPlay = true
+        }
+      }
+      pendingNotificationUUIDs.clear()
+      if (shouldPlay) {
+        playNotificationSound()
+      }
+    }
   }
 
   async function updatePriority (v) {
@@ -603,6 +618,14 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function isConversationInList (uuid) {
     return conversations.data?.find(c => c.uuid === uuid) ? true : false
+  }
+
+  // Pending notification UUIDs for new conversations not yet in list (refresh is debounced).
+  // Checked after processConversationListResponse adds conversations to the list.
+  const pendingNotificationUUIDs = new Set()
+
+  function addPendingNotification (uuid) {
+    pendingNotificationUUIDs.add(uuid)
   }
 
   // Debounced to prevent apis calls during many WS events in a short time.
@@ -897,6 +920,7 @@ export const useConversationStore = defineStore('conversation', () => {
     currentBCC,
     currentCC,
     isConversationInList,
+    addPendingNotification,
     mergeConversationUpdate,
     mergeContactUpdate,
     addNewConversation,

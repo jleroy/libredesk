@@ -272,6 +272,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Widget APIs.
 	g.GET("/api/v1/widget/chat/settings/launcher", rateLimit(handleGetChatLauncherSettings, "widget"))
 	g.GET("/api/v1/widget/chat/settings", rateLimit(handleGetChatSettings, "widget"))
+	g.POST("/api/v1/widget/chat/auth/exchange", rateLimit(widgetInboxAuth(handleAuthExchange), "widget"))
+	g.GET("/api/v1/widget/chat/auth/me", rateLimit(widgetAuth(handleWidgetAuthMe), "widget"))
 	g.POST("/api/v1/widget/chat/conversations/init", rateLimit(widgetAuth(handleChatInit), "widget"))
 	g.GET("/api/v1/widget/chat/conversations", rateLimit(widgetAuth(handleGetConversations), "widget"))
 	g.POST("/api/v1/widget/chat/conversations/{uuid}/update-last-seen", rateLimit(widgetAuth(handleChatUpdateLastSeen), "widget"))

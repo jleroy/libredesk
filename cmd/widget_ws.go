@@ -32,9 +32,9 @@ const (
 )
 
 type WidgetMessage struct {
-	Type string          `json:"type"`
-	JWT  string          `json:"jwt,omitempty"`
-	Data json.RawMessage `json:"data"`
+	Type  string          `json:"type"`
+	Token string          `json:"token,omitempty"`
+	Data  json.RawMessage `json:"data"`
 }
 
 type WidgetInboxJoinRequest struct {
@@ -110,7 +110,7 @@ func handleWidgetWS(r *fastglue.Request) error {
 					liveChat = nil
 				}
 
-				joinedClient, joinedLiveChat, joinedInboxUUID, joinedUserID, err := handleInboxJoin(app, sc, msg.Data, msg.JWT, clientIP)
+				joinedClient, joinedLiveChat, joinedInboxUUID, joinedUserID, err := handleInboxJoin(app, sc, msg.Data, msg.Token, clientIP)
 				if err != nil {
 					app.lo.Error("error handling widget join", "error", err)
 					sendWidgetError(sc, "Failed to join conversation")
@@ -125,7 +125,7 @@ func handleWidgetWS(r *fastglue.Request) error {
 				if userID == 0 || inboxUUID == "" {
 					continue
 				}
-				handleWidgetTyping(app, msg.Data, inboxUUID, userID, msg.JWT)
+				handleWidgetTyping(app, msg.Data, userID)
 
 			case WidgetMsgTypePageVisit:
 				if userID > 0 {
@@ -153,7 +153,7 @@ func handleWidgetWS(r *fastglue.Request) error {
 	return nil
 }
 
-func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, jwtToken, clientIP string) (*livechat.Client, *livechat.LiveChat, string, int, error) {
+func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, clientIP string) (*livechat.Client, *livechat.LiveChat, string, int, error) {
 	var joinData WidgetInboxJoinRequest
 	if err := json.Unmarshal(data, &joinData); err != nil {
 		return nil, nil, "", 0, fmt.Errorf("invalid join data: %w", err)
@@ -167,14 +167,18 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, jwtToken, cli
 		return nil, nil, "", 0, fmt.Errorf("inbox is not enabled")
 	}
 
-	claims, err := verifyStandardJWT(jwtToken, inbox.Secret.String)
+	session, err := lookupSessionToken(app, token)
 	if err != nil {
-		return nil, nil, "", 0, fmt.Errorf("JWT validation failed: %w", err)
+		return nil, nil, "", 0, fmt.Errorf("session token validation failed: %w", err)
+	}
+	if session.InboxID != inbox.ID {
+		return nil, nil, "", 0, fmt.Errorf("session does not belong to this inbox")
 	}
 
-	user, err := resolveUserFromClaims(app, claims)
-	if err != nil {
-		return nil, nil, "", 0, fmt.Errorf("failed to resolve user ID from claims: %w", err)
+	// Verify user exists and is enabled.
+	user, err := app.user.Get(session.UserID, "", []string{})
+	if err != nil || !user.Enabled {
+		return nil, nil, "", 0, fmt.Errorf("user not found or disabled")
 	}
 
 	var config livechat.Config
@@ -221,35 +225,19 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, jwtToken, cli
 	return client, liveChat, joinData.InboxID, user.ID, nil
 }
 
-func handleWidgetTyping(app *App, data json.RawMessage, inboxUUID string, userID int, jwtToken string) {
+func handleWidgetTyping(app *App, data json.RawMessage, userID int) {
 	var typingData WidgetTypingData
 	if err := json.Unmarshal(data, &typingData); err != nil || typingData.ConversationUUID == "" {
 		return
 	}
 
-	if _, err := validateWidgetMessageJWT(app, jwtToken, inboxUUID); err != nil {
-		return
-	}
-
+	// userID was already validated during WS join.
 	conversation, err := app.conversation.GetConversation(0, typingData.ConversationUUID, "")
 	if err != nil || conversation.ContactID != userID {
 		return
 	}
 
 	app.conversation.BroadcastTypingToConversation(typingData.ConversationUUID, typingData.IsTyping, false)
-}
-
-func validateWidgetMessageJWT(app *App, jwtToken string, inboxUUID string) (Claims, error) {
-	if inboxUUID == "" {
-		return Claims{}, fmt.Errorf("inbox UUID is required for JWT validation")
-	}
-
-	inbox, err := app.inbox.GetDBRecord(inboxUUID)
-	if err != nil {
-		return Claims{}, fmt.Errorf("inbox not found: %w", err)
-	}
-
-	return verifyStandardJWT(jwtToken, inbox.Secret.String)
 }
 
 func sendWidgetError(sc *safeConn, message string) {

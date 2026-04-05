@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +34,17 @@ import (
 const (
 	maxChatConversationsPerContact  = 50
 	chatConversationRateLimitWindow = 24 * time.Hour
+	widgetSessionPrefix             = "widget_session:"
+	widgetSessionTTL                = 90 * 24 * time.Hour
 )
+
+// WidgetSession holds session data stored in Redis.
+type WidgetSession struct {
+	UserID         int
+	InboxID        int
+	IsVisitor      bool
+	ExternalUserID string
+}
 
 // Claims holds JWT claims for a JWT user.
 type Claims struct {
@@ -155,7 +168,7 @@ func handleChatInit(r *fastglue.Request) error {
 		userAgent         = string(r.RequestCtx.Request.Header.Peek("User-Agent"))
 		contactID         int
 		isVisitor         bool
-		newJWT            string
+		newSessionToken   string
 		conversationAttrs map[string]any
 	)
 
@@ -168,7 +181,6 @@ func handleChatInit(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.message}"), nil, envelope.InputError)
 	}
 
-	claims := getWidgetClaimsOptional(r)
 	inbox, err := getWidgetInbox(r)
 	if err != nil {
 		app.lo.Error("error getting inbox from middleware context", "error", err)
@@ -180,36 +192,20 @@ func handleChatInit(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
-	// Handle authenticated user vs visitor.
-	if claims != nil {
-		if claims.ExternalUserID != "" {
-			// Contact is already resolved/created by widgetAuth middleware.
-			contactID, err = getWidgetContactID(r)
-			if err != nil {
-				app.lo.Error("error getting contact ID from middleware context", "error", err)
-				return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-			}
-			conversationAttrs = saveContactAttrsAndCollectConvoAttrs(app, contactID, claims, req.FormData, config)
-			isVisitor = false
-		} else {
-			if !claims.IsVisitor {
-				app.lo.Warn("non-visitor JWT missing external_user_id")
-				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("globals.messages.badRequest"), nil, envelope.InputError)
-			}
-			isVisitor = true
-			contactID, err = getWidgetContactID(r)
-			if err != nil {
-				app.lo.Error("error getting contact ID from middleware context", "error", err)
-				return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-			}
-			conversationAttrs = saveContactAttrsAndCollectConvoAttrs(app, contactID, claims, req.FormData, config)
-		}
+	// Check if user is already authenticated (has session token).
+	contactID, _ = getWidgetContactID(r)
+	if contactID > 0 {
+		// Returning user (visitor or contact) with session token.
+		// Custom attributes from JWT were already saved during /auth/exchange.
+		// Only process form-level attributes here.
+		isVisitor = getWidgetIsVisitor(r)
+		conversationAttrs = saveContactAttrsAndCollectConvoAttrs(app, contactID, nil, req.FormData, config)
 	} else {
+		// New visitor - create visitor and session token.
 		isVisitor = true
-		var visitorErr error
-		contactID, newJWT, conversationAttrs, visitorErr = createVisitorContact(app, req.FormData, config, inbox)
-		if visitorErr != nil {
-			app.lo.Error("error creating visitor contact", "error", visitorErr)
+		contactID, newSessionToken, conversationAttrs, err = createVisitorContact(app, req.FormData, config, inbox)
+		if err != nil {
+			app.lo.Error("error creating visitor contact", "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 		}
 	}
@@ -290,9 +286,13 @@ func handleChatInit(r *fastglue.Request) error {
 		"working_hours_utc_offset": resp.WorkingHoursUTCOffset,
 	}
 
-	// Only add JWT when a new visitor is created.
-	if newJWT != "" {
-		response["jwt"] = newJWT
+	// Add session token and user metadata when a new visitor is created.
+	if newSessionToken != "" {
+		response["session_token"] = newSessionToken
+		response["user"] = map[string]any{
+			"user_id":    contactID,
+			"is_visitor": isVisitor,
+		}
 	}
 
 	return r.SendEnvelope(response)
@@ -309,29 +309,115 @@ func handleChatUpdateLastSeen(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.conversation}"), nil, envelope.InputError)
 	}
 
-	contactID, conversation, err := getContactConversation(r, conversationUUID)
+	_, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
 		return err
 	}
 
-	// Update last seen timestamp.
 	if err := app.conversation.UpdateConversationContactLastSeen(conversation.UUID); err != nil {
 		app.lo.Error("error updating contact last seen timestamp", "conversation_uuid", conversationUUID, "error", err)
 		return sendErrorEnvelope(r, err)
 	}
 
-	// Also update custom attributes from JWT claims, if present.
-	// This avoids a separate handler and ensures contact attributes stay in sync.
-	// Since this endpoint is hit frequently during chat, this should keep attribs in sync.
-	claims := getWidgetClaimsOptional(r)
-	if claims != nil && len(claims.ContactCustomAttributes) > 0 {
+	return r.SendEnvelope(true)
+}
+
+// handleAuthExchange exchanges a JWT for a session token.
+// Used by the setUser() flow for verified contacts.
+func handleAuthExchange(r *fastglue.Request) error {
+	app := r.Context.(*App)
+
+	inbox, err := getWidgetInbox(r)
+	if err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
+	var req struct {
+		JWT string `json:"jwt"`
+	}
+	if err := r.Decode(&req, "json"); err != nil || req.JWT == "" {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "jwt"), nil, envelope.InputError)
+	}
+
+	// Verify the customer-generated JWT.
+	claims, err := verifyStandardJWT(req.JWT, inbox.Secret.String)
+	if err != nil {
+		app.lo.Error("invalid JWT in auth exchange", "error", err)
+		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
+	}
+
+	if claims.ExternalUserID == "" {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "external_user_id"), nil, envelope.InputError)
+	}
+	if claims.Email == "" {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "email"), nil, envelope.InputError)
+	}
+	if claims.FirstName == "" {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "first_name"), nil, envelope.InputError)
+	}
+
+	// Resolve or create the contact.
+	contactID, err := resolveOrCreateExternalContact(app, claims)
+	if err != nil {
+		app.lo.Error("error resolving contact during auth exchange", "error", err)
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
+	// Save custom attributes from JWT.
+	if len(claims.ContactCustomAttributes) > 0 {
 		if err := app.user.SaveCustomAttributes(contactID, claims.ContactCustomAttributes, false); err != nil {
-			app.lo.Error("error updating contact custom attributes", "contact_id", contactID, "error", err)
-			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+			app.lo.Error("error saving custom attributes during auth exchange", "contact_id", contactID, "error", err)
 		}
 	}
 
-	return r.SendEnvelope(true)
+	// Delete previous session for this user+inbox if one exists.
+	ctx := context.Background()
+	reverseKey := fmt.Sprintf("widget_user:%d:%d", inbox.ID, contactID)
+	if oldToken, err := app.redis.Get(ctx, reverseKey).Result(); err == nil {
+		deleteSessionToken(app, oldToken)
+	}
+
+	// Generate session token.
+	token, err := generateSessionToken(app, contactID, inbox.ID, false, claims.ExternalUserID)
+	if err != nil {
+		app.lo.Error("error generating session token", "error", err)
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
+	// Store reverse mapping for cleanup on next exchange.
+	app.redis.Set(ctx, reverseKey, token, widgetSessionTTL)
+
+	return r.SendEnvelope(map[string]any{
+		"session_token": token,
+		"user": map[string]any{
+			"user_id":    contactID,
+			"is_visitor": false,
+			"first_name": claims.FirstName,
+			"last_name":  claims.LastName,
+		},
+	})
+}
+
+// handleWidgetAuthMe returns the current authenticated user's metadata.
+func handleWidgetAuthMe(r *fastglue.Request) error {
+	app := r.Context.(*App)
+
+	contactID, err := getWidgetContactID(r)
+	if err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
+	}
+
+	u, err := app.user.Get(contactID, "", []string{})
+	if err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
+	return r.SendEnvelope(map[string]any{
+		"user_id":    u.ID,
+		"is_visitor": u.Type == "visitor",
+		"first_name": u.FirstName,
+		"last_name":  u.LastName,
+	})
 }
 
 // handleChatGetConversation fetches a chat conversation by ID
@@ -768,9 +854,9 @@ func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
 }
 
 // createVisitorContact creates a new visitor contact from form data.
-// Returns the contact ID, a new JWT for the visitor, and conversation custom attributes.
-func createVisitorContact(app *App, formData map[string]any, config livechat.Config, inbox imodels.Inbox) (contactID int, jwt string, convoAttrs map[string]any, err error) {
-	// Validate form data and get final name/email for new visitor
+// Returns the contact ID, a session token, and conversation custom attributes.
+func createVisitorContact(app *App, formData map[string]any, config livechat.Config, inbox imodels.Inbox) (contactID int, sessionToken string, convoAttrs map[string]any, err error) {
+	// Validate form data and get final name/email for new visitor.
 	finalName, finalEmail, err := validateFormData(formData, config, nil)
 	if err != nil {
 		return 0, "", nil, err
@@ -791,13 +877,13 @@ func createVisitorContact(app *App, formData map[string]any, config livechat.Con
 		return 0, "", nil, err
 	}
 
-	newJWT, err := generateUserJWTWithSecret(visitor.ID, true, finalName, "", time.Now().Add(87600*time.Hour), []byte(inbox.Secret.String)) // 10 years
+	token, err := generateSessionToken(app, visitor.ID, inbox.ID, true, "")
 	if err != nil {
-		app.lo.Error("error generating visitor JWT", "error", err)
+		app.lo.Error("error generating session token for visitor", "error", err)
 		return 0, "", nil, err
 	}
 
-	return visitor.ID, newJWT, convoAttrs, nil
+	return visitor.ID, token, convoAttrs, nil
 }
 
 // checkConversationPermissions checks if the user is allowed to start a conversation based on inbox config.
@@ -918,25 +1004,63 @@ func verifyStandardJWT(jwtToken string, inboxSecret string) (Claims, error) {
 	return *claims, nil
 }
 
-// generateUserJWTWithSecret generates a JWT token for a user with a specific secret
-func generateUserJWTWithSecret(userID int, isVisitor bool, firstName, lastName string, expirationTime time.Time, secret []byte) (string, error) {
-	claims := &Claims{
-		UserID:    userID,
-		IsVisitor: isVisitor,
-		FirstName: firstName,
-		LastName:  lastName,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-		},
+// generateSessionToken creates a random session token and stores it in Redis.
+func generateSessionToken(app *App, userID, inboxID int, isVisitor bool, externalUserID string) (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generating random token: %w", err)
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(secret)
-	if err != nil {
-		return "", err
+	token := base64.RawURLEncoding.EncodeToString(b)
+	key := widgetSessionPrefix + token
+
+	ctx := context.Background()
+	fields := map[string]any{
+		"user_id":          strconv.Itoa(userID),
+		"inbox_id":         strconv.Itoa(inboxID),
+		"is_visitor":       strconv.FormatBool(isVisitor),
+		"external_user_id": externalUserID,
 	}
-	return tokenString, nil
+	pipe := app.redis.Pipeline()
+	pipe.HSet(ctx, key, fields)
+	pipe.Expire(ctx, key, widgetSessionTTL)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return "", fmt.Errorf("storing session in Redis: %w", err)
+	}
+	return token, nil
+}
+
+// lookupSessionToken retrieves a session from Redis and refreshes its TTL.
+func lookupSessionToken(app *App, token string) (*WidgetSession, error) {
+	ctx := context.Background()
+	key := widgetSessionPrefix + token
+
+	pipe := app.redis.Pipeline()
+	hgetallCmd := pipe.HGetAll(ctx, key)
+	pipe.Expire(ctx, key, widgetSessionTTL)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, fmt.Errorf("looking up session: %w", err)
+	}
+
+	data := hgetallCmd.Val()
+	if len(data) == 0 {
+		return nil, fmt.Errorf("session not found or expired")
+	}
+
+	userID, _ := strconv.Atoi(data["user_id"])
+	inboxID, _ := strconv.Atoi(data["inbox_id"])
+	isVisitor, _ := strconv.ParseBool(data["is_visitor"])
+
+	return &WidgetSession{
+		UserID:         userID,
+		InboxID:        inboxID,
+		IsVisitor:      isVisitor,
+		ExternalUserID: data["external_user_id"],
+	}, nil
+}
+
+// deleteSessionToken removes a session from Redis.
+func deleteSessionToken(app *App, token string) {
+	app.redis.Del(context.Background(), widgetSessionPrefix+token)
 }
 
 // marshalCustomAttributes marshals custom attributes to JSON, returning "{}" on error or empty input.
