@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-screen">
+  <div class="flex flex-col h-full">
     <!-- Header -->
     <div class="h-12 flex-shrink-0 px-2 border-b flex items-center justify-between">
       <div>
@@ -37,9 +37,7 @@
     <!-- Messages & reply box -->
     <div class="flex flex-col flex-grow overflow-hidden">
       <MessageList class="flex-1 overflow-y-auto" />
-      <div class="sticky bottom-0">
-        <ReplyBox />
-      </div>
+      <ReplyBox />
     </div>
   </div>
 </template>

@@ -13,7 +13,14 @@
     min-height: 100%;
     overflow: hidden;
     margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     @apply bg-background text-foreground;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.15);
+    color: hsl(var(--primary));
   }
 
   @media (max-width: 768px) {
@@ -65,7 +72,7 @@
       cursor: pointer;
 
       &:hover {
-        color: #003d7a;
+        color: #004d99;
       }
     }
 
@@ -199,7 +206,7 @@
 }
 
 .overlay {
-  background: rgba(0, 0, 0, 0.6);
+  background: hsl(var(--foreground) / 0.5);
 }
 
 .text-sm-muted {
@@ -225,11 +232,11 @@
 // Scrollbar start
 * {
   scrollbar-width: auto;
-  scrollbar-color: theme('colors.gray.300') transparent;
+  scrollbar-color: hsl(var(--border)) transparent;
 }
 
 .dark * {
-  scrollbar-color: theme('colors.gray.600') transparent;
+  scrollbar-color: hsl(var(--border)) transparent;
 }
 
 @supports selector(::-webkit-scrollbar) {
@@ -252,19 +259,20 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 rounded;
+    background: hsl(var(--border));
+    border-radius: 3px;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400;
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 
   .dark *::-webkit-scrollbar-thumb {
-    @apply bg-gray-600;
+    background: hsl(var(--border));
   }
 
   .dark *::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-500;
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 // Scrollbar end
@@ -313,7 +321,8 @@
 // Components
 @layer components {
   .link-style {
-    @apply text-blue-500 hover:underline;
+    color: #0066cc;
+    @apply hover:underline;
   }
 }
 
