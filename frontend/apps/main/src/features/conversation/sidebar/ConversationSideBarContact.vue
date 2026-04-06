@@ -3,7 +3,9 @@
     <div class="flex justify-between items-start">
       <div class="relative">
         <Avatar class="size-20">
-          <AvatarImage :src="conversation?.contact?.avatar_url || getGravatarUrl(conversation?.contact?.email)" />
+          <AvatarImage
+            :src="conversation?.contact?.avatar_url || getGravatarUrl(conversation?.contact?.email)"
+          />
           <AvatarFallback>
             {{ conversation?.contact?.first_name?.toUpperCase().substring(0, 2) }}
           </AvatarFallback>
@@ -29,15 +31,17 @@
       <span v-if="conversationStore.conversation.loading">
         <Skeleton class="w-24 h-4" />
       </span>
+      <router-link
+        v-else-if="userStore.can('contacts:read')"
+        :to="{ name: 'contact-detail', params: { id: conversation?.contact_id } }"
+        class="flex items-center gap-2 hover:underline cursor-pointer"
+      >
+        {{ conversation?.contact?.first_name + ' ' + conversation?.contact?.last_name }}
+        <ExternalLink size="16" class="text-muted-foreground flex-shrink-0" />
+      </router-link>
       <span v-else>
         {{ conversation?.contact?.first_name + ' ' + conversation?.contact?.last_name }}
       </span>
-      <ExternalLink
-        v-if="!conversationStore.conversation.loading && userStore.can('contacts:read')"
-        size="16"
-        class="text-muted-foreground cursor-pointer flex-shrink-0"
-        @click="$router.push({ name: 'contact-detail', params: { id: conversation?.contact_id } })"
-      />
     </div>
     <div class="flex gap-2 items-center">
       <Mail size="16" class="text-muted-foreground flex-shrink-0" />
@@ -46,7 +50,9 @@
           <ShieldCheck v-if="isVerified" size="14" class="flex-shrink-0 text-green-600" />
           <ShieldQuestion v-else size="14" class="flex-shrink-0 text-amber-500" />
         </TooltipTrigger>
-        <TooltipContent>{{ isVerified ? t('contact.identityVerified') : t('contact.identityNotVerified') }}</TooltipContent>
+        <TooltipContent>{{
+          isVerified ? t('contact.identityVerified') : t('contact.identityNotVerified')
+        }}</TooltipContent>
       </Tooltip>
       <span v-if="conversationStore.conversation.loading">
         <Skeleton class="w-32 h-4" />
@@ -67,10 +73,7 @@
         {{ phoneNumber }}
       </span>
     </div>
-    <div
-      class="flex gap-2 items-center"
-      v-if="conversation?.contact?.external_user_id"
-    >
+    <div class="flex gap-2 items-center" v-if="conversation?.contact?.external_user_id">
       <IdCard size="16" class="text-muted-foreground flex-shrink-0" />
       <span v-if="conversationStore.conversation.loading">
         <Skeleton class="w-32 h-4" />
@@ -82,24 +85,15 @@
 
     <!-- Livechat visitor info -->
     <template v-if="isLivechat && !conversationStore.conversation.loading">
-      <div
-        v-if="conversation?.contact?.country"
-        class="flex gap-2 items-center"
-      >
+      <div v-if="conversation?.contact?.country" class="flex gap-2 items-center">
         <Globe size="16" class="text-muted-foreground flex-shrink-0" />
         <span class="sidebar-value">{{ countryName }}</span>
       </div>
-      <div
-        v-if="conversation?.meta?.ip"
-        class="flex gap-2 items-center"
-      >
+      <div v-if="conversation?.meta?.ip" class="flex gap-2 items-center">
         <Monitor size="16" class="text-muted-foreground flex-shrink-0" />
         <span class="sidebar-value break-all">{{ conversation.meta.ip }}</span>
       </div>
-      <div
-        v-if="conversation?.meta?.user_agent"
-        class="flex gap-2 items-center"
-      >
+      <div v-if="conversation?.meta?.user_agent" class="flex gap-2 items-center">
         <Smartphone size="16" class="text-muted-foreground flex-shrink-0" />
         <span class="sidebar-value break-all">{{ parsedUA }}</span>
       </div>
@@ -114,12 +108,14 @@
         @click="openContextLink(app)"
       >
         <ExternalLink size="16" class="text-muted-foreground flex-shrink-0" />
-        <span class="sidebar-value group-hover:underline" :class="{ 'text-muted-foreground': loadingAppId === app.id }">
+        <span
+          class="sidebar-value group-hover:underline"
+          :class="{ 'text-muted-foreground': loadingAppId === app.id }"
+        >
           {{ app.name }}
         </span>
       </div>
     </template>
-
   </div>
 </template>
 
@@ -129,7 +125,17 @@ import { ViewVerticalIcon } from '@radix-icons/vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import StatusDot from '@shared-ui/components/StatusDot.vue'
-import { Mail, Phone, ExternalLink, IdCard, Globe, Monitor, Smartphone, ShieldCheck, ShieldQuestion } from 'lucide-vue-next'
+import {
+  Mail,
+  Phone,
+  ExternalLink,
+  IdCard,
+  Globe,
+  Monitor,
+  Smartphone,
+  ShieldCheck,
+  ShieldQuestion
+} from 'lucide-vue-next'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import countries from '@/constants/countries.js'
 import { useEmitter } from '@/composables/useEmitter'
@@ -166,7 +172,9 @@ const countryName = computed(() => {
 
 const isLivechat = computed(() => conversation.value?.inbox_channel === 'livechat')
 const contactStatus = computed(() => conversation.value?.contact?.availability_status)
-const isVerified = computed(() => isLivechat.value && conversation.value?.contact?.type !== 'visitor')
+const isVerified = computed(
+  () => isLivechat.value && conversation.value?.contact?.type !== 'visitor'
+)
 
 const parsedUA = computed(() => {
   const ua = conversation.value?.meta?.user_agent
@@ -204,5 +212,4 @@ const openContextLink = async (app) => {
     loadingAppId.value = null
   }
 }
-
 </script>

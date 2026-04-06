@@ -173,13 +173,11 @@ export class WidgetWebSocketClient {
       this.reconnect()
     })
 
+    // On tab return, if WS is not connected, sync data immediately and reconnect in parallel.
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        if (this.socket?.readyState !== WebSocket.OPEN) {
-          this.reconnect()
-        } else {
-          this.syncMissedMessages()
-        }
+      if (document.visibilityState === 'visible' && this.socket?.readyState !== WebSocket.OPEN) {
+        this.syncMissedMessages()
+        this.reconnect()
       }
     })
   }
