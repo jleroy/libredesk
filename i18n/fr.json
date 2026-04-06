@@ -177,7 +177,7 @@
   "admin.inbox.livechat.features.fileUpload": "Téléversement de fichiers",
   "admin.inbox.livechat.features.fileUpload.description": "Permettre aux utilisateurs de téléverser des fichiers dans le chat",
   "admin.inbox.livechat.greetingMessage": "Message de bienvenue",
-  "admin.inbox.livechat.greetingMessage.variables": "Variables disponibles : {'{{.FirstName}}'}, {'{{.LastName}}'}. Utilisez | comme valeur par defaut, par ex. Bonjour {'{{.FirstName | ami}}'}",
+  "admin.inbox.livechat.greetingMessage.variables": "Variables disponibles : {'{{.FirstName}}'}, {'{{.LastName}}'}. Utilisez {'|'} comme valeur par defaut, par ex. Bonjour {'{{.FirstName | ami}}'}",
   "admin.inbox.livechat.installation.identity.addJwt": "Ajoutez le JWT signe a LibredeskSettings :",
   "admin.inbox.livechat.installation.identity.description": "Verifiez les utilisateurs connectes afin que les conversations soient liees a leurs comptes reels et que les utilisateurs ne puissent pas usurper l'identite d'autrui.",
   "admin.inbox.livechat.installation.identity.howItWorks": "Votre serveur genere un JWT signe contenant les informations de l'utilisateur. Utilisez la cle secrete de l'onglet Securite pour le signer avec l'algorithme HS256.",
