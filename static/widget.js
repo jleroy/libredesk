@@ -37,6 +37,7 @@
             this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
             this.isExpanded = false;
             this.hideLauncher = config.hideLauncher || false;
+            this.widgetLoaded = false;
             this._onShowCallback = null;
             this._onHideCallback = null;
             this._onUnreadCountChangeCallback = null;
@@ -303,6 +304,9 @@
                 case 'UPDATE_UNREAD_COUNT':
                     this.updateUnreadCount(event.data.count);
                     break;
+                case 'WIDGET_LOADED':
+                    this.handleWidgetLoaded();
+                    break;
                 case 'EXPAND_WIDGET':
                     this.expandWidget();
                     break;
@@ -343,9 +347,6 @@
 
         handleVueAppReady () {
             this.sendMobileState();
-            if (!this.hideLauncher) {
-                this.widgetButtonWrapper.style.display = '';
-            }
 
             // Send stored session cookies to iframe.
             var sessionToken = this.getCookie(this.getCookieName('session'));
@@ -362,6 +363,13 @@
                     type: 'SET_JWT_TOKEN',
                     jwt: this.config.userJWT
                 });
+            }
+        }
+
+        handleWidgetLoaded () {
+            this.widgetLoaded = true;
+            if (!this.hideLauncher) {
+                this.widgetButtonWrapper.style.display = '';
             }
         }
 
@@ -397,7 +405,9 @@
                     this.iframe.style.boxShadow = this.IFRAME_BOX_SHADOW;
                     this.iframe.style.top = '';
                     this.iframe.style.left = '';
-                    this.widgetButtonWrapper.style.display = '';
+                    if (this.widgetLoaded && !this.hideLauncher) {
+                        this.widgetButtonWrapper.style.display = '';
+                    }
 
                     if (this.isExpanded) {
                         this.iframe.style.width = this.EXPANDED_WIDTH;
@@ -424,7 +434,9 @@
                 this.iframe.style.display = 'none';
                 this.isChatVisible = false;
                 this.toggleButton.style.transform = 'scale(1)';
-                this.widgetButtonWrapper.style.display = '';
+                if (this.widgetLoaded && !this.hideLauncher) {
+                    this.widgetButtonWrapper.style.display = '';
+                }
 
                 if (this.defaultIcon) this.defaultIcon.style.display = 'block';
                 this.arrowIcon.style.display = 'none';

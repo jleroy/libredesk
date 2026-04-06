@@ -42,15 +42,19 @@ onMounted(() => {
   window.parent.postMessage({ type: 'VUE_APP_READY' }, '*')
 })
 
+const signalWidgetLoaded = () => {
+  window.parent.postMessage({ type: 'WIDGET_LOADED' }, '*')
+}
+
 const fetchInitialConversations = async () => {
-  if (widgetStore.config?.direct_to_conversation) {
-    const success = await chatStore.fetchConversations()
-    if (success && chatStore.hasConversations) {
+  const success = await chatStore.fetchConversations()
+  if (success && chatStore.hasConversations) {
+    try {
       await chatStore.loadConversation(chatStore.getConversations[0].uuid)
-    }
-    if (success) widgetStore.navigateToChat()
-  } else {
-    await chatStore.fetchConversations()
+    } catch { /* non-blocking */ }
+  }
+  if (widgetStore.config?.direct_to_conversation && success) {
+    widgetStore.navigateToChat()
   }
 }
 
@@ -70,23 +74,27 @@ const setupParentMessageListeners = () => {
         initVisitorToken(event.data.visitorToken)
       }
       const sessionToken = event.data.sessionToken
-      if (sessionToken) {
-        userStore.setSessionToken(sessionToken)
-        setApiSessionToken(sessionToken)
-        // Fetch user metadata for returning visitors.
-        // Guard against stale response if SET_JWT_TOKEN exchange replaced the token.
-        try {
-          const meResp = await api.getAuthMe()
-          if (userStore.userSessionToken === sessionToken) {
-            userStore.setUserMeta(meResp.data.data)
-          }
-        } catch {
-          if (userStore.userSessionToken === sessionToken) {
-            userStore.clearSessionToken()
+      try {
+        if (sessionToken) {
+          userStore.setSessionToken(sessionToken)
+          setApiSessionToken(sessionToken)
+          // Fetch user metadata for returning visitors.
+          // Guard against stale response if SET_JWT_TOKEN exchange replaced the token.
+          try {
+            const meResp = await api.getAuthMe()
+            if (userStore.userSessionToken === sessionToken) {
+              userStore.setUserMeta(meResp.data.data)
+            }
+          } catch {
+            if (userStore.userSessionToken === sessionToken) {
+              userStore.clearSessionToken()
+            }
           }
         }
+        await fetchInitialConversations()
+      } finally {
+        signalWidgetLoaded()
       }
-      fetchInitialConversations()
     } else if (event.data.type === 'SET_JWT_TOKEN') {
       if (event.data.jwt) {
         try {
@@ -94,13 +102,11 @@ const setupParentMessageListeners = () => {
           const { session_token, user } = resp.data.data
           establishSession(session_token, user, userStore)
           chatStore.conversations = null
-          chatStore.fetchConversations().then(() => {
-            if (widgetStore.config?.direct_to_conversation && chatStore.hasConversations) {
-              chatStore.loadConversation(chatStore.getConversations[0].uuid)
-            }
-          })
+          await fetchInitialConversations()
         } catch (err) {
           console.error('Failed to exchange JWT for session:', err)
+        } finally {
+          signalWidgetLoaded()
         }
       }
     } else if (event.data.type === 'CLEAR_SESSION') {
