@@ -280,7 +280,9 @@ watch(
       currentConversationUUID.value = currentConvUUID
       unreadMessages.value = 0
       scrollToBottom()
-      chatStore.updateCurrentConversationLastSeen()
+      if (widgetStore.isOpen && !chatStore.isLoadingConversation) {
+        chatStore.updateCurrentConversationLastSeen()
+      }
       return
     }
 
@@ -315,7 +317,7 @@ watch(
       scrollToBottom()
     }
   },
-  { deep: true }
+  { deep: true, immediate: true }
 )
 
 // Watch for typing indicator and auto-scroll if user is at bottom
