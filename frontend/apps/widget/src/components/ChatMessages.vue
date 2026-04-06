@@ -1,11 +1,7 @@
 <template>
   <div class="flex flex-col relative flex-1 min-h-0">
     <!-- Loading conversation overlay -->
-    <div
-      v-if="isLoadingConversation"
-      class="absolute inset-0 bg-background z-10"
-      role="status"
-    >
+    <div v-if="isLoadingConversation" class="absolute inset-0 bg-background z-10" role="status">
       <Spinner size="md" :text="$t('globals.terms.loading')" absolute />
     </div>
     <div
@@ -145,7 +141,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
-import { useDocumentVisibility } from '@vueuse/core'
+import { useDocumentVisibility, useDebounceFn } from '@vueuse/core'
 import { useWidgetStore } from '../store/widget.js'
 import { useChatStore } from '../store/chat.js'
 import { useRelativeTime } from '@widget/composables/useRelativeTime.js'
@@ -248,10 +244,16 @@ const scrollToBottom = () => {
   })
 }
 
+// Debounced version for tab-switch and widget-open triggers only.
+// New message and conversation switch call the store function directly.
+const debouncedUpdateLastSeen = useDebounceFn(() => {
+  chatStore.updateCurrentConversationLastSeen()
+}, 2000)
+
 const visibility = useDocumentVisibility()
 watch(visibility, (state) => {
   if (state === 'visible' && widgetStore.isOpen && chatStore.currentConversation?.uuid) {
-    chatStore.updateCurrentConversationLastSeen()
+    debouncedUpdateLastSeen()
   }
 })
 

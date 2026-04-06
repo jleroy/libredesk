@@ -1,6 +1,6 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useUserStore } from '@main/stores/user'
-import { useStorage, useDebounceFn } from '@vueuse/core'
+import { useStorage, useDebounceFn, useThrottleFn } from '@vueuse/core'
 
 export function useIdleDetection () {
     const userStore = useUserStore()
@@ -10,7 +10,7 @@ export function useIdleDetection () {
     const lastActivity = useStorage('last_active', Date.now())
     const timer = ref(null)
 
-    const goOnline = useDebounceFn(() => {
+    const goOnline = useThrottleFn(() => {
         if (userStore.user.availability_status === 'away' || userStore.user.availability_status === 'offline') {
             userStore.updateUserAvailability('online', false)
         }
