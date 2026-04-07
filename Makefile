@@ -51,7 +51,7 @@ frontend-build-widget: install-deps
 .PHONY: run-backend
 run-backend:
 	@echo "→ Running backend..."
-	CGO_ENABLED=0 go run -ldflags="-s -w -X 'main.buildString=${BUILDSTR}' -X 'main.versionString=${VERSION}' -X 'github.com/abhinavxd/libredesk/internal/version.Version=${VERSION}' -X 'main.frontendDir=frontend/dist'" cmd/*.go
+	CGO_ENABLED=0 go run -ldflags="-s -w -X 'main.buildString=${BUILDSTR}' -X 'main.versionString=${VERSION}' -X 'github.com/abhinavxd/libredesk/internal/version.Version=${VERSION}' -X 'main.frontendDir=frontend/dist'" ./cmd/
 
 # Run the JS frontend server in development mode (main app only).
 .PHONY: run-frontend

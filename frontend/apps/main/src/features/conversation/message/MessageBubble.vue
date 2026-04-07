@@ -148,11 +148,9 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useConversationStore } from '@main/stores/conversation'
-import { useAppSettingsStore } from '@main/stores/appSettings'
 import { useUserStore } from '@main/stores/user'
 import { useI18n } from 'vue-i18n'
-import { Lock, Mail, RotateCcw, Check, Info } from 'lucide-vue-next'
-import { revertCIDToImageSrc } from '@shared-ui/utils/string.js'
+import { Lock, Mail, RotateCcw, Check } from 'lucide-vue-next'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import { formatMessageTimestamp, formatFullTimestamp } from '@shared-ui/utils/datetime.js'
@@ -173,18 +171,10 @@ const props = defineProps({
 })
 
 const convStore = useConversationStore()
-const settingsStore = useAppSettingsStore()
 const { t } = useI18n()
 const userStore = useUserStore()
 
 const isSystemUser = computed(() => props.message.author?.email === 'System')
-const isParticipant = computed(() => {
-  if (isOutgoing.value || props.message.sender_type !== 'contact') return false
-  const fromEmail = props.message.meta?.from?.[0]
-  const contactEmail = convStore.current?.contact?.email
-  if (!fromEmail || !contactEmail) return false
-  return fromEmail.toLowerCase() !== contactEmail.toLowerCase()
-})
 const canManageUsers = computed(() => !isSystemUser.value && userStore.can('users:manage'))
 
 // Direction helpers
@@ -209,25 +199,11 @@ const avatarFallback = computed(() => {
   return firstName.toUpperCase().substring(0, 2)
 })
 
-// Content sanitization - different processing for incoming vs outgoing
 const sanitizedContent = computed(() => {
   if (props.message.meta?.is_csat) {
     return t('globals.messages.pleaseRateConversation')
   }
-
-  let content = props.message.content || ''
-
-  if (isOutgoing.value) {
-    return revertCIDToImageSrc(content)
-  } else {
-    const baseUrl = settingsStore.settings['app.root_url']
-    content = props.message.attachments.reduce(
-      (acc, { content_id, url }) => acc.replace(new RegExp(`cid:${content_id}`, 'g'), url),
-      content
-    )
-    content = content.replace(/src="\/uploads\//g, `src="${baseUrl}/uploads/`)
-    return content
-  }
+  return props.message.content || ''
 })
 
 const nonInlineAttachments = computed(() =>

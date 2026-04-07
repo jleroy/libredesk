@@ -64,6 +64,7 @@ func handleGetMessages(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
+	rootURL, _ := app.setting.GetAppRootURL()
 	for i := range messages {
 		total = messages[i].Total
 		// Populate attachment URLs
@@ -71,6 +72,7 @@ func handleGetMessages(r *fastglue.Request) error {
 			att := messages[i].Attachments[j]
 			messages[i].Attachments[j].URL = app.media.GetURL(att.UUID, att.ContentType, att.Name)
 		}
+		resolveContentCIDs(&messages[i], rootURL)
 	}
 
 	// Process CSAT status for all messages (will only affect CSAT messages)
@@ -114,10 +116,12 @@ func handleGetMessage(r *fastglue.Request) error {
 	app.conversation.ProcessCSATStatus(messages)
 	message = messages[0]
 
+	rootURL, _ := app.setting.GetAppRootURL()
 	for j := range message.Attachments {
 		att := message.Attachments[j]
 		message.Attachments[j].URL = app.media.GetURL(att.UUID, att.ContentType, att.Name)
 	}
+	resolveContentCIDs(&message, rootURL)
 
 	return r.SendEnvelope(message)
 }
@@ -261,4 +265,18 @@ func handleSendMessage(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	return r.SendEnvelope(message)
+}
+
+// resolveContentCIDs replaces inline image cid: references in email message content
+// with actual attachment URLs and resolves relative /uploads/ paths to absolute URLs.
+func resolveContentCIDs(msg *cmodels.Message, rootURL string) {
+	for _, att := range msg.Attachments {
+		if att.ContentID != "" && att.URL != "" {
+			msg.Content = strings.ReplaceAll(msg.Content, "cid:"+att.ContentID, att.URL)
+		}
+	}
+	if rootURL != "" {
+		msg.Content = strings.ReplaceAll(msg.Content, `src="/uploads/`, `src="`+rootURL+`/uploads/`)
+		msg.Content = strings.ReplaceAll(msg.Content, `src='/uploads/`, `src='`+rootURL+`/uploads/`)
+	}
 }
