@@ -393,8 +393,8 @@ SELECT
     inb.name as inbox_name
 FROM conversations c
     JOIN inboxes inb ON c.inbox_id = inb.id 
-WHERE assigned_user_id IS NULL AND assigned_team_id IS NOT NULL;
-
+WHERE assigned_user_id IS NULL AND assigned_team_id IS NOT NULL
+ORDER BY c.created_at ASC;
 
 -- name: add-conversation-tags
 -- Insert new tags
