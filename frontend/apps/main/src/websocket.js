@@ -66,22 +66,19 @@ export class WebSocketClient {
       const handlers = {
         // On new message, refresh list and fetch message if it's in current conversation.
         [WS_EVENT.NEW_MESSAGE]: () => {
-          this.convStore.refreshConversationList()
-          this.convStore.updateConversationMessage(data.data)
-
-          // Play notification sound for incoming contact messages that appear
-          // in the agent's conversation list and are not currently being viewed.
           const isFromContact = data.data.sender_type === 'contact'
-          const isViewingConversation = this.convStore.conversation.data?.uuid === data.data.conversation_uuid
-          if (isFromContact && (!isViewingConversation || document.hidden)) {
-            if (this.convStore.isConversationInList(data.data.conversation_uuid)) {
+          if (isFromContact) {
+            if (document.hidden) {
+              // Tab is not visible - always play sound.
               playNotificationSound()
-            } else {
-              // New conversation not in list yet (debounced refresh pending).
-              // Store UUID so sound plays when refresh completes and it appears.
+            } else if (!this.convStore.isConversationInList(data.data.conversation_uuid)) {
+              // Tab is visible - only play for new conversations via deferred check.
               this.convStore.addPendingNotification(data.data.conversation_uuid)
             }
           }
+
+          this.convStore.refreshConversationList()
+          this.convStore.updateConversationMessage(data.data)
         },
         // Property updates for conversation and message.
         [WS_EVENT.MESSAGE_UPDATE]: () => this.convStore.mergeMessageUpdate(data.data),
