@@ -89,6 +89,14 @@
         });
     });
 
+    // Pre-select from ?rating= query param (e.g. from email rating links).
+    var params = new URLSearchParams(window.location.search);
+    var initial = params.get('rating');
+    if (initial) {
+        var radio = document.getElementById('rating-' + initial);
+        if (radio) radio.checked = true;
+    }
+
     // Stagger entrance animation
     document.querySelectorAll('.rating-option').forEach(function(el, i) {
         el.style.animationDelay = (i * 0.06) + 's';

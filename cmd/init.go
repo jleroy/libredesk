@@ -137,6 +137,7 @@ func initFlags() {
 	f.Bool("yes", false, "skip confirmation prompt")
 	f.Bool("upgrade", false, "upgrade the database schema")
 	f.Bool("set-system-user-password", false, "set password for the system user")
+	f.String("static-dir", "", "path to a directory with custom static files and templates to override the defaults")
 
 	if err := f.Parse(os.Args[1:]); err != nil {
 		log.Fatalf("loading flags: %v", err)
@@ -160,8 +161,16 @@ func initConstants() *constants {
 	}
 }
 
-// initFS initializes the stuffbin FileSystem.
-func initFS() stuffbin.FileSystem {
+// initFS initializes the stuffbin FileSystem. If staticDir is set, files from
+// that directory are merged into the FS, overriding embedded defaults.
+func initFS(staticDir string) stuffbin.FileSystem {
+	// Paths in the custom static dir that map to stuffbin virtual paths.
+	staticFiles := []string{
+		"./static:static/public/static",
+		"./web-templates:static/public/web-templates",
+		"./email-templates:static/email-templates",
+	}
+
 	// Get self executable path.
 	path, err := os.Executable()
 	if err != nil {
@@ -190,7 +199,41 @@ func initFS() stuffbin.FileSystem {
 			log.Fatalf("error initializing FS: %v", err)
 		}
 	}
+
+	// Merge custom static files if a custom static dir is provided.
+	if staticDir != "" {
+		// Only include paths that exist in the custom dir.
+		var sf []string
+		for _, def := range staticFiles {
+			src := strings.Split(def, ":")[0]
+			if _, err := os.Stat(filepath.Join(staticDir, src)); err == nil {
+				sf = append(sf, def)
+			}
+		}
+
+		if len(sf) > 0 {
+			files := joinFSPaths(staticDir, sf)
+			fLocal, err := stuffbin.NewLocalFS("/", files...)
+			if err != nil {
+				log.Fatalf("error loading custom static files from '%s': %v", staticDir, err)
+			}
+			if err := fs.Merge(fLocal); err != nil {
+				log.Fatalf("error merging custom static files from '%s': %v", staticDir, err)
+			}
+		}
+	}
+
 	return fs
+}
+
+// joinFSPaths joins a root directory with stuffbin path specs (local:virtual).
+func joinFSPaths(root string, paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		f := strings.Split(p, ":")
+		out = append(out, filepath.Join(root, f[0])+":"+f[1])
+	}
+	return out
 }
 
 // loadSettings loads settings from the DB into Koanf map.
@@ -363,6 +406,22 @@ func initWS(user *user.Manager) *ws.Hub {
 	return ws.NewHub(user)
 }
 
+// getCustomStaticDir returns the custom static directory path from CLI flag or config.
+func getCustomStaticDir() string {
+	dir := ko.String("static-dir")
+	if dir == "" {
+		dir = ko.String("app.static_dir")
+	}
+	if dir == "" {
+		return ""
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	return abs
+}
+
 // initTemplates inits template manager.
 func initTemplate(db *sqlx.DB, fs stuffbin.FileSystem, consts *constants, i18n *i18n.I18n) *tmpl.Manager {
 	var (
@@ -377,6 +436,7 @@ func initTemplate(db *sqlx.DB, fs stuffbin.FileSystem, consts *constants, i18n *
 	if err != nil {
 		log.Fatalf("error parsing web templates: %v", err)
 	}
+
 	m, err := tmpl.New(lo, db, webTpls, tpls, funcMap, i18n)
 	if err != nil {
 		log.Fatalf("error initializing template manager: %v", err)
@@ -450,6 +510,7 @@ func reloadTemplates(app *App) error {
 		app.lo.Error("error parsing web templates", "error", err)
 		return err
 	}
+
 	return app.tmpl.Reload(webTpls, tpls, funcMap)
 }
 

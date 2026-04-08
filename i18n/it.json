@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "Impossibile eliminare lo stato come è in uso, Si prega di rimuovere questo stato da tutte le conversazioni prima di eliminare",
   "conversationStatus.cannotUpdateDefault": "Impossibile aggiornare lo stato predefinito della conversazione",
   "csat.alreadySubmitted": "Questionario già inviato",
+  "csat.pleaseFillRequired": "Fornisci una valutazione o un feedback.",
   "csat.pageTitle": "Valuta la tua interazione con noi",
   "csat.rateYourInteraction": "Valuta la tua interazione recente",
   "csat.thankYouMessage": "Apprezziamo il tempo necessario per inviare il tuo feedback.",

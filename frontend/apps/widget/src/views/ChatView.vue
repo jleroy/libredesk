@@ -34,7 +34,6 @@ import { useWidgetStore } from '../store/widget.js'
 import { useUserStore } from '../store/user.js'
 import { useChatStore } from '../store/chat.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
-import { convertTextToHtml } from '@shared-ui/utils/string.js'
 import api, { establishSession } from '@widget/api/index.js'
 import WidgetError from '@widget/components/WidgetError.vue'
 import ChatHeader from '@widget/components/ChatHeader.vue'
@@ -105,7 +104,7 @@ const handlePreChatFormSubmit = async ({ formData, message }) => {
 
   try {
     const payload = {
-      message: convertTextToHtml(message)
+      message: message
     }
 
     if (Object.keys(formData).length > 0) {

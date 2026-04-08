@@ -14,7 +14,7 @@
       </FormItem>
     </FormField>
 
-    <FormField v-slot="{ componentField }" name="subject" v-if="!isOutgoingTemplate">
+    <FormField v-slot="{ componentField }" name="subject" v-if="!hideSubject">
       <FormItem>
         <FormLabel>{{ $t('globals.terms.subject') }}</FormLabel>
         <FormControl>
@@ -115,6 +115,10 @@ const onSubmit = form.handleSubmit((values) => {
 
 const isOutgoingTemplate = computed(() => {
   return props.initialValues?.type === 'email_outgoing'
+})
+
+const hideSubject = computed(() => {
+  return isOutgoingTemplate.value || props.initialValues?.name === 'CSAT request'
 })
 
 // Watch for changes in initialValues and update the form.

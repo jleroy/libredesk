@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
@@ -12,8 +13,12 @@ type csatResponse struct {
 	Rating   int    `json:"rating"`
 	Feedback string `json:"feedback"`
 }
+
 const (
 	maxCsatFeedbackLength = 1000
+	maxCsatMetaKeys       = 100
+	maxCsatMetaKeyLength  = 100
+	maxCsatMetaValLength  = 1000
 )
 
 // handleShowCSAT renders the CSAT page for a given csat.
@@ -67,43 +72,20 @@ func handleShowCSAT(r *fastglue.Request) error {
 // handleUpdateCSATResponse updates the CSAT response for a given csat.
 func handleUpdateCSATResponse(r *fastglue.Request) error {
 	var (
-		app      = r.Context.(*App)
-		uuid     = r.RequestCtx.UserValue("uuid").(string)
-		rating   = r.RequestCtx.FormValue("rating")
-		feedback = string(r.RequestCtx.FormValue("feedback"))
+		app  = r.Context.(*App)
+		uuid = r.RequestCtx.UserValue("uuid").(string)
 	)
 
-	ratingI, err := strconv.Atoi(string(rating))
-	if err != nil {
+	rating, feedback, metaJSON, errKey := validateCSATForm(r)
+	if errKey != "" {
 		return app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
 			"Data": map[string]interface{}{
-				"ErrorMessage": app.i18n.T("globals.messages.somethingWentWrong"),
+				"ErrorMessage": app.i18n.T(errKey),
 			},
 		})
 	}
 
-	if ratingI < 0 || ratingI > 5 {
-		return app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
-			"Data": map[string]interface{}{
-				"ErrorMessage": app.i18n.T("globals.messages.somethingWentWrong"),
-			},
-		})
-	}
-
-	if uuid == "" {
-		return app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
-			"Data": map[string]interface{}{
-				"ErrorMessage": app.i18n.T("globals.messages.somethingWentWrong"),
-			},
-		})
-	}
-
-	// Trim feedback if it exceeds max length
-	if len(feedback) > maxCsatFeedbackLength {
-		feedback = feedback[:maxCsatFeedbackLength]
-	}
-
-	if err := app.csat.UpdateResponse(uuid, ratingI, feedback); err != nil {
+	if err := app.csat.UpdateResponse(uuid, rating, feedback, metaJSON); err != nil {
 		return app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
 			"Data": map[string]interface{}{
 				"ErrorMessage": err.Error(),
@@ -117,6 +99,62 @@ func handleUpdateCSATResponse(r *fastglue.Request) error {
 			"Message": app.i18n.T("csat.thankYouMessage"),
 		},
 	})
+}
+
+// validateCSATForm parses and validates the CSAT form submission.
+// Returns rating (0 if not provided), trimmed feedback, meta JSON, and error message key if invalid.
+func validateCSATForm(r *fastglue.Request) (int, string, json.RawMessage, string) {
+	var (
+		feedback = string(r.RequestCtx.FormValue("feedback"))
+		rating   int
+	)
+
+	// Rating is optional (0 = not provided). If provided, must be 1-5.
+	if rs := string(r.RequestCtx.FormValue("rating")); rs != "" {
+		v, err := strconv.Atoi(rs)
+		if err != nil || v < 1 || v > 5 {
+			return 0, "", nil, "globals.messages.somethingWentWrong"
+		}
+		rating = v
+	}
+
+	// At least one of rating or feedback must be provided.
+	if rating == 0 && feedback == "" {
+		return 0, "", nil, "csat.pleaseFillRequired"
+	}
+
+	if len(feedback) > maxCsatFeedbackLength {
+		feedback = feedback[:maxCsatFeedbackLength]
+	}
+
+	// Collect extra form fields into meta, skipping the known fields.
+	meta := make(map[string]string)
+	r.RequestCtx.PostArgs().VisitAll(func(key, value []byte) {
+		k := string(key)
+		if k == "rating" || k == "feedback" {
+			return
+		}
+		if len(meta) >= maxCsatMetaKeys {
+			return
+		}
+		if len(k) > maxCsatMetaKeyLength {
+			k = k[:maxCsatMetaKeyLength]
+		}
+		v := string(value)
+		if len(v) > maxCsatMetaValLength {
+			v = v[:maxCsatMetaValLength]
+		}
+		meta[k] = v
+	})
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		app := r.Context.(*App)
+		app.lo.Error("error marshalling CSAT meta", "error", err)
+		metaJSON = []byte(`{}`)
+	}
+
+	return rating, feedback, metaJSON, ""
 }
 
 // handleSubmitCSATResponse handles CSAT response submission from the widget API.
@@ -150,7 +188,7 @@ func handleSubmitCSATResponse(r *fastglue.Request) error {
 	}
 
 	// Update CSAT response
-	if err := app.csat.UpdateResponse(uuid, req.Rating, req.Feedback); err != nil {
+	if err := app.csat.UpdateResponse(uuid, req.Rating, req.Feedback, nil); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 

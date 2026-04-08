@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "Kan ikke slette status, da den er i brug. Fjern denne status fra alle samtaler inden sletning",
   "conversationStatus.cannotUpdateDefault": "Kan ikke opdatere standard samtalestatus",
   "csat.alreadySubmitted": "CSAT allerede indsendt",
+  "csat.pleaseFillRequired": "Angiv venligst en bedømmelse eller feedback.",
   "csat.pageTitle": "Bedøm interaktionen med os",
   "csat.rateYourInteraction": "Bedøm den seneste interaktion",
   "csat.thankYouMessage": "Vi sætter pris på, at brugere tager sig tid til at indsende feedback.",

@@ -137,7 +137,16 @@ func main() {
 	// Load the config files into Koanf.
 	initConfig(ko)
 
-	fs := initFS()
+	// Validate custom static directory if provided.
+	if dir := getCustomStaticDir(); dir != "" {
+		if _, err := os.Stat(dir); err != nil {
+			log.Fatalf("--static-dir path not accessible: %s: %v", dir, err)
+		}
+		colorlog.Green("Using custom static directory: %s", dir)
+	}
+
+	// Init stuffbin fs with optional custom static dir overlay.
+	fs := initFS(getCustomStaticDir())
 
 	db := initDB()
 
@@ -253,6 +262,7 @@ func main() {
 		inbox:            inbox,
 		user:             user,
 		team:             team,
+		csat:             csat,
 		status:           status,
 		priority:         priority,
 		tmpl:             template,
@@ -266,7 +276,6 @@ func main() {
 		authz:            initAuthz(i18n),
 		view:             initView(db, i18n),
 		report:           initReport(db, i18n),
-		csat:             initCSAT(db, i18n),
 		search:           initSearch(db, i18n),
 		role:             initRole(db, i18n),
 		tag:              initTag(db, i18n),

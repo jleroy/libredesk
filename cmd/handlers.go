@@ -360,11 +360,10 @@ func serveWidgetIndexPage(r *fastglue.Request) error {
 	return nil
 }
 
-// serveStaticFiles serves static assets from the embedded filesystem.
+// serveStaticFiles serves static assets from the filesystem.
 func serveStaticFiles(r *fastglue.Request) error {
 	app := r.Context.(*App)
 
-	// Get the requested file path.
 	filePath := string(r.RequestCtx.Path())
 
 	file, err := app.fs.Get(filePath)
@@ -372,7 +371,6 @@ func serveStaticFiles(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
-	// Set the appropriate Content-Type based on the file extension.
 	ext := filepath.Ext(filePath)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {

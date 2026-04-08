@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "このステータスは使用中のため削除できません。削除する前に、すべての会話からこのステータスを削除してください",
   "conversationStatus.cannotUpdateDefault": "デフォルトの会話ステータスは更新できません",
   "csat.alreadySubmitted": "CSAT はすでに送信されました",
+  "csat.pleaseFillRequired": "評価またはフィードバックを入力してください。",
   "csat.pageTitle": "サポート対応の評価をお願いします",
   "csat.rateYourInteraction": "最近の対応を評価してください",
   "csat.thankYouMessage": "ご意見をお寄せいただき、ありがとうございます。",

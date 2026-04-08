@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "Cannot delete status as it is in use, Please remove this status from all conversations before deleting",
   "conversationStatus.cannotUpdateDefault": "Cannot update default conversation status",
   "csat.alreadySubmitted": "CSAT already submitted",
+  "csat.pleaseFillRequired": "Please provide a rating or feedback.",
   "csat.pageTitle": "Rate your interaction with us",
   "csat.rateYourInteraction": "Rate your recent interaction",
   "csat.thankYouMessage": "We appreciate you taking the time to submit your feedback.",

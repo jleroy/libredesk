@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "Impossible de supprimer le statut car il est en cours d'utilisation. Veuillez supprimer ce statut de toutes les conversations avant de le supprimer",
   "conversationStatus.cannotUpdateDefault": "Impossible de mettre à jour l'état de la conversation par défaut",
   "csat.alreadySubmitted": "CSAT déjà soumis",
+  "csat.pleaseFillRequired": "Veuillez fournir une note ou un commentaire.",
   "csat.pageTitle": "Noter votre interaction avec nous",
   "csat.rateYourInteraction": "Évaluez votre récente interaction",
   "csat.thankYouMessage": "Nous vous remercions de prendre le temps de nous faire part de vos commentaires.",

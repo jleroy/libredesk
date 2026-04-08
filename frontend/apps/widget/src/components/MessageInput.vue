@@ -59,7 +59,6 @@ import { useChatStore } from '../store/chat.js'
 import { useUserStore } from '@widget/store/user.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { sendWidgetTyping } from '../websocket.js'
-import { convertTextToHtml } from '@shared-ui/utils/string.js'
 import { useTypingIndicator } from '@shared-ui/composables/useTypingIndicator.js'
 import MessageInputActions from './MessageInputActions.vue'
 import api, { establishSession } from '@widget/api/index.js'
@@ -138,7 +137,7 @@ const sendMessage = async () => {
   stopTyping()
 
   // Convert text to HTML.
-  const messageText = convertTextToHtml(newMessage.value.trim())
+  const messageText = newMessage.value.trim()
 
   // Clear input field immediately
   newMessage.value = ''

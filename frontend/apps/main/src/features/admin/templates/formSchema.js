@@ -13,7 +13,7 @@ export const createFormSchema = (t) => z
     is_default: z.boolean().optional().default(false),
   })
   .superRefine((data, ctx) => {
-    if (data.type !== 'email_outgoing' && !data.subject) {
+    if (data.type !== 'email_outgoing' && data.name !== 'CSAT request' && !data.subject) {
       ctx.addIssue({
         path: ['subject'],
         message: t('globals.messages.required'),

@@ -547,8 +547,12 @@ func (m *Manager) InsertMessage(message *models.Message) error {
 		message.ContentType = models.ContentTypeText
 	}
 
-	// Convert HTML content to text for search.
-	message.TextContent = stringutil.HTML2Text(message.Content)
+	// Convert content to plain text for search.
+	if message.ContentType == models.ContentTypeText {
+		message.TextContent = message.Content
+	} else {
+		message.TextContent = stringutil.HTML2Text(message.Content)
+	}
 
 	// Insert Message.
 	if err := m.q.InsertMessage.Get(message, message.Type, message.Status, message.ConversationID, message.ConversationUUID, message.Content, message.TextContent, message.SenderID, message.SenderType,

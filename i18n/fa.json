@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "نمی‌توان وضعیت را حذف کرد زیرا در حال استفاده است، لطفاً قبل از حذف، این وضعیت را از تمام مکالمات حذف کنید",
   "conversationStatus.cannotUpdateDefault": "نمی‌توان وضعیت پیش‌فرض مکالمه را به‌روزرسانی کرد",
   "csat.alreadySubmitted": "نظرسنجی CSAT قبلاً ارسال شده است",
+  "csat.pleaseFillRequired": "لطفا یک امتیاز یا بازخورد ارائه دهید.",
   "csat.pageTitle": "تعامل خود با ما را امتیازدهی کنید",
   "csat.rateYourInteraction": "تعامل اخیر خود را ارزیابی کنید",
   "csat.thankYouMessage": "از اینکه وقت گذاشتید و بازخورد خود را ارسال کردید، قدردانی می‌کنیم.",

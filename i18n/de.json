@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "Status kann nicht gelöscht werden, da er gerade verwendet wird. Bitte entferne diesen Status von allen Konversationen bevor du ihn löschst",
   "conversationStatus.cannotUpdateDefault": "Standard Konversationsstatus kann nicht geändert werden",
   "csat.alreadySubmitted": "CSAT bereits übermittelt",
+  "csat.pleaseFillRequired": "Bitte geben Sie eine Bewertung oder ein Feedback ab.",
   "csat.pageTitle": "Bewerten Sie Ihre Interaktion mit uns",
   "csat.rateYourInteraction": "Kürzliche Interaktion bewerten",
   "csat.thankYouMessage": "Vielen Dank, dass Sie sich Zeit genommen haben Ihr Feedback zu übermitteln.",

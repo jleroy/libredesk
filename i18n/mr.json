@@ -497,6 +497,7 @@
   "conversationStatus.alreadyInUse": "वापरात असलेली स्थिती हटवू शकत नाही, कृपया ही स्थिती सर्व संभाषणांमधून काढा",
   "conversationStatus.cannotUpdateDefault": "डिफॉल्ट संभाषण स्थिती अद्ययावत करू शकत नाही",
   "csat.alreadySubmitted": "CSAT आधीच सबमिट केला आहे",
+  "csat.pleaseFillRequired": "कृपया रेटिंग किंवा अभिप्राय द्या.",
   "csat.pageTitle": "आमच्याशी असलेल्या तुमच्या संवादाला रेट करा",
   "csat.rateYourInteraction": "तुमच्या अलीकडील संवादाचे मूल्यांकन करा",
   "csat.thankYouMessage": "तुमचा अभिप्राय सबमिट केल्याबद्दल आम्ही कृतज्ञ आहोत.",

@@ -2,6 +2,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/volatiletech/null/v9"
@@ -9,12 +10,13 @@ import (
 
 // CSATResponse represents a customer satisfaction survey response.
 type CSATResponse struct {
-	ID                int         `db:"id"`
-	CreatedAt         time.Time   `db:"created_at"`
-	UpdatedAt         time.Time   `db:"updated_at"`
-	UUID              string      `db:"uuid"`
-	ConversationID    int         `db:"conversation_id"`
-	Rating            int         `db:"rating"`
-	Feedback          null.String `db:"feedback"`
-	ResponseTimestamp null.Time   `db:"response_timestamp"`
+	ID                int             `db:"id" json:"id"`
+	CreatedAt         time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt         time.Time       `db:"updated_at" json:"updated_at"`
+	UUID              string          `db:"uuid" json:"uuid"`
+	ConversationID    int             `db:"conversation_id" json:"conversation_id"`
+	Rating            int             `db:"rating" json:"rating"`
+	Feedback          null.String     `db:"feedback" json:"feedback"`
+	Meta              json.RawMessage `db:"meta" json:"meta"`
+	ResponseTimestamp null.Time       `db:"response_timestamp" json:"response_timestamp"`
 }

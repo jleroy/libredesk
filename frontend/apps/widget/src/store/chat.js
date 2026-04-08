@@ -76,6 +76,7 @@ export const useChatStore = defineStore('chat', () => {
         // Pending message is a temporary message that will be replaced with actual message later after sending.
         const pendingMessage = {
             content: messageText,
+            content_type: 'text',
             author: {
                 type: authorType,
                 id: authorId,

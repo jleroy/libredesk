@@ -57,8 +57,10 @@
             }
           ]"
         >
-          <!-- Message content rendered using vue-letter -->
+          <!-- Message content -->
+          <span v-if="message.content_type === 'text'" class="mb-1 whitespace-pre-wrap">{{ message.content }}</span>
           <Letter
+            v-else
             :html="message.content"
             :allowedSchemas="['cid', 'https', 'http', 'mailto']"
             class="mb-1 native-html"

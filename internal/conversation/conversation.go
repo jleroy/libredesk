@@ -50,7 +50,6 @@ var (
 	conversationsAllowedFields      = []string{"status_id", "priority_id", "assigned_team_id", "assigned_user_id", "inbox_id", "last_message_at", "last_interaction_at", "created_at", "waiting_since", "next_sla_deadline_at", "priority_id"}
 	conversationStatusAllowedFields = []string{"id", "name"}
 	usersAllowedFields              = []string{"email"}
-	csatReplyMessage                = "Please rate your experience with us: <a href=\"%s\">Rate now</a>"
 )
 
 const (
@@ -1342,7 +1341,20 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	csatPublicURL := m.csatStore.MakePublicURL(appRootURL, csat.UUID)
-	message := fmt.Sprintf(csatReplyMessage, csatPublicURL)
+
+	// Render CSAT email template.
+	data, err := m.BuildTemplateData(conversation.UUID, actorUserID)
+	if err != nil {
+		m.lo.Error("error building CSAT template data", "conversation_uuid", conversation.UUID, "error", err)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	data["CSATLink"] = csatPublicURL
+	message, err := m.template.RenderStoredTemplate(template.TmplCSATRequest, data)
+	if err != nil {
+		m.lo.Error("error rendering CSAT template", "conversation_uuid", conversation.UUID, "error", err)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+
 	// Store `is_csat` meta to identify and filter CSAT public url from the message.
 	meta := map[string]interface{}{
 		"is_csat":   true,
