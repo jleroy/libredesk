@@ -602,6 +602,8 @@
   "globals.messages.sendUsMessage": "برای ما پیام بفرستید",
   "globals.messages.sending": "در حال ارسال...",
   "globals.messages.setUp": "راه‌اندازی",
+  "globals.messages.smallScreenDescription": "لیبردسک برای صفحه‌نمایش‌های بزرگ‌تر طراحی شده است. برای بهترین تجربه، لطفا از دسکتاپ یا تبلت استفاده کنید.",
+  "globals.messages.smallScreenTitle": "برای بهترین تجربه به دسکتاپ بروید",
   "globals.messages.somethingWentWrong": "مشکلی پیش آمد",
   "globals.messages.startNewConversation": "شروع مکالمه جدید",
   "globals.messages.startTypingToSearch": "برای جستجو شروع به تایپ کنید...",

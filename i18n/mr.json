@@ -602,6 +602,8 @@
   "globals.messages.sendUsMessage": "आम्हाला संदेश पाठवा",
   "globals.messages.sending": "पाठवत आहे...",
   "globals.messages.setUp": "सेट अप करा",
+  "globals.messages.smallScreenDescription": "Libredesk मोठ्या स्क्रीनसाठी डिझाइन केले आहे. सर्वोत्तम अनुभवासाठी, कृपया डेस्कटॉप किंवा टॅबलेट वापरा.",
+  "globals.messages.smallScreenTitle": "सर्वोत्तम अनुभवासाठी डेस्कटॉपवर जा",
   "globals.messages.somethingWentWrong": "काहीतरी चुकले",
   "globals.messages.startNewConversation": "नवीन संभाषण सुरू करा",
   "globals.messages.startTypingToSearch": "शोधण्यासाठी टाइप करा...",

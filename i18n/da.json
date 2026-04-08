@@ -602,6 +602,8 @@
   "globals.messages.sendUsMessage": "Send os en besked",
   "globals.messages.sending": "Sender...",
   "globals.messages.setUp": "Opsæt",
+  "globals.messages.smallScreenDescription": "Libredesk er designet til større skærme. For den bedste oplevelse, brug venligst en computer eller tablet.",
+  "globals.messages.smallScreenTitle": "Skift til desktop for den bedste oplevelse",
   "globals.messages.somethingWentWrong": "Noget gik galt",
   "globals.messages.startNewConversation": "Start ny samtale",
   "globals.messages.startTypingToSearch": "Begynd at skrive for at søge...",

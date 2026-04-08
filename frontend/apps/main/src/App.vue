@@ -1,4 +1,6 @@
 <template>
+  <SmallScreenOverlay v-if="showSmallScreenOverlay" @dismiss="showSmallScreenOverlay = false" />
+
   <div class="flex w-full h-screen text-foreground bg-canvas p-1.5">
     <!-- Icon sidebar always visible -->
     <SidebarProvider style="--sidebar-width: 3rem" class="w-auto z-50">
@@ -153,6 +155,7 @@ import Sidebar from '@main/components/sidebar/Sidebar.vue'
 import Command from '@/features/command/CommandBox.vue'
 import CreateConversation from '@/features/conversation/CreateConversation.vue'
 import { Inbox, Shield, FileLineChart, BookUser } from 'lucide-vue-next'
+import SmallScreenOverlay from '@/components/SmallScreenOverlay.vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import {
@@ -173,6 +176,9 @@ import api from '@main/api'
 
 const route = useRoute()
 const emitter = useEmitter()
+
+// Small screen overlay - shown on each fresh load for screens < 768px.
+const showSmallScreenOverlay = ref(window.screen.width < 768)
 
 // Remember last inbox path so navigating back from admin/contacts/reports restores it
 const lastInboxPath = useStorage('lastInboxPath', '')

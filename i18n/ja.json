@@ -602,6 +602,8 @@
   "globals.messages.sendUsMessage": "メッセージを送信してください",
   "globals.messages.sending": "送信中...",
   "globals.messages.setUp": "設定",
+  "globals.messages.smallScreenDescription": "Libredeskは大きな画面向けに設計されています。最適な体験のために、デスクトップまたはタブレットをご利用ください。",
+  "globals.messages.smallScreenTitle": "最高の体験のためにデスクトップに切り替えてください",
   "globals.messages.somethingWentWrong": "エラーが発生しました",
   "globals.messages.startNewConversation": "新しい会話を開始",
   "globals.messages.startTypingToSearch": "入力を開始して検索…",

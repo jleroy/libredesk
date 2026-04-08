@@ -602,6 +602,8 @@
   "globals.messages.sendUsMessage": "Envíanos un mensaje",
   "globals.messages.sending": "Enviando...",
   "globals.messages.setUp": "Configurar",
+  "globals.messages.smallScreenDescription": "Libredesk está diseñado para pantallas más grandes. Para la mejor experiencia, utilice un escritorio o una tableta.",
+  "globals.messages.smallScreenTitle": "Cambia al escritorio para la mejor experiencia",
   "globals.messages.somethingWentWrong": "Algo salió mal",
   "globals.messages.startNewConversation": "Iniciar nueva conversación",
   "globals.messages.startTypingToSearch": "Comienza a escribir para buscar...",
