@@ -1,5 +1,5 @@
 <template>
-  <SmallScreenOverlay v-if="showSmallScreenOverlay" @dismiss="showSmallScreenOverlay = false" />
+  <SmallScreenOverlay v-if="showSmallScreenOverlay" @dismiss="dismissSmallScreen" />
 
   <div class="flex w-full h-screen text-foreground bg-canvas p-1.5">
     <!-- Icon sidebar always visible -->
@@ -177,8 +177,12 @@ import api from '@main/api'
 const route = useRoute()
 const emitter = useEmitter()
 
-// Small screen overlay - shown on each fresh load for screens < 768px.
-const showSmallScreenOverlay = ref(window.screen.width < 768)
+// Small screen overlay - shown once per session for screens < 768px.
+const showSmallScreenOverlay = ref(window.screen.width < 768 && !sessionStorage.getItem('smallScreenDismissed'))
+function dismissSmallScreen() {
+  sessionStorage.setItem('smallScreenDismissed', '1')
+  showSmallScreenOverlay.value = false
+}
 
 // Remember last inbox path so navigating back from admin/contacts/reports restores it
 const lastInboxPath = useStorage('lastInboxPath', '')
