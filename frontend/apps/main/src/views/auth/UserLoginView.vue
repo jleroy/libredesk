@@ -6,15 +6,15 @@
       id="login-container"
       ref="cardRef"
     >
-      <CardContent class="p-8 space-y-6">
-        <div class="space-y-2 text-center">
-          <CardTitle class="text-3xl font-bold text-foreground">
+      <CardContent class="p-6 space-y-5">
+        <div class="space-y-1 text-center">
+          <CardTitle class="text-2xl font-bold text-foreground">
             {{ appSettingsStore.public_config?.['app.site_name'] || 'LIBREDESK' }}
           </CardTitle>
-          <p class="text-muted-foreground">{{ t('auth.signIn') }}</p>
+          <p class="text-sm text-muted-foreground">{{ t('auth.signIn') }}</p>
         </div>
 
-        <div v-if="enabledOIDCProviders.length" class="space-y-4">
+        <div v-if="enabledOIDCProviders.length" class="space-y-3">
           <Button
             v-for="oidcProvider in enabledOIDCProviders"
             :key="oidcProvider.id"
@@ -42,7 +42,7 @@
           </div>
         </div>
 
-        <form @submit.prevent="loginAction" class="space-y-4">
+        <form @submit.prevent="loginAction" class="space-y-3">
           <div class="space-y-2">
             <Label for="email" >{{
               t('globals.terms.email')

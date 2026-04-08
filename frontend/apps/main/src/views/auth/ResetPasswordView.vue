@@ -1,15 +1,15 @@
 <template>
   <AuthLayout>
     <Card class="bg-card box">
-      <CardContent class="p-8 space-y-6">
-        <div class="space-y-2 text-center">
-          <CardTitle class="text-3xl font-bold text-foreground">{{
+      <CardContent class="p-6 space-y-5">
+        <div class="space-y-1 text-center">
+          <CardTitle class="text-2xl font-bold text-foreground">{{
             t('auth.resetPassword')
           }}</CardTitle>
-          <p class="text-muted-foreground">{{ t('auth.enterEmailForReset') }}</p>
+          <p class="text-sm text-muted-foreground">{{ t('auth.enterEmailForReset') }}</p>
         </div>
 
-        <form @submit.prevent="requestResetAction" class="space-y-4">
+        <form @submit.prevent="requestResetAction" class="space-y-3">
           <div class="space-y-2">
             <Label for="email">{{
               t('globals.terms.email')
