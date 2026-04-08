@@ -12,9 +12,7 @@
           <!-- Avatar -->
           <Avatar class="w-10 h-10 rounded-full">
             <AvatarImage
-              :src="
-                conversation.contact.avatar_url || getGravatarUrl(conversation.contact.email) || ''
-              "
+              :src="conversation.contact.avatar_url || ''"
               class="object-cover"
             />
             <AvatarFallback>
@@ -121,7 +119,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRelativeTime } from '@shared-ui/utils/datetime.js'
-import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
 import { Mail, MessageSquare, Reply, MailOpen } from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import {

@@ -155,7 +155,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/u
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import { formatMessageTimestamp, formatFullTimestamp } from '@shared-ui/utils/datetime.js'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
-import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
 import { Letter } from 'vue-letter'
 import MessageAttachmentPreview from '@main/features/conversation/message/attachment/MessageAttachmentPreview.vue'
 import MessageEnvelope from './MessageEnvelope.vue'
@@ -189,9 +188,7 @@ const getFullName = computed(() => {
 })
 
 const getAvatar = computed(() => {
-  if (props.message.author?.avatar_url) return props.message.author.avatar_url
-  if (props.message.author?.email) return getGravatarUrl(props.message.author.email)
-  return ''
+  return props.message.author?.avatar_url || ''
 })
 
 const avatarFallback = computed(() => {

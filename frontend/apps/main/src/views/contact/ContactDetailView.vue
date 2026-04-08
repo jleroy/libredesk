@@ -15,7 +15,7 @@
             <AvatarUpload
               @upload="onUpload"
               @remove="onRemove"
-              :src="contact.avatar_url || getGravatarUrl(contact.email)"
+              :src="contact.avatar_url || ''"
               :initials="getInitials"
               :label="t('globals.messages.upload')"
             />
@@ -120,7 +120,6 @@ import { createFormSchema } from '../../features/contact/formSchema.js'
 import { useEmitter } from '../../composables/useEmitter'
 import { EMITTER_EVENTS } from '../../constants/emitterEvents'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
-import { getGravatarUrl } from '@shared-ui/utils/gravatar.js'
 import { CustomBreadcrumb } from '@shared-ui/components/ui/breadcrumb'
 import { Spinner } from '@shared-ui/components/ui/spinner'
 
