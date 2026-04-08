@@ -8,48 +8,55 @@
           'bg-accent/60': conversation.uuid === currentConversation?.uuid
         }"
       >
-        <div class="flex items-start gap-3">
-          <!-- Avatar -->
-          <Avatar class="w-10 h-10 rounded-full">
-            <AvatarImage
-              :src="conversation.contact.avatar_url || ''"
-              class="object-cover"
-            />
-            <AvatarFallback>
-              {{ conversation.contact.first_name.substring(0, 2).toUpperCase() }}
-            </AvatarFallback>
-          </Avatar>
+        <div class="flex items-start gap-2">
+          <!-- Avatar with channel indicator -->
+          <div class="relative flex-shrink-0">
+            <Avatar class="w-10 h-10 rounded-full">
+              <AvatarImage
+                :src="conversation.contact.avatar_url || ''"
+                class="object-cover"
+              />
+              <AvatarFallback>
+                {{ conversation.contact.first_name.substring(0, 2).toUpperCase() }}
+              </AvatarFallback>
+            </Avatar>
+            <span class="absolute -bottom-0.5 -right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-background border border-border">
+              <component :is="conversation.inbox_channel === 'livechat' ? MessageSquare : Mail" class="w-2.5 h-2.5 text-muted-foreground" />
+            </span>
+          </div>
 
           <!-- Content container -->
-          <div class="flex-1 min-w-0 space-y-1">
-            <!-- Row 1: Contact name + inbox + time -->
-            <div class="flex items-baseline justify-between gap-2">
-              <div class="flex items-baseline gap-1.5 min-w-0">
-                <h3 class="text-sm font-semibold truncate text-foreground">
-                  {{ contactFullName }}
-                </h3>
-                <span class="text-xs text-muted-foreground flex items-center gap-1 min-w-0">
-                  <component :is="conversation.inbox_channel === 'livechat' ? MessageSquare : Mail" class="w-3 h-3 flex-shrink-0" />
-                  <span class="truncate">{{ conversation.inbox_name }}</span>
+          <div class="flex-1 min-w-0 space-y-2">
+            <!-- Name + Subject group -->
+            <div>
+              <!-- Contact name + inbox + time -->
+              <div class="flex items-baseline justify-between gap-2">
+                <div class="flex items-baseline gap-1.5 min-w-0">
+                  <h3 class="text-sm font-semibold truncate text-foreground">
+                    {{ contactFullName }}
+                  </h3>
+                  <span class="text-xs text-muted-foreground truncate">
+                    {{ conversation.inbox_name }}
+                  </span>
+                </div>
+                <span
+                  class="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 tabular-nums"
+                  v-if="conversation.last_message_at"
+                >
+                  {{ relativeLastMessageTime }}
                 </span>
               </div>
-              <span
-                class="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 tabular-nums"
-                v-if="conversation.last_message_at"
+
+              <!-- Subject -->
+              <p
+                v-if="conversation.subject"
+                class="text-xs text-muted-foreground truncate"
               >
-                {{ relativeLastMessageTime }}
-              </span>
+                {{ conversation.subject }}
+              </p>
             </div>
 
-            <!-- Row 2: Subject -->
-            <p
-              v-if="conversation.subject"
-              class="text-xs text-muted-foreground truncate"
-            >
-              {{ conversation.subject }}
-            </p>
-
-            <!-- Row 3: Message preview + unread count -->
+            <!-- Message preview + unread count -->
             <div class="flex items-center justify-between gap-2">
               <p class="text-sm flex-1 min-w-0 truncate text-muted-foreground">
                 <template v-if="hasDraftForConversation">

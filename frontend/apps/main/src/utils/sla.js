@@ -20,12 +20,12 @@ export function calculateSla (dueAt, actualAt) {
         if (diffInMinutes >= 2880) {
             return {
                 status: 'remaining',
-                value: `${Math.floor(diffInMinutes / 1440)} days`
+                value: `${Math.floor(diffInMinutes / 1440)}d`
             }
         }
         return {
             status: 'remaining',
-            value: diffInMinutes < 60 ? `${diffInMinutes} mins` : `${Math.floor(diffInMinutes / 60)} hrs`
+            value: diffInMinutes < 60 ? `${diffInMinutes}m` : `${Math.floor(diffInMinutes / 60)}h`
         }
     }
 
@@ -38,11 +38,11 @@ export function calculateSla (dueAt, actualAt) {
     if (overdueMins >= 2880) {
         return {
             status,
-            value: `${Math.floor(overdueMins / 1440)} days`
+            value: `${Math.floor(overdueMins / 1440)}d`
         }
     }
     return {
         status,
-        value: overdueMins < 60 ? `${overdueMins} mins` : `${Math.floor(overdueMins / 60)} hrs`
+        value: overdueMins < 60 ? `${overdueMins}m` : `${Math.floor(overdueMins / 60)}h`
     }
 }
