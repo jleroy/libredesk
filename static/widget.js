@@ -25,6 +25,8 @@
             this.IFRAME_HEIGHT = '700px';
             this.EXPANDED_WIDTH = '750px';
             this.MOBILE_BREAKPOINT = 600;
+            this.LAUNCHER_SIZE = 60;
+            this.MOBILE_LAUNCHER_SIZE = 50;
 
             this.config = config;
             this.iframe = null;
@@ -156,8 +158,8 @@
                 position: fixed;
                 cursor: pointer;
                 z-index: 9999;
-                width: 60px;
-                height: 60px;
+                width: ${this.isMobile ? this.MOBILE_LAUNCHER_SIZE : this.LAUNCHER_SIZE}px;
+                height: ${this.isMobile ? this.MOBILE_LAUNCHER_SIZE : this.LAUNCHER_SIZE}px;
                 background-color: ${colors.primary};
                 border-radius: 50%;
                 display: flex;
@@ -266,10 +268,18 @@
 
         sendMobileState () {
             this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
+            this.updateLauncherSize();
             this.postToIframe({
                 type: 'SET_MOBILE_STATE',
                 isMobile: this.isMobile
             });
+        }
+
+        updateLauncherSize () {
+            if (!this.toggleButton) return;
+            const size = this.isMobile ? this.MOBILE_LAUNCHER_SIZE : this.LAUNCHER_SIZE;
+            this.toggleButton.style.width = size + 'px';
+            this.toggleButton.style.height = size + 'px';
         }
 
         sendPageInfo () {
