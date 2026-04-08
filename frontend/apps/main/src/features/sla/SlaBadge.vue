@@ -4,7 +4,7 @@
     <span v-if="sla?.status === 'overdue'" key="overdue" class="sla-badge sla-overdue">
       <AlertCircle size="12" class="shrink-0 text-red-600 dark:text-red-300" stroke-width="2" />
       <span class="sla-text">
-        <span v-if="!showExtra">{{ label }} {{ $t('globals.terms.overdue') }}</span>
+        <span v-if="!showExtra">{{ label }}</span>
         <span v-else>{{ label }} {{ $t('sla.overdueBy') }} {{ sla.value }} </span>
       </span>
     </span>
