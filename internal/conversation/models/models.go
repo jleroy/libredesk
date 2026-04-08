@@ -2,10 +2,10 @@ package models
 
 import (
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/attachment"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	mmodels "github.com/abhinavxd/libredesk/internal/media/models"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/lib/pq"
@@ -329,30 +329,20 @@ func (m *Message) HasCSAT() bool {
 	return isCsat
 }
 
-// ExtractCSATUUID extracts the CSAT UUID from the message content.
+// ExtractCSATUUID extracts the CSAT UUID from the message meta, falling back to URL parsing.
 func (m *Message) ExtractCSATUUID() string {
-	if _, isCsat := m.csatMeta(); !isCsat {
+	meta, isCsat := m.csatMeta()
+	if !isCsat {
 		return ""
 	}
 
-	// Extract UUID from the CSAT URL in the message content.
-	// Pattern: <a href="http://localhost:8000/csat/3b68fa67-ad1a-4c5b-87eb-b262c420f43f">
-	start := strings.Index(m.Content, "/csat/")
-	if start == -1 {
-		return ""
-	}
-	start += 6 // Skip "/csat/"
-
-	if len(m.Content) < start+36 {
-		return ""
-	}
-
-	uuid := m.Content[start : start+36]
-	// Basic validation - UUID should contain hyphens at positions 8, 13, 18, 23.
-	if uuid[8] == '-' && uuid[13] == '-' && uuid[18] == '-' && uuid[23] == '-' {
+	// Read from meta first.
+	if uuid, ok := meta["csat_uuid"].(string); ok && uuid != "" {
 		return uuid
 	}
-	return ""
+
+	// Fallback: extract UUID from the CSAT URL in the message content.
+	return stringutil.ExtractUUID(m.Content)
 }
 
 // CensorCSATContentWithStatus redacts the content and adds submission status for CSAT messages.
@@ -375,6 +365,19 @@ func (m *Message) CensorCSATContentWithStatus(csatSubmitted bool, csatUUID strin
 		meta["submitted_feedback"] = feedback
 	}
 
+	if updatedMeta, err := json.Marshal(meta); err == nil {
+		m.Meta = json.RawMessage(updatedMeta)
+	}
+}
+
+// StripCSATUUID removes the csat_uuid from the message meta.
+// Used to hide CSAT links from agent sessions while keeping them for API key callers.
+func (m *Message) StripCSATUUID() {
+	var meta map[string]any
+	if err := json.Unmarshal([]byte(m.Meta), &meta); err != nil {
+		return
+	}
+	delete(meta, "csat_uuid")
 	if updatedMeta, err := json.Marshal(meta); err == nil {
 		m.Meta = json.RawMessage(updatedMeta)
 	}

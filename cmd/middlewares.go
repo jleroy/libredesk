@@ -27,6 +27,7 @@ func authenticateUser(r *fastglue.Request, app *App) (models.User, error) {
 		if err != nil {
 			return user, err
 		}
+		r.RequestCtx.SetUserValue("auth_method", "api_key")
 		return user, nil
 	}
 
@@ -64,6 +65,7 @@ func authenticateUser(r *fastglue.Request, app *App) (models.User, error) {
 		return user, envelope.NewError(envelope.PermissionError, app.i18n.T("user.accountDisabled"), nil)
 	}
 
+	r.RequestCtx.SetUserValue("auth_method", "session")
 	return user, nil
 }
 
