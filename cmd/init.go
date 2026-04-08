@@ -164,11 +164,9 @@ func initConstants() *constants {
 // initFS initializes the stuffbin FileSystem. If staticDir is set, files from
 // that directory are merged into the FS, overriding embedded defaults.
 func initFS(staticDir string) stuffbin.FileSystem {
-	// Paths in the custom static dir that map to stuffbin virtual paths.
+	// Custom static dir mirrors the structure of the built-in static/ directory.
 	staticFiles := []string{
-		"./static:static/public/static",
-		"./web-templates:static/public/web-templates",
-		"./email-templates:static/email-templates",
+		"./:static",
 	}
 
 	// Get self executable path.
