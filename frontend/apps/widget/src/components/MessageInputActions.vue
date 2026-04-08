@@ -14,7 +14,7 @@
     <Button
       v-if="fileUploadEnabled && canUploadFiles"
       @click="triggerFileUpload"
-      :disabled="uploading"
+      :disabled="uploading || disabled"
       :aria-label="$t('globals.messages.attachFile')"
       variant="ghost"
       size="sm"
@@ -28,6 +28,7 @@
       <Button
         v-if="emojiEnabled"
         @click="toggleEmojiPicker"
+        :disabled="disabled"
         :class="{ 'bg-muted': isEmojiPickerVisible }"
         :title="$t('globals.messages.addEmoji')"
         :aria-label="$t('globals.messages.addEmoji')"
@@ -73,6 +74,10 @@ const props = defineProps({
   canUploadFiles: {
     type: Boolean,
     default: true
+  },
+  disabled: {
+    type: Boolean,
+    default: false
   }
 })
 

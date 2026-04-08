@@ -18,13 +18,14 @@
         </div>
 
         <!-- Actions and Send Button -->
-        <div class="flex justify-between items-center px-3 pb-2">
+        <div class="flex justify-between items-center px-2 pb-2">
           <!-- Message Input Actions (file upload + emoji) -->
           <MessageInputActions
             :fileUploadEnabled="config.features?.file_upload || false"
             :emojiEnabled="config.features?.emoji || false"
             :uploading="isUploading"
             :canUploadFiles="!!chatStore.currentConversation?.uuid"
+            :disabled="isSending"
             @fileUpload="handleFileUpload"
             @emojiSelect="handleEmojiSelect"
           />
@@ -37,11 +38,7 @@
             class="h-9 w-9 p-0 rounded-full disabled:opacity-50 disabled:cursor-not-allowed border-0"
             :disabled="!newMessage.trim() || isUploading || isSending"
           >
-            <div
-              v-if="isSending"
-              class="w-4 h-4 border border-background border-t-current rounded-full animate-spin"
-            ></div>
-            <ArrowUp v-else class="w-4 h-4" />
+            <ArrowUp class="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -262,11 +259,10 @@ const handleEmojiSelect = (emoji) => {
 // Auto-resize textarea on input.
 watch(newMessage, () => {
   nextTick(() => {
-    if (messageInput.value?.$el) {
-      const textarea = messageInput.value.$el
-      textarea.style.height = 'auto'
-      textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px'
-    }
+    const textarea = getTextareaEl()
+    if (!textarea) return
+    textarea.style.height = '20px'
+    textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px'
   })
 })
 </script>
