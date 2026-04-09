@@ -44,8 +44,7 @@
       </template>
 
       <template #help>
-        <p>{{ $t('admin.template.help.description') }}</p>
-        <p>{{ $t('admin.template.help.detail') }}</p>
+        <p>{{ $t('admin.template.help') }}</p>
         <a
           href="https://docs.libredesk.io/configuration/email-templates"
           target="_blank"

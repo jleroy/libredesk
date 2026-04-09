@@ -110,6 +110,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/tags", perm(handleCreateTag, "tags:manage"))
 	g.PUT("/api/v1/tags/{id}", perm(handleUpdateTag, "tags:manage"))
 	g.DELETE("/api/v1/tags/{id}", perm(handleDeleteTag, "tags:manage"))
+	g.POST("/api/v1/tags/import", perm(handleImportTags, "tags:manage"))
+	g.GET("/api/v1/tags/import/status", perm(handleGetTagImportStatus, "tags:manage"))
 
 	// Macros.
 	g.GET("/api/v1/macros", auth(handleGetMacros))

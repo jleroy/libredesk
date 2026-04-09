@@ -5,10 +5,25 @@
       <template #content>
         <div :class="{ 'transition-opacity duration-300 opacity-50': isLoading }">
           <div class="flex justify-between mb-5">
-            <div class="flex justify-end mb-4 w-full">
+            <div class="flex justify-end mb-4 w-full gap-2">
+              <Importer
+                entity-key="globals.terms.tag"
+                :upload-fn="api.importTags"
+                :get-status-fn="api.getTagImportStatus"
+                @import-complete="getTags"
+              >
+                <template #csv-example>
+                  <div class="bg-muted p-3 rounded text-xs font-mono overflow-x-auto leading-relaxed">
+                    <div>name</div>
+                    <div>Bug</div>
+                    <div>Feature Request</div>
+                    <div>Billing</div>
+                  </div>
+                </template>
+              </Importer>
               <Dialog v-model:open="dialogOpen">
                 <DialogTrigger as-child @click="newTag">
-                  <Button class="ml-auto">{{
+                  <Button>{{
                     t('tag.new')
                   }}</Button>
                 </DialogTrigger>
@@ -78,6 +93,7 @@ import { useEmitter } from '../../../composables/useEmitter.js'
 import { EMITTER_EVENTS } from '../../../constants/emitterEvents.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useI18n } from 'vue-i18n'
+import Importer from '@/components/importer/Importer.vue'
 import api from '../../../api/index.js'
 
 const { t } = useI18n()

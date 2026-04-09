@@ -17,8 +17,7 @@
     </template>
 
     <template #help>
-      <p>{{ $t('admin.automation.help.description') }}</p>
-      <p>{{ $t('admin.automation.help.detail') }}</p>
+      <p>{{ $t('admin.automation.help') }}</p>
     </template>
   </AdminSplitLayout>
 </template>

@@ -5,8 +5,7 @@
     </template>
 
     <template #help>
-      <p>{{ $t('admin.webhook.help.description') }}</p>
-      <p>{{ $t('admin.webhook.help.detail') }}</p>
+      <p>{{ $t('admin.webhook.help') }}</p>
       <a
         href="https://docs.libredesk.io/configuration/webhooks"
         target="_blank"

@@ -7,7 +7,19 @@
         :upload-fn="api.importAgents"
         :get-status-fn="api.getAgentImportStatus"
         @import-complete="getData"
-      />
+      >
+        <template #csv-example>
+          <div class="bg-muted p-3 rounded text-xs font-mono overflow-x-auto leading-relaxed">
+            <div>first_name,last_name,email,roles,teams</div>
+            <div>John,Doe,john@example.com,Agent,Sales</div>
+            <div>Jane,Smith,jane@example.com,Admin,Support</div>
+            <div>Bob,Test,bob@example.com,"Agent,Admin",Support</div>
+          </div>
+          <p class="text-xs mt-2 text-muted-foreground">
+            {{ $t('importer.agentCaseSensitiveNote') }}
+          </p>
+        </template>
+      </Importer>
       <router-link :to="{ name: 'new-agent' }">
         <Button>{{
           $t('agent.new')

@@ -265,6 +265,13 @@ const createUser = (data) =>
     }
   })
 const getTags = () => http.get('/api/v1/tags')
+const importTags = (data) =>
+  http.post('/api/v1/tags/import', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+const getTagImportStatus = () => http.get('/api/v1/tags/import/status')
 const upsertTags = (uuid, data) => http.post(`/api/v1/conversations/${uuid}/tags`, data, {
   headers: {
     'Content-Type': 'application/json'
@@ -510,6 +517,8 @@ export default {
   deleteUser,
   importAgents,
   getAgentImportStatus,
+  importTags,
+  getTagImportStatus,
   resetPassword,
   setPassword,
   getTags,
