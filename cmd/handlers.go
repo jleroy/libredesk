@@ -304,6 +304,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 
 	// Public pages.
 	g.GET("/csat/{uuid}", rateLimit(handleShowCSAT, "public"))
+	g.GET("/csat/{uuid}/widget", rateLimit(handleShowCSATWidget, "public"))
 	g.POST("/csat/{uuid}", rateLimit(handleUpdateCSATResponse, "public"))
 
 	// Health check.

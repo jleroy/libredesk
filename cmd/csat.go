@@ -101,6 +101,70 @@ func handleUpdateCSATResponse(r *fastglue.Request) error {
 	})
 }
 
+// handleShowCSATWidget renders a minimal CSAT widget page (just stars) for iframe embedding.
+func handleShowCSATWidget(r *fastglue.Request) error {
+	var (
+		app  = r.Context.(*App)
+		uuid = r.RequestCtx.UserValue("uuid").(string)
+	)
+
+	csat, err := app.csat.Get(uuid)
+	if err != nil {
+		return app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
+			"Data": map[string]interface{}{
+				"ErrorMessage": app.i18n.T("globals.messages.pageNotFound"),
+			},
+		})
+	}
+
+	return app.tmpl.RenderWebPage(r.RequestCtx, "csat-widget", map[string]interface{}{
+		"Data": map[string]interface{}{
+			"CSAT": map[string]interface{}{
+				"UUID":      csat.UUID,
+				"Responded": csat.ResponseTimestamp.Valid,
+			},
+		},
+	})
+}
+
+// handleSubmitCSATResponse handles CSAT response submission from the widget API.
+func handleSubmitCSATResponse(r *fastglue.Request) error {
+	var (
+		app  = r.Context.(*App)
+		uuid = r.RequestCtx.UserValue("uuid").(string)
+		req  = csatResponse{}
+	)
+
+	if err := r.Decode(&req, "json"); err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid JSON", nil, envelope.InputError)
+	}
+
+	if req.Rating < 0 || req.Rating > 5 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Rating must be between 0 and 5 (0 means no rating)", nil, envelope.InputError)
+	}
+
+	// At least one of rating or feedback must be provided
+	if req.Rating == 0 && req.Feedback == "" {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Either rating or feedback must be provided", nil, envelope.InputError)
+	}
+
+	if uuid == "" {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid UUID", nil, envelope.InputError)
+	}
+
+	// Trim feedback if it exceeds max length.
+	if len(req.Feedback) > maxCsatFeedbackLength {
+		req.Feedback = req.Feedback[:maxCsatFeedbackLength]
+	}
+
+	// Update CSAT response
+	if err := app.csat.UpdateResponse(uuid, req.Rating, req.Feedback, nil); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	return r.SendEnvelope(true)
+}
+
 // validateCSATForm parses and validates the CSAT form submission.
 // Returns rating (0 if not provided), trimmed feedback, meta JSON, and error message key if invalid.
 func validateCSATForm(r *fastglue.Request) (int, string, json.RawMessage, string) {
@@ -155,42 +219,4 @@ func validateCSATForm(r *fastglue.Request) (int, string, json.RawMessage, string
 	}
 
 	return rating, feedback, metaJSON, ""
-}
-
-// handleSubmitCSATResponse handles CSAT response submission from the widget API.
-func handleSubmitCSATResponse(r *fastglue.Request) error {
-	var (
-		app  = r.Context.(*App)
-		uuid = r.RequestCtx.UserValue("uuid").(string)
-		req  = csatResponse{}
-	)
-
-	if err := r.Decode(&req, "json"); err != nil {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid JSON", nil, envelope.InputError)
-	}
-
-	if req.Rating < 0 || req.Rating > 5 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Rating must be between 0 and 5 (0 means no rating)", nil, envelope.InputError)
-	}
-
-	// At least one of rating or feedback must be provided
-	if req.Rating == 0 && req.Feedback == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Either rating or feedback must be provided", nil, envelope.InputError)
-	}
-
-	if uuid == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid UUID", nil, envelope.InputError)
-	}
-
-	// Trim feedback if it exceeds max length.
-	if len(req.Feedback) > maxCsatFeedbackLength {
-		req.Feedback = req.Feedback[:maxCsatFeedbackLength]
-	}
-
-	// Update CSAT response
-	if err := app.csat.UpdateResponse(uuid, req.Rating, req.Feedback, nil); err != nil {
-		return sendErrorEnvelope(r, err)
-	}
-
-	return r.SendEnvelope(true)
 }

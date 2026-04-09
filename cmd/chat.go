@@ -447,9 +447,7 @@ func handleChatGetConversation(r *fastglue.Request) error {
 
 // handleGetConversations fetches all chat conversations for a widget user
 func handleGetConversations(r *fastglue.Request) error {
-	var (
-		app = r.Context.(*App)
-	)
+	app := r.Context.(*App)
 
 	// Get authenticated data from middleware context
 	contactID, err := getWidgetContactID(r)
@@ -539,35 +537,12 @@ func handleChatSendMessage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.errorSendingMessage"), nil, envelope.GeneralError)
 	}
 
-	// Fetch just inserted message to return.
-	message, err = app.conversation.GetMessage(message.UUID)
-	if err != nil {
-		app.lo.Error("error fetching inserted message", "message_uuid", message.UUID, "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
-	for i := range message.Attachments {
-		message.Attachments[i].URL = app.media.GetSignedURL(message.Attachments[i].UUID)
-	}
-	app.conversation.SignAvatarURL(&message.Author.AvatarURL)
-
-	return r.SendEnvelope(cmodels.ChatMessage{
-		UUID:             message.UUID,
-		CreatedAt:        message.CreatedAt,
-		Content:          message.Content,
-		TextContent:      message.TextContent,
-		ConversationUUID: message.ConversationUUID,
-		Status:           message.Status,
-		Author:           message.Author,
-		Attachments:      message.Attachments,
-	})
+	return sendChatMessageResponse(app, r, message.UUID)
 }
 
 // handleWidgetMediaUpload handles media uploads for the widget.
 func handleWidgetMediaUpload(r *fastglue.Request) error {
-	var (
-		app = r.Context.(*App)
-	)
+	app := r.Context.(*App)
 
 	form, err := r.RequestCtx.MultipartForm()
 	if err != nil {
@@ -668,27 +643,32 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.errorSendingMessage"), nil, envelope.GeneralError)
 	}
 
-	// Fetch the inserted message to get the media information.
-	insertedMessage, err := app.conversation.GetMessage(message.UUID)
+	return sendChatMessageResponse(app, r, message.UUID)
+}
+
+// sendChatMessageResponse fetches an inserted message by UUID, signs attachment and
+// avatar URLs, and sends the formatted ChatMessage response.
+func sendChatMessageResponse(app *App, r *fastglue.Request, messageUUID string) error {
+	message, err := app.conversation.GetMessage(messageUUID)
 	if err != nil {
-		app.lo.Error("error fetching inserted message", "message_uuid", message.UUID, "error", err)
+		app.lo.Error("error fetching inserted message", "message_uuid", messageUUID, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
-	for i := range insertedMessage.Attachments {
-		insertedMessage.Attachments[i].URL = app.media.GetSignedURL(insertedMessage.Attachments[i].UUID)
+	for i := range message.Attachments {
+		message.Attachments[i].URL = app.media.GetSignedURL(message.Attachments[i].UUID)
 	}
-	app.conversation.SignAvatarURL(&insertedMessage.Author.AvatarURL)
+	app.conversation.SignAvatarURL(&message.Author.AvatarURL)
 
 	return r.SendEnvelope(cmodels.ChatMessage{
-		UUID:             insertedMessage.UUID,
-		CreatedAt:        insertedMessage.CreatedAt,
-		Content:          insertedMessage.Content,
-		TextContent:      insertedMessage.TextContent,
-		ConversationUUID: insertedMessage.ConversationUUID,
-		Status:           insertedMessage.Status,
-		Author:           insertedMessage.Author,
-		Attachments:      insertedMessage.Attachments,
+		UUID:             message.UUID,
+		CreatedAt:        message.CreatedAt,
+		Content:          message.Content,
+		TextContent:      message.TextContent,
+		ConversationUUID: message.ConversationUUID,
+		Status:           message.Status,
+		Author:           message.Author,
+		Attachments:      message.Attachments,
 	})
 }
 
