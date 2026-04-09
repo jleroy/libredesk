@@ -1349,6 +1349,7 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	data["CSATLink"] = csatPublicURL
+	data["CSATUUID"] = csat.UUID
 	message, err := m.template.RenderStoredTemplate(template.TmplCSATRequest, data)
 	if err != nil {
 		m.lo.Error("error rendering CSAT template", "conversation_uuid", conversation.UUID, "error", err)
