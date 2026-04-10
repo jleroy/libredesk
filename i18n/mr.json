@@ -581,7 +581,6 @@
   "globals.messages.pickDateAndTime": "तारीख आणि वेळ निवडा",
   "globals.messages.pleaseRateConversation": "कृपया या संभाषणाला रेट करा:",
   "globals.messages.pleaseSelect": "कृपया सबमिट करण्यापूर्वी {name} निवडा",
-  "globals.messages.poweredBy": "द्वारे संचालित",
   "globals.messages.pressEnterToSelectAValue": "मूल्य निवडण्यासाठी एंटर दाबा",
   "globals.messages.reassigning": "पुन्हा नियुक्त करत आहे",
   "globals.messages.regenerate": "पुन्हा निर्माण करा",

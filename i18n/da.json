@@ -581,7 +581,6 @@
   "globals.messages.pickDateAndTime": "Vælg dato og tid",
   "globals.messages.pleaseRateConversation": "Bedøm venligst denne samtale:",
   "globals.messages.pleaseSelect": "Vælg {name} før indsendelse",
-  "globals.messages.poweredBy": "Drevet af",
   "globals.messages.pressEnterToSelectAValue": "Tryk Retur for at vælge en værdi",
   "globals.messages.reassigning": "Gentildeling",
   "globals.messages.regenerate": "Generér igen",

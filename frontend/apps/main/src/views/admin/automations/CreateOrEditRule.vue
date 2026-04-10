@@ -247,7 +247,7 @@ const isNewForm = computed(() => {
 })
 
 const breadcrumbLinks = [
-  { path: 'automations', label: t('globals.terms.automation') },
+  { path: 'automation-list', label: t('globals.terms.automation') },
   { path: '', label: breadcrumbPageLabel() }
 ]
 
@@ -342,7 +342,7 @@ const handleSave = async (values) => {
       await api.updateAutomationRule(props.id, updatedRule)
     } else {
       await api.createAutomationRule(updatedRule)
-      router.push({ name: 'automations' })
+      router.push({ name: 'automation-list' })
     }
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.savedSuccessfully')

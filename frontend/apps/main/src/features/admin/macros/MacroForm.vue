@@ -48,31 +48,31 @@
       </FormItem>
     </FormField>
 
-    <div class="grid grid-cols-2 gap-4">
-      <FormField v-slot="{ componentField, handleChange }" name="visible_when">
-        <FormItem>
-          <FormLabel>{{ t('globals.messages.visibleWhen') }}</FormLabel>
-          <FormControl>
-            <SelectTag
-              :items="[
-                { label: t('globals.messages.replying'), value: 'replying' },
-                {
-                  label: t('actions.startingConversation'),
-                  value: 'starting_conversation'
-                },
-                {
-                  label: t('actions.addingPrivateNotes'),
-                  value: 'adding_private_note'
-                }
-              ]"
-              v-model="componentField.modelValue"
-              @update:modelValue="handleChange"
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      </FormField>
+    <FormField v-slot="{ componentField, handleChange }" name="visible_when">
+      <FormItem>
+        <FormLabel>{{ t('globals.messages.visibleWhen') }}</FormLabel>
+        <FormControl>
+          <SelectTag
+            :items="[
+              { label: t('globals.messages.replying'), value: 'replying' },
+              {
+                label: t('actions.startingConversation'),
+                value: 'starting_conversation'
+              },
+              {
+                label: t('actions.addingPrivateNotes'),
+                value: 'adding_private_note'
+              }
+            ]"
+            v-model="componentField.modelValue"
+            @update:modelValue="handleChange"
+          />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    </FormField>
 
+    <div class="grid grid-cols-2 gap-4">
       <FormField
         v-slot="{ componentField }"
         name="visibility"
@@ -101,37 +101,37 @@
           <FormMessage />
         </FormItem>
       </FormField>
+
+      <FormField v-if="form.values.visibility === 'team'" v-slot="{ componentField }" name="team_id">
+        <FormItem>
+          <FormLabel>{{ t('globals.terms.team') }}</FormLabel>
+          <FormControl>
+            <SelectComboBox
+              v-bind="componentField"
+              :items="tStore.options"
+              :placeholder="t('placeholders.selectTeam')"
+              type="team"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+
+      <FormField v-if="form.values.visibility === 'user'" v-slot="{ componentField }" name="user_id">
+        <FormItem>
+          <FormLabel>{{ t('globals.terms.agent') }}</FormLabel>
+          <FormControl>
+            <SelectComboBox
+              v-bind="componentField"
+              :items="uStore.options"
+              :placeholder="t('placeholders.selectAgent')"
+              type="user"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
     </div>
-
-    <FormField v-if="form.values.visibility === 'team'" v-slot="{ componentField }" name="team_id">
-      <FormItem>
-        <FormLabel>{{ t('globals.terms.team') }}</FormLabel>
-        <FormControl>
-          <SelectComboBox
-            v-bind="componentField"
-            :items="tStore.options"
-            :placeholder="t('placeholders.selectTeam')"
-            type="team"
-          />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
-
-    <FormField v-if="form.values.visibility === 'user'" v-slot="{ componentField }" name="user_id">
-      <FormItem>
-        <FormLabel>{{ t('globals.terms.agent') }}</FormLabel>
-        <FormControl>
-          <SelectComboBox
-            v-bind="componentField"
-            :items="uStore.options"
-            :placeholder="t('placeholders.selectAgent')"
-            type="user"
-          />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
     <Button type="submit" :isLoading="isLoading">{{ submitLabel }}</Button>
   </form>
 </template>

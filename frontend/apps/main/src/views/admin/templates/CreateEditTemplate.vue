@@ -49,7 +49,7 @@ const submitForm = async (values) => {
     } else {
       await api.createTemplate(values)
       toastDescription = t('globals.messages.savedSuccessfully')
-      router.push({ name: 'templates' })
+      router.push({ name: 'template-list' })
       emitter.emit(EMITTER_EVENTS.REFRESH_LIST, {
         model: 'templates'
       })
@@ -72,7 +72,7 @@ const breadCrumLabel = () => {
 }
 
 const breadcrumbLinks = [
-  { path: 'templates', label: t('globals.terms.template') },
+  { path: 'template-list', label: t('globals.terms.template') },
   { path: '', label: breadCrumLabel() }
 ]
 

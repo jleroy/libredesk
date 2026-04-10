@@ -581,7 +581,6 @@
   "globals.messages.pickDateAndTime": "日付と時刻を選択",
   "globals.messages.pleaseRateConversation": "この会話を評価してください：",
   "globals.messages.pleaseSelect": "送信する前に {name} を選択してください",
-  "globals.messages.poweredBy": "提供",
   "globals.messages.pressEnterToSelectAValue": "値を選択するには Enter キーを押してください",
   "globals.messages.reassigning": "再割り当て",
   "globals.messages.regenerate": "再生成",

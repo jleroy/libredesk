@@ -581,7 +581,6 @@
   "globals.messages.pickDateAndTime": "Sélectionner la date et l'heure",
   "globals.messages.pleaseRateConversation": "Veuillez évaluer cette conversation :",
   "globals.messages.pleaseSelect": "Veuillez sélectionner {name} avant de soumettre",
-  "globals.messages.poweredBy": "Propulsé par",
   "globals.messages.pressEnterToSelectAValue": "Appuyez sur Entrée pour sélectionner une valeur",
   "globals.messages.reassigning": "Réassigner",
   "globals.messages.regenerate": "Régénérer",

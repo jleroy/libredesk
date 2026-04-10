@@ -12,7 +12,7 @@
         target="_blank"
         rel="noopener noreferrer"
       >
-        Powered by Libredesk
+        Powered by libredesk
       </a>
     </div>
   </div>

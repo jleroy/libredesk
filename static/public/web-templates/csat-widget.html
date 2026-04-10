@@ -50,12 +50,10 @@
                     var score = ev.target.dataset.score;
                     stars.forEach(function(e, i) { e.classList.toggle('sel', i < parseInt(score)); });
 
-                    var data = new URLSearchParams();
-                    data.append('rating', score);
-                    fetch('/csat/' + uuid, {
+                    fetch('/api/v1/csat/' + uuid + '/response', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: data
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rating: parseInt(score) })
                     });
 
                     document.getElementById('stars').style.pointerEvents = 'none';

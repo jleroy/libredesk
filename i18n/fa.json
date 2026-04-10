@@ -581,7 +581,6 @@
   "globals.messages.pickDateAndTime": "انتخاب تاریخ و زمان",
   "globals.messages.pleaseRateConversation": "لطفاً این مکالمه را امتیازدهی کنید:",
   "globals.messages.pleaseSelect": "لطفا قبل از ارسال {name} را انتخاب کنید",
-  "globals.messages.poweredBy": "قدرت‌گرفته از",
   "globals.messages.pressEnterToSelectAValue": "برای انتخاب یک مقدار، Enter را فشار دهید",
   "globals.messages.reassigning": "در حال تخصیص مجدد",
   "globals.messages.regenerate": "تولید مجدد",

@@ -365,9 +365,13 @@ const routes = [
           {
             path: 'automations',
             component: () => import('@main/views/admin/automations/Automation.vue'),
-            name: 'automations',
             meta: { titleKey: 'globals.terms.automation', titleCount: 2 },
             children: [
+              {
+                path: '',
+                name: 'automation-list',
+                component: () => import('@main/views/admin/automations/AutomationList.vue')
+              },
               {
                 path: 'new',
                 props: true,
@@ -387,9 +391,13 @@ const routes = [
           {
             path: 'templates',
             component: () => import('@main/views/admin/templates/Templates.vue'),
-            name: 'templates',
             meta: { titleKey: 'globals.terms.template', titleCount: 2 },
             children: [
+              {
+                path: '',
+                name: 'template-list',
+                component: () => import('@main/views/admin/templates/TemplateList.vue')
+              },
               {
                 path: ':id/edit',
                 name: 'edit-template',
@@ -571,7 +579,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const appSettingsStore = useAppSettingsStore()
-  const siteName = appSettingsStore.settings?.['app.site_name'] || 'Libredesk'
+  const siteName = appSettingsStore.settings?.['app.site_name'] || 'libredesk'
   const i18n = getI18n()
   const typeKey = typeof to.meta?.typeKey === 'function' ? to.meta.typeKey(to) : ''
   const titleKey = typeKey || to.meta?.titleKey

@@ -1,7 +1,7 @@
 <a href="https://zerodha.tech"><img src="https://zerodha.tech/static/images/github-badge.svg" align="right" alt="Zerodha Tech Badge" /></a>
 
 
-# Libredesk
+# libredesk
 
 Modern, open source, self-hosted customer support desk. Single binary app. 
 
@@ -90,4 +90,4 @@ The backend is written in Go and the frontend is Vue.js 3 with Shadcn UI.
 
 
 ## Translators
-You can help translate Libredesk into your language on [Crowdin](https://crowdin.com/project/libredesk).  
+You can help translate libredesk into your language on [Crowdin](https://crowdin.com/project/libredesk).  

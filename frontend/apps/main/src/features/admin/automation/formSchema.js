@@ -5,9 +5,7 @@ export const createFormSchema = (t) => z
         name: z.string({
             required_error: t('globals.messages.required'),
         }),
-        description: z.string({
-            required_error: t('globals.messages.required'),
-        }),
+        description: z.string().optional().default(''),
         enabled: z.boolean().default(true),
         type: z.string({
             required_error: t('globals.messages.required'),

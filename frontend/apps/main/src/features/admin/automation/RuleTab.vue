@@ -5,9 +5,9 @@
       <p class="text-sm-muted">{{ helptext }}</p>
     </div>
     <div v-if="type === 'new_conversation'">
-      <Select v-model="executionMode" v-if="rules.length > 0">
-        <SelectTrigger class="w-fit">
-          <Settings size="18" class="mr-2" />
+      <Select v-model="executionMode" v-if="rules.length > 0" @update:modelValue="updateExecutionMode">
+        <SelectTrigger class="w-fit flex gap-2">
+          <Settings size="16" />
           <SelectValue>{{
             executionMode === 'first_match'
               ? $t('admin.automation.executeFirstMatchingRule')
@@ -29,9 +29,7 @@
     >
       <div class="text-center space-y-2">
         <p class="text-muted-foreground">
-          {{
-            $t('admin.automation.noRulesFound')
-          }}
+          {{ $t('admin.automation.noRulesFound') }}
         </p>
       </div>
     </div>
@@ -60,7 +58,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import RuleList from './RuleList.vue'
 import { Spinner } from '@shared-ui/components/ui/spinner'
@@ -76,6 +74,7 @@ import draggable from 'vuedraggable'
 import api from '@/api'
 import { useEmitter } from '@/composables/useEmitter'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
+import { handleHTTPError } from '@shared-ui/utils/http.js'
 
 const { t } = useI18n()
 const emitter = useEmitter()
@@ -120,23 +119,38 @@ const toggleRule = async (id) => {
 }
 
 const onDragEnd = async () => {
-  const weights = {}
-  rules.value.forEach((rule, index) => {
-    weights[rule.id] = index + 1
-  })
-  await api.updateAutomationRuleWeights(weights)
+  try {
+    const weights = {}
+    rules.value.forEach((rule, index) => {
+      weights[rule.id] = index + 1
+    })
+    await api.updateAutomationRuleWeights(weights)
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      description: t('globals.messages.savedSuccessfully')
+    })
+  } catch (error) {
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      variant: 'destructive',
+      description: handleHTTPError(error).message
+    })
+  }
 }
 
 const updateExecutionMode = async () => {
-  await api.updateAutomationRulesExecutionMode({
-    mode: executionMode.value
-  })
-  emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-    description: t('globals.messages.savedSuccessfully')
-  })
+  try {
+    await api.updateAutomationRulesExecutionMode({
+      mode: executionMode.value
+    })
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      description: t('globals.messages.savedSuccessfully')
+    })
+  } catch (error) {
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      variant: 'destructive',
+      description: handleHTTPError(error).message
+    })
+  }
 }
-
-watch(executionMode, updateExecutionMode)
 </script>
 
 <style scoped>

@@ -29,7 +29,7 @@
           target="_blank"
           class="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors no-underline"
         >
-          {{ $t('globals.messages.poweredBy') }} <span class="font-medium">Libredesk</span>
+          Powered by <span class="font-medium">libredesk</span>
         </a>
       </div>
 

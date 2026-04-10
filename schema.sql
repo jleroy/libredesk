@@ -712,7 +712,7 @@ VALUES
     ('app.lang', '"en"'::jsonb),
     ('app.root_url', '"http://localhost:9000"'::jsonb),
     ('app.logo_url', '"http://localhost:9000/logo.png"'::jsonb),
-    ('app.site_name', '"LIBREDESK"'::jsonb),
+    ('app.site_name', '"libredesk"'::jsonb),
     ('app.favicon_url', '"http://localhost:9000/favicon.ico"'::jsonb),
     ('app.max_file_upload_size', '20'::jsonb),
     ('app.allowed_file_upload_extensions', '["*"]'::jsonb),
@@ -868,7 +868,7 @@ VALUES (
 
 <p>
 Best regards,<br>
-Libredesk
+libredesk
 </p>
 ',
   false,
