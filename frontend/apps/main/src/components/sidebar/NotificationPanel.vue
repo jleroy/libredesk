@@ -1,14 +1,14 @@
 <template>
   <div class="flex flex-col min-h-[20rem] max-h-[32rem]" role="region" :aria-label="t('globals.terms.notification', 2)">
     <!-- Header -->
-    <div class="flex items-center justify-between px-4 py-3 border-b">
-      <h3 class="font-semibold text-sm">{{ t('globals.terms.notification', 2) }}</h3>
-      <div class="flex items-center gap-2">
+    <div class="flex items-center justify-between px-3 py-2.5 border-b border-border">
+      <h3 class="font-semibold text-xs">{{ t('globals.terms.notification', 2) }}</h3>
+      <div class="flex items-center gap-1">
         <Button
           v-if="notificationStore.unreadCount > 0"
           variant="ghost"
           size="sm"
-          class="h-7 px-2"
+          class="h-6 px-1.5"
           :title="t('globals.messages.markAllAsRead')"
           :aria-label="t('globals.messages.markAllAsRead')"
           @click="handleMarkAllAsRead"
@@ -19,7 +19,7 @@
           v-if="notificationStore.notifications.length > 0"
           variant="ghost"
           size="sm"
-          class="h-7 px-2"
+          class="h-6 px-1.5"
           :title="t('globals.messages.deleteAll')"
           :aria-label="t('globals.messages.deleteAll')"
           @click="handleDeleteAll"
@@ -32,13 +32,12 @@
     <!-- Notification List -->
     <div class="flex-1 flex flex-col overflow-y-auto">
       <!-- Loading State -->
-      <div v-if="notificationStore.isLoading && notificationStore.notifications.length === 0" class="divide-y">
-        <div v-for="i in 4" :key="i" class="flex gap-3 px-4 py-3">
-          <Skeleton class="h-8 w-8 rounded-full shrink-0" />
+      <div v-if="notificationStore.isLoading && notificationStore.notifications.length === 0" class="divide-y divide-border">
+        <div v-for="i in 4" :key="i" class="flex gap-2.5 px-3 py-2.5">
+          <Skeleton class="h-7 w-7 rounded-full shrink-0" />
           <div class="flex-1 space-y-1.5">
-            <Skeleton class="h-3.5" :class="i % 2 === 0 ? 'w-3/4' : 'w-4/5'" />
+            <Skeleton class="h-3" :class="i % 2 === 0 ? 'w-3/4' : 'w-4/5'" />
             <Skeleton class="h-3 w-1/2" />
-            <Skeleton class="h-3 w-16" />
           </div>
         </div>
       </div>
@@ -48,61 +47,65 @@
         v-else-if="notificationStore.notifications.length === 0"
         class="flex flex-col items-center justify-center flex-1 text-muted-foreground"
       >
-        <BellOff class="h-8 w-8 mb-2" />
-        <p class="text-sm">{{ t('toast.noNotificationsFound') }}</p>
+        <BellOff class="h-7 w-7 mb-2" />
+        <p class="text-xs">{{ t('toast.noNotificationsFound') }}</p>
       </div>
 
       <!-- Notifications -->
-      <div v-else class="divide-y">
+      <div v-else class="divide-y divide-border">
         <div
           v-for="notification in notificationStore.notifications"
           :key="notification.id"
-          class="group relative px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
-          :class="{ 'opacity-60': notification.is_read }"
+          class="group relative px-3 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
           @click="handleNotificationClick(notification)"
         >
-          <div class="flex gap-3">
+          <div class="flex gap-2.5">
             <!-- Icon based on notification type -->
             <div
-              class="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center"
+              class="flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center"
               :class="getNotificationIconClass(notification.notification_type)"
             >
-              <component :is="getNotificationIcon(notification.notification_type)" class="h-4 w-4" />
+              <component :is="getNotificationIcon(notification.notification_type)" class="h-3.5 w-3.5" />
             </div>
 
             <!-- Content -->
             <div class="flex-1 min-w-0">
-              <p class="text-sm" :class="{ 'font-medium': !notification.is_read }">
+              <p class="text-xs leading-snug" :class="notification.is_read ? 'text-muted-foreground' : 'font-medium text-foreground'">
                 {{ notification.title }}
               </p>
-              <p v-if="notification.body" class="text-xs text-muted-foreground mt-0.5">
+              <p v-if="notification.body" class="text-xs leading-snug text-muted-foreground mt-0.5 line-clamp-2">
                 {{ notification.body }}
               </p>
-              <p class="text-xs text-muted-foreground mt-1">
+              <p class="text-xs text-muted-foreground/70 mt-0.5">
                 {{ getRelativeTime(new Date(notification.created_at)) }}
               </p>
             </div>
 
+            <!-- Unread dot -->
+            <div v-if="!notification.is_read" class="flex-shrink-0 mt-1.5">
+              <span class="block h-2 w-2 rounded-full bg-primary" />
+            </div>
+
             <!-- Action buttons (visible on hover) -->
-            <div class="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div class="flex items-start gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 v-if="!notification.is_read"
                 variant="ghost"
                 size="sm"
-                class="h-7 w-7 p-0"
+                class="h-6 w-6 p-0"
                 :aria-label="t('globals.messages.markAsRead')"
                 @click.stop="handleMarkAsRead(notification)"
               >
-                <Check class="h-3.5 w-3.5" />
+                <Check class="h-3 w-3" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                class="h-7 w-7 p-0 hover:text-destructive"
+                class="h-6 w-6 p-0 hover:text-destructive"
                 :aria-label="t('globals.messages.delete')"
                 @click.stop="handleDelete(notification)"
               >
-                <X class="h-3.5 w-3.5" />
+                <X class="h-3 w-3" />
               </Button>
             </div>
           </div>
