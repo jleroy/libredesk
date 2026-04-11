@@ -82,7 +82,7 @@ export const useChatStore = defineStore('chat', () => {
                 id: authorId,
                 first_name: userStore.firstName || '',
                 last_name: userStore.lastName || '',
-                avatar_url: userStore.avatarUrl || '',
+                avatar_url: '',
                 availability_status: '',
                 active_at: null
             },

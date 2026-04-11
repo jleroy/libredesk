@@ -13,16 +13,9 @@ export const useWidgetStore = defineStore('widget', () => {
 
 
     // Getters
-    const isHomeView = computed(() => currentView.value === 'home')
     const isChatView = computed(() => isInChatView.value)
-    const isMessagesView = computed(() => currentView.value === 'messages' && !isInChatView.value)
 
     // Actions
-    const toggleWidget = () => {
-        isOpen.value = !isOpen.value
-        isInChatView.value = false
-    }
-
     const setOpen = (open) => {
         isOpen.value = open
     }
@@ -122,12 +115,9 @@ export const useWidgetStore = defineStore('widget', () => {
         wasExpandedBeforeLeaving,
 
         // Getters
-        isHomeView,
         isChatView,
-        isMessagesView,
 
         // Actions
-        toggleWidget,
         setOpen,
         closeWidget,
         navigateToChat,

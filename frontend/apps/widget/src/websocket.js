@@ -290,10 +290,8 @@ export function initWidgetWS (token, inboxId) {
   return widgetWSClient
 }
 
-export const sendWidgetMessage = message => widgetWSClient?.send(message)
 export const sendWidgetTyping = (isTyping = true, conversationUUID = null) => widgetWSClient?.sendTyping(isTyping, conversationUUID)
 export const closeWidgetWebSocket = () => widgetWSClient?.close()
-export const reOpenWidgetWebSocket = () => widgetWSClient?.reOpen()
 
 export function sendPageVisit (url, title) {
   if (!widgetWSClient) return

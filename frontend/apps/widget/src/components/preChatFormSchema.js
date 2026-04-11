@@ -58,24 +58,3 @@ export const createPreChatFormSchema = (t, fields = []) => {
   
   return z.object(schemaFields)
 }
-
-export const createVisitorInfoSchema = (t, requireContactInfo) => {
-  const baseFields = [
-    {
-      key: 'name',
-      type: 'text',
-      label: t('globals.terms.name'),
-      required: requireContactInfo === 'required',
-      enabled: true
-    },
-    {
-      key: 'email',
-      type: 'email',
-      label: t('globals.terms.email'),
-      required: requireContactInfo === 'required',
-      enabled: true
-    }
-  ]
-  
-  return createPreChatFormSchema(t, baseFields)
-}

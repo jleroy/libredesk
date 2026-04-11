@@ -38,6 +38,8 @@ archives:
   - format: tar.gz
     name_template: 'libredesk_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if eq .Arch "arm" }}v{{ .Arm }}{{ end }}'
     files:
+      - src: config.sample.toml
+        dst: config.toml
       - README.md
       - LICENSE
 

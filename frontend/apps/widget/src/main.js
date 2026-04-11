@@ -4,7 +4,6 @@ import { createI18n } from 'vue-i18n'
 import App from './App.vue'
 import api from './api/index.js'
 import '@shared-ui/assets/styles/main.scss'
-import './assets/widget.css'
 
 async function initWidget () {
     try {

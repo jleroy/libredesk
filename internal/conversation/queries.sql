@@ -72,6 +72,7 @@ SELECT
              WHERE conversation_id = conversations.id AND user_id = $1),
             '1970-01-01'::TIMESTAMPTZ
         )
+        AND (meta IS NULL OR NOT COALESCE((meta->>'continuity_email')::boolean, false))
         LIMIT 10
     ) t
     ) as unread_message_count,
