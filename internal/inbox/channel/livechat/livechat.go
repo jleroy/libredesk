@@ -98,6 +98,7 @@ type Config struct {
 	ShowOfficeHoursInChat          bool             `json:"show_office_hours_in_chat"`
 	ShowOfficeHoursAfterAssignment bool             `json:"show_office_hours_after_assignment"`
 	ChatReplyExpectationMessage    string           `json:"chat_reply_expectation_message"`
+	SessionDuration                string           `json:"session_duration"`
 	PreChatForm                    struct {
 		Enabled bool               `json:"enabled"`
 		Title   string             `json:"title"`

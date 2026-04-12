@@ -30,45 +30,42 @@
 
     <!-- Toggle Fields -->
     <FormField v-if="showFormFields" v-slot="{ componentField, handleChange }" name="enabled">
-      <FormItem class="flex flex-row items-center justify-between box p-4">
-        <div class="space-y-0.5">
-          <FormLabel class="text-base text-foreground">{{ $t('globals.terms.enabled') }}</FormLabel>
-          <FormDescription>{{ $t('admin.inbox.enabled.description') }}</FormDescription>
-        </div>
-        <FormControl>
-          <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-        </FormControl>
+      <FormItem>
+        <SwitchField
+          :title="$t('globals.terms.enabled')"
+          :description="$t('admin.inbox.enabled.description')"
+          :checked="componentField.modelValue"
+          @update:checked="handleChange"
+        />
       </FormItem>
     </FormField>
 
     <FormField v-if="showFormFields" v-slot="{ componentField, handleChange }" name="csat_enabled">
-      <FormItem class="flex flex-row items-center justify-between box p-4">
-        <div class="space-y-0.5">
-          <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
-          <FormDescription>
-            {{ $t('admin.inbox.csatSurveys.description_1') }}
-          </FormDescription>
-        </div>
-        <FormControl>
-          <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-        </FormControl>
+      <FormItem>
+        <SwitchField
+          :title="$t('admin.inbox.csatSurveys')"
+          :description="$t('admin.inbox.csatSurveys.description_1')"
+          :checked="componentField.modelValue"
+          @update:checked="handleChange"
+        />
       </FormItem>
       <p class="!mt-2 text-muted-foreground text-xs">
         {{ $t('admin.inbox.csatSurveys.description_2') }}
       </p>
     </FormField>
 
-    <FormField v-if="showFormFields" v-slot="{ componentField, handleChange }" name="enable_plus_addressing">
-      <FormItem class="flex flex-row items-center justify-between box p-4">
-        <div class="space-y-0.5">
-          <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.enablePlusAddressing') }}</FormLabel>
-          <FormDescription>
-            {{ $t('admin.inbox.enablePlusAddressing.description') }}
-          </FormDescription>
-        </div>
-        <FormControl>
-          <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-        </FormControl>
+    <FormField
+      v-if="showFormFields"
+      v-slot="{ componentField, handleChange }"
+      name="enable_plus_addressing"
+    >
+      <FormItem>
+        <SwitchField
+          :title="$t('admin.inbox.enablePlusAddressing')"
+          :description="$t('admin.inbox.enablePlusAddressing.description')"
+          :checked="componentField.modelValue"
+          @update:checked="handleChange"
+        />
       </FormItem>
     </FormField>
 
@@ -135,7 +132,9 @@
               v-show="oauthClientId"
               class="text-xs text-green-600 dark:text-green-400 font-mono mt-1"
             >
-              {{ $t('globals.terms.clientID') }}: {{ oauthClientId.substring(0, 20) }}...{{ oauthClientId.slice(-8) }}
+              {{ $t('globals.terms.clientID') }}: {{ oauthClientId.substring(0, 20) }}...{{
+                oauthClientId.slice(-8)
+              }}
             </p>
           </div>
         </div>
@@ -357,16 +356,13 @@
       </FormField>
 
       <FormField v-slot="{ componentField, handleChange }" name="imap.tls_skip_verify">
-        <FormItem class="flex flex-row items-center justify-between box p-4">
-          <div class="space-y-0.5">
-            <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
-            <FormDescription>
-              {{ $t('admin.inbox.skipTLSVerification.description') }}
-            </FormDescription>
-          </div>
-          <FormControl>
-            <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-          </FormControl>
+        <FormItem>
+          <SwitchField
+            :title="$t('admin.inbox.skipTLSVerification')"
+            :description="$t('admin.inbox.skipTLSVerification.description')"
+            :checked="componentField.modelValue"
+            @update:checked="handleChange"
+          />
         </FormItem>
       </FormField>
     </div>
@@ -520,16 +516,13 @@
       </FormField>
 
       <FormField v-slot="{ componentField, handleChange }" name="smtp.tls_skip_verify">
-        <FormItem class="flex flex-row items-center justify-between box p-4">
-          <div class="space-y-0.5">
-            <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
-            <FormDescription>
-              {{ $t('admin.inbox.skipTLSVerification.description') }}
-            </FormDescription>
-          </div>
-          <FormControl>
-            <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-          </FormControl>
+        <FormItem>
+          <SwitchField
+            :title="$t('admin.inbox.skipTLSVerification')"
+            :description="$t('admin.inbox.skipTLSVerification.description')"
+            :checked="componentField.modelValue"
+            @update:checked="handleChange"
+          />
         </FormItem>
       </FormField>
     </div>
@@ -546,8 +539,18 @@
         <DialogTitle>
           {{
             flowType === 'reconnect'
-              ? $t('admin.inbox.oauth.reconnectAccount', { provider: selectedProvider === PROVIDER_GOOGLE ? $t('globals.terms.google') : $t('globals.terms.microsoft') })
-              : $t('admin.inbox.oauth.connectAccount', { provider: selectedProvider === PROVIDER_GOOGLE ? $t('globals.terms.google') : $t('globals.terms.microsoft') })
+              ? $t('admin.inbox.oauth.reconnectAccount', {
+                  provider:
+                    selectedProvider === PROVIDER_GOOGLE
+                      ? $t('globals.terms.google')
+                      : $t('globals.terms.microsoft')
+                })
+              : $t('admin.inbox.oauth.connectAccount', {
+                  provider:
+                    selectedProvider === PROVIDER_GOOGLE
+                      ? $t('globals.terms.google')
+                      : $t('globals.terms.microsoft')
+                })
           }}
         </DialogTitle>
         <DialogDescription>
@@ -649,7 +652,7 @@ import {
   FormDescription
 } from '@shared-ui/components/ui/form/index.js'
 import { Input } from '@shared-ui/components/ui/input/index.js'
-import { Switch } from '@shared-ui/components/ui/switch/index.js'
+import SwitchField from '@shared-ui/components/SwitchField.vue'
 import { Button } from '@shared-ui/components/ui/button/index.js'
 import {
   Select,
@@ -791,7 +794,10 @@ const oauthClientId = computed(() => {
 })
 
 const submitLabel = computed(() => {
-  return props.submitLabel || (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
+  return (
+    props.submitLabel ||
+    (props.isNewForm ? t('globals.messages.create') : t('globals.messages.save'))
+  )
 })
 
 const onSubmit = form.handleSubmit(async (values) => {
@@ -874,7 +880,6 @@ const copyToClipboard = async (text) => {
     })
   }
 }
-
 
 watch(
   () => props.initialValues,

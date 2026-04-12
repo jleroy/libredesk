@@ -50,11 +50,7 @@
         <div class="space-y-2">
           <!-- Dark-mode toggle -->
           <div class="flex items-center justify-between text-sm">
-            <div class="flex items-center gap-2">
-              <Moon v-if="mode === 'dark'" size="16" class="text-muted-foreground" />
-              <Sun v-else size="16" class="text-muted-foreground" />
-              <span class="text-muted-foreground">{{ t('navigation.darkMode') }}</span>
-            </div>
+            <span class="text-muted-foreground">{{ t('navigation.darkMode') }}</span>
             <Switch
               :checked="mode === 'dark'"
               @update:checked="(val) => (mode = val ? 'dark' : 'light')"
@@ -121,7 +117,7 @@ import { SidebarMenuButton } from '@shared-ui/components/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import StatusDot from '@shared-ui/components/StatusDot.vue'
 import { Switch } from '@shared-ui/components/ui/switch'
-import { ChevronsUpDown, CircleUserRound, LogOut, Moon, Sun } from 'lucide-vue-next'
+import { ChevronsUpDown, CircleUserRound, LogOut } from 'lucide-vue-next'
 import { useUserStore } from '../../stores/user'
 import { useRouter } from 'vue-router'
 

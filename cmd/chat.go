@@ -35,7 +35,8 @@ const (
 	maxChatConversationsPerContact  = 50
 	chatConversationRateLimitWindow = 24 * time.Hour
 	widgetSessionPrefix             = "widget_session:"
-	widgetSessionTTL                = 90 * 24 * time.Hour
+	defaultSessionTTL               = 90 * 24 * time.Hour
+	minSessionTTL                   = 1 * time.Hour
 )
 
 // WidgetSession holds session data stored in Redis.
@@ -339,6 +340,11 @@ func handleAuthExchange(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
+	config, err := getWidgetConfig(r)
+	if err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
 	var req struct {
 		JWT string `json:"jwt"`
 	}
@@ -384,15 +390,16 @@ func handleAuthExchange(r *fastglue.Request) error {
 		deleteSessionToken(app, oldToken)
 	}
 
-	// Generate session token.
-	token, err := generateSessionToken(app, contactID, inbox.ID, false, claims.ExternalUserID)
+	// Generate session token with configured TTL for authenticated users.
+	sessionTTL := getSessionDuration(config)
+	token, err := generateSessionToken(app, contactID, inbox.ID, false, claims.ExternalUserID, sessionTTL)
 	if err != nil {
 		app.lo.Error("error generating session token", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	// Store reverse mapping for cleanup on next exchange.
-	app.redis.Set(ctx, reverseKey, token, widgetSessionTTL)
+	app.redis.Set(ctx, reverseKey, token, sessionTTL)
 
 	return r.SendEnvelope(map[string]any{
 		"session_token": token,
@@ -862,7 +869,7 @@ func createVisitorContact(app *App, formData map[string]any, config livechat.Con
 		return umodels.User{}, "", nil, err
 	}
 
-	token, err := generateSessionToken(app, visitor.ID, inbox.ID, true, "")
+	token, err := generateSessionToken(app, visitor.ID, inbox.ID, true, "", defaultSessionTTL)
 	if err != nil {
 		app.lo.Error("error generating session token for visitor", "error", err)
 		return umodels.User{}, "", nil, err
@@ -990,7 +997,7 @@ func verifyStandardJWT(jwtToken string, inboxSecret string) (Claims, error) {
 }
 
 // generateSessionToken creates a random session token and stores it in Redis.
-func generateSessionToken(app *App, userID, inboxID int, isVisitor bool, externalUserID string) (string, error) {
+func generateSessionToken(app *App, userID, inboxID int, isVisitor bool, externalUserID string, ttl time.Duration) (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("generating random token: %w", err)
@@ -1004,10 +1011,11 @@ func generateSessionToken(app *App, userID, inboxID int, isVisitor bool, externa
 		"inbox_id":         strconv.Itoa(inboxID),
 		"is_visitor":       strconv.FormatBool(isVisitor),
 		"external_user_id": externalUserID,
+		"ttl":              ttl.String(),
 	}
 	pipe := app.redis.Pipeline()
 	pipe.HSet(ctx, key, fields)
-	pipe.Expire(ctx, key, widgetSessionTTL)
+	pipe.Expire(ctx, key, ttl)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return "", fmt.Errorf("storing session in Redis: %w", err)
 	}
@@ -1015,21 +1023,25 @@ func generateSessionToken(app *App, userID, inboxID int, isVisitor bool, externa
 }
 
 // lookupSessionToken retrieves a session from Redis and refreshes its TTL.
+// The TTL stored in the session hash is used for the refresh.
 func lookupSessionToken(app *App, token string) (*WidgetSession, error) {
 	ctx := context.Background()
 	key := widgetSessionPrefix + token
 
-	pipe := app.redis.Pipeline()
-	hgetallCmd := pipe.HGetAll(ctx, key)
-	pipe.Expire(ctx, key, widgetSessionTTL)
-	if _, err := pipe.Exec(ctx); err != nil {
+	data, err := app.redis.HGetAll(ctx, key).Result()
+	if err != nil {
 		return nil, fmt.Errorf("looking up session: %w", err)
 	}
-
-	data := hgetallCmd.Val()
 	if len(data) == 0 {
 		return nil, fmt.Errorf("session not found or expired")
 	}
+
+	// Refresh TTL using the stored value, falling back to default.
+	ttl := defaultSessionTTL
+	if d, err := time.ParseDuration(data["ttl"]); err == nil && d >= minSessionTTL {
+		ttl = d
+	}
+	app.redis.Expire(ctx, key, ttl)
 
 	userID, _ := strconv.Atoi(data["user_id"])
 	inboxID, _ := strconv.Atoi(data["inbox_id"])
@@ -1285,4 +1297,18 @@ func filterPreChatFormFields(fields []livechat.PreChatFormField, app *App) ([]li
 	}
 
 	return filteredFields, existingCustomAttrs
+}
+
+// getSessionDuration returns the configured session TTL for authenticated users.
+// Falls back to defaultSessionTTL if the config value is empty or invalid.
+// Enforces a minimum of 1 hour.
+func getSessionDuration(config livechat.Config) time.Duration {
+	if config.SessionDuration == "" {
+		return defaultSessionTTL
+	}
+	d, err := time.ParseDuration(config.SessionDuration)
+	if err != nil || d < minSessionTTL {
+		return defaultSessionTTL
+	}
+	return d
 }

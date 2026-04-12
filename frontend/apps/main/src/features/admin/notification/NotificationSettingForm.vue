@@ -184,14 +184,13 @@
     </div>
 
     <FormField v-slot="{ componentField, handleChange }" name="tls_skip_verify">
-      <FormItem class="flex flex-row items-center justify-between box p-4">
-        <div class="space-y-0.5">
-          <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.skipTLSVerification') }}</FormLabel>
-          <FormDescription>{{ $t('admin.inbox.skipTLSVerification.description') }}</FormDescription>
-        </div>
-        <FormControl>
-          <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-        </FormControl>
+      <FormItem>
+        <SwitchField
+          :title="$t('admin.inbox.skipTLSVerification')"
+          :description="$t('admin.inbox.skipTLSVerification.description')"
+          :checked="componentField.modelValue"
+          @update:checked="handleChange"
+        />
       </FormItem>
     </FormField>
 
@@ -222,7 +221,7 @@ import {
   SelectValue
 } from '@shared-ui/components/ui/select/index.js'
 import { Checkbox } from '@shared-ui/components/ui/checkbox/index.js'
-import { Switch } from '@shared-ui/components/ui/switch/index.js'
+import SwitchField from '@shared-ui/components/SwitchField.vue'
 import { Label } from '@shared-ui/components/ui/label/index.js'
 import { Input } from '@shared-ui/components/ui/input/index.js'
 import { useI18n } from 'vue-i18n'

@@ -21,27 +21,23 @@
         <!-- General Tab -->
         <div v-show="activeTab === 'general'" class="space-y-6">
           <FormField v-slot="{ componentField, handleChange }" name="enabled">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base text-foreground">{{ $t('globals.terms.enabled') }}</FormLabel>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
+            <FormItem>
+              <SwitchField
+                :checked="componentField.modelValue"
+                :title="$t('globals.terms.enabled')"
+                @update:checked="handleChange"
+              />
             </FormItem>
           </FormField>
 
           <FormField v-slot="{ componentField, handleChange }" name="csat_enabled">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.csatSurveys') }}</FormLabel>
-                <FormDescription>
-                  {{ $t('admin.inbox.csatSurveys.description_1') }}
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
+            <FormItem>
+              <SwitchField
+                :title="$t('admin.inbox.csatSurveys')"
+                :description="$t('admin.inbox.csatSurveys.description_1')"
+                :checked="componentField.modelValue"
+                @update:checked="handleChange"
+              />
             </FormItem>
           </FormField>
 
@@ -299,33 +295,25 @@
 
           <!-- Dark mode -->
           <FormField v-slot="{ componentField, handleChange }" name="config.dark_mode">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base text-foreground">{{ $t('admin.inbox.livechat.darkMode') }}</FormLabel>
-                <FormDescription>{{
-                  $t('admin.inbox.livechat.darkMode.description')
-                }}</FormDescription>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
+            <FormItem>
+              <SwitchField
+                :title="$t('admin.inbox.livechat.darkMode')"
+                :description="$t('admin.inbox.livechat.darkMode.description')"
+                :checked="componentField.modelValue"
+                @update:checked="handleChange"
+              />
             </FormItem>
           </FormField>
 
           <!-- Show Powered By -->
           <FormField v-slot="{ componentField, handleChange }" name="config.show_powered_by">
-            <FormItem class="flex flex-row items-center justify-between box p-4">
-              <div class="space-y-0.5">
-                <FormLabel class="text-base text-foreground">{{
-                  $t('admin.inbox.livechat.showPoweredBy')
-                }}</FormLabel>
-                <FormDescription>{{
-                  $t('admin.inbox.livechat.showPoweredBy.description')
-                }}</FormDescription>
-              </div>
-              <FormControl>
-                <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-              </FormControl>
+            <FormItem>
+              <SwitchField
+                :title="$t('admin.inbox.livechat.showPoweredBy')"
+                :description="$t('admin.inbox.livechat.showPoweredBy.description')"
+                :checked="componentField.modelValue"
+                @update:checked="handleChange"
+              />
             </FormItem>
           </FormField>
         </div>
@@ -432,15 +420,12 @@
               v-slot="{ componentField, handleChange }"
               name="config.notice_banner.enabled"
             >
-              <FormItem class="flex flex-row items-center justify-between box p-4">
-                <div class="space-y-0.5">
-                  <FormLabel class="text-base text-foreground">{{
-                    $t('admin.inbox.livechat.noticeBanner.enabled')
-                  }}</FormLabel>
-                </div>
-                <FormControl>
-                  <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                </FormControl>
+              <FormItem>
+                <SwitchField
+                  :title="$t('admin.inbox.livechat.noticeBanner.enabled')"
+                  :checked="componentField.modelValue"
+                  @update:checked="handleChange"
+                />
               </FormItem>
             </FormField>
 
@@ -476,18 +461,13 @@
               v-slot="{ componentField, handleChange }"
               name="config.show_office_hours_in_chat"
             >
-              <FormItem class="flex flex-row items-center justify-between box p-4">
-                <div class="space-y-0.5">
-                  <FormLabel class="text-base text-foreground">{{
-                    $t('admin.inbox.livechat.showOfficeHoursInChat')
-                  }}</FormLabel>
-                  <FormDescription>{{
-                    $t('admin.inbox.livechat.showOfficeHoursInChat.description')
-                  }}</FormDescription>
-                </div>
-                <FormControl>
-                  <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                </FormControl>
+              <FormItem>
+                <SwitchField
+                  :title="$t('admin.inbox.livechat.showOfficeHoursInChat')"
+                  :description="$t('admin.inbox.livechat.showOfficeHoursInChat.description')"
+                  :checked="componentField.modelValue"
+                  @update:checked="handleChange"
+                />
               </FormItem>
             </FormField>
 
@@ -495,22 +475,14 @@
               v-slot="{ componentField, handleChange }"
               name="config.show_office_hours_after_assignment"
             >
-              <FormItem class="flex flex-row items-center justify-between box p-4">
-                <div class="space-y-0.5">
-                  <FormLabel class="text-base text-foreground">{{
-                    $t('admin.inbox.livechat.showOfficeHoursAfterAssignment')
-                  }}</FormLabel>
-                  <FormDescription>{{
-                    $t('admin.inbox.livechat.showOfficeHoursAfterAssignment.description')
-                  }}</FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    :checked="componentField.modelValue"
-                    @update:checked="handleChange"
-                    :disabled="!form.values.config.show_office_hours_in_chat"
-                  />
-                </FormControl>
+              <FormItem>
+                <SwitchField
+                  :title="$t('admin.inbox.livechat.showOfficeHoursAfterAssignment')"
+                  :description="$t('admin.inbox.livechat.showOfficeHoursAfterAssignment.description')"
+                  :checked="componentField.modelValue"
+                  :disabled="!form.values.config.show_office_hours_in_chat"
+                  @update:checked="handleChange"
+                />
               </FormItem>
             </FormField>
 
@@ -541,34 +513,24 @@
                 v-slot="{ componentField, handleChange }"
                 name="config.features.file_upload"
               >
-                <FormItem class="flex flex-row items-center justify-between box p-4">
-                  <div class="space-y-0.5">
-                    <FormLabel class="text-base text-foreground">{{
-                      $t('admin.inbox.livechat.features.fileUpload')
-                    }}</FormLabel>
-                    <FormDescription>{{
-                      $t('admin.inbox.livechat.features.fileUpload.description')
-                    }}</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                  </FormControl>
+                <FormItem>
+                  <SwitchField
+                    :title="$t('admin.inbox.livechat.features.fileUpload')"
+                    :description="$t('admin.inbox.livechat.features.fileUpload.description')"
+                    :checked="componentField.modelValue"
+                    @update:checked="handleChange"
+                  />
                 </FormItem>
               </FormField>
 
               <FormField v-slot="{ componentField, handleChange }" name="config.features.emoji">
-                <FormItem class="flex flex-row items-center justify-between box p-4">
-                  <div class="space-y-0.5">
-                    <FormLabel class="text-base text-foreground">{{
-                      $t('admin.inbox.livechat.features.emoji')
-                    }}</FormLabel>
-                    <FormDescription>{{
-                      $t('admin.inbox.livechat.features.emoji.description')
-                    }}</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                  </FormControl>
+                <FormItem>
+                  <SwitchField
+                    :title="$t('admin.inbox.livechat.features.emoji')"
+                    :description="$t('admin.inbox.livechat.features.emoji.description')"
+                    :checked="componentField.modelValue"
+                    @update:checked="handleChange"
+                  />
                 </FormItem>
               </FormField>
 
@@ -576,18 +538,13 @@
                 v-slot="{ componentField, handleChange }"
                 name="config.direct_to_conversation"
               >
-                <FormItem class="flex flex-row items-center justify-between box p-4">
-                  <div class="space-y-0.5">
-                    <FormLabel class="text-base text-foreground">{{
-                      $t('admin.inbox.livechat.directToConversation')
-                    }}</FormLabel>
-                    <FormDescription>{{
-                      $t('admin.inbox.livechat.directToConversation.description')
-                    }}</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                  </FormControl>
+                <FormItem>
+                  <SwitchField
+                    :title="$t('admin.inbox.livechat.directToConversation')"
+                    :description="$t('admin.inbox.livechat.directToConversation.description')"
+                    :checked="componentField.modelValue"
+                    @update:checked="handleChange"
+                  />
                 </FormItem>
               </FormField>
             </div>
@@ -596,27 +553,33 @@
 
         <!-- Security Tab -->
         <div v-show="activeTab === 'security'" class="space-y-6">
-          <!-- Secret Key (readonly) -->
+          <div class="grid grid-cols-2 gap-6">
+            <FormField v-slot="{ componentField }" name="secret">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.secretKey') }}</FormLabel>
+                <FormControl>
+                  <Input type="password" v-bind="componentField" />
+                </FormControl>
+                <FormDescription>{{
+                  $t('admin.inbox.livechat.secretKey.description')
+                }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
 
-          <FormField v-slot="{ componentField }" name="secret">
-            <FormItem>
-              <FormLabel>{{ $t('admin.inbox.livechat.secretKey') }}</FormLabel>
-              <FormControl>
-                <Input type="password" v-bind="componentField" />
-              </FormControl>
-              <FormDescription>{{
-                $t('admin.inbox.livechat.secretKey.description')
-              }}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+            <FormField v-slot="{ componentField }" name="config.session_duration">
+              <FormItem>
+                <FormLabel>{{ $t('admin.inbox.livechat.sessionDuration.label') }}</FormLabel>
+                <FormControl>
+                  <Input type="text" placeholder="10h" v-bind="componentField" />
+                </FormControl>
+                <FormDescription>{{ $t('admin.inbox.livechat.sessionDuration.description') }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+          </div>
 
-          <!-- Trusted Domains -->
-          <div class="space-y-4">
-            <h4 class="font-medium text-foreground">
-              {{ $t('admin.inbox.livechat.trustedDomains') }}
-            </h4>
-
+          <div class="grid grid-cols-2 gap-6">
             <FormField v-slot="{ componentField }" name="config.trusted_domains">
               <FormItem>
                 <FormLabel>{{ $t('admin.inbox.livechat.trustedDomains.list') }}</FormLabel>
@@ -633,13 +596,6 @@
                 <FormMessage />
               </FormItem>
             </FormField>
-          </div>
-
-          <!-- Blocked IPs -->
-          <div class="space-y-4">
-            <h4 class="font-medium text-foreground">
-              {{ $t('admin.inbox.livechat.blockedIPs') }}
-            </h4>
 
             <FormField v-slot="{ componentField }" name="config.blocked_ips">
               <FormItem>
@@ -699,18 +655,13 @@
                   v-slot="{ componentField, handleChange }"
                   name="config.visitors.allow_start_conversation"
                 >
-                  <FormItem class="flex flex-row items-center justify-between box p-4">
-                    <div class="space-y-0.5">
-                      <FormLabel class="text-base text-foreground">{{
-                        $t('admin.inbox.livechat.allowStartConversation')
-                      }}</FormLabel>
-                      <FormDescription>{{
-                        $t('admin.inbox.livechat.allowStartConversation.visitors.description')
-                      }}</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                    </FormControl>
+                  <FormItem>
+                    <SwitchField
+                      :title="$t('admin.inbox.livechat.allowStartConversation')"
+                      :description="$t('admin.inbox.livechat.allowStartConversation.visitors.description')"
+                      :checked="componentField.modelValue"
+                      @update:checked="handleChange"
+                    />
                   </FormItem>
                 </FormField>
 
@@ -718,18 +669,13 @@
                   v-slot="{ componentField, handleChange }"
                   name="config.visitors.prevent_multiple_conversations"
                 >
-                  <FormItem class="flex flex-row items-center justify-between box p-4">
-                    <div class="space-y-0.5">
-                      <FormLabel class="text-base text-foreground">{{
-                        $t('admin.inbox.livechat.preventMultipleConversations')
-                      }}</FormLabel>
-                      <FormDescription>{{
-                        $t('admin.inbox.livechat.preventMultipleConversations.visitors.description')
-                      }}</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                    </FormControl>
+                  <FormItem>
+                    <SwitchField
+                      :title="$t('admin.inbox.livechat.preventMultipleConversations')"
+                      :description="$t('admin.inbox.livechat.preventMultipleConversations.visitors.description')"
+                      :checked="componentField.modelValue"
+                      @update:checked="handleChange"
+                    />
                   </FormItem>
                 </FormField>
 
@@ -737,18 +683,13 @@
                   v-slot="{ componentField, handleChange }"
                   name="config.visitors.prevent_reply_to_closed_conversation"
                 >
-                  <FormItem class="flex flex-row items-center justify-between box p-4">
-                    <div class="space-y-0.5">
-                      <FormLabel class="text-base text-foreground">{{
-                        $t('admin.inbox.livechat.preventReplyToClosedConversation')
-                      }}</FormLabel>
-                      <FormDescription>{{
-                        $t('admin.inbox.livechat.preventReplyToClosedConversation.description')
-                      }}</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                    </FormControl>
+                  <FormItem>
+                    <SwitchField
+                      :title="$t('admin.inbox.livechat.preventReplyToClosedConversation')"
+                      :description="$t('admin.inbox.livechat.preventReplyToClosedConversation.description')"
+                      :checked="componentField.modelValue"
+                      @update:checked="handleChange"
+                    />
                   </FormItem>
                 </FormField>
               </div>
@@ -774,18 +715,13 @@
                   v-slot="{ componentField, handleChange }"
                   name="config.users.allow_start_conversation"
                 >
-                  <FormItem class="flex flex-row items-center justify-between box p-4">
-                    <div class="space-y-0.5">
-                      <FormLabel class="text-base text-foreground">{{
-                        $t('admin.inbox.livechat.allowStartConversation')
-                      }}</FormLabel>
-                      <FormDescription>{{
-                        $t('admin.inbox.livechat.allowStartConversation.users.description')
-                      }}</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                    </FormControl>
+                  <FormItem>
+                    <SwitchField
+                      :title="$t('admin.inbox.livechat.allowStartConversation')"
+                      :description="$t('admin.inbox.livechat.allowStartConversation.users.description')"
+                      :checked="componentField.modelValue"
+                      @update:checked="handleChange"
+                    />
                   </FormItem>
                 </FormField>
 
@@ -793,18 +729,13 @@
                   v-slot="{ componentField, handleChange }"
                   name="config.users.prevent_multiple_conversations"
                 >
-                  <FormItem class="flex flex-row items-center justify-between box p-4">
-                    <div class="space-y-0.5">
-                      <FormLabel class="text-base text-foreground">{{
-                        $t('admin.inbox.livechat.preventMultipleConversations')
-                      }}</FormLabel>
-                      <FormDescription>{{
-                        $t('admin.inbox.livechat.preventMultipleConversations.users.description')
-                      }}</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                    </FormControl>
+                  <FormItem>
+                    <SwitchField
+                      :title="$t('admin.inbox.livechat.preventMultipleConversations')"
+                      :description="$t('admin.inbox.livechat.preventMultipleConversations.users.description')"
+                      :checked="componentField.modelValue"
+                      @update:checked="handleChange"
+                    />
                   </FormItem>
                 </FormField>
 
@@ -812,18 +743,13 @@
                   v-slot="{ componentField, handleChange }"
                   name="config.users.prevent_reply_to_closed_conversation"
                 >
-                  <FormItem class="flex flex-row items-center justify-between box p-4">
-                    <div class="space-y-0.5">
-                      <FormLabel class="text-base text-foreground">{{
-                        $t('admin.inbox.livechat.preventReplyToClosedConversation')
-                      }}</FormLabel>
-                      <FormDescription>{{
-                        $t('admin.inbox.livechat.preventReplyToClosedConversation.description')
-                      }}</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch :checked="componentField.modelValue" @update:checked="handleChange" />
-                    </FormControl>
+                  <FormItem>
+                    <SwitchField
+                      :title="$t('admin.inbox.livechat.preventReplyToClosedConversation')"
+                      :description="$t('admin.inbox.livechat.preventReplyToClosedConversation.description')"
+                      :checked="componentField.modelValue"
+                      @update:checked="handleChange"
+                    />
                   </FormItem>
                 </FormField>
               </div>
@@ -930,7 +856,7 @@ import {
 } from '@shared-ui/components/ui/form'
 import { Input } from '@shared-ui/components/ui/input'
 import { Textarea } from '@shared-ui/components/ui/textarea'
-import { Switch } from '@shared-ui/components/ui/switch'
+import SwitchField from '@shared-ui/components/SwitchField.vue'
 import { Button } from '@shared-ui/components/ui/button'
 import {
   Select,
@@ -1097,6 +1023,7 @@ const form = useForm({
         max_messages_per_email: 10,
         min_email_interval: '15m'
       },
+      session_duration: '10h',
       direct_to_conversation: false,
       trusted_domains: '',
       blocked_ips: '',

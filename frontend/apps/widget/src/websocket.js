@@ -194,8 +194,6 @@ export class WidgetWebSocketClient {
         try {
           this.socket.send(JSON.stringify({
             type: 'ping',
-            token: this.token,
-            inbox_id: this.inboxId || null
           }))
           if (Date.now() - this.lastPong > 60000) {
             console.warn('No pong received in 60 seconds, closing widget connection')
@@ -250,7 +248,6 @@ export class WidgetWebSocketClient {
   sendTyping (isTyping = true, conversationUUID = null) {
     const typingMessage = {
       type: WS_EVENT.TYPING,
-      token: this.token,
       data: {
         conversation_uuid: conversationUUID,
         is_typing: isTyping

@@ -54,6 +54,7 @@ export const createFormSchema = (t) => z.object({
       max_messages_per_email: z.number().min(1).max(100),
       min_email_interval: z.string().min(1, { message: t('globals.messages.required') }).refine(isGoDuration, { message: t('validation.invalidDuration') }),
     }).optional(),
+    session_duration: z.string().min(1, { message: t('globals.messages.required') }).refine(isGoDuration, { message: t('validation.invalidDuration') }),
     direct_to_conversation: z.boolean().default(false),
     trusted_domains: z.string().optional(),
     blocked_ips: z.string().optional(),

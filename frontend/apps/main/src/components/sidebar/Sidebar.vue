@@ -30,8 +30,55 @@ import {
   Plus,
   CircleDashed,
   List,
-  AtSign
+  AtSign,
+  Settings,
+  Clock,
+  Timer,
+  Inbox as InboxIcon,
+  CircleDot,
+  Tag,
+  SlidersHorizontal,
+  Eye,
+  Zap,
+  Workflow,
+  UserRound,
+  UsersRound,
+  Shield,
+  ScrollText,
+  Mail,
+  FileText,
+  KeyRound,
+  Webhook,
+  Link,
+  BarChart3,
+  CircleUser,
+  Contact
 } from 'lucide-vue-next'
+
+const navIconMap = {
+  Settings,
+  Clock,
+  Timer,
+  Inbox: InboxIcon,
+  CircleDot,
+  Tag,
+  SlidersHorizontal,
+  Eye,
+  Zap,
+  Workflow,
+  UserRound,
+  UsersRound,
+  Shield,
+  ScrollText,
+  Mail,
+  FileText,
+  KeyRound,
+  Webhook,
+  Link,
+  BarChart3,
+  CircleUser,
+  Contact
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -216,6 +263,7 @@ const viewToDelete = ref(null)
               <SidebarMenuItem v-for="item in filteredContactsNavItems" :key="item.titleKey">
                 <SidebarMenuButton :isActive="isActiveParent(item.href)" asChild>
                   <router-link :to="item.href">
+                    <component :is="navIconMap[item.icon]" v-if="item.icon" />
                     <span>{{ t(item.allLabelKey) }}</span>
                   </router-link>
                 </SidebarMenuButton>
@@ -251,6 +299,7 @@ const viewToDelete = ref(null)
               <SidebarMenuItem v-for="item in filteredReportsNavItems" :key="item.titleKey">
                 <SidebarMenuButton :isActive="isActiveParent(item.href)" asChild>
                   <router-link :to="item.href">
+                    <component :is="navIconMap[item.icon]" v-if="item.icon" />
                     <span>{{ t(item.titleKey) }}</span>
                   </router-link>
                 </SidebarMenuButton>
@@ -312,6 +361,7 @@ const viewToDelete = ref(null)
                       <SidebarMenuSubItem v-for="child in item.children" :key="child.titleKey">
                         <SidebarMenuButton size="sm" :isActive="isActiveParent(child.href)" asChild>
                           <router-link :to="child.href">
+                            <component :is="navIconMap[child.icon]" v-if="child.icon" />
                             <span>{{ t(child.titleKey, child.isTitleKeyPlural === true ? 2 : 1) }}</span>
                           </router-link>
                         </SidebarMenuButton>
@@ -346,6 +396,7 @@ const viewToDelete = ref(null)
               <SidebarMenuItem v-for="item in accountNavItems" :key="item.titleKey">
                 <SidebarMenuButton :isActive="isActiveParent(item.href)" asChild>
                   <router-link :to="item.href">
+                    <component :is="navIconMap[item.icon]" v-if="item.icon" />
                     <span>{{ t(item.titleKey) }}</span>
                   </router-link>
                 </SidebarMenuButton>

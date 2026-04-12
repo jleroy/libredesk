@@ -1,17 +1,12 @@
 <template>
   <div class="space-y-6">
     <!-- Master Toggle -->
-    <div class="flex flex-row items-center justify-between box p-4">
-      <div class="space-y-0.5">
-        <label class="text-base font-medium">
-          {{ $t('admin.inbox.livechat.prechatForm.enabled') }}
-        </label>
-        <p class="text-sm text-muted-foreground">
-          {{ $t('admin.inbox.livechat.prechatForm.enabled.description') }}
-        </p>
-      </div>
-      <Switch v-model:checked="prechatConfig.enabled" />
-    </div>
+    <SwitchField
+      :title="$t('admin.inbox.livechat.prechatForm.enabled')"
+      :description="$t('admin.inbox.livechat.prechatForm.enabled.description')"
+      :checked="prechatConfig.enabled"
+      @update:checked="prechatConfig.enabled = $event"
+    />
 
     <!-- Form Configuration -->
     <div v-if="prechatConfig.enabled" class="space-y-6">
@@ -156,6 +151,7 @@ import { computed, onMounted, ref } from 'vue'
 import { Input } from '@shared-ui/components/ui/input'
 import { Button } from '@shared-ui/components/ui/button'
 import { Switch } from '@shared-ui/components/ui/switch'
+import SwitchField from '@shared-ui/components/SwitchField.vue'
 import { Checkbox } from '@shared-ui/components/ui/checkbox'
 import { Plus, X, GripVertical } from 'lucide-vue-next'
 import Draggable from 'vuedraggable'
