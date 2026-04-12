@@ -11,13 +11,13 @@
         </TabsContent>
       </div>
       <TabsList v-if="!widgetStore.isChatView" class="grid grid-cols-2 h-auto bg-background border-t rounded-none p-0">
-        <TabsTrigger value="home" class="flex items-center justify-center gap-2 py-2.5 rounded-none shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-muted-foreground">
-          <House class="w-[18px] h-[18px]" />
-          <span class="text-sm">{{ $t('globals.terms.home') }}</span>
+        <TabsTrigger value="home" class="nav-tab">
+          <House class="w-5 h-5" />
+          <span class="text-xs font-medium">{{ $t('globals.terms.home') }}</span>
         </TabsTrigger>
-        <TabsTrigger value="messages" class="flex items-center justify-center gap-2 py-2.5 rounded-none shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-muted-foreground">
-          <MessagesSquare class="w-[18px] h-[18px]" />
-          <span class="text-sm">{{ $t('globals.terms.message', 2) }}</span>
+        <TabsTrigger value="messages" class="nav-tab">
+          <MessagesSquare class="w-5 h-5" />
+          <span class="text-xs font-medium">{{ $t('globals.terms.message', 2) }}</span>
         </TabsTrigger>
       </TabsList>
       <div
@@ -58,3 +58,14 @@ const handleTabChange = (value) => {
   }
 }
 </script>
+
+<style scoped>
+.nav-tab {
+  @apply flex flex-col items-center justify-center gap-1 w-full px-0 py-4
+         rounded-none shadow-none cursor-pointer transition-colors
+         text-muted-foreground;
+}
+.nav-tab[data-state='active'] {
+  @apply bg-transparent shadow-none text-primary;
+}
+</style>
