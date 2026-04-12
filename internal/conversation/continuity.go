@@ -268,8 +268,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	}
 
 	// Mark in DB that continuity email was sent now
-	lastMessageTime := unreadMessages[len(unreadMessages)-1].CreatedAt
-	if _, err := m.q.UpdateContinuityEmailTracking.Exec(conv.ID, emailSubject, lastMessageTime); err != nil {
+	if _, err := m.q.UpdateContinuityEmailTracking.Exec(conv.ID, emailSubject); err != nil {
 		m.lo.Error("error updating continuity email tracking", "conversation_uuid", conv.UUID, "error", err)
 		return fmt.Errorf("updating continuity email tracking: %w", err)
 	}

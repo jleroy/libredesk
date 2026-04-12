@@ -746,6 +746,7 @@ WHERE i.channel = 'livechat'
       AND cm.created_at > c.contact_last_seen_at
       AND cm.type = 'outgoing'
       AND cm.private = false
+      AND (cm.meta IS NULL OR NOT COALESCE((cm.meta->>'continuity_email')::boolean, false))
   )
   AND u.email > ''
   AND (c.last_continuity_email_sent_at IS NULL
@@ -787,8 +788,7 @@ WHERE id = ANY($1::int[]);
 
 -- name: update-continuity-email-tracking
 UPDATE conversations
-SET contact_last_seen_at = $3,
-    last_continuity_email_sent_at = NOW(),
+SET last_continuity_email_sent_at = NOW(),
     meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{continuity_email_subject}', to_jsonb($2::text))
 WHERE id = $1;
 -- name: upsert-conversation-draft
