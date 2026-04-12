@@ -173,7 +173,7 @@
                 z-index: 9999;
                 width: ${this.isMobile ? this.MOBILE_LAUNCHER_SIZE : this.LAUNCHER_SIZE}px;
                 height: ${this.isMobile ? this.MOBILE_LAUNCHER_SIZE : this.LAUNCHER_SIZE}px;
-                background-color: ${colors.primary};
+                background-color: ${launcher.color || colors.primary};
                 border-radius: 50%;
                 display: flex;
                 justify-content: center;
@@ -212,7 +212,7 @@
             svg.setAttribute('fill', 'none');
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', 'M7 10L12 15L17 10');
-            path.setAttribute('stroke', this.contrastColor(colors.primary));
+            path.setAttribute('stroke', this.contrastColor(launcher.color || colors.primary));
             path.setAttribute('stroke-width', '2');
             path.setAttribute('stroke-linecap', 'round');
             path.setAttribute('stroke-linejoin', 'round');

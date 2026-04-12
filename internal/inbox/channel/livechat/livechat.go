@@ -86,6 +86,7 @@ type Config struct {
 		} `json:"spacing"`
 		LogoURL  string `json:"logo_url"`
 		Position string `json:"position"`
+		Color    string `json:"color"`
 	} `json:"launcher"`
 	LogoURL  string `json:"logo_url"`
 	Visitors struct {

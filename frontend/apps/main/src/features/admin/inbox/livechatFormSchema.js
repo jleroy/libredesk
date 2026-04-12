@@ -23,6 +23,7 @@ export const createFormSchema = (t) => z.object({
     launcher: z.object({
       position: z.enum(['left', 'right']),
       logo_url: optionalUrl(t),
+      color: hexColor(t),
       spacing: z.object({
         side: z.number().min(0),
         bottom: z.number().min(0),

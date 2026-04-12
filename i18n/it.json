@@ -190,6 +190,7 @@
   "admin.inbox.livechat.introductionMessage": "Messaggio di introduzione",
   "admin.inbox.livechat.language.auto": "Rilevamento automatico (lingua del browser)",
   "admin.inbox.livechat.launcher": "Pulsante di avvio",
+  "admin.inbox.livechat.launcher.color": "Colore del launcher",
   "admin.inbox.livechat.launcher.logo": "Logo del launcher",
   "admin.inbox.livechat.launcher.position": "Posizione",
   "admin.inbox.livechat.launcher.position.left": "Sinistra",

@@ -190,6 +190,7 @@
   "admin.inbox.livechat.introductionMessage": "Introduktionsbesked",
   "admin.inbox.livechat.language.auto": "Automatisk registrering (browsersprog)",
   "admin.inbox.livechat.launcher": "Startknap",
+  "admin.inbox.livechat.launcher.color": "Launcher-farve",
   "admin.inbox.livechat.launcher.logo": "Launcher-logo",
   "admin.inbox.livechat.launcher.position": "Placering",
   "admin.inbox.livechat.launcher.position.left": "Venstre",

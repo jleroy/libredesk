@@ -448,6 +448,19 @@
             </div>
 
             <div class="grid grid-cols-2 gap-4">
+              <!-- Launcher Color -->
+              <FormField v-slot="{ componentField }" name="config.launcher.color">
+                <FormItem>
+                  <FormLabel>{{ $t('admin.inbox.livechat.launcher.color') }}</FormLabel>
+                  <FormControl>
+                    <Input type="color" v-bind="componentField" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
               <!-- Launcher Spacing Side -->
               <FormField v-slot="{ componentField }" name="config.launcher.spacing.side">
                 <FormItem>
@@ -1115,6 +1128,7 @@ const form = useForm({
       launcher: {
         position: 'right',
         logo_url: '',
+        color: '#000000',
         spacing: {
           side: 20,
           bottom: 20

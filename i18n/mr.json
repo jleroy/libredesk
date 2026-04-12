@@ -190,6 +190,7 @@
   "admin.inbox.livechat.introductionMessage": "परिचय संदेश",
   "admin.inbox.livechat.language.auto": "स्वयं-शोध (ब्राउझर भाषा)",
   "admin.inbox.livechat.launcher": "लाँचर",
+  "admin.inbox.livechat.launcher.color": "लाँचर रंग",
   "admin.inbox.livechat.launcher.logo": "लाँचर लोगो",
   "admin.inbox.livechat.launcher.position": "स्थान",
   "admin.inbox.livechat.launcher.position.left": "डावीकडे",

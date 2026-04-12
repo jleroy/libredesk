@@ -190,6 +190,7 @@
   "admin.inbox.livechat.introductionMessage": "پیام معرفی",
   "admin.inbox.livechat.language.auto": "تشخیص خودکار (زبان مرورگر)",
   "admin.inbox.livechat.launcher": "لانچر",
+  "admin.inbox.livechat.launcher.color": "رنگ لانچر",
   "admin.inbox.livechat.launcher.logo": "لوگوی لانچر",
   "admin.inbox.livechat.launcher.position": "موقعیت",
   "admin.inbox.livechat.launcher.position.left": "چپ",

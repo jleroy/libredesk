@@ -190,6 +190,7 @@
   "admin.inbox.livechat.introductionMessage": "紹介メッセージ",
   "admin.inbox.livechat.language.auto": "自動検出（ブラウザの言語）",
   "admin.inbox.livechat.launcher": "ランチャー",
+  "admin.inbox.livechat.launcher.color": "ランチャーの色",
   "admin.inbox.livechat.launcher.logo": "ランチャーロゴ",
   "admin.inbox.livechat.launcher.position": "位置",
   "admin.inbox.livechat.launcher.position.left": "左",

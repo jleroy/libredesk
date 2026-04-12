@@ -190,6 +190,7 @@
   "admin.inbox.livechat.introductionMessage": "Introduction message",
   "admin.inbox.livechat.language.auto": "Auto-detect (browser language)",
   "admin.inbox.livechat.launcher": "Launcher",
+  "admin.inbox.livechat.launcher.color": "Launcher color",
   "admin.inbox.livechat.launcher.logo": "Launcher logo",
   "admin.inbox.livechat.launcher.position": "Position",
   "admin.inbox.livechat.launcher.position.left": "Left",
