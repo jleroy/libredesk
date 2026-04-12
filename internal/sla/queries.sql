@@ -127,7 +127,8 @@ INSERT INTO scheduled_sla_notifications (
 -- name: get-scheduled-sla-notifications
 SELECT id, created_at, updated_at, applied_sla_id, sla_event_id, metric, notification_type, recipients, send_at, processed_at
 FROM scheduled_sla_notifications
-WHERE send_at <= NOW() AND processed_at IS NULL;
+WHERE send_at <= NOW() AND processed_at IS NULL
+ORDER BY send_at;
 
 -- name: get-applied-sla
 SELECT a.id,

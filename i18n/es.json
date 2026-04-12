@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "Bandeja de entrada no encontrada",
   "validation.notFoundMacro": "Macro no encontrada",
   "validation.notFoundMedia": "Medio no encontrado",
-  "validation.notFoundNotification": "Notificación no encontrada",
   "validation.notFoundOidcProvider": "Proveedor OIDC no encontrado",
   "validation.notFoundProvider": "Proveedor no encontrado",
   "validation.notFoundRole": "Rol no encontrado",

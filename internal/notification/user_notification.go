@@ -97,7 +97,7 @@ func (m *UserNotificationManager) MarkAsRead(id, userID int) error {
 	var returnedID int
 	if err := m.q.MarkAsRead.Get(&returnedID, id, userID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return envelope.NewError(envelope.NotFoundError, m.i18n.T("validation.notFoundNotification"), nil)
+			return nil
 		}
 		m.lo.Error("error marking notification as read", "id", id, "user_id", userID, "error", err)
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)

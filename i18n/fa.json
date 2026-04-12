@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "صندوق ورودی یافت نشد",
   "validation.notFoundMacro": "ماکرو یافت نشد",
   "validation.notFoundMedia": "رسانه یافت نشد",
-  "validation.notFoundNotification": "اعلان یافت نشد",
   "validation.notFoundOidcProvider": "ارائه‌دهنده OIDC یافت نشد",
   "validation.notFoundProvider": "ارائه‌دهنده یافت نشد",
   "validation.notFoundRole": "نقش یافت نشد",

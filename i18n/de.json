@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "Posteingang nicht gefunden",
   "validation.notFoundMacro": "Makro nicht gefunden",
   "validation.notFoundMedia": "Medium nicht gefunden",
-  "validation.notFoundNotification": "Benachrichtigung nicht gefunden",
   "validation.notFoundOidcProvider": "OIDC-Anbieter nicht gefunden",
   "validation.notFoundProvider": "Anbieter nicht gefunden",
   "validation.notFoundRole": "Rolle nicht gefunden",

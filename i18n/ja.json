@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "受信トレイが見つかりません",
   "validation.notFoundMacro": "マクロが見つかりません",
   "validation.notFoundMedia": "メディアが見つかりません",
-  "validation.notFoundNotification": "通知が見つかりません",
   "validation.notFoundOidcProvider": "OIDCプロバイダーが見つかりません",
   "validation.notFoundProvider": "プロバイダーが見つかりません",
   "validation.notFoundRole": "ロールが見つかりません",

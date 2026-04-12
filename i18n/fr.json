@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "Boîte de réception introuvable",
   "validation.notFoundMacro": "Macro introuvable",
   "validation.notFoundMedia": "Média introuvable",
-  "validation.notFoundNotification": "Notification introuvable",
   "validation.notFoundOidcProvider": "Fournisseur OIDC introuvable",
   "validation.notFoundProvider": "Fournisseur introuvable",
   "validation.notFoundRole": "Rôle introuvable",

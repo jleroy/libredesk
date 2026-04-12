@@ -2,7 +2,7 @@
   <div class="flex flex-col min-h-[20rem] max-h-[32rem]" role="region" :aria-label="t('globals.terms.notification', 2)">
     <!-- Header -->
     <div class="flex items-center justify-between px-3 py-2.5 border-b border-border">
-      <h3 class="font-semibold text-xs">{{ t('globals.terms.notification', 2) }}</h3>
+      <h3 class="font-semibold text-sm">{{ t('globals.terms.notification', 2) }}</h3>
       <div class="flex items-center gap-1">
         <Button
           v-if="notificationStore.unreadCount > 0"
@@ -61,12 +61,11 @@
         >
           <div class="flex gap-2.5">
             <!-- Icon based on notification type -->
-            <div
-              class="flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center"
+            <component
+              :is="getNotificationIcon(notification.notification_type)"
+              class="flex-shrink-0 h-4 w-4 mt-0.5"
               :class="getNotificationIconClass(notification.notification_type)"
-            >
-              <component :is="getNotificationIcon(notification.notification_type)" class="h-3.5 w-3.5" />
-            </div>
+            />
 
             <!-- Content -->
             <div class="flex-1 min-w-0">
@@ -81,31 +80,26 @@
               </p>
             </div>
 
-            <!-- Unread dot -->
-            <div v-if="!notification.is_read" class="flex-shrink-0 mt-1.5">
-              <span class="block h-2 w-2 rounded-full bg-primary" />
-            </div>
-
             <!-- Action buttons (visible on hover) -->
             <div class="flex items-start gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 v-if="!notification.is_read"
                 variant="ghost"
                 size="sm"
-                class="h-6 w-6 p-0"
+                class="h-5 w-5 p-0"
                 :aria-label="t('globals.messages.markAsRead')"
                 @click.stop="handleMarkAsRead(notification)"
               >
-                <Check class="h-3 w-3" />
+                <Check class="h-2.5 w-2.5" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                class="h-6 w-6 p-0 hover:text-destructive"
+                class="h-5 w-5 p-0 hover:text-destructive"
                 :aria-label="t('globals.messages.delete')"
                 @click.stop="handleDelete(notification)"
               >
-                <X class="h-3 w-3" />
+                <X class="h-2.5 w-2.5" />
               </Button>
             </div>
           </div>
@@ -154,6 +148,7 @@ const router = useRouter()
 const { t } = useI18n()
 const notificationStore = useNotificationStore()
 
+
 const getNotificationIcon = (type) => {
   const icons = {
     mention: AtSign,
@@ -166,12 +161,12 @@ const getNotificationIcon = (type) => {
 
 const getNotificationIconClass = (type) => {
   const classes = {
-    mention: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    assignment: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    sla_warning: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
-    sla_breach: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+    mention: 'text-primary',
+    assignment: 'text-accent-foreground',
+    sla_warning: 'text-destructive',
+    sla_breach: 'text-destructive'
   }
-  return classes[type] || 'bg-muted text-muted-foreground'
+  return classes[type] || 'text-muted-foreground'
 }
 
 const handleNotificationClick = async (notification) => {

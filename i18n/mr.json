@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "इनबॉक्स सापडला नाही",
   "validation.notFoundMacro": "मॅक्रो सापडला नाही",
   "validation.notFoundMedia": "मीडिया सापडला नाही",
-  "validation.notFoundNotification": "सूचना सापडली नाही",
   "validation.notFoundOidcProvider": "OIDC प्रदाता सापडला नाही",
   "validation.notFoundProvider": "प्रदाता सापडला नाही",
   "validation.notFoundRole": "भूमिका सापडली नाही",

@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "Casella di posta non trovata",
   "validation.notFoundMacro": "Macro non trovata",
   "validation.notFoundMedia": "Media non trovato",
-  "validation.notFoundNotification": "Notifica non trovata",
   "validation.notFoundOidcProvider": "Fornitore OIDC non trovato",
   "validation.notFoundProvider": "Fornitore non trovato",
   "validation.notFoundRole": "Ruolo non trovato",

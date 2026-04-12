@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "Indbakke ikke fundet",
   "validation.notFoundMacro": "Makro ikke fundet",
   "validation.notFoundMedia": "Medie ikke fundet",
-  "validation.notFoundNotification": "Notifikation ikke fundet",
   "validation.notFoundOidcProvider": "OIDC-udbyder ikke fundet",
   "validation.notFoundProvider": "Udbyder ikke fundet",
   "validation.notFoundRole": "Rolle ikke fundet",

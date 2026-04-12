@@ -43,17 +43,18 @@ type tagsUpdateReq struct {
 }
 
 type createConversationRequest struct {
-	InboxID         int    `json:"inbox_id"`
-	AssignedAgentID int    `json:"agent_id"`
-	AssignedTeamID  int    `json:"team_id"`
-	Email           string `json:"contact_email"`
-	FirstName       string `json:"first_name"`
-	LastName        string `json:"last_name"`
-	ExternalUserID  string `json:"external_user_id"`
-	Subject         string `json:"subject"`
-	Content         string `json:"content"`
-	Attachments     []int  `json:"attachments"`
-	Initiator       string `json:"initiator"` // "contact" | "agent"
+	InboxID          int            `json:"inbox_id"`
+	AssignedAgentID  int            `json:"agent_id"`
+	AssignedTeamID   int            `json:"team_id"`
+	Email            string         `json:"contact_email"`
+	FirstName        string         `json:"first_name"`
+	LastName         string         `json:"last_name"`
+	ExternalUserID   string         `json:"external_user_id"`
+	Subject          string         `json:"subject"`
+	Content          string         `json:"content"`
+	Attachments      []int          `json:"attachments"`
+	Initiator        string         `json:"initiator"` // "contact" | "agent"
+	CustomAttributes map[string]any `json:"custom_attributes"`
 }
 
 // handleGetAllConversations retrieves all conversations.
@@ -793,7 +794,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 		req.Subject,
 		true, /** append reference number to subject? **/
 		nil,
-		nil,
+		req.CustomAttributes,
 		0, 0,
 	)
 	if err != nil {
@@ -881,6 +882,23 @@ func validateCreateConversationRequest(req createConversationRequest, app *App) 
 	}
 	if !inbox.Enabled {
 		return envelope.NewError(envelope.InputError, app.i18n.T("globals.messages.disabled"), nil)
+	}
+
+	// Validate custom attribute keys. Skip unknown keys.
+	if len(req.CustomAttributes) > 0 {
+		attrs, err := app.customAttribute.GetAll("conversation")
+		if err != nil {
+			return err
+		}
+		validKeys := make(map[string]struct{}, len(attrs))
+		for _, a := range attrs {
+			validKeys[a.Key] = struct{}{}
+		}
+		for key := range req.CustomAttributes {
+			if _, ok := validKeys[key]; !ok {
+				delete(req.CustomAttributes, key)
+			}
+		}
 	}
 
 	return nil

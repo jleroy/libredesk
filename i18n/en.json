@@ -998,7 +998,6 @@
   "validation.notFoundInbox": "Inbox not found",
   "validation.notFoundMacro": "Macro not found",
   "validation.notFoundMedia": "Media not found",
-  "validation.notFoundNotification": "Notification not found",
   "validation.notFoundOidcProvider": "OIDC Provider not found",
   "validation.notFoundProvider": "Provider not found",
   "validation.notFoundRole": "Role not found",

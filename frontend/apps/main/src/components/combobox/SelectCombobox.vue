@@ -17,6 +17,9 @@
         <!-- Others -->
         <span v-else-if="item.emoji">{{ item.emoji }}</span>
         <span>{{ item.label }}</span>
+        <span v-if="isCurrentUser(item)" class="text-muted-foreground text-xs"
+          >({{ t('globals.terms.you') }})</span
+        >
       </div>
     </template>
 
@@ -33,6 +36,9 @@
           <!-- Others -->
           <span v-else-if="selected.emoji">{{ selected.emoji }}</span>
           <span>{{ selected.label }}</span>
+          <span v-if="isCurrentUser(selected)" class="text-muted-foreground text-xs"
+            >({{ t('globals.terms.you') }})</span
+          >
         </div>
         <span v-else>{{ placeholder }}</span>
       </div>
@@ -44,6 +50,10 @@
 import { computed } from 'vue'
 import { Avatar, AvatarImage, AvatarFallback } from '@shared-ui/components/ui/avatar'
 import ComboBox from '@shared-ui/components/ui/combobox/ComboBox.vue'
+import { useUserStore } from '@/stores/user'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+const userStore = useUserStore()
 
 const props = defineProps({
   modelValue: [String, Number, Object],
@@ -56,6 +66,14 @@ const props = defineProps({
 
 // Convert to str.
 const normalizedValue = computed(() => String(props.modelValue || ''))
+
+const isCurrentUser = (item) => {
+  return (
+    props.type === 'user' &&
+    item.value !== 'none' &&
+    String(item.value) === String(userStore.userID)
+  )
+}
 
 defineEmits(['update:modelValue'])
 </script>

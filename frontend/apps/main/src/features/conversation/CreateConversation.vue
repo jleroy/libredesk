@@ -1,7 +1,7 @@
 <template>
   <div>
     <Dialog v-model:open="dialogOpen">
-      <DialogContent class="max-w-5xl w-full h-[90vh] flex flex-col">
+      <DialogContent class="max-w-5xl w-full h-[90vh] flex flex-col" >
         <DialogHeader>
           <DialogTitle>
             {{ $t('conversation.newConversation') }}
@@ -18,6 +18,7 @@
                   <FormLabel>{{ $t('globals.terms.email') }}</FormLabel>
                   <FormControl>
                     <Input
+                      ref="emailInputRef"
                       type="email"
                       :placeholder="t('conversation.searchContact')"
                       v-model="emailQuery"
@@ -319,6 +320,7 @@ const macroStore = useMacroStore()
 let timeoutId = null
 const insertContent = ref('')
 const selectedContact = ref(null)
+const emailInputRef = ref(null)
 
 const handleEmojiSelect = (emoji) => {
   insertContent.value = undefined
@@ -368,6 +370,9 @@ onMounted(() => {
   emitter.emit(EMITTER_EVENTS.SET_NESTED_COMMAND, {
     command: 'apply-macro-to-new-conversation',
     open: false
+  })
+  nextTick(() => {
+    emailInputRef.value?.$el?.focus()
   })
 })
 
