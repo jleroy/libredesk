@@ -26,7 +26,7 @@ const (
 	WidgetMsgTypePageVisit = "page_visit"
 
 	pageVisitRedisKeyPrefix = "page_visits:"
-	maxPageVisits           = 10
+	maxPageVisits           = 20
 	pageVisitTTL            = 24 * time.Hour
 	wsReadDeadline          = 20 * time.Second
 )
@@ -266,14 +266,23 @@ func handleWidgetPageVisit(app *App, data json.RawMessage, contactID int) {
 		return
 	}
 
+	redisCtx := context.Background()
+	key := fmt.Sprintf("%s%d", pageVisitRedisKeyPrefix, contactID)
+
+	// Skip if the most recent page visit has the same URL.
+	if latest, err := app.redis.LIndex(redisCtx, key, 0).Result(); err == nil {
+		var lastVisit map[string]string
+		if json.Unmarshal([]byte(latest), &lastVisit) == nil && lastVisit["url"] == visit.URL {
+			return
+		}
+	}
+
 	entry, _ := json.Marshal(map[string]string{
 		"url":   visit.URL,
 		"title": visit.Title,
 		"time":  time.Now().UTC().Format(time.RFC3339),
 	})
 
-	redisCtx := context.Background()
-	key := fmt.Sprintf("%s%d", pageVisitRedisKeyPrefix, contactID)
 	pipe := app.redis.Pipeline()
 	pipe.LPush(redisCtx, key, string(entry))
 	pipe.LTrim(redisCtx, key, 0, maxPageVisits-1)
