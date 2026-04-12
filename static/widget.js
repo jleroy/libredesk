@@ -149,6 +149,19 @@
             }
         }
 
+        contrastColor (hex) {
+            try {
+                hex = hex.replace(/^#/, '');
+                var r = parseInt(hex.substring(0, 2), 16) / 255;
+                var g = parseInt(hex.substring(2, 4), 16) / 255;
+                var b = parseInt(hex.substring(4, 6), 16) / 255;
+                var L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                return L > 0.179 ? '#000000' : '#ffffff';
+            } catch (e) {
+                return '#ffffff';
+            }
+        }
+
         createElements () {
             const launcher = this.widgetSettings.launcher;
             const colors = this.widgetSettings.colors;
@@ -199,7 +212,7 @@
             svg.setAttribute('fill', 'none');
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', 'M7 10L12 15L17 10');
-            path.setAttribute('stroke', 'white');
+            path.setAttribute('stroke', this.contrastColor(colors.primary));
             path.setAttribute('stroke-width', '2');
             path.setAttribute('stroke-linecap', 'round');
             path.setAttribute('stroke-linejoin', 'round');

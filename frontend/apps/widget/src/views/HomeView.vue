@@ -1,14 +1,10 @@
 <template>
-  <div class="flex flex-col h-full relative">
-    <div class="absolute top-2 right-4 z-10">
-      <CloseWidgetButton />
-    </div>
-    
-    <div class="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/30 hover:scrollbar-thumb-muted-foreground/50">
-      <div class="flex flex-col gap-6">
+  <div class="flex flex-col h-full">
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/30 hover:scrollbar-thumb-muted-foreground/50">
+      <div class="flex flex-col">
         <HomeHeader :config="config" />
 
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-3 p-4 -mt-px bg-background">
           <!-- Show recent conversation if exists -->
           <RecentConversationCard
             v-if="mostRecentConversation"
@@ -23,8 +19,13 @@
             </Button>
           </div>
 
-          <!-- External Links -->
-          <HomeExternalLinks :config="config" />
+          <!-- Home Apps (announcements + external links in configured order) -->
+          <div v-if="config.home_apps?.length" class="space-y-3">
+            <template v-for="(item, index) in config.home_apps" :key="index">
+              <AnnouncementCard v-if="item.type === 'announcement'" :announcement="item" />
+              <HomeExternalLink v-else-if="item.type === 'external_link'" :link="item" />
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -40,9 +41,9 @@ import { useChatStore } from '@widget/store/chat.js'
 import { useUserStore } from '@widget/store/user.js'
 import { useI18n } from 'vue-i18n'
 import HomeHeader from '@widget/components/HomeHeader.vue'
-import HomeExternalLinks from '@widget/components/HomeExternalLinks.vue'
+import HomeExternalLink from '@widget/components/HomeExternalLink.vue'
+import AnnouncementCard from '@widget/components/AnnouncementCard.vue'
 import RecentConversationCard from '@widget/components/RecentConversationCard.vue'
-import CloseWidgetButton from '@widget/components/CloseWidgetButton.vue'
 
 const widgetStore = useWidgetStore()
 const chatStore = useChatStore()

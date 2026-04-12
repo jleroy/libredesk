@@ -1,19 +1,27 @@
 <template>
-  <div class="p-4">
-    <!-- Logo -->
-    <img
-      v-if="config.logo_url"
-      :src="config.logo_url"
-      :alt="config.brand_name"
-      class="max-h-8 max-w-full"
-    />
-    <!-- Greeting and introduction -->
-    <div class="mt-24 font-bold text-4xl break-all">
-      <h2>{{ parsedGreeting }}</h2>
-      <p class="text-muted-foreground mt-2 font-semibold">
-        {{ parsedIntroduction }}
-      </p>
+  <div class="relative -mb-px" :style="headerStyle">
+    <div class="p-8">
+      <!-- Logo -->
+      <img
+        v-if="config.logo_url"
+        :src="config.logo_url"
+        :alt="config.brand_name"
+        class="max-h-8 max-w-full"
+      />
+      <!-- Greeting and introduction -->
+      <div class="mt-24 font-bold text-4xl" :class="textColorClass">
+        <h2 class="break-all">{{ parsedGreeting }}</h2>
+        <p class="mt-2 font-semibold" :class="subTextColorClass">
+          {{ parsedIntroduction }}
+        </p>
+      </div>
     </div>
+    <!-- Fade overlay -->
+    <div
+      v-if="config.home_screen?.fade_background && config.home_screen?.background?.type"
+      class="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
+      :style="fadeStyle"
+    ></div>
   </div>
 </template>
 
@@ -36,11 +44,55 @@ const userData = computed(() => ({
   lastName: userStore.lastName
 }))
 
-const parsedGreeting = computed(() =>
-  renderTemplate(props.config.greeting_message, userData.value)
-)
+const parsedGreeting = computed(() => renderTemplate(props.config.greeting_message, userData.value))
 
 const parsedIntroduction = computed(() =>
   renderTemplate(props.config.introduction_message, userData.value)
 )
+
+const headerStyle = computed(() => {
+  const hs = props.config.home_screen
+  if (!hs?.background?.type) return {}
+
+  const style = {}
+  switch (hs.background.type) {
+    case 'solid':
+      if (hs.background.color) style.backgroundColor = hs.background.color
+      break
+    case 'gradient':
+      if (hs.background.gradient_start && hs.background.gradient_end) {
+        style.background = `linear-gradient(to bottom, ${hs.background.gradient_start}, ${hs.background.gradient_end})`
+      }
+      break
+    case 'image':
+      if (hs.background.image_url) {
+        style.backgroundImage = `url(${hs.background.image_url})`
+        style.backgroundSize = 'cover'
+        style.backgroundPosition = 'center'
+      }
+      break
+  }
+  return style
+})
+
+const headerTextColor = computed(() => props.config.home_screen?.header_text_color)
+
+const textColorClass = computed(() => {
+  if (headerTextColor.value === 'black') return 'text-black'
+  if (headerTextColor.value === 'white') return 'text-white'
+  return ''
+})
+
+const subTextColorClass = computed(() => {
+  if (headerTextColor.value === 'black') return 'text-black/70'
+  if (headerTextColor.value === 'white') return 'text-white/70'
+  return 'text-muted-foreground'
+})
+
+const fadeStyle = computed(() => {
+  if (!props.config.home_screen?.fade_background) return {}
+  return {
+    background: 'linear-gradient(to bottom, transparent, hsl(var(--background)))'
+  }
+})
 </script>

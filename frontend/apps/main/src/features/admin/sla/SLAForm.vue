@@ -72,11 +72,11 @@
         </div>
         <div class="flex gap-2">
           <Button type="button" variant="outline" size="sm" @click="addNotification('breach')">
-            <Plus class="w-4 h-4 mr-2" />
+            <Plus class="w-4 h-4"/>
             {{ t('admin.sla.addBreachAlert') }}
           </Button>
           <Button type="button" variant="outline" size="sm" @click="addNotification('warning')">
-            <Plus class="w-4 h-4 mr-2" />
+            <Plus class="w-4 h-4"/>
             {{ t('admin.sla.addWarningAlert') }}
           </Button>
         </div>

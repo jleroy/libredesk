@@ -36,15 +36,3 @@ export const hexToHSL = (hex) => {
 
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`
 }
-
-/**
- * Apply a hex color to a CSS variable on the document root.
- * @param {string} variableName - CSS variable name (e.g., "--primary")
- * @param {string} hexColor - Hex color value
- */
-export const applyCSSColor = (variableName, hexColor) => {
-  if (hexColor) {
-    const hslValue = hexToHSL(hexColor)
-    document.documentElement.style.setProperty(variableName, hslValue)
-  }
-}

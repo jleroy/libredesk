@@ -265,12 +265,23 @@ func validateInbox(app *App, inbox imodels.Inbox) error {
 				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidValue"), nil)
 			}
 
-			// Validate external links.
-			for _, link := range config.ExternalLinks {
-				if strings.TrimSpace(link.Text) == "" {
-					return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "link text"), nil)
+			// Validate home apps.
+			for _, ha := range config.HomeApps {
+				if ha.URL != "" {
+					if _, err := url.ParseRequestURI(ha.URL); err != nil {
+						return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
+					}
 				}
-				if _, err := url.ParseRequestURI(link.URL); err != nil {
+				if ha.Type == livechat.HomeAppAnnouncement && ha.ImageURL != "" {
+					if _, err := url.ParseRequestURI(ha.ImageURL); err != nil {
+						return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
+					}
+				}
+			}
+
+			// Validate home screen background image URL.
+			if config.HomeScreen.Background.ImageURL != "" {
+				if _, err := url.ParseRequestURI(config.HomeScreen.Background.ImageURL); err != nil {
 					return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
 				}
 			}

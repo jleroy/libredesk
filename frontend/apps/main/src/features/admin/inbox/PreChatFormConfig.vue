@@ -35,7 +35,7 @@
             @click="fetchCustomAttributes"
             :disabled="availableCustomAttributes.length === 0"
           >
-            <Plus class="w-4 h-4 mr-2" />
+            <Plus class="w-4 h-4"/>
             {{ $t('admin.inbox.livechat.prechatForm.addField') }}
           </Button>
         </div>

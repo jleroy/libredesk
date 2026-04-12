@@ -220,7 +220,7 @@
         <Key class="w-8 h-8 text-gray-400 mx-auto mb-2" />
         <p class="text-sm text-gray-500 mb-3">{{ $t('admin.agent.apiKey.noKey') }}</p>
         <Button type="button" @click="generateAPIKey" :disabled="isAPIKeyLoading">
-          <Plus class="w-4 h-4 mr-1" />
+          <Plus class="w-4 h-4" />
           {{ $t('agent.generateApiKey') }}
         </Button>
       </div>

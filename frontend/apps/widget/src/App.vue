@@ -2,6 +2,7 @@
   <div
     class="libredesk-widget-app text-foreground bg-background"
     :class="{ dark: widgetStore.config.dark_mode, mobile: widgetStore.isMobileFullScreen }"
+    :style="customColorStyle"
     @click.once="initAudioContext"
     @touchstart.once="initAudioContext"
   >
@@ -12,7 +13,7 @@
 </template>
 
 <script setup>
-import { onMounted, watch, getCurrentInstance } from 'vue'
+import { computed, onMounted, watch, getCurrentInstance } from 'vue'
 import { useWidgetStore } from './store/widget.js'
 import { useChatStore } from '@widget/store/chat.js'
 import { useUserStore } from './store/user.js'
@@ -20,7 +21,7 @@ import { initWidgetWS, closeWidgetWebSocket, sendPageVisit, skipInitialWsSync } 
 import api, { setApiSessionToken, initVisitorToken, saveSession } from '@widget/api/index.js'
 import { useUnreadCount } from './composables/useUnreadCount.js'
 import { initAudioContext } from '@shared-ui/composables/useNotificationSound.js'
-import { applyCSSColor } from '@shared-ui/utils/color.js'
+import { hexToHSL } from '@shared-ui/utils/color.js'
 import MainLayout from '@widget/layouts/MainLayout.vue'
 
 const widgetStore = useWidgetStore()
@@ -33,9 +34,19 @@ useUnreadCount()
 const widgetConfig = getCurrentInstance().appContext.config.globalProperties.$widgetConfig
 if (widgetConfig) {
   widgetStore.updateConfig(widgetConfig)
-  applyCSSColor('--primary', widgetConfig.colors?.primary)
-  applyCSSColor('--secondary', widgetConfig.colors?.secondary)
 }
+
+const customColorStyle = computed(() => {
+  const style = {}
+  const colors = widgetStore.config.colors
+  if (colors?.primary) {
+    style['--primary'] = hexToHSL(colors.primary)
+  }
+  if (colors?.secondary) {
+    style['--secondary'] = hexToHSL(colors.secondary)
+  }
+  return style
+})
 
 onMounted(() => {
   setupParentMessageListeners()

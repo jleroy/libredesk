@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import { isGoDuration } from '@shared-ui/utils/string'
 
+const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
+const hexColor = (t) => z.string().regex(hexColorRegex, { message: t('validation.invalidColor') })
+const optionalHexColor = (t) => hexColor(t).optional().or(z.literal(''))
+const optionalUrl = (t) => z.string().url({ message: t('validation.invalidUrl') }).optional().or(z.literal(''))
+
 export const createFormSchema = (t) => z.object({
   name: z.string().min(1, { message: t('globals.messages.required') }),
   enabled: z.boolean(),
@@ -9,19 +14,15 @@ export const createFormSchema = (t) => z.object({
   linked_email_inbox_id: z.number().nullable().optional(),
   config: z.object({
     brand_name: z.string().min(1, { message: t('globals.messages.required') }),
-    website_url: z.string().url({ message: t('validation.invalidUrl') }).optional().or(z.literal('')),
+    website_url: optionalUrl(t),
     dark_mode: z.boolean(),
     show_powered_by: z.boolean(),
     language: z.string().min(1, { message: t('globals.messages.required') }),
     fallback_language: z.string().optional(),
-    logo_url: z.string().url({
-      message: t('validation.invalidUrl')
-    }).optional().or(z.literal('')),
+    logo_url: optionalUrl(t),
     launcher: z.object({
       position: z.enum(['left', 'right']),
-      logo_url: z.string().url({
-        message: t('validation.invalidUrl')
-      }).optional().or(z.literal('')),
+      logo_url: optionalUrl(t),
       spacing: z.object({
         side: z.number().min(0),
         bottom: z.number().min(0),
@@ -38,12 +39,19 @@ export const createFormSchema = (t) => z.object({
       text: z.string().optional()
     }),
     colors: z.object({
-      primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
-        message: t('validation.invalidColor')
+      primary: hexColor(t),
+      secondary: optionalHexColor(t),
+    }),
+    home_screen: z.object({
+      header_text_color: z.enum(['black', 'white']),
+      background: z.object({
+        type: z.enum(['solid', 'gradient', 'image']),
+        color: optionalHexColor(t),
+        gradient_start: optionalHexColor(t),
+        gradient_end: optionalHexColor(t),
+        image_url: optionalUrl(t),
       }),
-      secondary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, {
-        message: t('validation.invalidColor')
-      }).optional().or(z.literal('')),
+      fade_background: z.boolean(),
     }),
     features: z.object({
       file_upload: z.boolean(),
@@ -58,11 +66,13 @@ export const createFormSchema = (t) => z.object({
     direct_to_conversation: z.boolean().default(false),
     trusted_domains: z.string().optional(),
     blocked_ips: z.string().optional(),
-    external_links: z.array(z.object({
-      text: z.string().min(1),
-      url: z.string().url({
-        message: t('validation.invalidUrl')
-      })
+    home_apps: z.array(z.object({
+      type: z.enum(['announcement', 'external_link']),
+      title: z.string().optional().or(z.literal('')),
+      description: z.string().optional().or(z.literal('')),
+      image_url: optionalUrl(t),
+      url: optionalUrl(t),
+      text: z.string().optional().or(z.literal('')),
     })),
     visitors: z.object({
       start_conversation_button_text: z.string(),

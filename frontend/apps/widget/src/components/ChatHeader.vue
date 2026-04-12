@@ -19,8 +19,6 @@
         <Maximize2 v-if="!widgetStore.isExpanded" class="w-4 h-4" />
         <Minimize2 v-else class="w-4 h-4" />
       </Button>
-      <!-- Close Button - only visible on mobile (full screen mode) -->
-      <CloseWidgetButton />
     </div>
   </div>
 </template>
@@ -29,7 +27,6 @@
 import { Button } from '@shared-ui/components/ui/button'
 import { ArrowLeft, Maximize2, Minimize2 } from 'lucide-vue-next'
 import ChatTitle from './ChatTitle.vue'
-import CloseWidgetButton from './CloseWidgetButton.vue'
 import { useWidgetStore } from '@widget/store/widget.js'
 
 const widgetStore = useWidgetStore()

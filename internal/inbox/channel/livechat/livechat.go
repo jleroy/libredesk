@@ -22,6 +22,9 @@ var (
 const (
 	ChannelLiveChat       = "livechat"
 	MaxConnectionsPerUser = 10
+
+	HomeAppAnnouncement  = "announcement"
+	HomeAppExternalLink  = "external_link"
 )
 
 type PreChatFormField struct {
@@ -61,6 +64,17 @@ type Config struct {
 		Primary   string `json:"primary"`
 		Secondary string `json:"secondary"`
 	} `json:"colors"`
+	HomeScreen struct {
+		HeaderTextColor string `json:"header_text_color"`
+		Background      struct {
+			Type          string `json:"type"`
+			Color         string `json:"color"`
+			GradientStart string `json:"gradient_start"`
+			GradientEnd   string `json:"gradient_end"`
+			ImageURL      string `json:"image_url"`
+		} `json:"background"`
+		FadeBackground bool `json:"fade_background"`
+	} `json:"home_screen"`
 	Features struct {
 		Emoji      bool `json:"emoji"`
 		FileUpload bool `json:"file_upload"`
@@ -84,10 +98,14 @@ type Config struct {
 		Text    string `json:"text"`
 		Enabled bool   `json:"enabled"`
 	} `json:"notice_banner"`
-	ExternalLinks []struct {
-		URL  string `json:"url"`
-		Text string `json:"text"`
-	} `json:"external_links"`
+	HomeApps []struct {
+		Type        string `json:"type"`
+		Title       string `json:"title,omitempty"`
+		Description string `json:"description,omitempty"`
+		ImageURL    string `json:"image_url,omitempty"`
+		URL         string `json:"url"`
+		Text        string `json:"text,omitempty"`
+	} `json:"home_apps"`
 	TrustedDomains                 []string         `json:"trusted_domains"`
 	BlockedIPs                     []string         `json:"blocked_ips"`
 	DirectToConversation           bool             `json:"direct_to_conversation"`
