@@ -77,6 +77,9 @@ type chatInitReq struct {
 
 type chatSettingsResponse struct {
 	livechat.Config
+	// Hide server-side security fields from the public widget response.
+	TrustedDomains         *struct{}                     `json:"trusted_domains,omitempty"`
+	BlockedIPs             *struct{}                     `json:"blocked_ips,omitempty"`
 	BusinessHours          []bhmodels.BusinessHours      `json:"business_hours,omitempty"`
 	DefaultBusinessHoursID int                           `json:"default_business_hours_id,omitempty"`
 	WorkingHoursUTCOffset  *int                          `json:"working_hours_utc_offset,omitempty"`

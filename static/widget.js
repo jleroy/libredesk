@@ -19,7 +19,7 @@
                 throw new Error('inboxID is required');
             }
 
-            this.IFRAME_BORDER_RADIUS = '24px';
+            this.IFRAME_BORDER_RADIUS = '16px';
             this.IFRAME_BOX_SHADOW = '0 4px 24px rgba(0,0,0,0.12)';
             this.IFRAME_WIDTH = '400px';
             this.IFRAME_HEIGHT = '700px';
