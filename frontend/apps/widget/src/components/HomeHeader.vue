@@ -8,7 +8,7 @@
       class="max-h-8 max-w-full"
     />
     <!-- Greeting and introduction -->
-    <div class="mt-24 font-bold text-4xl">
+    <div class="mt-24 font-bold text-4xl break-all">
       <h2>{{ parsedGreeting }}</h2>
       <p class="text-muted-foreground mt-2 font-semibold">
         {{ parsedIntroduction }}

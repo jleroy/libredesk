@@ -58,7 +58,6 @@ export class WidgetWebSocketClient {
 
   handleOpen () {
     this.reconnectInterval = 1000
-    this.wasReconnecting = this.reconnectAttempts > 0
     this.reconnectAttempts = 0
     this.isReconnecting = false
     this.lastPong = Date.now()
@@ -69,10 +68,8 @@ export class WidgetWebSocketClient {
       this.joinInbox()
     }
 
-    // If this was a reconnection, sync current conversation messages.
-    if (this.wasReconnecting) {
-      this.syncMissedMessages()
-    }
+    // Sync messages on every connect to pick up anything missed while disconnected.
+    this.syncMissedMessages()
   }
 
   handleMessage (event) {
