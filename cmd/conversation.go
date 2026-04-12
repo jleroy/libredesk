@@ -11,7 +11,6 @@ import (
 	"github.com/abhinavxd/libredesk/internal/automation/models"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
-	medModels "github.com/abhinavxd/libredesk/internal/media/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	vmodels "github.com/abhinavxd/libredesk/internal/view/models"
@@ -802,15 +801,10 @@ func handleCreateConversation(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 	}
 
-	// Get media for the attachment ids.
-	var media = make([]medModels.Media, 0, len(req.Attachments))
-	for _, id := range req.Attachments {
-		m, err := app.media.Get(id, "")
-		if err != nil {
-			app.lo.Error("error fetching media", "error", err)
-			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-		}
-		media = append(media, m)
+	// Get media for the attachment ids, skip any already associated with a model.
+	media, err := getUnassociatedMedia(app, req.Attachments)
+	if err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	// Send initial message based on the initiator of conversation.

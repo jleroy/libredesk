@@ -241,6 +241,23 @@ func bytesToMegabytes(bytes int64) float64 {
 	return float64(bytes) / 1024 / 1024
 }
 
+// getUnassociatedMedia fetches media by IDs, skipping any already associated with a model.
+func getUnassociatedMedia(app *App, ids []int) ([]mmodels.Media, error) {
+	all, err := app.media.GetMany(ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]mmodels.Media, 0, len(all))
+	for _, m := range all {
+		if m.ModelID.Int > 0 {
+			app.lo.Warn("attachment already associated with another model, skipping", "media_id", m.ID, "model", m.Model.String, "model_id", m.ModelID.Int)
+			continue
+		}
+		out = append(out, m)
+	}
+	return out, nil
+}
+
 // getMediaByUUID fetches media metadata from DB, handling thumbnail prefix.
 func getMediaByUUID(app *App, uuid string) (mmodels.Media, error) {
 	return app.media.Get(0, strings.TrimPrefix(uuid, image.ThumbPrefix))

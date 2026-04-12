@@ -142,6 +142,19 @@ func (m *Manager) Insert(disposition null.String, fileName, contentType, content
 	return m.Get(id, "")
 }
 
+// GetMany fetches multiple media records by their IDs.
+func (m *Manager) GetMany(ids []int) ([]models.Media, error) {
+	out := make([]models.Media, 0, len(ids))
+	for _, id := range ids {
+		med, err := m.Get(id, "")
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, med)
+	}
+	return out, nil
+}
+
 // Get retrieves the media record by its ID and returns the media.
 func (m *Manager) Get(id int, uuid string) (models.Media, error) {
 	var media models.Media

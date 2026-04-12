@@ -7,7 +7,6 @@ import (
 	authzModels "github.com/abhinavxd/libredesk/internal/authz/models"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
-	medModels "github.com/abhinavxd/libredesk/internal/media/models"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
@@ -209,7 +208,6 @@ func handleSendMessage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("status.disabledInbox"), nil, envelope.InputError)
 	}
 
-	// Prepare attachments.
 	if req.SenderType != umodels.UserTypeAgent && req.SenderType != umodels.UserTypeContact {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.InputError)
 	}
@@ -236,20 +234,10 @@ func handleSendMessage(r *fastglue.Request) error {
 		}
 	}
 
-	// Get media for all attachments.
-	var media = make([]medModels.Media, 0, len(req.Attachments))
-	for _, id := range req.Attachments {
-		m, err := app.media.Get(id, "")
-		if err != nil {
-			app.lo.Error("error fetching media", "error", err)
-			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-		}
-		if m.ModelID.Int > 0 {
-			// Attachment is already associated with another model. Skip it.
-			app.lo.Warn("attachment already associated with another model, skipping", "media_id", m.ID, "model", m.Model.String, "model_id", m.ModelID.Int)
-			continue
-		}
-		media = append(media, m)
+	// Get media for all attachments, skip any already associated with a model.
+	media, err := getUnassociatedMedia(app, req.Attachments)
+	if err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	// Create contact message.
