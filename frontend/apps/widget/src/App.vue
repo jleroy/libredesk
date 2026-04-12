@@ -16,8 +16,8 @@ import { onMounted, watch, getCurrentInstance } from 'vue'
 import { useWidgetStore } from './store/widget.js'
 import { useChatStore } from '@widget/store/chat.js'
 import { useUserStore } from './store/user.js'
-import { initWidgetWS, closeWidgetWebSocket, sendPageVisit } from './websocket.js'
-import api, { setApiSessionToken, initVisitorToken, establishSession } from '@widget/api/index.js'
+import { initWidgetWS, closeWidgetWebSocket, sendPageVisit, skipInitialWsSync } from './websocket.js'
+import api, { setApiSessionToken, initVisitorToken, saveSession } from '@widget/api/index.js'
 import { useUnreadCount } from './composables/useUnreadCount.js'
 import { initAudioContext } from '@shared-ui/composables/useNotificationSound.js'
 import { applyCSSColor } from '@shared-ui/utils/color.js'
@@ -78,6 +78,8 @@ const setupParentMessageListeners = () => {
         if (sessionToken) {
           userStore.setSessionToken(sessionToken)
           setApiSessionToken(sessionToken)
+          // Session exists, fetchInitialConversations will load data. Skip WS sync.
+          skipInitialWsSync()
           // Fetch user metadata for returning visitors.
           // Guard against stale response if SET_JWT_TOKEN exchange replaced the token.
           try {
@@ -100,7 +102,9 @@ const setupParentMessageListeners = () => {
         try {
           const resp = await api.exchangeJWTForSession(event.data.jwt)
           const { session_token, user } = resp.data.data
-          establishSession(session_token, user, userStore)
+          saveSession(session_token, user, userStore)
+          // Session exists, fetchInitialConversations will load data. Skip WS sync.
+          skipInitialWsSync()
           chatStore.conversations = null
           await fetchInitialConversations()
         } catch (err) {

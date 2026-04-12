@@ -170,6 +170,7 @@ func handleChatInit(r *fastglue.Request) error {
 		isVisitor         bool
 		newSessionToken   string
 		conversationAttrs map[string]any
+		visitor           umodels.User
 	)
 
 	if err := r.Decode(&req, "json"); err != nil {
@@ -203,11 +204,12 @@ func handleChatInit(r *fastglue.Request) error {
 	} else {
 		// New visitor - create visitor and session token.
 		isVisitor = true
-		contactID, newSessionToken, conversationAttrs, err = createVisitorContact(app, req.FormData, config, inbox)
+		visitor, newSessionToken, conversationAttrs, err = createVisitorContact(app, req.FormData, config, inbox)
 		if err != nil {
 			app.lo.Error("error creating visitor contact", "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 		}
+		contactID = visitor.ID
 	}
 
 	// Check conversation permissions based on user type.
@@ -292,6 +294,8 @@ func handleChatInit(r *fastglue.Request) error {
 		response["user"] = map[string]any{
 			"user_id":    contactID,
 			"is_visitor": isVisitor,
+			"first_name": visitor.FirstName,
+			"last_name":  visitor.LastName,
 		}
 	}
 
@@ -834,17 +838,15 @@ func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
 }
 
 // createVisitorContact creates a new visitor contact from form data.
-// Returns the contact ID, a session token, and conversation custom attributes.
-func createVisitorContact(app *App, formData map[string]any, config livechat.Config, inbox imodels.Inbox) (contactID int, sessionToken string, convoAttrs map[string]any, err error) {
+func createVisitorContact(app *App, formData map[string]any, config livechat.Config, inbox imodels.Inbox) (umodels.User, string, map[string]any, error) {
 	// Validate form data and get final name/email for new visitor.
 	finalName, finalEmail, err := validateFormData(formData, config, nil)
 	if err != nil {
-		return 0, "", nil, err
+		return umodels.User{}, "", nil, err
 	}
 
 	// Process custom attributes from form data, split by applies_to.
 	formContactAttrs, formConvoAttrs := validateCustomAttributes(formData, config, app)
-	convoAttrs = formConvoAttrs
 
 	visitor := umodels.User{
 		Email:            null.NewString(finalEmail, finalEmail != ""),
@@ -854,16 +856,16 @@ func createVisitorContact(app *App, formData map[string]any, config livechat.Con
 
 	if err := app.user.CreateVisitor(&visitor); err != nil {
 		app.lo.Error("error creating visitor contact", "error", err)
-		return 0, "", nil, err
+		return umodels.User{}, "", nil, err
 	}
 
 	token, err := generateSessionToken(app, visitor.ID, inbox.ID, true, "")
 	if err != nil {
 		app.lo.Error("error generating session token for visitor", "error", err)
-		return 0, "", nil, err
+		return umodels.User{}, "", nil, err
 	}
 
-	return visitor.ID, token, convoAttrs, nil
+	return visitor, token, formConvoAttrs, nil
 }
 
 // checkConversationPermissions checks if the user is allowed to start a conversation based on inbox config.

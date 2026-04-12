@@ -36,9 +36,9 @@ export function initVisitorToken (token) {
     _visitorToken = token || ''
 }
 
-// Establishes a new session from a server response containing session_token and user metadata.
+// Saves session token and user metadata from a server response.
 // When isNewVisitor is true, also stores the token as the visitor token (for merge flow).
-export function establishSession (sessionToken, user, userStore, isNewVisitor = false) {
+export function saveSession (sessionToken, user, userStore, isNewVisitor = false) {
     userStore.setSessionToken(sessionToken)
     setApiSessionToken(sessionToken)
     if (user) userStore.setUserMeta(user)

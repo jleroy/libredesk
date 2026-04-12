@@ -1,7 +1,6 @@
 // Widget WebSocket message types (matching backend constants)
 import { useChatStore } from './store/chat.js'
 import { useWidgetStore } from './store/widget.js'
-import { useUserStore } from './store/user.js'
 import { playNotificationSound } from '@shared-ui/composables/useNotificationSound.js'
 
 export const WS_EVENT = {
@@ -16,6 +15,9 @@ export const WS_EVENT = {
   CONVERSATION_UPDATE: 'conversation_update',
 }
 
+let widgetWSClient
+let _syncOnFirstConnect = true
+
 export class WidgetWebSocketClient {
   constructor() {
     this.socket = null
@@ -29,6 +31,7 @@ export class WidgetWebSocketClient {
     this.pingInterval = null
     this.lastSyncAt = 0
     this.lastPong = Date.now()
+    this.wsInitiated = false
     this.token = null
     this.inboxId = null
   }
@@ -68,8 +71,13 @@ export class WidgetWebSocketClient {
       this.joinInbox()
     }
 
-    // Sync messages on every connect to pick up anything missed while disconnected.
-    this.syncMissedMessages()
+    // Reconnect: always sync to catch missed messages.
+    // First connect: sync only for new visitors (no pre-existing session).
+    // Returning visitors skip - fetchInitialConversations handles initial data.
+    if (this.wsInitiated || _syncOnFirstConnect) {
+      this.syncMissedMessages()
+    }
+    this.wsInitiated = true
   }
 
   handleMessage (event) {
@@ -268,8 +276,6 @@ export class WidgetWebSocketClient {
   }
 }
 
-let widgetWSClient
-
 export function initWidgetWS (token, inboxId) {
   if (!widgetWSClient) {
     widgetWSClient = new WidgetWebSocketClient()
@@ -289,6 +295,7 @@ export function initWidgetWS (token, inboxId) {
 
 export const sendWidgetTyping = (isTyping = true, conversationUUID = null) => widgetWSClient?.sendTyping(isTyping, conversationUUID)
 export const closeWidgetWebSocket = () => widgetWSClient?.close()
+export const skipInitialWsSync = () => { _syncOnFirstConnect = false }
 
 export function sendPageVisit (url, title) {
   if (!widgetWSClient) return

@@ -58,7 +58,7 @@ import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { sendWidgetTyping } from '../websocket.js'
 import { useTypingIndicator } from '@shared-ui/composables/useTypingIndicator.js'
 import MessageInputActions from './MessageInputActions.vue'
-import api, { establishSession } from '@widget/api/index.js'
+import api, { saveSession } from '@widget/api/index.js'
 
 const emit = defineEmits(['error'])
 const widgetStore = useWidgetStore()
@@ -95,7 +95,7 @@ const initChatConversation = async (messageText) => {
   conversation.working_hours_utc_offset = working_hours_utc_offset
 
   if (!userStore.userSessionToken && session_token) {
-    establishSession(session_token, user, userStore, true)
+    saveSession(session_token, user, userStore, true)
   }
 
   // Add the new conversation to the list
