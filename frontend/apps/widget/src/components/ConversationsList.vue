@@ -9,11 +9,11 @@
       <h4 class="text-sm text-muted-foreground mb-2">{{ $t('globals.messages.noMessagesYet') }}</h4>
     </div>
 
-    <div v-else class="divide-y divide-border">
+    <div v-else>
       <div
         v-for="conversation in chatStore.getConversations"
         :key="conversation.uuid"
-        class="p-4 hover:bg-accent/50 cursor-pointer transition-colors"
+        class="p-4 border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
         @click="openConversation(conversation.uuid)"
       >
         <div class="flex items-center gap-3">
