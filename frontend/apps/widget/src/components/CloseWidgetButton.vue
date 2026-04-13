@@ -18,11 +18,7 @@ const widgetStore = useWidgetStore()
 
 // Send message to parent window (widget.js) to close the widget
 const closeWidget = () => {
-  window.parent.postMessage(
-    {
-      type: 'CLOSE_WIDGET'
-    },
-    '*'
-  )
+  widgetStore.setOpen(false)
+  window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*')
 }
 </script>

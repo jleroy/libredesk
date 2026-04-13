@@ -399,10 +399,8 @@
         toggle () {
             if (this.isChatVisible) {
                 this.hideChat();
-                this.postToIframe({ type: 'WIDGET_CLOSED' });
             } else {
                 this.showChat();
-                this.postToIframe({ type: 'WIDGET_OPENED' });
             }
         }
 
@@ -448,6 +446,8 @@
                 if (this.defaultIcon) this.defaultIcon.style.display = 'none';
                 this.arrowIcon.style.display = 'flex';
 
+                this.postToIframe({ type: 'WIDGET_OPENED' });
+
                 if (this._onShowCallback) this._onShowCallback();
             }
         }
@@ -468,6 +468,8 @@
                     this.unreadBadge.textContent = this.formatBadgeCount(this.unreadCount);
                     this.unreadBadge.style.display = 'flex';
                 }
+
+                this.postToIframe({ type: 'WIDGET_CLOSED' });
 
                 if (this._onHideCallback) this._onHideCallback();
             }

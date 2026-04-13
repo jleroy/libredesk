@@ -23,7 +23,6 @@ export const useWidgetStore = defineStore('widget', () => {
     const closeWidget = () => {
         // Clear expanded state memory when widget is closed
         wasExpandedBeforeLeaving.value = false
-        
         isOpen.value = false
         currentView.value = 'home'
         isInChatView.value = false
@@ -31,6 +30,8 @@ export const useWidgetStore = defineStore('widget', () => {
         if (isExpanded.value) {
             collapseWidget()
         }
+        // Tell the parent loader to hide the iframe.
+        window.parent.postMessage({ type: 'CLOSE_WIDGET' }, '*')
     }
 
     const navigateToChat = () => {

@@ -58,7 +58,9 @@
           ]"
         >
           <!-- Message content -->
-          <span v-if="message.content_type === 'text'" class="mb-1 whitespace-pre-wrap">{{ message.content }}</span>
+          <span v-if="message.content_type === 'text'" class="mb-1 whitespace-pre-wrap">{{
+            message.content
+          }}</span>
           <Letter
             v-else
             :html="message.content"
@@ -249,7 +251,10 @@ const scrollToBottom = () => {
 // Debounced version for tab-switch and widget-open triggers only.
 // New message and conversation switch call the store function directly.
 const debouncedUpdateLastSeen = useDebounceFn(() => {
-  chatStore.updateCurrentConversationLastSeen()
+  // Make sure widget is open and there's a convo loaded.
+  if (widgetStore.isOpen && !document.hidden && chatStore.currentConversation?.uuid) {
+    chatStore.updateCurrentConversationLastSeen()
+  }
 }, 2000)
 
 const visibility = useDocumentVisibility()
