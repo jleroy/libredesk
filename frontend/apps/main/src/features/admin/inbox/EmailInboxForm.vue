@@ -49,8 +49,9 @@
           @update:checked="handleChange"
         />
       </FormItem>
-      <p class="!mt-2 text-muted-foreground text-xs">
-        {{ $t('admin.inbox.csatSurveys.description_2') }}
+      <p class="!mt-2 text-muted-foreground text-xs flex items-start gap-1.5">
+        <Lightbulb class="size-3.5 shrink-0 mt-0.5" />
+        <span>{{ $t('admin.inbox.csatSurveys.description_2') }}</span>
       </p>
     </FormField>
 
@@ -669,7 +670,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@shared-ui/components/ui/dialog'
-import { CheckCircle2, RefreshCw, Mail } from 'lucide-vue-next'
+import { CheckCircle2, RefreshCw, Mail, Lightbulb } from 'lucide-vue-next'
 import MenuCard from '@main/components/layout/MenuCard.vue'
 import { useI18n } from 'vue-i18n'
 import api from '@/api'
