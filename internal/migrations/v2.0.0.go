@@ -194,6 +194,14 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS index_csat_responses_on_conversation_id
+		ON csat_responses (conversation_id);
+	`)
+	if err != nil {
+		return err
+	}
+
 	// Add built-in CSAT request email template.
 	_, err = db.Exec(`
 		INSERT INTO templates ("type", body, is_default, "name", subject, is_builtin)
@@ -202,25 +210,25 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			'
 <p>Your recent conversation (#{{ .Conversation.ReferenceNumber }}) has been resolved. We would love to hear your feedback.</p>
 <p style="text-align: center; font-weight: bold;">How would you rate your experience?</p>
-<table style="width: 100%%; max-width: 400px; margin: 0 auto;" border="0" cellpadding="0" cellspacing="0">
+<table style="width: 100%; max-width: 400px; margin: 0 auto;" border="0" cellpadding="0" cellspacing="0">
 <tr>
-<td align="center" valign="top" style="width: 20%%; padding: 8px 0;">
+<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
 <a href="{{ .CSATLink }}?rating=1" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128546;</a>
 <span style="font-size: 11px; color: #888;">Poor</span>
 </td>
-<td align="center" valign="top" style="width: 20%%; padding: 8px 0;">
+<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
 <a href="{{ .CSATLink }}?rating=2" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128533;</a>
 <span style="font-size: 11px; color: #888;">Fair</span>
 </td>
-<td align="center" valign="top" style="width: 20%%; padding: 8px 0;">
+<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
 <a href="{{ .CSATLink }}?rating=3" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128522;</a>
 <span style="font-size: 11px; color: #888;">Good</span>
 </td>
-<td align="center" valign="top" style="width: 20%%; padding: 8px 0;">
+<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
 <a href="{{ .CSATLink }}?rating=4" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128515;</a>
 <span style="font-size: 11px; color: #888;">Great</span>
 </td>
-<td align="center" valign="top" style="width: 20%%; padding: 8px 0;">
+<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
 <a href="{{ .CSATLink }}?rating=5" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#129321;</a>
 <span style="font-size: 11px; color: #888;">Excellent</span>
 </td>

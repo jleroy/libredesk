@@ -489,6 +489,7 @@ CREATE TABLE csat_responses (
     CONSTRAINT constraint_csat_responses_on_feedback CHECK (length(feedback) <= 1000)
 );
 CREATE INDEX index_csat_responses_on_uuid ON csat_responses(uuid);
+CREATE INDEX index_csat_responses_on_conversation_id ON csat_responses(conversation_id);
 
 DROP TABLE IF EXISTS views CASCADE;
 CREATE TABLE views (

@@ -20,6 +20,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
 	pmodels "github.com/abhinavxd/libredesk/internal/conversation/priority/models"
 	smodels "github.com/abhinavxd/libredesk/internal/conversation/status/models"
+	"github.com/abhinavxd/libredesk/internal/csat"
 	csatModels "github.com/abhinavxd/libredesk/internal/csat/models"
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
@@ -1330,17 +1331,20 @@ func (m *Manager) RemoveConversationAssignee(uuid, typ string, actor umodels.Use
 	return nil
 }
 
-// SendCSATReply sends a CSAT reply message to a conversation.
+// SendCSATReply sends a CSAT reply message to a conversation. No-op if one was already sent.
 func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversation) error {
+	csatResp, err := m.csatStore.Create(conversation.ID)
+	if err != nil {
+		if errors.Is(err, csat.ErrCSATAlreadyExists) {
+			return nil
+		}
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
 	appRootURL, err := m.settingsStore.GetAppRootURL()
 	if err != nil {
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	csat, err := m.csatStore.Create(conversation.ID)
-	if err != nil {
-		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-	csatPublicURL := m.csatStore.MakePublicURL(appRootURL, csat.UUID)
+	csatPublicURL := m.csatStore.MakePublicURL(appRootURL, csatResp.UUID)
 
 	// Render CSAT email template.
 	data, err := m.BuildTemplateData(conversation.UUID, actorUserID)
@@ -1349,7 +1353,7 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	data["CSATLink"] = csatPublicURL
-	data["CSATUUID"] = csat.UUID
+	data["CSATUUID"] = csatResp.UUID
 	message, err := m.template.RenderStoredTemplate(template.TmplCSATRequest, data)
 	if err != nil {
 		m.lo.Error("error rendering CSAT template", "conversation_uuid", conversation.UUID, "error", err)
@@ -1359,7 +1363,7 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 	// Store `is_csat` meta to identify and filter CSAT public url from the message.
 	meta := map[string]interface{}{
 		"is_csat":   true,
-		"csat_uuid": csat.UUID,
+		"csat_uuid": csatResp.UUID,
 	}
 
 	// Make recipient list.

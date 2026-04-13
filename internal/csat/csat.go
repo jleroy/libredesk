@@ -60,13 +60,17 @@ func New(opts Opts) (*Manager, error) {
 	}, nil
 }
 
-// Create creates a new CSAT for the given conversation ID.
+// Create creates a new CSAT for the given conversation ID, returning ErrCSATAlreadyExists if one already exists.
 func (m *Manager) Create(conversationID int) (models.CSATResponse, error) {
 	var (
 		uuid string
 		rsp  models.CSATResponse
 	)
-	if err := m.q.Insert.QueryRow(conversationID).Scan(&uuid); err != nil {
+	err := m.q.Insert.QueryRow(conversationID).Scan(&uuid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return rsp, ErrCSATAlreadyExists
+		}
 		m.lo.Error("error creating CSAT", "error", err)
 		return rsp, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}

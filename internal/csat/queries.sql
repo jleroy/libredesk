@@ -1,8 +1,7 @@
 -- name: insert
-INSERT INTO csat_responses (
-        conversation_id
-    )
-VALUES ($1)
+INSERT INTO csat_responses (conversation_id)
+SELECT $1
+WHERE NOT EXISTS (SELECT 1 FROM csat_responses WHERE conversation_id = $1)
 RETURNING uuid;
 
 -- name: get
