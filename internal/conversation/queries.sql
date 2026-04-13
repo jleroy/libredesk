@@ -747,6 +747,7 @@ WHERE i.channel = 'livechat'
       AND cm.type = 'outgoing'
       AND cm.private = false
       AND (cm.meta IS NULL OR NOT COALESCE((cm.meta->>'continuity_email')::boolean, false))
+      AND (cm.meta IS NULL OR NOT COALESCE((cm.meta->>'continuity_emailed')::boolean, false))
   )
   AND u.email > ''
   AND (c.last_continuity_email_sent_at IS NULL
@@ -778,6 +779,7 @@ WHERE m.conversation_id = $1
   AND m.type = 'outgoing'
   AND m.private = false
   AND (m.meta IS NULL OR NOT COALESCE((m.meta->>'continuity_email')::boolean, false))
+  AND (m.meta IS NULL OR NOT COALESCE((m.meta->>'continuity_emailed')::boolean, false))
 ORDER BY m.created_at ASC
 LIMIT $3;
 
