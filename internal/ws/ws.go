@@ -2,7 +2,6 @@
 package ws
 
 import (
-	"encoding/json"
 	"sync"
 
 	"github.com/abhinavxd/libredesk/internal/ws/models"
@@ -128,26 +127,9 @@ func (h *Hub) removeClientFromAllConversations(client *Client) {
 	}
 }
 
-// BroadcastTypingToConversation broadcasts typing status to all clients subscribed to a conversation except the sender.
-func (h *Hub) BroadcastTypingToConversation(conversationUUID string, typingMsg models.TypingMessage, sender *Client) {
-	h.conversationClientsMutex.RLock()
-	defer h.conversationClientsMutex.RUnlock()
-
-	message := models.Message{
-		Type: models.MessageTypeTyping,
-		Data: typingMsg,
-	}
-
-	messageBytes, _ := json.Marshal(message)
-
-	for _, client := range h.conversationClients[conversationUUID] {
-		// Don't send typing indicator back to the sender.
-		if client.ID != sender.ID {
-			client.SendMessage(messageBytes, websocket.TextMessage)
-		}
-	}
-
-	// Also broadcast to widget clients since this is an agent typing.
+// BroadcastTypingToConversation relays an agent's typing status to the customer widget only.
+// Private-note typing is skipped.
+func (h *Hub) BroadcastTypingToConversation(conversationUUID string, typingMsg models.TypingMessage) {
 	if h.conversationStore != nil && !typingMsg.IsPrivateMessage {
 		h.conversationStore.BroadcastTypingToWidgetClientsOnly(conversationUUID, typingMsg.IsTyping)
 	}

@@ -173,11 +173,7 @@ func (c *Client) handleTyping(data interface{}) {
 		return
 	}
 
-	// Set the user ID from the client
-	typingMsg.UserID = c.ID
-
-	// Broadcast typing status to all subscribers of this conversation (except sender)
-	c.Hub.BroadcastTypingToConversation(typingMsg.ConversationUUID, typingMsg, c)
+	c.Hub.BroadcastTypingToConversation(typingMsg.ConversationUUID, typingMsg)
 }
 
 // close closes the client connection.
