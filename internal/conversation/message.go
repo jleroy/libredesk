@@ -887,6 +887,11 @@ func (m *Manager) ProcessIncomingLiveChatMessage(msg models.Message) (models.Mes
 		return models.Message{}, err
 	}
 
+	// Advance contact_last_seen_at.
+	if err := m.UpdateConversationContactLastSeen(msg.ConversationUUID); err != nil {
+		m.lo.Error("error updating contact last seen after livechat message", "conversation_uuid", msg.ConversationUUID, "error", err)
+	}
+
 	// Process post-message hooks (automation rules, webhooks, SLA, etc.).
 	// isNewConversation = false since conversation always exists for live chat.
 	if err := m.ProcessIncomingMessageHooks(msg.ConversationUUID, false); err != nil {
@@ -1177,6 +1182,10 @@ func (m *Manager) getLatestMessage(conversationID int, typ []string, status []st
 // for incoming messages. This allows other channels to insert messages first and then call this
 // function to trigger the necessary hooks.
 func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConversation bool) error {
+	// Start waiting since clock, cleared when agent replies.
+	now := time.Now()
+	m.UpdateConversationWaitingSince(conversationUUID, &now)
+
 	// Handle new conversation events.
 	if isNewConversation {
 		conversation, err := m.GetConversation(0, conversationUUID, "")
@@ -1196,10 +1205,6 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 			m.lo.Error("error reopening conversation", "error", err)
 		}
 	}
-
-	// Set waiting since timestamp, this gets cleared when agent replies to the conversation.
-	now := time.Now()
-	m.UpdateConversationWaitingSince(conversationUUID, &now)
 
 	// Create SLA event for next response if a SLA is applied and has next response time set, subsequent agent replies will mark this event as met.
 	// This cycle continues for next response time SLA metric.

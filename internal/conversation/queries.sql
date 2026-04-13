@@ -250,7 +250,7 @@ SELECT
          SELECT 1 FROM conversation_messages unread
          WHERE unread.conversation_id = c.id
            AND unread.created_at > c.contact_last_seen_at
-           AND unread.type IN ('incoming', 'outgoing')
+           AND unread.type = 'outgoing'
            AND unread.private = false
          LIMIT 10
      ) t) AS unread_message_count,
@@ -285,7 +285,7 @@ SELECT
          SELECT 1 FROM conversation_messages unread
          WHERE unread.conversation_id = c.id
            AND unread.created_at > c.contact_last_seen_at
-           AND unread.type IN ('incoming', 'outgoing')
+           AND unread.type = 'outgoing'
            AND unread.private = false
          LIMIT 10
      ) t) AS unread_message_count,

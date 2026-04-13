@@ -288,27 +288,24 @@ watch(
       return
     }
 
-    // If widget is open, do:
-    // - Check if new messages were added and handle scrolling behavior
-    // - Also update the last seen timestamp if the widget is open
+    // Skip on initial watch run (no prior state) or when widget is collapsed
+    // (no viewport to manage and visitor isn't seeing anything).
     if (!oldMessages || !widgetStore.isOpen) return
 
     if (newMessages.length > oldMessages.length) {
-      // New message added
-      if (!document.hidden) {
+      const newMessage = newMessages[newMessages.length - 1]
+      const isOwnMessage =
+        newMessage.author?.type === 'contact' || newMessage.author?.type === 'visitor'
+
+      // Skip updating last seen if it's own message as backend advances last seen timestamp.
+      if (!isOwnMessage && !document.hidden) {
         chatStore.updateCurrentConversationLastSeen()
       }
-
-      const newMessage = newMessages[newMessages.length - 1]
 
       // Auto-scroll if:
       // 1. Message is from current user (contact/visitor), OR
       // 2. User is already at the bottom
-      if (
-        newMessage.author?.type === 'contact' ||
-        newMessage.author?.type === 'visitor' ||
-        isAtBottom.value
-      ) {
+      if (isOwnMessage || isAtBottom.value) {
         scrollToBottom()
       } else {
         // User is scrolled up and agent sent message - show unread count
