@@ -15,7 +15,7 @@
           <div v-if="canStartConversation && !mostRecentConversation">
             <Button @click="startConversation" class="w-full flex items-center justify-center">
               {{ startButtonText }}
-              <ArrowRight class="w-4 h-4 ml-2 inline-block" />
+              <ArrowRight size="16" />
             </Button>
           </div>
 
