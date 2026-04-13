@@ -260,8 +260,9 @@ func validateInbox(app *App, inbox imodels.Inbox) error {
 				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidValue"), nil)
 			}
 
-			// Validate launcher spacing (non-negative).
-			if config.Launcher.Spacing.Side < 0 || config.Launcher.Spacing.Bottom < 0 {
+			// Validate launcher spacing: clamp to a sane range so a fat-fingered value doesn't push the launcher off-screen.
+			if config.Launcher.Spacing.Side < 0 || config.Launcher.Spacing.Side > 200 ||
+				config.Launcher.Spacing.Bottom < 0 || config.Launcher.Spacing.Bottom > 200 {
 				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidValue"), nil)
 			}
 

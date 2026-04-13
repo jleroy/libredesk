@@ -5,6 +5,10 @@ const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
 const hexColor = (t) => z.string().regex(hexColorRegex, { message: t('validation.invalidColor') })
 const optionalHexColor = (t) => hexColor(t).optional().or(z.literal(''))
 const optionalUrl = (t) => z.string().url({ message: t('validation.invalidUrl') }).optional().or(z.literal(''))
+const spacingNumber = (t) => {
+  const msg = t('validation.minmaxNumber', { min: 0, max: 200 })
+  return z.coerce.number({ invalid_type_error: msg }).min(0, { message: msg }).max(200, { message: msg })
+}
 
 export const createFormSchema = (t) => z.object({
   name: z.string().min(1, { message: t('globals.messages.required') }),
@@ -25,8 +29,8 @@ export const createFormSchema = (t) => z.object({
       logo_url: optionalUrl(t),
       color: hexColor(t),
       spacing: z.object({
-        side: z.number().min(0),
-        bottom: z.number().min(0),
+        side: spacingNumber(t),
+        bottom: spacingNumber(t),
       })
     }),
     greeting_message: z.string().optional(),

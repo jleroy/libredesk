@@ -2,25 +2,23 @@
   <div class="flex flex-col h-full">
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/30 hover:scrollbar-thumb-muted-foreground/50">
       <div class="flex flex-col">
-        <HomeHeader :config="config" />
-
-        <div class="flex flex-col gap-3 p-4 -mt-px bg-background">
-          <!-- Show recent conversation if exists -->
+        <HomeHeader :config="config">
+          <!-- Primary action renders on the gradient so it flows into the header. -->
           <RecentConversationCard
             v-if="mostRecentConversation"
             :conversation="mostRecentConversation"
           />
-
-          <!-- Start new conversation button if no recent conversation -->
-          <div v-if="canStartConversation && !mostRecentConversation">
+          <div v-else-if="canStartConversation">
             <Button @click="startConversation" class="w-full flex items-center justify-center">
               {{ startButtonText }}
               <ArrowRight size="16" />
             </Button>
           </div>
+        </HomeHeader>
 
-          <!-- Home Apps (announcements + external links in configured order) -->
-          <div v-if="config.home_apps?.length" class="space-y-3">
+        <!-- Home Apps (announcements + external links) sit on the normal background. -->
+        <div v-if="config.home_apps?.length" class="flex flex-col gap-3 p-4 bg-background">
+          <div class="space-y-3">
             <template v-for="(item, index) in config.home_apps" :key="index">
               <AnnouncementCard v-if="item.type === 'announcement'" :announcement="item" />
               <HomeExternalLink v-else-if="item.type === 'external_link'" :link="item" />

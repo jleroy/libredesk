@@ -466,7 +466,7 @@
                 <FormItem>
                   <FormLabel>{{ $t('admin.inbox.livechat.launcher.spacing.side') }}</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="20" v-bind="componentField" />
+                    <Input type="number" placeholder="20" min="0" max="200" v-bind="componentField" />
                   </FormControl>
                   <FormDescription>{{
                     $t('admin.inbox.livechat.launcher.spacing.side.description')
@@ -480,7 +480,7 @@
                 <FormItem>
                   <FormLabel>{{ $t('admin.inbox.livechat.launcher.spacing.bottom') }}</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="20" v-bind="componentField" />
+                    <Input type="number" placeholder="20" min="0" max="200" v-bind="componentField" />
                   </FormControl>
                   <FormDescription>{{
                     $t('admin.inbox.livechat.launcher.spacing.bottom.description')

@@ -1,5 +1,5 @@
 <template>
-  <div class="relative -mb-px" :style="headerStyle">
+  <div class="relative" :style="headerStyle">
     <div class="p-8">
       <!-- Logo -->
       <img
@@ -16,9 +16,13 @@
         </p>
       </div>
     </div>
-    <!-- Fade overlay -->
+    <!-- Primary action area sits on the gradient so it doesn't cut off visually. -->
+    <div class="relative z-10 px-4 pb-4">
+      <slot />
+    </div>
+    <!-- Fade overlay: masks the gradient's bottom into bg-background for a seamless transition. -->
     <div
-      v-if="config.home_screen?.fade_background && config.home_screen?.background?.type"
+      v-if="config.home_screen?.background?.type"
       class="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
       :style="fadeStyle"
     ></div>
@@ -89,10 +93,5 @@ const subTextColorClass = computed(() => {
   return 'text-muted-foreground'
 })
 
-const fadeStyle = computed(() => {
-  if (!props.config.home_screen?.fade_background) return {}
-  return {
-    background: 'linear-gradient(to bottom, transparent, hsl(var(--background)))'
-  }
-})
+const fadeStyle = { background: 'linear-gradient(to bottom, transparent, hsl(var(--background)))' }
 </script>
