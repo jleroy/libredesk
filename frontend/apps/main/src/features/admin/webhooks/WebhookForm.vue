@@ -125,23 +125,23 @@ const webhookEvents = ref([
     events: [
       {
         value: 'conversation.created',
-        label: 'Conversation Created'
+        label: 'Conversation created'
       },
       {
         value: 'conversation.status_changed',
-        label: 'Conversation Status Changed'
+        label: 'Conversation status changed'
       },
       {
         value: 'conversation.tags_changed',
-        label: 'Conversation Tags Changed'
+        label: 'Conversation tags changed'
       },
       {
         value: 'conversation.assigned',
-        label: 'Conversation Assigned'
+        label: 'Conversation assigned'
       },
       {
-        value: 'globals.terms.unassigned',
-        label: 'Conversation Unassigned'
+        value: 'conversation.unassigned',
+        label: 'Conversation unassigned'
       }
     ]
   },
@@ -150,11 +150,11 @@ const webhookEvents = ref([
     events: [
       {
         value: 'message.created',
-        label: 'Message Created'
+        label: 'Message created'
       },
       {
         value: 'message.updated',
-        label: 'Message Updated'
+        label: 'Message updated'
       }
     ]
   }
