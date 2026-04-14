@@ -272,9 +272,9 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/widget/ws", rateLimit(handleWidgetWS, "widget"))
 
 	// Widget APIs.
-	g.GET("/api/v1/widget/chat/settings/launcher", rateLimit(handleGetChatLauncherSettings, "widget"))
-	g.GET("/api/v1/widget/chat/settings", rateLimit(handleGetChatSettings, "widget"))
-	g.POST("/api/v1/widget/chat/auth/exchange", rateLimit(widgetInboxAuth(handleAuthExchange), "widget"))
+	g.GET("/api/v1/widget/chat/settings/launcher", rateLimit(validateWidgetInbox(handleGetChatLauncherSettings), "widget"))
+	g.GET("/api/v1/widget/chat/settings", rateLimit(validateWidgetInbox(handleGetChatSettings), "widget"))
+	g.POST("/api/v1/widget/chat/auth/exchange", rateLimit(validateWidgetInbox(handleAuthExchange), "widget"))
 	g.GET("/api/v1/widget/chat/auth/me", rateLimit(widgetAuth(handleWidgetAuthMe), "widget"))
 	g.POST("/api/v1/widget/chat/conversations/init", rateLimit(widgetAuth(handleChatInit), "widget"))
 	g.GET("/api/v1/widget/chat/conversations", rateLimit(widgetAuth(handleGetConversations), "widget"))
@@ -285,7 +285,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 
 	// Frontend pages.
 	g.GET("/", notAuthPage(serveIndexPage))
-	g.GET("/widget", serveWidgetIndexPage)
+	g.GET("/widget", validateWidgetInbox(serveWidgetIndexPage))
 	g.GET("/inboxes/{all:*}", authPage(serveIndexPage))
 	g.GET("/teams/{all:*}", authPage(serveIndexPage))
 	g.GET("/views/{all:*}", authPage(serveIndexPage))
@@ -341,11 +341,6 @@ func serveIndexPage(r *fastglue.Request) error {
 // serveWidgetIndexPage serves the widget index page of the application.
 func serveWidgetIndexPage(r *fastglue.Request) error {
 	app := r.Context.(*App)
-
-	// Validate inbox and referer/IP.
-	if _, _, err := validateLiveChatInbox(r); err != nil {
-		return sendErrorEnvelope(r, err)
-	}
 
 	// Prevent caching of the index page.
 	r.RequestCtx.Response.Header.Add("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")

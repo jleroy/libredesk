@@ -25,13 +25,16 @@ const (
 	hdrClearVisitorToken  = "X-Libredesk-Clear-Visitor"
 )
 
-// widgetInboxAuth middleware validates the inbox from the request header, checks IP/domain
-// restrictions, and sets inbox + config in context. Does not require session token.
-func widgetInboxAuth(next func(*fastglue.Request) error) func(*fastglue.Request) error {
+// validateWidgetInbox middleware validates the inbox from the request header or query param,
+// checks IP/domain restrictions, and sets inbox + config in context.
+func validateWidgetInbox(next func(*fastglue.Request) error) func(*fastglue.Request) error {
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
 
 		inboxUUID := string(r.RequestCtx.Request.Header.Peek(hdrWidgetInboxID))
+		if inboxUUID == "" {
+			inboxUUID = string(r.RequestCtx.QueryArgs().Peek("inbox_id"))
+		}
 		if inboxUUID == "" {
 			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.inbox}"), nil, envelope.InputError)
 		}
@@ -79,10 +82,10 @@ func widgetInboxAuth(next func(*fastglue.Request) error) func(*fastglue.Request)
 }
 
 // widgetAuth middleware validates the session token from the Authorization header
-// using Redis lookup. Wraps widgetInboxAuth for inbox validation.
+// using Redis lookup. Wraps validateWidgetInbox for inbox validation.
 // For /conversations/init without a token, allows visitor creation.
 func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) error {
-	return widgetInboxAuth(func(r *fastglue.Request) error {
+	return validateWidgetInbox(func(r *fastglue.Request) error {
 		app := r.Context.(*App)
 		inbox, err := getWidgetInbox(r)
 		if err != nil {

@@ -19,7 +19,6 @@ import (
 	bhmodels "github.com/abhinavxd/libredesk/internal/business_hours/models"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
-	"github.com/abhinavxd/libredesk/internal/httputil"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
@@ -97,9 +96,9 @@ type conversationResponseWithBusinessHours struct {
 // handleGetChatLauncherSettings returns the live chat launcher settings for the widget.
 func handleGetChatLauncherSettings(r *fastglue.Request) error {
 	r.RequestCtx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-	_, config, err := validateLiveChatInbox(r)
+	config, err := getWidgetConfig(r)
 	if err != nil {
-		return sendErrorEnvelope(r, err)
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, err.Error(), nil))
 	}
 
 	return r.SendEnvelope(map[string]any{
@@ -112,9 +111,9 @@ func handleGetChatLauncherSettings(r *fastglue.Request) error {
 func handleGetChatSettings(r *fastglue.Request) error {
 	app := r.Context.(*App)
 
-	_, config, err := validateLiveChatInbox(r)
+	config, err := getWidgetConfig(r)
 	if err != nil {
-		return sendErrorEnvelope(r, err)
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, err.Error(), nil))
 	}
 
 	response := chatSettingsResponse{
@@ -711,80 +710,11 @@ func getContactConversation(r *fastglue.Request, conversationUUID string) (int, 
 	return contactID, conversation, nil
 }
 
-func parseLiveChatConfig(inbox imodels.Inbox) (livechat.Config, error) {
-	var config livechat.Config
-	if err := json.Unmarshal(inbox.Config, &config); err != nil {
-		return livechat.Config{}, fmt.Errorf("parsing live chat config: %w", err)
-	}
-	return config, nil
-}
-
 func userTypeLabel(isVisitor bool) string {
 	if isVisitor {
 		return "visitor"
 	}
 	return "user"
-}
-
-// validateLiveChatInbox validates inbox_id from query params and returns the inbox and parsed config.
-// Used by public widget endpoints that don't require JWT authentication.
-func validateLiveChatInbox(r *fastglue.Request) (imodels.Inbox, livechat.Config, error) {
-	app := r.Context.(*App)
-	inboxUUID := string(r.RequestCtx.QueryArgs().Peek("inbox_id"))
-
-	if inboxUUID == "" {
-		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.InputError,
-			app.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-
-	inbox, err := app.inbox.GetDBRecord(inboxUUID)
-	if err != nil {
-		app.lo.Error("error fetching inbox", "inbox_uuid", inboxUUID, "error", err)
-		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.GeneralError,
-			app.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-
-	if inbox.Channel != livechat.ChannelLiveChat {
-		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.InputError,
-			app.i18n.T("validation.notFoundInbox"), nil)
-	}
-
-	if !inbox.Enabled {
-		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.InputError,
-			app.i18n.T("status.disabledInbox"), nil)
-	}
-
-	config, err := parseLiveChatConfig(inbox)
-	if err != nil {
-		app.lo.Error("error parsing live chat config", "error", err)
-		return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.GeneralError,
-			app.i18n.T("validation.invalidInbox"), nil)
-	}
-
-	// Check if the client's IP is blocked.
-	if len(config.BlockedIPs) > 0 {
-		clientIP := realip.FromRequest(r.RequestCtx)
-		if httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
-			app.lo.Info("client IP blocked for live chat inbox", "client_id", clientIP, "inbox_uuid", inboxUUID)
-			return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.PermissionError,
-				app.i18n.T("widget.ipBlocked"), nil)
-		}
-	}
-
-	// Validate referer against trusted domains.
-	if len(config.TrustedDomains) > 0 {
-		referer := string(r.RequestCtx.Request.Header.Peek("Referer"))
-		if referer != "" && !httputil.IsOriginTrusted(referer, config.TrustedDomains) {
-			app.lo.Warn("widget request from untrusted referer blocked",
-				"referer", referer,
-				"inbox_uuid", inboxUUID,
-				"trusted_domains", config.TrustedDomains)
-			return imodels.Inbox{}, livechat.Config{}, envelope.NewError(envelope.PermissionError,
-				app.i18n.T("widget.ipBlocked"), nil)
-		}
-	}
-
-	return inbox, config, nil
 }
 
 // saveContactAttrsAndCollectConvoAttrs validates and saves contact custom attributes from JWT and form data.
@@ -928,8 +858,8 @@ func buildConversationResponseWithBusinessHours(app *App, conversation cmodels.C
 	return resp, nil
 }
 
-// resolveUserIDFromClaims resolves the actual user ID from JWT claims,
-// handling both regular user_id and external_user_id cases
+// resolveUserFromClaims resolves the actual user from JWT claims,
+// handling both regular user_id and external_user_id cases.
 func resolveUserFromClaims(app *App, claims Claims) (umodels.User, error) {
 	var (
 		user umodels.User
@@ -955,22 +885,18 @@ func resolveUserFromClaims(app *App, claims Claims) (umodels.User, error) {
 	return user, nil
 }
 
-// verifyJWT verifies and validates a JWT token with proper signature verification
+// verifyJWT verifies and validates a JWT token with proper signature verification.
 func verifyJWT(tokenString string, secretKey []byte) (*Claims, error) {
-	// Parse and verify the token
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		// Verify the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return secretKey, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
 
-	// Extract claims if token is valid
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
 		return claims, nil
 	}
