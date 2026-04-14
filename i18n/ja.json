@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "CSAT調査",
   "admin.inbox.csatSurveys.description_1": "会話が「解決済み」にマークされたときに、顧客満足度アンケートを送信する。",
   "admin.inbox.csatSurveys.description_2": "アンケート送信のタイミングをより細かく制御するには、このオプションを無効にし、アンケート送信の自動化ルールを作成してください。",
+  "admin.inbox.csatSurveys.description_3": "CSAT調査は1回の会話につき1回だけ送信されます。",
   "admin.inbox.enablePlusAddressing": "プラスアドレッシングを有効化",
   "admin.inbox.enablePlusAddressing.description": "会話のスレッド機能を改善しますが、プロバイダーのサポートが必要です（例：Gmail、Microsoft 365）。",
   "admin.inbox.enabled.description": "受信トレイのスキャンと送信の切替。",

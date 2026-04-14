@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "CSAT सर्व्हे",
   "admin.inbox.csatSurveys.description_1": "संभाषण सोडवल्यावर ग्राहक समाधानी सर्व्हे पाठवा.",
   "admin.inbox.csatSurveys.description_2": "सर्व्हे पाठवण्याच्या वेळेवर चांगल्या नियंत्रणासाठी, हा पर्याय अक्षम करा आणि सर्व्हे पाठवण्यासाठी ऑटोमेशन नियम तयार करा.",
+  "admin.inbox.csatSurveys.description_3": "CSAT सर्व्हे प्रत्येक संभाषणाला केवळ एकदाच पाठवले जातात.",
   "admin.inbox.enablePlusAddressing": "प्लस अॅड्रेसिंग सक्षम करा",
   "admin.inbox.enablePlusAddressing.description": "संभाषण थ्रेडिंग सुधारते परंतु प्रदाता समर्थन आवश्यक आहे (उदा. Gmail, Microsoft 365).",
   "admin.inbox.enabled.description": "इनबॉक्स स्कॅन करणे आणि संदेश पाठवणे टॉगल करा.",

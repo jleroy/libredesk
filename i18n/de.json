@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "CSAT-Umfragen",
   "admin.inbox.csatSurveys.description_1": "Sende Umfragen zur Kundenzufriedenheit, wenn die Konversation als abgeschlossen markiert wird.",
   "admin.inbox.csatSurveys.description_2": "Um besser kontrollieren zu können, wann Umfragen gesendet werden sollen, deaktiviere diese Option und erstelle ein Makro zum Versenden von Umfragen.",
+  "admin.inbox.csatSurveys.description_3": "CSAT-Umfragen werden pro Konversation nur einmal gesendet.",
   "admin.inbox.enablePlusAddressing": "Plus-Adressierung aktivieren",
   "admin.inbox.enablePlusAddressing.description": "Verbessert die Konversations-Verkettung, benötigt aber Anbieterunterstützung (z.B. Gmail, Microsoft 365).",
   "admin.inbox.enabled.description": "Scannen von Posteingang und Versenden von Nachrichten ein/aus.",

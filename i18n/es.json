@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "Encuestas CSAT",
   "admin.inbox.csatSurveys.description_1": "Enviar encuestas de satisfacción del cliente cuando la conversación se marque como resuelta.",
   "admin.inbox.csatSurveys.description_2": "Para un mejor control sobre cuándo enviar encuestas, desactiva esta opción y crea una regla de automatización para enviar encuestas.",
+  "admin.inbox.csatSurveys.description_3": "Las encuestas CSAT se envían solo una vez por conversación.",
   "admin.inbox.enablePlusAddressing": "Habilitar direccionamiento plus",
   "admin.inbox.enablePlusAddressing.description": "Mejora el hilo de conversaciones pero requiere soporte del proveedor (ej., Gmail, Microsoft 365).",
   "admin.inbox.enabled.description": "Activar/desactivar el escaneo de la bandeja de entrada y el envío de mensajes.",

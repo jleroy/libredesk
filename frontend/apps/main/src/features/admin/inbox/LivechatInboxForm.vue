@@ -39,6 +39,10 @@
                 @update:checked="handleChange"
               />
             </FormItem>
+            <p class="!mt-2 text-muted-foreground text-xs flex items-start gap-1.5">
+              <Lightbulb class="size-4" />
+              <span>{{ $t('admin.inbox.csatSurveys.description_3') }}</span>
+            </p>
           </FormField>
 
           <FormField v-slot="{ componentField }" name="name">
@@ -998,7 +1002,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
 import { RadioGroup, RadioGroupItem } from '@shared-ui/components/ui/radio-group'
 import { Label } from '@shared-ui/components/ui/label'
-import { Plus, X, TriangleAlert, GripVertical } from 'lucide-vue-next'
+import { Plus, X, TriangleAlert, GripVertical, Lightbulb } from 'lucide-vue-next'
 import Draggable from 'vuedraggable'
 import { useI18n } from 'vue-i18n'
 import PreChatFormConfig, { getDefaultPrechatFields } from './PreChatFormConfig.vue'

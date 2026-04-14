@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "CSAT-undersøgelser",
   "admin.inbox.csatSurveys.description_1": "Send kundetilfredshedsundersøgelser, når samtalen markeres som løst.",
   "admin.inbox.csatSurveys.description_2": "For bedre styring af, hvornår undersøgelser skal sendes, slå denne indstilling fra og opret en automatiseringsregel til at udsende undersøgelser.",
+  "admin.inbox.csatSurveys.description_3": "CSAT-undersøgelser sendes kun én gang pr. samtale.",
   "admin.inbox.enablePlusAddressing": "Aktivér plus-adressering",
   "admin.inbox.enablePlusAddressing.description": "Forbedrer samtaletråde, men kræver udbyderunderstøttelse (f.eks. Gmail, Microsoft 365).",
   "admin.inbox.enabled.description": "Slå skanning af indbakken samt udsendelse af beskeder til/fra.",

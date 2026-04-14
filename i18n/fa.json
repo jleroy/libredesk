@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "نظرسنجی‌های CSAT",
   "admin.inbox.csatSurveys.description_1": "ارسال نظرسنجی‌های رضایت مشتری هنگام علامت‌گذاری مکالمه به عنوان حل‌شده.",
   "admin.inbox.csatSurveys.description_2": "برای کنترل بهتر زمان ارسال نظرسنجی‌ها، این گزینه را غیرفعال کنید و یک قانون اتوماسیون برای ارسال نظرسنجی‌ها ایجاد کنید.",
+  "admin.inbox.csatSurveys.description_3": "نظرسنجی‌های CSAT تنها یک بار برای هر مکالمه ارسال می‌شوند.",
   "admin.inbox.enablePlusAddressing": "فعال‌سازی آدرس‌دهی به علاوه",
   "admin.inbox.enablePlusAddressing.description": "بهبود ترتیب مکالمات اما نیاز به پشتیبانی ارائه‌دهنده دارد (مثل Gmail، Microsoft 365).",
   "admin.inbox.enabled.description": "تغییر وضعیت اسکن صندوق ورودی و ارسال پیام‌ها.",

@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "Questionarii di soddisfazione",
   "admin.inbox.csatSurveys.description_1": "Invia sondaggi di soddisfazione del cliente quando la conversazione è contrassegnata come risolta.",
   "admin.inbox.csatSurveys.description_2": "Per un migliore controllo su quando inviare sondaggi, disabilitare questa opzione e creare una regola di automazione per inviare sondaggi.",
+  "admin.inbox.csatSurveys.description_3": "I sondaggi di soddisfazione vengono inviati una sola volta per conversazione.",
   "admin.inbox.enablePlusAddressing": "Abilita indirizzamento plus",
   "admin.inbox.enablePlusAddressing.description": "Migliora il raggruppamento delle conversazioni ma richiede il supporto del provider (es. Gmail, Microsoft 365).",
   "admin.inbox.enabled.description": "Attiva/disattiva la scansione della posta in arrivo e l'invio di messaggi.",

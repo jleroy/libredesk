@@ -125,6 +125,7 @@
   "admin.inbox.csatSurveys": "Enquêtes CSAT",
   "admin.inbox.csatSurveys.description_1": "Envoyer des enquêtes de satisfaction aux clients lorsque la conversation est marquée comme résolue.",
   "admin.inbox.csatSurveys.description_2": "Pour mieux contrôler le moment où les enquêtes sont envoyées, désactivez cette option et créez une règle d'automatisation pour l'envoi des enquêtes.",
+  "admin.inbox.csatSurveys.description_3": "Les enquêtes CSAT ne sont envoyées qu'une seule fois par conversation.",
   "admin.inbox.enablePlusAddressing": "Activer l'adressage plus",
   "admin.inbox.enablePlusAddressing.description": "Améliore le fil de conversation mais nécessite le support du fournisseur (ex : Gmail, Microsoft 365).",
   "admin.inbox.enabled.description": "Activation de l'analyse de la boîte de réception et de l'envoi des messages.",

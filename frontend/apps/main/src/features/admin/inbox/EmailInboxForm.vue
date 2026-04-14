@@ -50,8 +50,8 @@
         />
       </FormItem>
       <p class="!mt-2 text-muted-foreground text-xs flex items-start gap-1.5">
-        <Lightbulb class="size-3.5 shrink-0 mt-0.5" />
-        <span>{{ $t('admin.inbox.csatSurveys.description_2') }}</span>
+        <Lightbulb class="size-4" />
+        <span>{{ $t('admin.inbox.csatSurveys.description_2') }} {{ $t('admin.inbox.csatSurveys.description_3') }}</span>
       </p>
     </FormField>
 
