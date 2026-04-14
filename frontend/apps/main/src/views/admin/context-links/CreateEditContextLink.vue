@@ -61,9 +61,6 @@ const onSubmit = form.handleSubmit(async (values) => {
     formLoading.value = true
 
     if (props.id) {
-      if (values.secret && values.secret.includes('\u2022')) {
-        values.secret = ''
-      }
       await api.updateContextLink(props.id, values)
     } else {
       await api.createContextLink(values)

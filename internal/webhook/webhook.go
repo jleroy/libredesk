@@ -15,12 +15,14 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/crypto"
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/abhinavxd/libredesk/internal/version"
 	"github.com/abhinavxd/libredesk/internal/webhook/models"
 	"github.com/abhinavxd/ssrfguard"
@@ -181,7 +183,7 @@ func (m *Manager) Update(id int, webhook models.Webhook) (models.Webhook, error)
 
 	// Preserve the existing encrypted secret.
 	encryptedSecret := webhook.Secret
-	if webhook.Secret == "" {
+	if strings.Contains(webhook.Secret, stringutil.PasswordDummy) {
 		var existingSecret string
 		if err := m.q.GetWebhookSecret.Get(&existingSecret, id); err != nil {
 			m.lo.Error("error fetching existing webhook secret", "id", id, "error", err)

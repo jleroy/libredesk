@@ -15,6 +15,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/crypto"
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-i18n"
 	"github.com/zerodha/logf"
@@ -123,7 +124,7 @@ func (m *Manager) Update(id int, link models.ContextLink) (models.ContextLink, e
 	var result models.ContextLink
 
 	encryptedSecret := link.Secret
-	if link.Secret == "" {
+	if strings.Contains(link.Secret, stringutil.PasswordDummy) {
 		var existingSecret string
 		if err := m.q.GetContextLinkSecret.Get(&existingSecret, id); err != nil {
 			m.lo.Error("error fetching existing context link secret", "id", id, "error", err)

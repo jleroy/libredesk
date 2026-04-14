@@ -75,10 +75,6 @@ const onSubmit = form.handleSubmit(async (values) => {
 
     let toastDescription = ''
     if (props.id) {
-      // If secret contains dummy characters, clear it so backend knows to keep existing secret
-      if (values.secret && values.secret.includes('•')) {
-        values.secret = ''
-      }
       await api.updateWebhook(props.id, values)
       toastDescription = t('globals.messages.savedSuccessfully')
     } else {
