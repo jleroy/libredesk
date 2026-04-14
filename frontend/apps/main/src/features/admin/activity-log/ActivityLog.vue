@@ -79,86 +79,17 @@
       </div>
     </div>
 
-    <!-- TODO: deduplicate this code, copied from contacts list -->
-    <div class="sticky bottom-0 bg-background p-4 mt-auto">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-muted-foreground">
-            {{ t('globals.messages.pageNofTotal', { page, total: totalPages }) }}
-          </span>
-          <Select v-model="perPage" @update:model-value="handlePerPageChange">
-            <SelectTrigger class="h-8 w-[70px]">
-              <SelectValue :placeholder="perPage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem :value="15">15</SelectItem>
-              <SelectItem :value="30">30</SelectItem>
-              <SelectItem :value="50">50</SelectItem>
-              <SelectItem :value="100">100</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Pagination>
-          <PaginationList class="flex items-center gap-1">
-            <PaginationListItem>
-              <PaginationFirst
-                :class="{ 'cursor-not-allowed opacity-50': page === 1 }"
-                @click.prevent="page > 1 ? goToPage(1) : null"
-              />
-            </PaginationListItem>
-            <PaginationListItem>
-              <PaginationPrev
-                :class="{ 'cursor-not-allowed opacity-50': page === 1 }"
-                @click.prevent="page > 1 ? goToPage(page - 1) : null"
-              />
-            </PaginationListItem>
-            <template v-for="pageNumber in visiblePages" :key="pageNumber">
-              <PaginationListItem v-if="pageNumber === '...'">
-                <PaginationEllipsis />
-              </PaginationListItem>
-              <PaginationListItem v-else>
-                <Button
-                  :is-active="pageNumber === page"
-                  @click.prevent="goToPage(pageNumber)"
-                  :variant="pageNumber === page ? 'default' : 'outline'"
-                >
-                  {{ pageNumber }}
-                </Button>
-              </PaginationListItem>
-            </template>
-            <PaginationListItem>
-              <PaginationNext
-                :class="{ 'cursor-not-allowed opacity-50': page === totalPages }"
-                @click.prevent="page < totalPages ? goToPage(page + 1) : null"
-              />
-            </PaginationListItem>
-            <PaginationListItem>
-              <PaginationLast
-                :class="{ 'cursor-not-allowed opacity-50': page === totalPages }"
-                @click.prevent="page < totalPages ? goToPage(totalPages) : null"
-              />
-            </PaginationListItem>
-          </PaginationList>
-        </Pagination>
-      </div>
-    </div>
+    <PaginationBar
+      v-model:page="page"
+      v-model:per-page="perPage"
+      :total-pages="totalPages"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import SimpleTable from '@main/components/table/SimpleTable.vue'
-import {
-  Pagination,
-  PaginationEllipsis,
-  PaginationFirst,
-  PaginationLast,
-  PaginationList,
-  PaginationListItem,
-  PaginationNext,
-  PaginationPrev
-} from '@shared-ui/components/ui/pagination'
 import {
   Select,
   SelectContent,
@@ -173,7 +104,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/u
 import { useActivityLogFilters } from '../../../composables/useActivityLogFilters'
 import { useI18n } from 'vue-i18n'
 import { format } from 'date-fns'
-import { getVisiblePages } from '../../../utils/pagination'
+import PaginationBar from '@main/components/pagination/PaginationBar.vue'
 import api from '../../../api'
 
 const activityLogs = ref([])
@@ -199,8 +130,6 @@ const filterFields = computed(() =>
     options: value.options ?? []
   }))
 )
-
-const visiblePages = computed(() => getVisiblePages(page.value, totalPages.value))
 
 async function fetchActivityLogs() {
   filtersOpen.value = false
@@ -229,17 +158,6 @@ async function fetchActivityLogs() {
   } finally {
     loading.value = false
   }
-}
-
-function goToPage(p) {
-  if (p >= 1 && p <= totalPages.value && p !== page.value) {
-    page.value = p
-  }
-}
-
-function handlePerPageChange() {
-  page.value = 1
-  fetchActivityLogs()
 }
 
 watch([page, perPage, orderByField, orderByDirection], fetchActivityLogs)

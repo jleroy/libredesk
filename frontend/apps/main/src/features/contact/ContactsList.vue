@@ -98,91 +98,20 @@
       </template>
     </div>
 
-    <!-- Sticky Pagination Controls -->
-    <div class="sticky bottom-0 bg-background p-4 mt-auto">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-muted-foreground">{{ $t('globals.messages.pageNofTotal', { page, total: totalPages }) }}</span>
-          <Select v-model="perPage" @update:model-value="handlePerPageChange">
-            <SelectTrigger class="h-8 w-[70px]">
-              <SelectValue :placeholder="perPage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem :value="15">15</SelectItem>
-              <SelectItem :value="30">30</SelectItem>
-              <SelectItem :value="50">50</SelectItem>
-              <SelectItem :value="100">100</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Pagination>
-          <PaginationList class="flex items-center gap-1">
-            <PaginationListItem>
-              <PaginationFirst
-                :class="{ 'cursor-not-allowed opacity-50': page === 1 }"
-                @click.prevent="page > 1 ? goToPage(1) : null"
-              />
-            </PaginationListItem>
-
-            <PaginationListItem>
-              <PaginationPrev
-                :class="{ 'cursor-not-allowed opacity-50': page === 1 }"
-                @click.prevent="page > 1 ? goToPage(page - 1) : null"
-              />
-            </PaginationListItem>
-
-            <template v-for="pageNumber in visiblePages" :key="pageNumber">
-              <PaginationListItem v-if="pageNumber === '...'">
-                <PaginationEllipsis />
-              </PaginationListItem>
-              <PaginationListItem v-else>
-                <Button
-                  :is-active="pageNumber === page"
-                  @click.prevent="goToPage(pageNumber)"
-                  :variant="pageNumber === page ? 'default' : 'outline'"
-                >
-                  {{ pageNumber }}
-                </Button>
-              </PaginationListItem>
-            </template>
-
-            <PaginationListItem>
-              <PaginationNext
-                :class="{ 'cursor-not-allowed opacity-50': page === totalPages }"
-                @click.prevent="page < totalPages ? goToPage(page + 1) : null"
-              />
-            </PaginationListItem>
-
-            <PaginationListItem>
-              <PaginationLast
-                :class="{ 'cursor-not-allowed opacity-50': page === totalPages }"
-                @click.prevent="page < totalPages ? goToPage(totalPages) : null"
-              />
-            </PaginationListItem>
-          </PaginationList>
-        </Pagination>
-      </div>
-    </div>
+    <PaginationBar
+      v-model:page="page"
+      v-model:per-page="perPage"
+      :total-pages="totalPages"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Card } from '@shared-ui/components/ui/card'
 import { Skeleton } from '@shared-ui/components/ui/skeleton'
 import { Avatar, AvatarImage, AvatarFallback } from '@shared-ui/components/ui/avatar'
 import { Badge } from '@shared-ui/components/ui/badge'
-import {
-  Pagination,
-  PaginationEllipsis,
-  PaginationFirst,
-  PaginationLast,
-  PaginationList,
-  PaginationListItem,
-  PaginationNext,
-  PaginationPrev
-} from '@shared-ui/components/ui/pagination'
 import {
   Select,
   SelectContent,
@@ -198,7 +127,7 @@ import { useDebounceFn } from '@vueuse/core'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import { useEmitter } from '@main/composables/useEmitter'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
-import { getVisiblePages } from '@main/utils/pagination'
+import PaginationBar from '@main/components/pagination/PaginationBar.vue'
 import api from '@main/api'
 
 const contacts = ref([])
@@ -211,9 +140,6 @@ const orderByField = ref('users.created_at')
 const orderByDirection = ref('desc')
 const total = ref(0)
 const emitter = useEmitter()
-
-// Google-style pagination
-const visiblePages = computed(() => getVisiblePages(page.value, totalPages.value))
 
 const fetchContactsDebounced = useDebounceFn(() => {
   fetchContacts()
@@ -257,16 +183,7 @@ const getInitials = (firstName, lastName) => {
   return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase()
 }
 
-const goToPage = (newPage) => {
-  page.value = newPage
-  fetchContacts()
-}
-
-const handlePerPageChange = (newPerPage) => {
-  page.value = 1
-  perPage.value = newPerPage
-  fetchContacts()
-}
+watch([page, perPage], fetchContacts)
 
 onMounted(() => {
   fetchContacts()
