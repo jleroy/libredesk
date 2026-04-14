@@ -20,16 +20,23 @@
               :label="t('globals.messages.upload')"
             />
 
-            <div class="flex items-center gap-3">
+            <div class="flex gap-2 justify-start items-center">
               <h2 class="text-2xl font-bold text-foreground">
                 {{ contact.first_name }} {{ contact.last_name }}
               </h2>
               <Badge v-if="contact.type" variant="secondary">
-                {{ contact.type === 'visitor' ? $t('contact.type.visitor') : $t('contact.type.contact') }}
+                {{
+                  contact.type === 'visitor'
+                    ? $t('contact.type.visitor')
+                    : $t('contact.type.contact')
+                }}
               </Badge>
             </div>
 
-            <div v-if="contact.external_user_id" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div
+              v-if="contact.external_user_id"
+              class="flex items-center gap-1.5 text-xs text-muted-foreground"
+            >
               <IdCardIcon size="14" class="flex-shrink-0" />
               {{ contact.external_user_id }}
             </div>
@@ -46,8 +53,8 @@
                 @click="showBlockConfirmation = true"
                 size="sm"
               >
-                <ShieldOffIcon v-if="contact.enabled" size="18" class="mr-2" />
-                <ShieldCheckIcon v-else size="18" class="mr-2" />
+                <ShieldOffIcon v-if="contact.enabled" size="18" />
+                <ShieldCheckIcon v-else size="18" />
                 {{ t(contact.enabled ? 'globals.messages.block' : 'globals.messages.unblock') }}
               </Button>
             </div>
@@ -66,11 +73,7 @@
         <DialogContent class="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {{
-                contact?.enabled
-                  ? t('contact.blockContact')
-                  : t('contact.unblockContact')
-              }}
+              {{ contact?.enabled ? t('contact.blockContact') : t('contact.unblockContact') }}
             </DialogTitle>
             <DialogDescription>
               {{ contact?.enabled ? t('contact.blockConfirm') : t('contact.unblockConfirm') }}
@@ -173,9 +176,7 @@ async function toggleBlock() {
     })
     await fetchContact()
     emitToast(
-      contact.value.enabled
-        ? t('contact.unblockedSuccessfully')
-        : t('contact.blockedSuccessfully')
+      contact.value.enabled ? t('contact.unblockedSuccessfully') : t('contact.blockedSuccessfully')
     )
   } catch (err) {
     showError(err)

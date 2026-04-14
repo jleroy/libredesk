@@ -12,7 +12,7 @@
         v-if="!isAddingNote && !isLoading && notes.length !== 0"
         class="transition-all hover:bg-primary/10 hover:border-primary/30"
       >
-        <PlusIcon class="mr-2" size="18" />
+        <PlusIcon size="18" />
         {{ $t('contact.newNote') }}
       </Button>
     </div>
@@ -124,7 +124,7 @@
           {{ $t('contact.notes.help') }}
         </p>
         <Button variant="outline" class="mt-3" @click="startAddingNote">
-          <PlusIcon class="mr-2" size="15" />
+          <PlusIcon size="15" />
           {{ $t('contact.addNote') }}
         </Button>
       </div>
