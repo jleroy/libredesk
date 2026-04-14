@@ -164,22 +164,8 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 		// Set from address of the inbox
 		outbound.From = inb.FromAddress()
 
-		// Set "In-Reply-To" and "References" headers, logging any errors but continuing to send the message.
-		// Include only the last 20 messages as references to avoid exceeding header size limits.
-		outbound.References, err = m.GetMessageSourceIDs(message.ConversationID, 20)
-		if err != nil {
-			m.lo.Error("Error fetching conversation source IDs", "error", err)
-		}
-
-		// References is sorted in DESC i.e newest message first, so reverse it to keep the references in order.
-		slices.Reverse(outbound.References)
-
-		// Remove the current message ID from the references.
-		outbound.References = stringutil.RemoveItemByValue(outbound.References, outbound.SourceID)
-
-		if len(outbound.References) > 0 {
-			outbound.InReplyTo = outbound.References[len(outbound.References)-1]
-		}
+		// Set "In-Reply-To" and "References" headers for email threading.
+		outbound.References, outbound.InReplyTo = m.BuildEmailThreadingHeaders(message.ConversationID, outbound.SourceID)
 	}
 
 	// Send message

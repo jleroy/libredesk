@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"slices"
 	"strings"
 	"time"
 
@@ -199,24 +198,8 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 		return fmt.Errorf("inserting continuity message: %w", err)
 	}
 
-	// Get all message source IDs for References header and threading
-	references, err := m.GetMessageSourceIDs(conv.ID, 20)
-	if err != nil {
-		m.lo.Error("error fetching conversation source IDs for continuity email", "error", err)
-		references = []string{}
-	}
-
-	// References is sorted in DESC i.e newest message first, so reverse it to keep the references in order.
-	slices.Reverse(references)
-
-	// Remove the current message ID from the references.
-	references = stringutil.RemoveItemByValue(references, sourceID)
-
-	// Determine In-Reply-To from references
-	var inReplyTo string
-	if len(references) > 0 {
-		inReplyTo = references[len(references)-1]
-	}
+	// Build References and In-Reply-To headers for email threading.
+	references, inReplyTo := m.BuildEmailThreadingHeaders(conv.ID, sourceID)
 
 	// Render message template
 	if err := m.RenderMessageInTemplate(linkedEmailInbox.Channel(), &message); err != nil {

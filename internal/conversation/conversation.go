@@ -999,6 +999,22 @@ func (m *Manager) GetMessageSourceIDs(conversationID, limit int) ([]string, erro
 	return refs, nil
 }
 
+// BuildEmailThreadingHeaders builds References and In-Reply-To headers for an outgoing email,
+// excluding the message's own source ID.
+func (m *Manager) BuildEmailThreadingHeaders(conversationID int, selfSourceID string) ([]string, string) {
+	references, err := m.GetMessageSourceIDs(conversationID, 20)
+	if err != nil {
+		return nil, ""
+	}
+	slices.Reverse(references)
+	references = stringutil.RemoveItemByValue(references, selfSourceID)
+	var inReplyTo string
+	if len(references) > 0 {
+		inReplyTo = references[len(references)-1]
+	}
+	return references, inReplyTo
+}
+
 // NotifyAssignment sends notifications (in-app, WebSocket, email) for an assigned conversation.
 func (m *Manager) NotifyAssignment(userIDs []int, conversation models.Conversation) error {
 	agent, err := m.userStore.GetAgent(userIDs[0], "")
