@@ -32,8 +32,8 @@
         <Skeleton class="w-24 h-4" />
       </span>
       <router-link
-        v-else-if="userStore.can('contacts:read')"
-        :to="{ name: 'contact-detail', params: { id: conversation?.contact_id } }"
+        v-else-if="userStore.can('contacts:read') && conversation?.contact_id"
+        :to="{ name: 'contact-detail', params: { id: conversation.contact_id } }"
         class="flex items-center gap-2 hover:underline cursor-pointer"
       >
         {{ conversation?.contact?.first_name + ' ' + conversation?.contact?.last_name }}
