@@ -877,6 +877,9 @@ func validateCreateConversationRequest(req createConversationRequest, app *App) 
 	if !inbox.Enabled {
 		return envelope.NewError(envelope.InputError, app.i18n.T("globals.messages.disabled"), nil)
 	}
+	if inbox.Channel != "email" {
+		return envelope.NewError(envelope.InputError, app.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
 
 	// Validate custom attribute keys. Skip unknown keys.
 	if len(req.CustomAttributes) > 0 {
