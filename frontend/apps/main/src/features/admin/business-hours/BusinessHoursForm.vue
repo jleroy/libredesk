@@ -121,7 +121,7 @@
         <div class="grid gap-4 py-4">
           <div class="grid grid-cols-4 items-center gap-4">
             <Label for="holiday_name" class="text-right"> {{ t('globals.terms.name') }} </Label>
-            <Input id="holiday_name" v-model="holidayName" class="col-span-3" />
+            <Input id="holiday_name" ref="holidayNameRef" v-model="holidayName" class="col-span-3" />
           </div>
           <div class="grid grid-cols-4 items-center gap-4">
             <Label for="date" class="text-right"> {{ t('globals.terms.date') }} </Label>
@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, watch, reactive, computed } from 'vue'
+import { ref, watch, reactive, computed, nextTick } from 'vue'
 import { Button } from '@shared-ui/components/ui/button/index.js'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
@@ -224,7 +224,16 @@ const selectedDays = ref({})
 const hours = ref({})
 const openHolidayForm = ref(false)
 const datePickerOpen = ref(false)
+const holidayNameRef = ref(null)
 const { t } = useI18n()
+
+watch(openHolidayForm, (isOpen) => {
+  if (isOpen) {
+    nextTick(() => {
+      holidayNameRef.value?.$el?.focus()
+    })
+  }
+})
 
 const form = useForm({
   validationSchema: toTypedSchema(createFormSchema(t)),
