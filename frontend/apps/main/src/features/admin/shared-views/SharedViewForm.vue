@@ -23,48 +23,50 @@
       </FormItem>
     </FormField>
 
-    <FormField
-      v-slot="{ componentField }"
-      name="visibility"
-      :validate-on-blur="false"
-      :validate-on-change="false"
-      :validate-on-input="false"
-      :validate-on-mount="false"
-      :validate-on-model-update="false"
-    >
-      <FormItem>
-        <FormLabel>{{ t('globals.terms.visibility') }}</FormLabel>
-        <FormControl>
-          <Select v-bind="componentField">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">{{ t('sharedView.allAgents') }}</SelectItem>
-                <SelectItem value="team">{{ t('globals.terms.team') }}</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+    <div class="grid grid-cols-2 gap-4">
+      <FormField
+        v-slot="{ componentField }"
+        name="visibility"
+        :validate-on-blur="false"
+        :validate-on-change="false"
+        :validate-on-input="false"
+        :validate-on-mount="false"
+        :validate-on-model-update="false"
+      >
+        <FormItem>
+          <FormLabel>{{ t('globals.terms.visibility') }}</FormLabel>
+          <FormControl>
+            <Select v-bind="componentField">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="all">{{ t('sharedView.allAgents') }}</SelectItem>
+                  <SelectItem value="team">{{ t('globals.terms.team') }}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-if="form.values.visibility === 'team'" v-slot="{ componentField }" name="team_id">
-      <FormItem>
-        <FormLabel>{{ t('globals.terms.team') }}</FormLabel>
-        <FormControl>
-          <SelectComboBox
-            v-bind="componentField"
-            :items="tStore.options"
-            :placeholder="t('placeholders.selectTeam')"
-            type="team"
-          />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-if="form.values.visibility === 'team'" v-slot="{ componentField }" name="team_id">
+        <FormItem>
+          <FormLabel>{{ t('globals.terms.team') }}</FormLabel>
+          <FormControl>
+            <SelectComboBox
+              v-bind="componentField"
+              :items="tStore.options"
+              :placeholder="t('placeholders.selectTeam')"
+              type="team"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+    </div>
 
     <Button type="submit" :isLoading="isLoading">{{ submitLabel }}</Button>
   </form>
