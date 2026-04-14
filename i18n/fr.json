@@ -69,7 +69,7 @@
   "admin.automation.invalid": "Assurez-vous que vous avez au moins une action et une règle et que leurs valeurs ne sont pas vides.",
   "admin.automation.match": "Correspondance",
   "admin.automation.matchTheseRules": "Correspondre à ces règles",
-  "admin.automation.newConversation.description": "Règles qui s'exécutent lorsqu'une nouvelle conversation est créée, glisser-déposer pour réorganiser les règles.",
+  "admin.automation.newConversation.description": "Règles qui s'exécutent lorsqu'une nouvelle conversation est créée par un contact. Les conversations initiées par les agents ne déclenchent pas ces règles. Glisser-déposer pour réorganiser.",
   "admin.automation.noRulesFound": "Aucune règle trouvée",
   "admin.automation.or": "OU",
   "admin.automation.performTheseActions": "Effectuer les actions suivantes",

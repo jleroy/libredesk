@@ -69,7 +69,7 @@
   "admin.automation.invalid": "少なくとも1つのアクションと1つのルールを設定し、それぞれの値が空でないことを確認してください。",
   "admin.automation.match": "一致",
   "admin.automation.matchTheseRules": "これらのルールに一致",
-  "admin.automation.newConversation.description": "新しい会話作成時に実行されるルール。ドラッグ＆ドロップで順序を変更できます。",
+  "admin.automation.newConversation.description": "連絡先が新しい会話を作成した際に実行されるルールです。エージェントが開始した会話ではこれらのルールは実行されません。ドラッグ＆ドロップで順序を変更できます。",
   "admin.automation.noRulesFound": "ルールが見つかりません",
   "admin.automation.or": "または",
   "admin.automation.performTheseActions": "これらの操作を実行",

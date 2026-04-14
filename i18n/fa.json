@@ -69,7 +69,7 @@
   "admin.automation.invalid": "مطمئن شوید که حداقل یک اقدام و یک قانون دارید و مقادیر آن‌ها خالی نیست.",
   "admin.automation.match": "تطابق",
   "admin.automation.matchTheseRules": "تطابق با این قوانین",
-  "admin.automation.newConversation.description": "قوانینی که هنگام ایجاد یک مکالمه جدید اجرا می‌شوند، برای مرتب‌سازی قوانین بکشید و رها کنید.",
+  "admin.automation.newConversation.description": "قوانینی که هنگام ایجاد مکالمه جدید توسط مخاطب اجرا می‌شوند. مکالمه‌هایی که توسط کارشناسان ایجاد شوند این قوانین را فعال نمی‌کنند. برای تغییر ترتیب، بکشید و رها کنید.",
   "admin.automation.noRulesFound": "قانونی یافت نشد",
   "admin.automation.or": "یا",
   "admin.automation.performTheseActions": "اجرای این اقدامات",

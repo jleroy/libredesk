@@ -69,7 +69,7 @@
   "admin.automation.invalid": "Sørg for at have mindst én handling og én regel, samt at deres værdifelter er ikke tomme.",
   "admin.automation.match": "Matchning",
   "admin.automation.matchTheseRules": "Match disse regler",
-  "admin.automation.newConversation.description": "Regler, som eksekveres, når en ny samtale oprettes. Træk og slip for at omarrangere regler.",
+  "admin.automation.newConversation.description": "Regler, der køres, når en kontakt opretter en ny samtale. Samtaler oprettet af agenter udløser ikke disse regler. Træk og slip for at ændre rækkefølgen.",
   "admin.automation.noRulesFound": "Ingen regler fundet",
   "admin.automation.or": "ELLER",
   "admin.automation.performTheseActions": "Udfør disse handlinger",

@@ -69,7 +69,7 @@
   "admin.automation.invalid": "किमान एक क्रिया आणि एक नियम असल्याचे सुनिश्चित करा.",
   "admin.automation.match": "जुळणी",
   "admin.automation.matchTheseRules": "ह्या नियमांशी जुळवा",
-  "admin.automation.newConversation.description": "नवीन संभाषण तयार झाल्यावर चालणारे नियम, नियम पुन्हा क्रमांकित करण्यासाठी ड्रॅग आणि ड्रॉप करा.",
+  "admin.automation.newConversation.description": "संपर्काने नवीन संभाषण तयार केल्यावर चालणारे नियम. एजंटने सुरू केलेल्या संभाषणांवर हे नियम लागू होत नाहीत. क्रम बदलण्यासाठी ड्रॅग आणि ड्रॉप करा.",
   "admin.automation.noRulesFound": "कोणतेही नियम सापडले नाहीत",
   "admin.automation.or": "किंवा",
   "admin.automation.performTheseActions": "ह्या क्रिया करा",

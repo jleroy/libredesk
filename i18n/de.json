@@ -69,7 +69,7 @@
   "admin.automation.invalid": "Stelle sicher, dass du mindestens eine Aktion und eine Regel hast und ihre Werte nicht leer sind.",
   "admin.automation.match": "Wenn",
   "admin.automation.matchTheseRules": "Wende diese Regeln an",
-  "admin.automation.newConversation.description": "Regeln, die ausgeführt werden, wenn eine neue Konversation erstellt wird, ziehen und ablegen um Regeln neu zu ordnen.",
+  "admin.automation.newConversation.description": "Regeln, die ausgeführt werden, wenn ein Kontakt eine neue Konversation erstellt. Von Agenten gestartete Konversationen lösen diese Regeln nicht aus. Per Drag-and-Drop neu anordnen.",
   "admin.automation.noRulesFound": "Keine Regeln gefunden",
   "admin.automation.or": "ODER",
   "admin.automation.performTheseActions": "Führe diese Aktionen aus",

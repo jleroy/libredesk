@@ -69,7 +69,7 @@
   "admin.automation.invalid": "Asegúrate de tener al menos una acción y una regla y que sus valores no estén vacíos.",
   "admin.automation.match": "Coincidir",
   "admin.automation.matchTheseRules": "Coincidir con estas reglas",
-  "admin.automation.newConversation.description": "Reglas que se ejecutan cuando se crea una nueva conversación, arrastra y suelta para reordenar reglas.",
+  "admin.automation.newConversation.description": "Reglas que se ejecutan cuando un contacto crea una nueva conversación. Las conversaciones iniciadas por agentes no activan estas reglas. Arrastra y suelta para reordenar.",
   "admin.automation.noRulesFound": "No se encontraron reglas",
   "admin.automation.or": "O",
   "admin.automation.performTheseActions": "Realizar estas acciones",
