@@ -119,6 +119,7 @@
   "admin.inbox.authProtocol.description": "Godkendelsesprotokol at benytte.",
   "admin.inbox.authProtocol.login": "Login-godkendelse",
   "admin.inbox.authProtocol.plain": "Plain-godkendelse",
+  "admin.inbox.chooseChannel": "Vælg kanal",
   "admin.inbox.createEmailInbox": "Opret en e-mailindbakke til e-mailbaseret kundesupport",
   "admin.inbox.createLiveChatInbox": "Opret en livechat-indbakke til kundesupport i realtid",
   "admin.inbox.csatSurveys": "CSAT-undersøgelser",

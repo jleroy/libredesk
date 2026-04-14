@@ -119,6 +119,7 @@
   "admin.inbox.authProtocol.description": "使用する認証プロトコル。",
   "admin.inbox.authProtocol.login": "ログイン",
   "admin.inbox.authProtocol.plain": "プレーン",
+  "admin.inbox.chooseChannel": "チャネルを選択",
   "admin.inbox.createEmailInbox": "メールベースのカスタマーサポート用にメール受信トレイを作成します",
   "admin.inbox.createLiveChatInbox": "リアルタイムカスタマーサポート用のライブチャット受信トレイを作成",
   "admin.inbox.csatSurveys": "CSAT調査",

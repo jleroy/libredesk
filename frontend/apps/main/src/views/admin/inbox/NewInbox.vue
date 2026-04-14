@@ -3,27 +3,41 @@
     <CustomBreadcrumb :links="breadcrumbLinks" />
   </div>
   <div class="space-y-6">
-    <div v-if="currentStep === 1" class="flex space-x-6 mt-10">
-      <MenuCard
-        v-for="channel in channels"
-        :key="channel.title"
-        :onClick="channel.onClick"
-        :title="channel.title"
-        :subTitle="channel.subTitle"
-        :icon="channel.icon"
-        :badge="channel.badge"
-        class="w-full max-w-sm cursor-pointer"
-      >
-      </MenuCard>
+    <div v-if="currentStep === 1" class="space-y-4 mt-10">
+      <h3 class="font-semibold text-lg">{{ $t('admin.inbox.chooseChannel') }}</h3>
+      <div class="flex space-x-6">
+        <MenuCard
+          v-for="channel in channels"
+          :key="channel.title"
+          :onClick="channel.onClick"
+          :title="channel.title"
+          :subTitle="channel.subTitle"
+          :icon="channel.icon"
+          :badge="channel.badge"
+          class="w-full max-w-sm cursor-pointer"
+        >
+        </MenuCard>
+      </div>
     </div>
 
     <div v-else-if="currentStep === 2" class="space-y-6">
       <Button @click="goBack" variant="link" size="xs">← {{ $t('globals.messages.back') }}</Button>
       <div v-if="selectedChannel === 'email'">
-        <EmailInboxForm :initial-values="{}" :submitForm="submitForm" :isLoading="isLoading" :isNewForm="true" />
+        <EmailInboxForm
+          :initial-values="{}"
+          :submitForm="submitForm"
+          :isLoading="isLoading"
+          :isNewForm="true"
+        />
       </div>
       <div v-else-if="selectedChannel === 'livechat'">
-        <LivechatInboxForm :initial-values="{}" :submitForm="submitLiveChatForm" :isLoading="isLoading" :isNewForm="true" :available-languages="availableLanguages" />
+        <LivechatInboxForm
+          :initial-values="{}"
+          :submitForm="submitLiveChatForm"
+          :isLoading="isLoading"
+          :isNewForm="true"
+          :available-languages="availableLanguages"
+        />
       </div>
     </div>
   </div>

@@ -119,6 +119,7 @@
   "admin.inbox.authProtocol.description": "Zu verwendendes Authentifizierungsprotokoll.",
   "admin.inbox.authProtocol.login": "Anmeldung",
   "admin.inbox.authProtocol.plain": "Klartext",
+  "admin.inbox.chooseChannel": "Kanal wählen",
   "admin.inbox.createEmailInbox": "Einen E-Mail-Posteingang für E-Mail-basierten Kundensupport erstellen",
   "admin.inbox.createLiveChatInbox": "Einen Live-Chat-Posteingang für Echtzeit-Kundensupport erstellen",
   "admin.inbox.csatSurveys": "CSAT-Umfragen",

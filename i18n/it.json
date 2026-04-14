@@ -119,6 +119,7 @@
   "admin.inbox.authProtocol.description": "Protocollo di autenticazione da usare.",
   "admin.inbox.authProtocol.login": "Accesso",
   "admin.inbox.authProtocol.plain": "Semplice",
+  "admin.inbox.chooseChannel": "Scegli il canale",
   "admin.inbox.createEmailInbox": "Crea una casella email per l'assistenza clienti via email",
   "admin.inbox.createLiveChatInbox": "Crea una casella di live chat per il supporto clienti in tempo reale",
   "admin.inbox.csatSurveys": "Questionarii di soddisfazione",

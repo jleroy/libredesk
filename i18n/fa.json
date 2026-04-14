@@ -119,6 +119,7 @@
   "admin.inbox.authProtocol.description": "پروتکل احراز هویت برای استفاده.",
   "admin.inbox.authProtocol.login": "ورود (Login)",
   "admin.inbox.authProtocol.plain": "ساده (Plain)",
+  "admin.inbox.chooseChannel": "انتخاب کانال",
   "admin.inbox.createEmailInbox": "ایجاد صندوق ورودی ایمیل برای پشتیبانی مشتریان از طریق ایمیل",
   "admin.inbox.createLiveChatInbox": "ایجاد صندوق ورودی چت زنده برای پشتیبانی آنی مشتریان",
   "admin.inbox.csatSurveys": "نظرسنجی‌های CSAT",
