@@ -163,12 +163,6 @@ const sendMessage = async () => {
       chatStore.removeMessage(chatStore.currentConversation.uuid, tempMessageID)
     }
 
-    // Unauthorized?
-    if (error.response && error.response.status === 401) {
-      userStore.clearSessionToken()
-      chatStore.setCurrentConversation(null)
-      widgetStore.closeWidget()
-    }
     emit('error', handleHTTPError(error).message)
   } finally {
     isSending.value = false

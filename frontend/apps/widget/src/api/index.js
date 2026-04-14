@@ -36,6 +36,24 @@ export function initVisitorToken (token) {
     _visitorToken = token || ''
 }
 
+// Stores registered by App.vue for use in the response interceptor.
+let _stores = null
+export function registerStores (stores) {
+    _stores = stores
+}
+
+// Clears all session state, cookies, and closes widget on 401/session expiry.
+function handleSessionExpired () {
+    if (!_stores) return
+    const { userStore, chatStore, widgetStore } = _stores
+    userStore.clearSessionToken()
+    clearVisitorToken()
+    postToParent({ type: 'CLEAR_SESSION_TOKEN' })
+    chatStore.setCurrentConversation(null)
+    chatStore.conversations = null
+    widgetStore.closeWidget()
+}
+
 // Saves session token and user metadata from a server response.
 // When isNewVisitor is true, also stores the token as the visitor token (for merge flow).
 export function saveSession (sessionToken, user, userStore, isNewVisitor = false) {
@@ -87,12 +105,25 @@ http.interceptors.request.use((request) => {
     return request
 })
 
-http.interceptors.response.use((response) => {
-    if (response.headers['x-libredesk-clear-visitor']) {
-        clearVisitorToken()
+http.interceptors.response.use(
+    (response) => {
+        if (response.headers['x-libredesk-clear-visitor']) {
+            clearVisitorToken()
+        }
+        return response
+    },
+    (error) => {
+        if (error.response?.status === 401) {
+            // Only cleanup if the failed request used the current session token.
+            // Prevents clearing a valid new session when a stale request returns 401.
+            const reqAuth = error.config?.headers?.Authorization
+            if (reqAuth && reqAuth === `Bearer ${_sessionToken}`) {
+                handleSessionExpired()
+            }
+        }
+        return Promise.reject(error)
     }
-    return response
-})
+)
 
 const getWidgetSettings = (inboxID) => http.get('/api/v1/widget/chat/settings', {
     params: { inbox_id: inboxID }

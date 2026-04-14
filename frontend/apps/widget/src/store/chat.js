@@ -213,11 +213,7 @@ export const useChatStore = defineStore('chat', () => {
             const response = await api.getChatConversations()
             conversations.value = response.data.data || []
             return true
-        } catch (error) {
-            if (error.response && error.response.status === 401) {
-                userStore.clearSessionToken()
-                conversations.value = null
-            }
+        } catch {
             return false
         } finally {
             isLoadingConversations.value = false

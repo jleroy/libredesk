@@ -18,7 +18,7 @@ import { useWidgetStore } from './store/widget.js'
 import { useChatStore } from '@widget/store/chat.js'
 import { useUserStore } from './store/user.js'
 import { initWidgetWS, closeWidgetWebSocket, sendPageVisit, skipInitialWsSync } from './websocket.js'
-import api, { setApiSessionToken, initVisitorToken, saveSession } from '@widget/api/index.js'
+import api, { setApiSessionToken, initVisitorToken, saveSession, registerStores } from '@widget/api/index.js'
 import { useUnreadCount } from './composables/useUnreadCount.js'
 import { initAudioContext } from '@shared-ui/composables/useNotificationSound.js'
 import { hexToHSL } from '@shared-ui/utils/color.js'
@@ -27,6 +27,9 @@ import MainLayout from '@widget/layouts/MainLayout.vue'
 const widgetStore = useWidgetStore()
 const chatStore = useChatStore()
 const userStore = useUserStore()
+
+// Register stores for the global 401 response interceptor.
+registerStores({ userStore, chatStore, widgetStore })
 
 // Initialize unread count tracking and sending to parent window.
 useUnreadCount()
@@ -99,9 +102,7 @@ const setupParentMessageListeners = () => {
               userStore.setUserMeta(meResp.data.data)
             }
           } catch {
-            if (userStore.userSessionToken === sessionToken) {
-              userStore.clearSessionToken()
-            }
+            // 401 is handled by the global response interceptor.
           }
         }
         await fetchInitialConversations()

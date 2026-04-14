@@ -126,11 +126,6 @@ const handlePreChatFormSubmit = async ({ formData, message }) => {
 
     preChatFormSubmitted.value = true
   } catch (error) {
-    if (error.response && error.response.status === 401) {
-      userStore.clearSessionToken()
-      chatStore.setCurrentConversation(null)
-      widgetStore.closeWidget()
-    }
     errorMessage.value = handleHTTPError(error).message
   } finally {
     isInitializing.value = false

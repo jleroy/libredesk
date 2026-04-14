@@ -348,6 +348,9 @@
                 case 'CLEAR_VISITOR_TOKEN':
                     this.deleteCookie(this.getCookieName('visitor'));
                     break;
+                case 'CLEAR_SESSION_TOKEN':
+                    this.deleteCookie(this.getCookieName('session'));
+                    break;
             }
         }
 
