@@ -29,6 +29,12 @@
         <CommandItem value="2 days" @select="handleSnooze(2880)">
           2 {{ $t('globals.terms.day', 2) }}
         </CommandItem>
+        <CommandItem value="3 days" @select="handleSnooze(4320)">
+          3 {{ $t('globals.terms.day', 2) }}
+        </CommandItem>
+        <CommandItem value="1 week" @select="handleSnooze(10080)">
+          1 {{ $t('globals.terms.week') }}
+        </CommandItem>
         <CommandItem value="pick date & time" @select="showCustomDialog">
           {{ $t('globals.messages.pickDateAndTime') }}
         </CommandItem>
