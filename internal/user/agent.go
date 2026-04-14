@@ -14,14 +14,14 @@ import (
 )
 
 // MonitorUserAvailability continuously checks for user activity and sets them offline if inactive for more than 5 minutes.
-func (u *Manager) MonitorUserAvailability(ctx context.Context, onUsersOffline func([]int)) {
+func (u *Manager) MonitorUserAvailability(ctx context.Context, onUsersOffline func([]models.OfflineUser)) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			if userIDs := u.MarkInactiveUsersOffline(); len(userIDs) > 0 && onUsersOffline != nil {
-				onUsersOffline(userIDs)
+			if users := u.MarkInactiveUsersOffline(); len(users) > 0 && onUsersOffline != nil {
+				onUsersOffline(users)
 			}
 		case <-ctx.Done():
 			return
@@ -157,17 +157,16 @@ func (u *Manager) SoftDeleteAgent(id int) error {
 }
 
 // MarkInactiveUsersOffline sets users offline if they have been inactive for more than 5 minutes.
-// Returns the IDs of users that were marked offline.
-func (u *Manager) MarkInactiveUsersOffline() []int {
-	var userIDs []int
-	if err := u.q.UpdateInactiveOffline.Select(&userIDs); err != nil {
+func (u *Manager) MarkInactiveUsersOffline() []models.OfflineUser {
+	var users []models.OfflineUser
+	if err := u.q.UpdateInactiveOffline.Select(&users); err != nil {
 		u.lo.Error("error setting users offline", "error", err)
 		return nil
 	}
-	if len(userIDs) > 0 {
-		u.lo.Info("set inactive users offline", "count", len(userIDs))
+	if len(users) > 0 {
+		u.lo.Info("set inactive users offline", "count", len(users))
 	}
-	return userIDs
+	return users
 }
 
 // GetAllAgents returns a list of all agents.

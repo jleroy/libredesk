@@ -131,7 +131,7 @@ WHERE
   type IN ('agent', 'contact', 'visitor')
   AND (last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '5 minutes')
   AND availability_status NOT IN ('offline', 'away_and_reassigning', 'away_manual')
-RETURNING id;
+RETURNING id, type;
 
 -- name: get-availability-status
 SELECT availability_status FROM users WHERE id = $1;

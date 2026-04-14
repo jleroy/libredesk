@@ -105,6 +105,11 @@ type Note struct {
 	AvatarURL null.String `db:"avatar_url" json:"avatar_url"`
 }
 
+type OfflineUser struct {
+	ID   int    `db:"id"`
+	Type string `db:"type"`
+}
+
 func (u *User) FullName() string {
 	return u.FirstName + " " + u.LastName
 }

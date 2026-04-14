@@ -27,6 +27,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/report"
 	"github.com/abhinavxd/libredesk/internal/search"
 	"github.com/abhinavxd/libredesk/internal/sla"
+	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/abhinavxd/libredesk/internal/view"
 	"github.com/redis/go-redis/v9"
 
@@ -346,12 +347,16 @@ func main() {
 }
 
 // onUsersOffline returns a callback for MonitorUserAvailability that broadcasts
-// offline status to both agent and widget clients.
-func onUsersOffline(conv *conversation.Manager) func([]int) {
-	return func(userIDs []int) {
-		for _, id := range userIDs {
-			conv.BroadcastContactUpdate(id, map[string]any{"availability_status": "offline"})
-			conv.BroadcastAgentStatusToWidget(id, "offline")
+// offline status to the appropriate clients based on user type.
+func onUsersOffline(conv *conversation.Manager) func([]umodels.OfflineUser) {
+	return func(users []umodels.OfflineUser) {
+		for _, u := range users {
+			switch u.Type {
+			case umodels.UserTypeAgent:
+				conv.BroadcastAgentStatusToWidget(u.ID, umodels.Offline)
+			case umodels.UserTypeContact, umodels.UserTypeVisitor:
+				conv.BroadcastContactUpdate(u.ID, map[string]any{"availability_status": umodels.Offline})
+			}
 		}
 	}
 }
