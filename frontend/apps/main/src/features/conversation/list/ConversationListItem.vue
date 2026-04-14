@@ -186,7 +186,7 @@ onUnmounted(() => {
 
 const trimmedLastMessage = computed(() => {
   const message = props.conversation.last_message || ''
-  return message.length > 60 ? message.slice(0, 60) + '...' : message
+  return message.length > 120 ? message.slice(0, 120) + '...' : message
 })
 
 const relativeLastMessageTime = computed(() => {
@@ -208,6 +208,6 @@ const draftPreview = computed(() => {
   const draft = conversationStore.getDraft(props.conversation.uuid)
   if (!draft?.content) return ''
   const text = draft.content.replace(/<[^>]*>/g, '').trim()
-  return text.length > 60 ? text.slice(0, 60) + '...' : text
+  return text.length > 120 ? text.slice(0, 120) + '...' : text
 })
 </script>
