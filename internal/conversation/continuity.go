@@ -169,7 +169,6 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 
 	metaJSON, err := json.Marshal(map[string]any{
 		"continuity_email": true,
-		"message_ids":      messageIDs,
 	})
 	if err != nil {
 		m.lo.Error("error marshalling continuity email meta", "error", err, "conversation_uuid", conv.UUID)
@@ -201,7 +200,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 	}
 
 	// Get all message source IDs for References header and threading
-	references, err := m.GetMessageSourceIDs(conv.ID, 200)
+	references, err := m.GetMessageSourceIDs(conv.ID, 20)
 	if err != nil {
 		m.lo.Error("error fetching conversation source IDs for continuity email", "error", err)
 		references = []string{}
@@ -209,6 +208,9 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 
 	// References is sorted in DESC i.e newest message first, so reverse it to keep the references in order.
 	slices.Reverse(references)
+
+	// Remove the current message ID from the references.
+	references = stringutil.RemoveItemByValue(references, sourceID)
 
 	// Determine In-Reply-To from references
 	var inReplyTo string

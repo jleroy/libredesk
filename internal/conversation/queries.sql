@@ -793,6 +793,7 @@ UPDATE conversations
 SET last_continuity_email_sent_at = NOW(),
     meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{continuity_email_subject}', to_jsonb($2::text))
 WHERE id = $1;
+
 -- name: upsert-conversation-draft
 INSERT INTO conversation_drafts (conversation_id, user_id, content, meta, updated_at)
 VALUES ($1, $2, $3, $4, NOW())
