@@ -34,7 +34,7 @@ const (
 	maxChatConversationsPerContact  = 50
 	chatConversationRateLimitWindow = 24 * time.Hour
 	widgetSessionPrefix             = "widget_session:"
-	defaultSessionTTL               = 90 * 24 * time.Hour
+	defaultSessionTTL               = 180 * 24 * time.Hour
 	minSessionTTL                   = 1 * time.Hour
 )
 
