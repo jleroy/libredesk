@@ -109,7 +109,7 @@ watch(visibility, (state) => {
 })
 
 onUnmounted(() => {
-  emitter.off(EMITTER_EVENTS.CONVERSATION_SIDEBAR_TOGGLE)
+  emitter.off(EMITTER_EVENTS.CONVERSATION_SIDEBAR_TOGGLE, toggleSidebar)
 })
 
 const fetchConversation = async (uuid) => {

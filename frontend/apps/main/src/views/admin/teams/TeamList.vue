@@ -43,16 +43,18 @@ const getData = async () => {
   }
 }
 
+const refreshHandler = (event) => {
+  if (event.model === 'team') {
+    getData()
+  }
+}
+
 const listenForRefresh = () => {
-  emitter.on(EMITTER_EVENTS.REFRESH_LIST, (event) => {
-    if (event.model === 'team') {
-      getData()
-    }
-  })
+  emitter.on(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
 }
 
 const removeListeners = () => {
-  emitter.off(EMITTER_EVENTS.REFRESH_LIST)
+  emitter.off(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
 }
 
 onMounted(async () => {

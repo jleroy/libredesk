@@ -52,15 +52,17 @@ const { t } = useI18n()
 const data = ref([])
 const emitter = useEmitter()
 
+const refreshHandler = (data) => {
+  if (data?.model === 'agent') getData()
+}
+
 onMounted(async () => {
   getData()
-  emitter.on(EMITTER_EVENTS.REFRESH_LIST, (data) => {
-    if (data?.model === 'agent') getData()
-  })
+  emitter.on(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
 })
 
 onUnmounted(() => {
-  emitter.off(EMITTER_EVENTS.REFRESH_LIST)
+  emitter.off(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
 })
 
 const getData = async () => {

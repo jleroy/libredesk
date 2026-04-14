@@ -542,30 +542,29 @@ const viewToDelete = ref(null)
                           @click="navigateToViewInbox(view.id)"
                         >
                           <span class="flex-1 truncate" :title="view.name">{{ view.name }}</span>
-                          <SidebarMenuAction
-                            @click.stop
-                            :class="[
-                              'mr-3',
-                              'md:opacity-0',
-                              'data-[state=open]:opacity-100',
-                              { 'md:opacity-100': hoveredViewId === view.id }
-                            ]"
-                          >
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild @click.prevent>
-                                <EllipsisVertical />
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem @click="() => editView(view)">
-                                  <span>{{ t('globals.messages.edit') }}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem @click="() => openDeleteConfirmation(view)">
-                                  <span>{{ t('globals.messages.delete') }}</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </SidebarMenuAction>
                         </SidebarMenuButton>
+                        <SidebarMenuAction
+                          :class="[
+                            'mr-3',
+                            'md:opacity-0',
+                            'data-[state=open]:opacity-100',
+                            { 'md:opacity-100': hoveredViewId === view.id }
+                          ]"
+                        >
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild @click.prevent>
+                              <EllipsisVertical />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem @click="() => editView(view)">
+                                <span>{{ t('globals.messages.edit') }}</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem @click="() => openDeleteConfirmation(view)">
+                                <span>{{ t('globals.messages.delete') }}</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </SidebarMenuAction>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>

@@ -61,7 +61,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import MessageBubble from './MessageBubble.vue'
 import ActivityMessageBubble from './ActivityMessageBubble.vue'
@@ -145,24 +145,30 @@ onMounted(() => {
   handleNewMessage()
 })
 
-const handleNewMessage = () => {
-  emitter.on(EMITTER_EVENTS.NEW_MESSAGE, (data) => {
-    if (data.conversation_uuid === conversationStore.current.uuid) {
-      // Agent's own message - always scroll to bottom
-      if (data.message?.sender_id === userStore.userID) {
-        scrollToBottom()
-      }
-      // Customer message - only scroll if already at bottom
-      else if (isAtBottom.value) {
-        scrollToBottom()
-      }
-      // Customer message but not at bottom - don't scroll, increment unread
-      else {
-        unReadMessages.value++
-      }
+const newMessageHandler = (data) => {
+  if (data.conversation_uuid === conversationStore.current.uuid) {
+    // Agent's own message - always scroll to bottom
+    if (data.message?.sender_id === userStore.userID) {
+      scrollToBottom()
     }
-  })
+    // Customer message - only scroll if already at bottom
+    else if (isAtBottom.value) {
+      scrollToBottom()
+    }
+    // Customer message but not at bottom - don't scroll, increment unread
+    else {
+      unReadMessages.value++
+    }
+  }
 }
+
+const handleNewMessage = () => {
+  emitter.on(EMITTER_EVENTS.NEW_MESSAGE, newMessageHandler)
+}
+
+onUnmounted(() => {
+  emitter.off(EMITTER_EVENTS.NEW_MESSAGE, newMessageHandler)
+})
 
 watch(
   () => conversationStore.conversationMessages,

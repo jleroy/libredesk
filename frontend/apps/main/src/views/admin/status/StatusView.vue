@@ -87,21 +87,24 @@ const dialogOpen = ref(false)
 const isEditing = ref(false)
 const editingId = ref(null)
 
+const refreshHandler = (data) => {
+  if (data?.model === 'status') getStatuses()
+}
+const editHandler = (data) => {
+  if (data?.model === 'status') {
+    editStatus(data.data)
+  }
+}
+
 onMounted(() => {
   getStatuses()
-  emit.on(EMITTER_EVENTS.REFRESH_LIST, (data) => {
-    if (data?.model === 'status') getStatuses()
-  })
-  emit.on(EMITTER_EVENTS.EDIT_MODEL, (data) => {
-    if (data?.model === 'status') {
-      editStatus(data.data)
-    }
-  })
+  emit.on(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
+  emit.on(EMITTER_EVENTS.EDIT_MODEL, editHandler)
 })
 
 onUnmounted(() => {
-  emit.off(EMITTER_EVENTS.REFRESH_LIST)
-  emit.off(EMITTER_EVENTS.EDIT_MODEL)
+  emit.off(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
+  emit.off(EMITTER_EVENTS.EDIT_MODEL, editHandler)
 })
 
 const form = useForm({

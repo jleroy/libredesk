@@ -103,8 +103,8 @@
 
     <!-- Button Container -->
     <div class="flex items-center justify-between pt-3">
-      <Button variant="ghost" size="sm" @click.stop="addFilter" class="text-slate-600">
-        <Plus class="w-3 h-3 mr-1" />
+      <Button variant="ghost" size="sm" @click.stop="addFilter">
+        <Plus class="w-3 h-3" />
         {{
           $t('filter.add')
         }}

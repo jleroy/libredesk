@@ -359,16 +359,18 @@ function onInputKeydown(e) {
   }
 }
 
+const nestedCommandHandler = (data) => {
+  setNestedCommand(data.command)
+  open.value = data.open
+}
+
 onMounted(() => {
-  emitter.on(EMITTER_EVENTS.SET_NESTED_COMMAND, (data) => {
-    setNestedCommand(data.command)
-    open.value = data.open
-  })
+  emitter.on(EMITTER_EVENTS.SET_NESTED_COMMAND, nestedCommandHandler)
   watchHighlightedMacro()
 })
 
 onUnmounted(() => {
-  emitter.off(EMITTER_EVENTS.SET_NESTED_COMMAND)
+  emitter.off(EMITTER_EVENTS.SET_NESTED_COMMAND, nestedCommandHandler)
 })
 
 const watchHighlightedMacro = () => {

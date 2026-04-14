@@ -104,21 +104,24 @@ const dialogOpen = ref(false)
 const isEditing = ref(false)
 const editingId = ref(null)
 
+const refreshHandler = (data) => {
+  if (data?.model === 'tags') getTags()
+}
+const editHandler = (data) => {
+  if (data?.model === 'tags') {
+    editTag(data.data)
+  }
+}
+
 onMounted(() => {
   getTags()
-  emitter.on(EMITTER_EVENTS.REFRESH_LIST, (data) => {
-    if (data?.model === 'tags') getTags()
-  })
-  emitter.on(EMITTER_EVENTS.EDIT_MODEL, (data) => {
-    if (data?.model === 'tags') {
-      editTag(data.data)
-    }
-  })
+  emitter.on(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
+  emitter.on(EMITTER_EVENTS.EDIT_MODEL, editHandler)
 })
 
 onUnmounted(() => {
-  emitter.off(EMITTER_EVENTS.REFRESH_LIST)
-  emitter.off(EMITTER_EVENTS.EDIT_MODEL)
+  emitter.off(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
+  emitter.off(EMITTER_EVENTS.EDIT_MODEL, editHandler)
 })
 
 const form = useForm({

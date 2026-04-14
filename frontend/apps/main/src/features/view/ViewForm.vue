@@ -17,6 +17,7 @@
               <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
               <FormControl>
                 <Input
+                  ref="nameInputRef"
                   id="name"
                   class="col-span-3"
                   placeholder=""
@@ -54,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useForm } from 'vee-validate'
 import {
   Dialog,
@@ -88,7 +89,15 @@ import api from '@/api'
 
 const emitter = useEmitter()
 const { t } = useI18n()
+const nameInputRef = ref(null)
 const openDialog = defineModel('openDialog', { required: false, default: false })
+watch(openDialog, (isOpen) => {
+  if (isOpen) {
+    nextTick(() => {
+      nameInputRef.value?.$el?.focus()
+    })
+  }
+})
 const view = defineModel('view', { required: false, default: {} })
 const isSubmitting = ref(false)
 const { conversationsListFilters } = useConversationFilters()

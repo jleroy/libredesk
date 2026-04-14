@@ -105,27 +105,27 @@ const emitter = useEmitter()
 const dialogOpen = ref(false)
 const isEditing = ref(false)
 
+const refreshHandler = (data) => {
+  if (data?.model === 'custom-attributes') fetchAll()
+}
+const editHandler = (data) => {
+  if (data?.model === 'custom-attributes') {
+    form.setValues(data.data)
+    form.setErrors({})
+    isEditing.value = true
+    dialogOpen.value = true
+  }
+}
+
 onMounted(async () => {
   fetchAll()
-  emitter.on(EMITTER_EVENTS.REFRESH_LIST, (data) => {
-    if (data?.model === 'custom-attributes') fetchAll()
-  })
-
-  // Listen to the edit model event, this is emitted from the dropdown menu
-  // in the datatable.
-  emitter.on(EMITTER_EVENTS.EDIT_MODEL, (data) => {
-    if (data?.model === 'custom-attributes') {
-      form.setValues(data.data)
-      form.setErrors({})
-      isEditing.value = true
-      dialogOpen.value = true
-    }
-  })
+  emitter.on(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
+  emitter.on(EMITTER_EVENTS.EDIT_MODEL, editHandler)
 })
 
 onUnmounted(() => {
-  emitter.off(EMITTER_EVENTS.REFRESH_LIST)
-  emitter.off(EMITTER_EVENTS.EDIT_MODEL)
+  emitter.off(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
+  emitter.off(EMITTER_EVENTS.EDIT_MODEL, editHandler)
 })
 
 const editCustomAttribute = (item) => {

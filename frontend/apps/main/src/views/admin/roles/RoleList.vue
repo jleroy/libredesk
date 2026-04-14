@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { createColumns } from '../../../features/admin/roles/dataTableColumns.js'
 import { Button } from '@shared-ui/components/ui/button'
 import DataTable from '@main/components/datatable/DataTable.vue'
@@ -48,10 +48,16 @@ const getRoles = async () => {
   }
 }
 
+const refreshHandler = (data) => {
+  if (data?.model === 'team') getRoles()
+}
+
 onMounted(async () => {
   getRoles()
-  emitter.on(EMITTER_EVENTS.REFRESH_LIST, (data) => {
-    if (data?.model === 'team') getRoles()
-  })
+  emitter.on(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
+})
+
+onUnmounted(() => {
+  emitter.off(EMITTER_EVENTS.REFRESH_LIST, refreshHandler)
 })
 </script>
