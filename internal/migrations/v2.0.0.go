@@ -208,32 +208,48 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		VALUES (
 			'email_notification'::template_type,
 			'
-<p>Your recent conversation (#{{ .Conversation.ReferenceNumber }}) has been resolved. We would love to hear your feedback.</p>
-<p style="text-align: center; font-weight: bold;">How would you rate your experience?</p>
-<table style="width: 100%; max-width: 400px; margin: 0 auto;" border="0" cellpadding="0" cellspacing="0">
-<tr>
-<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
-<a href="{{ .CSATLink }}?rating=1" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128546;</a>
-<span style="font-size: 11px; color: #888;">Poor</span>
-</td>
-<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
-<a href="{{ .CSATLink }}?rating=2" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128533;</a>
-<span style="font-size: 11px; color: #888;">Fair</span>
-</td>
-<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
-<a href="{{ .CSATLink }}?rating=3" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128522;</a>
-<span style="font-size: 11px; color: #888;">Good</span>
-</td>
-<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
-<a href="{{ .CSATLink }}?rating=4" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#128515;</a>
-<span style="font-size: 11px; color: #888;">Great</span>
-</td>
-<td align="center" valign="top" style="width: 20%; padding: 8px 0;">
-<a href="{{ .CSATLink }}?rating=5" style="text-decoration: none; color: #555; font-size: 28px; display: block;">&#129321;</a>
-<span style="font-size: 11px; color: #888;">Excellent</span>
-</td>
-</tr>
-</table>
+<p style="margin: 0 0 4px; font-size: 15px; color: #374151; text-align: center; line-height: 1.5;">
+  Your conversation <strong style="color: #111827;">#{{ .Conversation.ReferenceNumber }}</strong> has been resolved.
+</p>
+<p style="margin: 0 0 28px; font-size: 13px; color: #9ca3af; text-align: center;">
+  We would love to hear how it went.
+</p>
+<p style="margin: 0 0 20px; font-size: 14px; font-weight: 600; color: #374151; text-align: center;">
+  How would you rate your experience?
+</p>
+<!-- Variable CSATUUID is also available -->
+<div style="text-align: center; margin: 0 auto; max-width: 400px; font-size: 0;">
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=1" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128546;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Poor</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=2" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128533;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Fair</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=3" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128522;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Good</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=4" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128515;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Great</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=5" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#129321;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Excellent</span>
+    </a>
+  </div>
+</div>
 ',
 			false,
 			'CSAT request',
