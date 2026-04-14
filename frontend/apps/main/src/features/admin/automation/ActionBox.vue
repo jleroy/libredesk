@@ -69,7 +69,7 @@
               :autoFocus="false"
               v-model:htmlContent="action.value[0]"
               @update:htmlContent="(value) => handleEditorChange(value, index)"
-              :placeholder="t('editor.hint.full')"
+              :placeholder="t('editor.newLine')"
             />
           </div>
         </div>
