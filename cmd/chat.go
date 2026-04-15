@@ -37,6 +37,9 @@ const (
 	defaultSessionTTL               = 180 * 24 * time.Hour
 	minSessionTTL                   = 1 * time.Hour
 	maxChatMessageLength            = 10000
+	maxEmailLength                  = 254
+	maxNameLength                   = 128
+	maxExternalUserIDLength         = 128
 )
 
 // WidgetSession holds session data stored in Redis.
@@ -362,14 +365,17 @@ func handleAuthExchange(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
 	}
 
-	if claims.ExternalUserID == "" {
+	if claims.ExternalUserID == "" || len(claims.ExternalUserID) > maxExternalUserIDLength {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "external_user_id"), nil, envelope.InputError)
 	}
-	if claims.Email == "" {
+	if claims.Email == "" || len(claims.Email) > maxEmailLength {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "email"), nil, envelope.InputError)
 	}
-	if claims.FirstName == "" {
+	if claims.FirstName == "" || len(claims.FirstName) > maxNameLength {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "first_name"), nil, envelope.InputError)
+	}
+	if len(claims.LastName) > maxNameLength {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxNameLength)), nil, envelope.InputError)
 	}
 
 	// Resolve or create the contact.
@@ -884,7 +890,7 @@ func resolveUserFromClaims(app *App, claims Claims) (umodels.User, error) {
 
 	switch {
 	case claims.UserID > 0:
-		user, err = app.user.Get(claims.UserID, "", []string{})
+		user, err = app.user.Get(claims.UserID, "", []string{umodels.UserTypeContact, umodels.UserTypeVisitor})
 	case claims.ExternalUserID != "":
 		user, err = app.user.GetByExternalID(claims.ExternalUserID)
 	default:
@@ -1158,6 +1164,9 @@ func validateFormData(formData map[string]any, config livechat.Config, existingU
 			if field.Required && finalName == "" {
 				return "", "", fmt.Errorf("name is required")
 			}
+			if len(finalName) > maxNameLength {
+				return "", "", fmt.Errorf("name too long")
+			}
 
 		case "email":
 			if value, exists := formData[field.Key]; exists {
@@ -1173,6 +1182,9 @@ func validateFormData(formData map[string]any, config livechat.Config, existingU
 			// Validate required field
 			if field.Required && finalEmail == "" {
 				return "", "", fmt.Errorf("email is required")
+			}
+			if len(finalEmail) > maxEmailLength {
+				return "", "", fmt.Errorf("email too long")
 			}
 			// Validate email format if provided
 			if finalEmail != "" && !stringutil.ValidEmail(finalEmail) {

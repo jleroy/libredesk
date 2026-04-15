@@ -12,6 +12,7 @@
             @input="handleTyping"
             :placeholder="$t('globals.terms.typeMessage')"
             :disabled="isSending"
+            maxlength="10000"
             class="w-full max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none focus-visible:ring-0 p-0 shadow-none" style="min-height:20px;height:20px"
             ref="messageInput"
           ></Textarea>
