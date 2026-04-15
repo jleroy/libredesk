@@ -45,13 +45,19 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { Button } from '@shared-ui/components/ui/button'
 import { Toggle } from '@shared-ui/components/ui/toggle'
 import { Paperclip, Smile } from 'lucide-vue-next'
-import EmojiPicker from 'vue3-emoji-picker'
-import 'vue3-emoji-picker/css'
+
+const EmojiPicker = defineAsyncComponent(async () => {
+  const [mod] = await Promise.all([
+    import('vue3-emoji-picker'),
+    import('vue3-emoji-picker/css'),
+  ])
+  return mod.default
+})
 
 const attachmentInput = ref(null)
 // const inlineImageInput = ref(null)

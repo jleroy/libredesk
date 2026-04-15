@@ -135,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, watch, onMounted, computed, defineAsyncComponent } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { Button } from '@shared-ui/components/ui/button/index.js'
 import { useForm } from 'vee-validate'
@@ -160,13 +160,19 @@ import {
 import { EMITTER_EVENTS } from '../../../constants/emitterEvents.js'
 import { useEmitter } from '../../../composables/useEmitter.js'
 import { Input } from '@shared-ui/components/ui/input/index.js'
-import EmojiPicker from 'vue3-emoji-picker'
-import 'vue3-emoji-picker/css'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useSlaStore } from '../../../stores/sla.js'
 import { timeZones } from '../../../constants/timezones.js'
 import api from '../../../api/index.js'
 import { useI18n } from 'vue-i18n'
+
+const EmojiPicker = defineAsyncComponent(async () => {
+  const [mod] = await Promise.all([
+    import('vue3-emoji-picker'),
+    import('vue3-emoji-picker/css'),
+  ])
+  return mod.default
+})
 
 const { t } = useI18n()
 const emitter = useEmitter()
