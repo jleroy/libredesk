@@ -71,7 +71,7 @@
 
       <Dialog :open="showBlockConfirmation" @update:open="showBlockConfirmation = $event">
         <DialogContent class="sm:max-w-md">
-          <DialogHeader>
+          <DialogHeader class="gap-y-3">
             <DialogTitle>
               {{ contact?.enabled ? t('contact.blockContact') : t('contact.unblockContact') }}
             </DialogTitle>
