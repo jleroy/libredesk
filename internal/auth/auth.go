@@ -96,6 +96,7 @@ func New(cfg Config, i18n *i18n.I18n, rd *redis.Client, logger *logf.Logger) (*A
 			Name:       "libredesk_session",
 			IsHTTPOnly: true,
 			IsSecure:   cfg.SecureCookies,
+			SameSite:   http.SameSiteLaxMode,
 			MaxAge:     time.Hour * 9,
 		},
 	})
