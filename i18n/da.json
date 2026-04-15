@@ -232,7 +232,7 @@
   "admin.inbox.livechat.tabs.installation": "Installering",
   "admin.inbox.livechat.tabs.messages": "Beskeder",
   "admin.inbox.livechat.tabs.prechat": "Præ-chat-formular",
-  "admin.inbox.livechat.trustedDomains.description": "Angiv dine betroede domæner og underdomæner, ét pr. linje. Brug en stjerne-wildcard til at stole på alle underdomæner: *.example.com. Hvis dette felt efterlades tomt, vil widgetten kunne indlejres på ethvert domæne.",
+  "admin.inbox.livechat.trustedDomains.description": "Ét domæne pr. linje. *.example.com matcher kun underdomæner, tilføj hoveddomænet example.com separat. Lad feltet stå tomt for at tillade alle domæner.",
   "admin.inbox.livechat.trustedDomains.list": "Domæneliste",
   "admin.inbox.livechat.userSettings.visitors": "Besøgende",
   "admin.inbox.livechat.websiteUrl": "Webstedets URL",

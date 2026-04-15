@@ -232,7 +232,7 @@
   "admin.inbox.livechat.tabs.installation": "Instalación",
   "admin.inbox.livechat.tabs.messages": "Mensajes",
   "admin.inbox.livechat.tabs.prechat": "Formulario previo al chat",
-  "admin.inbox.livechat.trustedDomains.description": "Especifica tus dominios y subdominios de confianza, uno por línea. Usa un comodín asterisco para confiar en todos los subdominios: *.ejemplo.com. Dejar este campo vacío permitirá que el widget se integre en cualquier dominio.",
+  "admin.inbox.livechat.trustedDomains.description": "Un dominio por línea. *.example.com solo coincide con subdominios, agrega el dominio base example.com por separado. Deja vacío para permitir cualquier dominio.",
   "admin.inbox.livechat.trustedDomains.list": "Lista de dominios",
   "admin.inbox.livechat.userSettings.visitors": "Visitantes",
   "admin.inbox.livechat.websiteUrl": "URL del sitio web",

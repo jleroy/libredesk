@@ -36,6 +36,7 @@ const (
 	widgetSessionPrefix             = "widget_session:"
 	defaultSessionTTL               = 180 * 24 * time.Hour
 	minSessionTTL                   = 1 * time.Hour
+	maxChatMessageLength            = 10000
 )
 
 // WidgetSession holds session data stored in Redis.
@@ -183,6 +184,9 @@ func handleChatInit(r *fastglue.Request) error {
 
 	if req.Message == "" {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.message}"), nil, envelope.InputError)
+	}
+	if len(req.Message) > maxChatMessageLength {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxChatMessageLength)), nil, envelope.InputError)
 	}
 
 	inbox, err := getWidgetInbox(r)
@@ -507,6 +511,9 @@ func handleChatSendMessage(r *fastglue.Request) error {
 
 	if req.Message == "" {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.message}"), nil, envelope.InputError)
+	}
+	if len(req.Message) > maxChatMessageLength {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxChatMessageLength)), nil, envelope.InputError)
 	}
 
 	senderID, conversation, err := getContactConversation(r, conversationUUID)
@@ -895,7 +902,7 @@ func verifyJWT(tokenString string, secretKey []byte) (*Claims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return secretKey, nil
-	})
+	}, jwt.WithExpirationRequired())
 	if err != nil {
 		return nil, err
 	}

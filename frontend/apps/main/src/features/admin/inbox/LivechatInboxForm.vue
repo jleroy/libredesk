@@ -709,7 +709,7 @@
                 <FormControl>
                   <Textarea
                     v-bind="componentField"
-                    placeholder="example.com&#10;subdomain.example.com&#10;another-domain.com"
+                    placeholder="example.com&#10;*.example.com&#10;another-domain.com"
                     rows="4"
                   />
                 </FormControl>
@@ -1069,6 +1069,7 @@ const jwtPayloadExample = computed(() => {
   "email": "user@example.com",                // Required: User's email
   "first_name": "John",                       // Required: User's first name
   "last_name": "Doe",                         // Optional: User's last name
+  "exp": 1735689600,                          // Required: Expiration time (Unix timestamp in seconds)
   "contact_custom_attributes": {              // Optional: Contact-level attributes
     "plan": "premium",
     "company": "Acme Inc"

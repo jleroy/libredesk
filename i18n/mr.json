@@ -232,7 +232,7 @@
   "admin.inbox.livechat.tabs.installation": "इन्स्टॉलेशन",
   "admin.inbox.livechat.tabs.messages": "संदेश",
   "admin.inbox.livechat.tabs.prechat": "प्री-चॅट फॉर्म",
-  "admin.inbox.livechat.trustedDomains.description": "तुमचे विश्वसनीय डोमेन आणि सबडोमेन निर्दिष्ट करा, प्रत्येक ओळीत एक. सर्व सबडोमेन विश्वासात घेण्यासाठी तारांकन वाइल्डकार्ड वापरा: *.example.com. हे फील्ड रिक्त ठेवल्यास कोणत्याही डोमेनवर विजेट एम्बेड करण्याची परवानगी मिळेल.",
+  "admin.inbox.livechat.trustedDomains.description": "प्रत्येक ओळीत एक डोमेन लिहा. *.example.com फक्त सबडोमेनशी जुळते, मूळ डोमेन example.com वेगळे जोडा. रिकामे ठेवल्यास कोणत्याही डोमेनला परवानगी दिली जाईल.",
   "admin.inbox.livechat.trustedDomains.list": "डोमेन यादी",
   "admin.inbox.livechat.userSettings.visitors": "व्हिजिटर",
   "admin.inbox.livechat.websiteUrl": "वेबसाइट URL",

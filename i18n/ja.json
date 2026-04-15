@@ -232,7 +232,7 @@
   "admin.inbox.livechat.tabs.installation": "インストール",
   "admin.inbox.livechat.tabs.messages": "メッセージ",
   "admin.inbox.livechat.tabs.prechat": "チャット前フォーム",
-  "admin.inbox.livechat.trustedDomains.description": "信頼できるドメインとサブドメインを1行に1つずつ指定します。すべてのサブドメインを信頼するにはアスタリスクワイルドカードを使用します：*.example.com。このフィールドを空のままにすると、ウィジェットをどのドメインにも埋め込むことができます。",
+  "admin.inbox.livechat.trustedDomains.description": "1行に1ドメイン。*.example.com はサブドメインのみに一致します。ルートドメイン example.com は別途追加してください。空欄にするとすべてのドメインが許可されます。",
   "admin.inbox.livechat.trustedDomains.list": "ドメインリスト",
   "admin.inbox.livechat.userSettings.visitors": "訪問者",
   "admin.inbox.livechat.websiteUrl": "ウェブサイトURL",

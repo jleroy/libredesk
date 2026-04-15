@@ -347,6 +347,12 @@ func serveWidgetIndexPage(r *fastglue.Request) error {
 	r.RequestCtx.Response.Header.Add("Pragma", "no-cache")
 	r.RequestCtx.Response.Header.Add("Expires", "-1")
 
+	// CSP headers if trusted domains is set.
+	if config, err := getWidgetConfig(r); err == nil && len(config.TrustedDomains) > 0 {
+		csp := "frame-ancestors 'self' " + strings.Join(config.TrustedDomains, " ")
+		r.RequestCtx.Response.Header.Set("Content-Security-Policy", csp)
+	}
+
 	// Serve the index.html file from the embedded filesystem.
 	file, err := app.fs.Get(path.Join(widgetDir, "index.html"))
 	if err != nil {
