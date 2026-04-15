@@ -707,14 +707,20 @@ func getContactConversation(r *fastglue.Request, conversationUUID string) (int, 
 		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
+	inbox, err := getWidgetInbox(r)
+	if err != nil {
+		app.lo.Error("error getting inbox from middleware context", "error", err)
+		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
 	conversation, err := app.conversation.GetConversation(0, conversationUUID, "")
 	if err != nil {
 		app.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
 		return 0, cmodels.Conversation{}, sendErrorEnvelope(r, err)
 	}
 
-	if conversation.ContactID != contactID {
-		app.lo.Error("unauthorized access to conversation", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID)
+	if conversation.ContactID != contactID || conversation.InboxID != inbox.ID {
+		app.lo.Error("unauthorized access to conversation", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID, "session_inbox_id", inbox.ID, "conversation_inbox_id", conversation.InboxID)
 		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
 	}
 
