@@ -234,15 +234,6 @@
                   <FormMessage />
                 </FormItem>
               </FormField>
-              <FormField v-slot="{ componentField }" name="config.colors.secondary">
-                <FormItem>
-                  <FormLabel>{{ $t('globals.terms.secondaryColor', 1) }}</FormLabel>
-                  <FormControl>
-                    <Input type="color" v-bind="componentField" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              </FormField>
             </div>
           </div>
 
@@ -1149,8 +1140,7 @@ const form = useForm({
         text: 'Our response times are slower than usual. We regret the inconvenience caused.'
       },
       colors: {
-        primary: '#2563eb',
-        secondary: '#f1f5f9'
+        primary: '#2563eb'
       },
       home_screen: {
         header_text_color: 'white',

@@ -21,7 +21,7 @@ import { initWidgetWS, closeWidgetWebSocket, sendPageVisit, skipInitialWsSync } 
 import api, { setApiSessionToken, initVisitorToken, saveSession, registerStores } from '@widget/api/index.js'
 import { useUnreadCount } from './composables/useUnreadCount.js'
 import { initAudioContext } from '@shared-ui/composables/useNotificationSound.js'
-import { hexToHSL } from '@shared-ui/utils/color.js'
+import { hexToHSL, getContrastingHSL } from '@shared-ui/utils/color.js'
 import MainLayout from '@widget/layouts/MainLayout.vue'
 
 const widgetStore = useWidgetStore()
@@ -44,9 +44,7 @@ const customColorStyle = computed(() => {
   const colors = widgetStore.config.colors
   if (colors?.primary) {
     style['--primary'] = hexToHSL(colors.primary)
-  }
-  if (colors?.secondary) {
-    style['--secondary'] = hexToHSL(colors.secondary)
+    style['--primary-foreground'] = getContrastingHSL(colors.primary)
   }
   return style
 })

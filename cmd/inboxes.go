@@ -251,9 +251,6 @@ func validateInbox(app *App, inbox imodels.Inbox) error {
 			if !hexColorRegex.MatchString(config.Colors.Primary) {
 				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidColor"), nil)
 			}
-			if config.Colors.Secondary != "" && !hexColorRegex.MatchString(config.Colors.Secondary) {
-				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidColor"), nil)
-			}
 
 			// Validate launcher position.
 			if config.Launcher.Position != "left" && config.Launcher.Position != "right" {

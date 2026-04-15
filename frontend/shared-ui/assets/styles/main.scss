@@ -19,8 +19,20 @@
   }
 
   ::selection {
-    background: hsl(var(--primary) / 0.15);
-    color: hsl(var(--primary));
+    background: hsl(var(--foreground) / 0.15);
+    color: hsl(var(--foreground));
+  }
+
+  .bg-primary ::selection,
+  .bg-primary::selection {
+    background: hsl(var(--primary-foreground) / 0.25);
+    color: hsl(var(--primary-foreground));
+  }
+
+  .bg-secondary ::selection,
+  .bg-secondary::selection {
+    background: hsl(var(--secondary-foreground) / 0.25);
+    color: hsl(var(--secondary-foreground));
   }
 
   @media (max-width: 768px) {

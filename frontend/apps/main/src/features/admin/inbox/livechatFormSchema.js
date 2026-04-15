@@ -44,8 +44,7 @@ export const createFormSchema = (t) => z.object({
       text: z.string().optional()
     }),
     colors: z.object({
-      primary: hexColor(t),
-      secondary: optionalHexColor(t),
+      primary: hexColor(t)
     }),
     home_screen: z.object({
       header_text_color: z.enum(['black', 'white']),
