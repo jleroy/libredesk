@@ -219,15 +219,17 @@ func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.M
 	case "fs":
 		disposition := "attachment"
 
-		// Keep certain content types inline.
-		if strings.HasPrefix(media.ContentType, "image/") ||
-			strings.HasPrefix(media.ContentType, "video/") ||
-			media.ContentType == "application/pdf" {
+		// Inline images/videos/pdfs. SVG excluded.
+		if media.ContentType != "image/svg+xml" &&
+			(strings.HasPrefix(media.ContentType, "image/") ||
+				strings.HasPrefix(media.ContentType, "video/") ||
+				media.ContentType == "application/pdf") {
 			disposition = "inline"
 		}
 
 		r.RequestCtx.Response.Header.Set("Content-Type", media.ContentType)
 		r.RequestCtx.Response.Header.Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, media.Filename))
+		r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
 
 		fasthttp.ServeFile(r.RequestCtx, filepath.Join(ko.String("upload.fs.upload_path"), uuid))
 	case "s3":
