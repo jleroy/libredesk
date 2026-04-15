@@ -1,5 +1,4 @@
 -- name: get-users-compact
--- TODO: Remove hardcoded `type` of user in some queries in this file.
 SELECT COUNT(*) OVER() as total, users.id, users.avatar_url, users.type, users.created_at, users.updated_at, users.first_name, users.last_name, users.email, users.enabled, users.external_user_id
 FROM users
 WHERE users.email != 'System' AND users.deleted_at IS NULL AND type = ANY($1)
@@ -63,7 +62,9 @@ WHERE u.deleted_at IS NULL
     AND ($1 = 0 OR u.id = $1)
     AND ($2 = '' OR u.email = $2)
     AND (cardinality($3::text[]) = 0 OR u.type::text = ANY($3::text[]))
-GROUP BY u.id;
+GROUP BY u.id
+ORDER BY u.id ASC
+LIMIT 1;
 
 -- name: set-user-password
 UPDATE users
@@ -175,7 +176,18 @@ RETURNING id;
 -- name: get-contact-by-email
 SELECT id, external_user_id FROM users
 WHERE email = $1 AND type = 'contact' AND deleted_at IS NULL
+ORDER BY (external_user_id IS NOT NULL) DESC, id ASC LIMIT 1;
+
+-- name: get-contact-by-email-without-ext-id
+SELECT id FROM users
+WHERE email = $1 AND type = 'contact' AND deleted_at IS NULL AND external_user_id IS NULL
 LIMIT 1;
+
+-- name: is-email-blocked
+SELECT EXISTS(
+    SELECT 1 FROM users
+    WHERE email = $1 AND type IN ('contact', 'visitor') AND deleted_at IS NULL AND enabled = false
+) AS is_blocked;
 
 -- name: set-external-user-id
 UPDATE users SET external_user_id = $2, updated_at = now()

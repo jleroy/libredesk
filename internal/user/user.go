@@ -61,42 +61,46 @@ type Opts struct {
 
 // queries contains prepared SQL queries.
 type queries struct {
-	GetUser                 *sqlx.Stmt `query:"get-user"`
-	GetNotes                *sqlx.Stmt `query:"get-notes"`
-	GetNote                 *sqlx.Stmt `query:"get-note"`
-	GetUserByExternalID     *sqlx.Stmt `query:"get-user-by-external-id"`
-	GetUsersCompact         string     `query:"get-users-compact"`
-	UpdateContact           *sqlx.Stmt `query:"update-contact"`
-	UpdateContactBasicInfo  *sqlx.Stmt `query:"update-contact-basic-info"`
-	UpdateAgent             *sqlx.Stmt `query:"update-agent"`
-	UpdateCustomAttributes  *sqlx.Stmt `query:"update-custom-attributes"`
-	UpsertCustomAttributes  *sqlx.Stmt `query:"upsert-custom-attributes"`
-	UpdateAvatar            *sqlx.Stmt `query:"update-avatar"`
-	UpdateAvailability      *sqlx.Stmt `query:"update-availability"`
-	UpdateLastActiveAt      *sqlx.Stmt `query:"update-last-active-at"`
-	UpdateInactiveOffline   *sqlx.Stmt `query:"update-inactive-offline"`
-	GetAvailabilityStatus   *sqlx.Stmt `query:"get-availability-status"`
-	UpdateLastLoginAt       *sqlx.Stmt `query:"update-last-login-at"`
-	SoftDeleteAgent         *sqlx.Stmt `query:"soft-delete-agent"`
-	SetUserPassword         *sqlx.Stmt `query:"set-user-password"`
-	SetResetPasswordToken   *sqlx.Stmt `query:"set-reset-password-token"`
-	SetPassword             *sqlx.Stmt `query:"set-password"`
-	DeleteNote              *sqlx.Stmt `query:"delete-note"`
-	InsertAgent             *sqlx.Stmt `query:"insert-agent"`
-	InsertContactWithExtID  *sqlx.Stmt `query:"insert-contact-with-external-id"`
-	InsertContactNoExtID    *sqlx.Stmt `query:"insert-contact-without-external-id"`
-	GetContactByEmail       *sqlx.Stmt `query:"get-contact-by-email"`
-	SetExternalUserID       *sqlx.Stmt `query:"set-external-user-id"`
-	InsertNote              *sqlx.Stmt `query:"insert-note"`
-	InsertVisitor           *sqlx.Stmt `query:"insert-visitor"`
-	GetVisitorByEmail       *sqlx.Stmt `query:"get-visitor-by-email"`
-	UpgradeVisitorToContact *sqlx.Stmt `query:"upgrade-visitor-to-contact"`
-	ToggleEnable            *sqlx.Stmt `query:"toggle-enable"`
+	GetUser                       *sqlx.Stmt `query:"get-user"`
+	GetNotes                      *sqlx.Stmt `query:"get-notes"`
+	GetNote                       *sqlx.Stmt `query:"get-note"`
+	GetUserByExternalID           *sqlx.Stmt `query:"get-user-by-external-id"`
+	GetUsersCompact               string     `query:"get-users-compact"`
+	UpdateContact                 *sqlx.Stmt `query:"update-contact"`
+	UpdateContactBasicInfo        *sqlx.Stmt `query:"update-contact-basic-info"`
+	UpdateAgent                   *sqlx.Stmt `query:"update-agent"`
+	UpdateCustomAttributes        *sqlx.Stmt `query:"update-custom-attributes"`
+	UpsertCustomAttributes        *sqlx.Stmt `query:"upsert-custom-attributes"`
+	UpdateAvatar                  *sqlx.Stmt `query:"update-avatar"`
+	UpdateAvailability            *sqlx.Stmt `query:"update-availability"`
+	UpdateLastActiveAt            *sqlx.Stmt `query:"update-last-active-at"`
+	UpdateInactiveOffline         *sqlx.Stmt `query:"update-inactive-offline"`
+	GetAvailabilityStatus         *sqlx.Stmt `query:"get-availability-status"`
+	UpdateLastLoginAt             *sqlx.Stmt `query:"update-last-login-at"`
+	SoftDeleteAgent               *sqlx.Stmt `query:"soft-delete-agent"`
+	SetUserPassword               *sqlx.Stmt `query:"set-user-password"`
+	SetResetPasswordToken         *sqlx.Stmt `query:"set-reset-password-token"`
+	SetPassword                   *sqlx.Stmt `query:"set-password"`
+	DeleteNote                    *sqlx.Stmt `query:"delete-note"`
+	InsertAgent                   *sqlx.Stmt `query:"insert-agent"`
+	InsertContactWithExtID        *sqlx.Stmt `query:"insert-contact-with-external-id"`
+	InsertContactNoExtID          *sqlx.Stmt `query:"insert-contact-without-external-id"`
+	GetContactByEmail             *sqlx.Stmt `query:"get-contact-by-email"`
+	GetContactByEmailWithoutExtID *sqlx.Stmt `query:"get-contact-by-email-without-ext-id"`
+	IsEmailBlocked                *sqlx.Stmt `query:"is-email-blocked"`
+	SetExternalUserID             *sqlx.Stmt `query:"set-external-user-id"`
+	InsertNote                    *sqlx.Stmt `query:"insert-note"`
+	InsertVisitor                 *sqlx.Stmt `query:"insert-visitor"`
+	GetVisitorByEmail             *sqlx.Stmt `query:"get-visitor-by-email"`
+	UpgradeVisitorToContact       *sqlx.Stmt `query:"upgrade-visitor-to-contact"`
+	ToggleEnable                  *sqlx.Stmt `query:"toggle-enable"`
+
 	// API key queries
-	GetUserByAPIKey       *sqlx.Stmt `query:"get-user-by-api-key"`
-	SetAPIKey             *sqlx.Stmt `query:"set-api-key"`
-	RevokeAPIKey          *sqlx.Stmt `query:"revoke-api-key"`
-	UpdateAPIKeyLastUsed  *sqlx.Stmt `query:"update-api-key-last-used"`
+	GetUserByAPIKey      *sqlx.Stmt `query:"get-user-by-api-key"`
+	SetAPIKey            *sqlx.Stmt `query:"set-api-key"`
+	RevokeAPIKey         *sqlx.Stmt `query:"revoke-api-key"`
+	UpdateAPIKeyLastUsed *sqlx.Stmt `query:"update-api-key-last-used"`
+
 	MergeVisitorToContact *sqlx.Stmt `query:"merge-visitor-to-contact"`
 }
 
@@ -210,6 +214,29 @@ func (u *Manager) GetContactByEmail(email string) (models.User, error) {
 		return user, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return user, nil
+}
+
+// GetContactByEmailWithoutExtID retrieves a contact by email that has no external_user_id set.
+func (u *Manager) GetContactByEmailWithoutExtID(email string) (models.User, error) {
+	var user models.User
+	if err := u.q.GetContactByEmailWithoutExtID.Get(&user, email); err != nil {
+		if err == sql.ErrNoRows {
+			return user, envelope.NewError(envelope.NotFoundError, u.i18n.T("validation.notFoundUser"), nil)
+		}
+		u.lo.Error("error fetching contact by email without ext_id", "email", email, "error", err)
+		return user, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return user, nil
+}
+
+// IsEmailBlocked checks if any contact or visitor with the given email is blocked.
+func (u *Manager) IsEmailBlocked(email string) (bool, error) {
+	var blocked bool
+	if err := u.q.IsEmailBlocked.Get(&blocked, email); err != nil {
+		u.lo.Error("error checking if email is blocked", "email", email, "error", err)
+		return false, fmt.Errorf("checking if email is blocked: %w", err)
+	}
+	return blocked, nil
 }
 
 // GetVisitorByEmail retrieves a visitor by email address.

@@ -10,7 +10,6 @@ import (
 
 	"github.com/abhinavxd/libredesk/internal/attachment"
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
-	"github.com/abhinavxd/libredesk/internal/envelope"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/emersion/go-imap/v2"
@@ -342,15 +341,12 @@ func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, 
 		return nil
 	}
 
-	// Check if contact with this email is blocked / disabed, if so, ignore the message.
-	if contact, err := e.userStore.GetContactOrVisitor(0, fromAddress); err != nil {
-		envErr, ok := err.(envelope.Error)
-		if !ok || envErr.ErrorType != envelope.NotFoundError {
-			e.lo.Error("error checking if user is blocked", "email", fromAddress, "error", err)
-			return fmt.Errorf("checking if user is blocked: %w", err)
-		}
-	} else if !contact.Enabled {
-		e.lo.Debug("contact is blocked, ignoring message", "email", fromAddress)
+	// Check if any contact with this email is blocked, if so, ignore the message.
+	if blocked, err := e.userStore.IsEmailBlocked(fromAddress); err != nil {
+		e.lo.Error("error checking if email is blocked", "email", fromAddress, "error", err)
+		return fmt.Errorf("checking if email is blocked: %w", err)
+	} else if blocked {
+		e.lo.Info("contact email is blocked dropping incoming email", "email", fromAddress)
 		return nil
 	}
 
