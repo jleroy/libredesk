@@ -11,7 +11,7 @@
 
         <form @submit.prevent="setPasswordAction" class="space-y-3">
           <div class="space-y-2">
-            <Label for="password" >
+            <Label for="password" class="text-muted-foreground">
               {{
                 t('auth.newPassword')
               }}
@@ -26,7 +26,7 @@
           </div>
 
           <div class="space-y-2">
-            <Label for="confirmPassword" >
+            <Label for="confirmPassword" class="text-muted-foreground">
               {{ t('auth.confirmPassword') }}
             </Label>
             <Input

@@ -44,7 +44,7 @@
 
         <form @submit.prevent="loginAction" class="space-y-3">
           <div class="space-y-2">
-            <Label for="email" >{{
+            <Label for="email" class="text-muted-foreground">{{
               t('globals.terms.email')
             }}</Label>
             <Input
@@ -57,7 +57,7 @@
           </div>
 
           <div class="space-y-2">
-            <Label for="password" >
+            <Label for="password" class="text-muted-foreground">
               {{ t('globals.terms.password') }}
             </Label>
             <div class="relative">

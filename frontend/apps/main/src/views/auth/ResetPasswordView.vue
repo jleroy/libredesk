@@ -11,7 +11,7 @@
 
         <form @submit.prevent="requestResetAction" class="space-y-3">
           <div class="space-y-2">
-            <Label for="email">{{
+            <Label for="email" class="text-muted-foreground">{{
               t('globals.terms.email')
             }}</Label>
             <Input
