@@ -47,7 +47,7 @@
         <div class="text-center">
           <router-link
             to="/"
-            class="text-sm text-primary hover:text-primary/80 transition-all duration-200 ease-in-out"
+            class="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             {{ t('auth.backToLogin') }}
           </router-link>

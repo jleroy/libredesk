@@ -84,7 +84,7 @@
           <div class="flex items-center justify-between">
             <router-link
               to="/reset-password"
-              class="text-sm text-primary hover:text-primary/80 transition-all duration-200 ease-in-out"
+              class="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               {{ t('auth.forgotPassword') }}
             </router-link>
