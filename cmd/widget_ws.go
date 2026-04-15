@@ -29,6 +29,7 @@ const (
 	maxPageVisits           = 20
 	pageVisitTTL            = 24 * time.Hour
 	wsReadDeadline          = 20 * time.Second
+	wsReadLimitBytes        = 64 * 1024
 )
 
 type WidgetMessage struct {
@@ -74,7 +75,8 @@ func handleWidgetWS(r *fastglue.Request) error {
 
 	clientIP := realip.FromRequest(r.RequestCtx)
 
-	if err := upgrader.Upgrade(r.RequestCtx, func(conn *websocket.Conn) {
+	if err := widgetUpgrader.Upgrade(r.RequestCtx, func(conn *websocket.Conn) {
+		conn.SetReadLimit(wsReadLimitBytes)
 		sc := &safeConn{conn: conn}
 
 		var (
@@ -205,6 +207,11 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, client
 	}
 
 	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				app.lo.Error("panic in widget ws forwarder", "panic", rec)
+			}
+		}()
 		for msgData := range client.Channel {
 			if err := sc.WriteMessage(websocket.TextMessage, msgData); err != nil {
 				app.lo.Error("error forwarding message to widget client", "error", err)
