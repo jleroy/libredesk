@@ -61,8 +61,7 @@ type Config struct {
 		StartConversationButtonText      string `json:"start_conversation_button_text"`
 	} `json:"users"`
 	Colors struct {
-		Primary   string `json:"primary"`
-		Secondary string `json:"secondary"`
+		Primary string `json:"primary"`
 	} `json:"colors"`
 	HomeScreen struct {
 		HeaderTextColor string `json:"header_text_color"`

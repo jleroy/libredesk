@@ -21,14 +21,15 @@ func (u *Manager) CreateContact(user *models.User) error {
 		user.CustomAttributes = []byte("{}")
 	}
 
-	user.Email = null.NewString(strings.ToLower(user.Email.String), user.Email.Valid)
+	// Normalize.
+	user.Email = null.NewString(strings.ToLower(strings.TrimSpace(user.Email.String)), user.Email.Valid)
 
+	// Check if email matches an existing contact without ext_id - enrich it.
 	if user.ExternalUserID.String != "" {
-		// Check if email matches an existing contact without ext_id - enrich it.
 		if user.Email.Valid && user.Email.String != "" {
 			existing, emailErr := u.GetContactByEmailWithoutExtID(user.Email.String)
 			if emailErr != nil {
-				if envErr, ok := emailErr.(envelope.Error); ok && envErr.ErrorType != envelope.NotFoundError {
+				if envErr, ok := emailErr.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
 					return emailErr
 				}
 			} else {
@@ -50,16 +51,20 @@ func (u *Manager) CreateContact(user *models.User) error {
 	}
 
 	if user.Email.Valid && user.Email.String != "" {
+		// Reuse any existing contact with this email, preferring one with ext_id if multiple exist.
 		existing, err := u.GetContactByEmail(user.Email.String)
 		if err == nil {
 			user.ID = existing.ID
 			return nil
 		}
-		if envErr, ok := err.(envelope.Error); ok && envErr.ErrorType != envelope.NotFoundError {
+
+		// Other error than not found - fail.
+		if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
 			return err
 		}
 	}
 
+	// No ext_id and no existing contact with email - create new.
 	if err := u.q.InsertContactNoExtID.QueryRow(user.Email, user.FirstName, user.LastName, password, user.AvatarURL).Scan(&user.ID); err != nil {
 		u.lo.Error("error inserting contact", "error", err)
 		return fmt.Errorf("insert contact: %w", err)
@@ -69,7 +74,7 @@ func (u *Manager) CreateContact(user *models.User) error {
 
 // UpdateContactBasicInfo updates only the name and email of a contact.
 func (u *Manager) UpdateContactBasicInfo(id int, firstName, lastName, email string) error {
-	if _, err := u.q.UpdateContactBasicInfo.Exec(id, firstName, lastName, strings.ToLower(email)); err != nil {
+	if _, err := u.q.UpdateContactBasicInfo.Exec(id, firstName, lastName, strings.ToLower(strings.TrimSpace(email))); err != nil {
 		u.lo.Error("error updating contact basic info", "error", err)
 		return fmt.Errorf("updating contact basic info: %w", err)
 	}

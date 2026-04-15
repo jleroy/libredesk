@@ -91,6 +91,10 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 		if err != nil {
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 		}
+		config, err := getWidgetConfig(r)
+		if err != nil {
+			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+		}
 
 		authHeader := string(r.RequestCtx.Request.Header.Peek("Authorization"))
 
@@ -104,7 +108,7 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 		}
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 
-		session, err := lookupSessionToken(app, token)
+		session, err := loadSession(app, token, config)
 		if err != nil {
 			return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
 		}
@@ -126,7 +130,7 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 		// Merge visitor to contact if visitor token is provided.
 		visitorToken := string(r.RequestCtx.Request.Header.Peek(hdrWidgetVisitorToken))
 		if visitorToken != "" && session.ExternalUserID != "" && session.UserID > 0 {
-			visitorSession, vErr := lookupSessionToken(app, visitorToken)
+			visitorSession, vErr := loadSession(app, visitorToken, config)
 			if vErr == nil && visitorSession.IsVisitor && visitorSession.UserID > 0 && visitorSession.UserID != session.UserID {
 				if err := app.user.MergeVisitorToContact(visitorSession.UserID, session.UserID); err != nil {
 					app.lo.Error("error merging visitor to contact", "visitor_id", visitorSession.UserID, "contact_id", session.UserID, "error", err)

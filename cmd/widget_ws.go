@@ -167,7 +167,14 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, client
 		return nil, nil, "", 0, fmt.Errorf("inbox is not enabled")
 	}
 
-	session, err := lookupSessionToken(app, token)
+	var config livechat.Config
+	if err := json.Unmarshal(inbox.Config, &config); err == nil {
+		if len(config.BlockedIPs) > 0 && httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
+			return nil, nil, "", 0, fmt.Errorf("IP address is blocked")
+		}
+	}
+
+	session, err := loadSession(app, token, config)
 	if err != nil {
 		return nil, nil, "", 0, fmt.Errorf("session token validation failed: %w", err)
 	}
@@ -179,13 +186,6 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, client
 	user, err := app.user.Get(session.UserID, "", []string{})
 	if err != nil || !user.Enabled {
 		return nil, nil, "", 0, fmt.Errorf("user not found or disabled")
-	}
-
-	var config livechat.Config
-	if err := json.Unmarshal(inbox.Config, &config); err == nil {
-		if len(config.BlockedIPs) > 0 && httputil.IsIPBlocked(clientIP, config.BlockedIPs) {
-			return nil, nil, "", 0, fmt.Errorf("IP address is blocked")
-		}
 	}
 
 	lcInbox, err := app.inbox.Get(inbox.ID)

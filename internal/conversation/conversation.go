@@ -1730,15 +1730,15 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 		m.ProcessCSATStatus(messages)
 
 		// Generate signed URLs for all attachments.
-		chatMessages := make([]models.ChatMessage, len(messages))
-		for i, msg := range messages {
+		chatMessages := make([]models.ChatMessage, 0, len(messages))
+		for _, msg := range messages {
 			m.SignAvatarURL(&msg.Author.AvatarURL)
 			attachments := msg.Attachments
 			for j := range attachments {
 				attachments[j].URL = m.mediaStore.GetSignedURL(attachments[j].UUID)
 			}
 
-			chatMessages[i] = models.ChatMessage{
+			chatMessages = append(chatMessages, models.ChatMessage{
 				UUID:             msg.UUID,
 				Status:           msg.Status,
 				CreatedAt:        msg.CreatedAt,
@@ -1748,7 +1748,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 				Meta:             msg.Meta,
 				Author:           msg.Author,
 				Attachments:      attachments,
-			}
+			})
 		}
 		resp.Messages = chatMessages
 	}

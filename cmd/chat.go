@@ -382,33 +382,37 @@ func handleAuthExchange(r *fastglue.Request) error {
 		}
 	}
 
-	// Delete previous session for this user+inbox if one exists.
 	ctx := context.Background()
 	reverseKey := fmt.Sprintf("widget_user:%d:%d", inbox.ID, contactID)
-	if oldToken, err := app.redis.Get(ctx, reverseKey).Result(); err == nil {
-		deleteSessionToken(app, oldToken)
+	sessionTTL := getSessionDuration(config)
+
+	sendSession := func(token string) error {
+		app.redis.Set(ctx, reverseKey, token, sessionTTL)
+		return r.SendEnvelope(map[string]any{
+			"session_token": token,
+			"user": map[string]any{
+				"user_id":    contactID,
+				"is_visitor": false,
+				"first_name": claims.FirstName,
+				"last_name":  claims.LastName,
+			},
+		})
 	}
 
-	// Generate session token with configured TTL for authenticated users.
-	sessionTTL := getSessionDuration(config)
+	// Reuse existing valid session and refresh its TTL.
+	if oldToken, err := app.redis.Get(ctx, reverseKey).Result(); err == nil && oldToken != "" {
+		if _, err := loadSession(app, oldToken, config); err == nil {
+			return sendSession(oldToken)
+		}
+	}
+
+	// Generate new session token.
 	token, err := generateSessionToken(app, contactID, inbox.ID, false, claims.ExternalUserID, sessionTTL)
 	if err != nil {
 		app.lo.Error("error generating session token", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
-
-	// Store reverse mapping for cleanup on next exchange.
-	app.redis.Set(ctx, reverseKey, token, sessionTTL)
-
-	return r.SendEnvelope(map[string]any{
-		"session_token": token,
-		"user": map[string]any{
-			"user_id":    contactID,
-			"is_visitor": false,
-			"first_name": claims.FirstName,
-			"last_name":  claims.LastName,
-		},
-	})
+	return sendSession(token)
 }
 
 // handleWidgetAuthMe returns the current authenticated user's metadata.
@@ -743,8 +747,7 @@ func saveContactAttrsAndCollectConvoAttrs(app *App, contactID int, claims *Claim
 func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
 	user, err := resolveUserFromClaims(app, claims)
 	if err != nil {
-		envErr, ok := err.(envelope.Error)
-		if ok && envErr.ErrorType != envelope.NotFoundError {
+		if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
 			return 0, err
 		}
 	}
@@ -877,10 +880,10 @@ func resolveUserFromClaims(app *App, claims Claims) (umodels.User, error) {
 
 	if err != nil {
 		app.lo.Error("error fetching user", "user_id", claims.UserID, "external_user_id", claims.ExternalUserID, "error", err)
-		return umodels.User{}, errors.New("error fetching user")
+		return umodels.User{}, err
 	}
 	if !user.Enabled {
-		return umodels.User{}, errors.New("user is disabled")
+		return umodels.User{}, envelope.NewError(envelope.PermissionError, "User is disabled", nil)
 	}
 	return user, nil
 }
@@ -937,7 +940,6 @@ func generateSessionToken(app *App, userID, inboxID int, isVisitor bool, externa
 		"inbox_id":         strconv.Itoa(inboxID),
 		"is_visitor":       strconv.FormatBool(isVisitor),
 		"external_user_id": externalUserID,
-		"ttl":              ttl.String(),
 	}
 	pipe := app.redis.Pipeline()
 	pipe.HSet(ctx, key, fields)
@@ -948,9 +950,9 @@ func generateSessionToken(app *App, userID, inboxID int, isVisitor bool, externa
 	return token, nil
 }
 
-// lookupSessionToken retrieves a session from Redis and refreshes its TTL.
-// The TTL stored in the session hash is used for the refresh.
-func lookupSessionToken(app *App, token string) (*WidgetSession, error) {
+// loadSession retrieves a session from Redis and refreshes its TTL using the
+// default duration for visitors and the current config duration for contacts.
+func loadSession(app *App, token string, config livechat.Config) (*WidgetSession, error) {
 	ctx := context.Background()
 	key := widgetSessionPrefix + token
 
@@ -962,16 +964,15 @@ func lookupSessionToken(app *App, token string) (*WidgetSession, error) {
 		return nil, fmt.Errorf("session not found or expired")
 	}
 
-	// Refresh TTL using the stored value, falling back to default.
-	ttl := defaultSessionTTL
-	if d, err := time.ParseDuration(data["ttl"]); err == nil && d >= minSessionTTL {
-		ttl = d
-	}
-	app.redis.Expire(ctx, key, ttl)
-
 	userID, _ := strconv.Atoi(data["user_id"])
 	inboxID, _ := strconv.Atoi(data["inbox_id"])
 	isVisitor, _ := strconv.ParseBool(data["is_visitor"])
+
+	ttl := getSessionDuration(config)
+	if isVisitor {
+		ttl = defaultSessionTTL
+	}
+	app.redis.Expire(ctx, key, ttl)
 
 	return &WidgetSession{
 		UserID:         userID,

@@ -374,22 +374,23 @@
         handleVueAppReady () {
             this.sendMobileState();
 
-            // Send stored session cookies to iframe.
-            var sessionToken = this.getCookie(this.getCookieName('session'));
             var visitorToken = this.getCookie(this.getCookieName('visitor'));
+
+            if (this.config.userJWT) {
+                this.postToIframe({
+                    type: 'SET_JWT_TOKEN',
+                    jwt: this.config.userJWT,
+                    visitorToken: visitorToken || ''
+                });
+                return;
+            }
+
+            var sessionToken = this.getCookie(this.getCookieName('session'));
             this.postToIframe({
                 type: 'SESSION_DATA',
                 sessionToken: sessionToken || '',
                 visitorToken: visitorToken || ''
             });
-
-            // External identity JWT - iframe will exchange it for a session token.
-            if (this.config.userJWT) {
-                this.postToIframe({
-                    type: 'SET_JWT_TOKEN',
-                    jwt: this.config.userJWT
-                });
-            }
         }
 
         handleWidgetLoaded () {

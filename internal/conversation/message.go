@@ -758,7 +758,7 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 	// Convert to Message for attachment upload and insertion.
 	msg := in.ToMessage(senderID, conversationID, conversationUUID)
 
-	// Upload message attachments, on failure delete the conversation if it was just created for this message.
+	// Upload message attachments. On failure, delete the conversation if it was just created for this message.
 	if upErr := m.uploadMessageAttachments(&msg); upErr != nil {
 		m.lo.Error("error uploading message attachments", "message_source_id", in.SourceID, "error", upErr)
 		if isNewConversation && conversationUUID != "" {
@@ -837,8 +837,9 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 		return 0, conversationID, conversationUUID, nil
 	}
 
-	_, contactErr := m.userStore.Get(0, in.Contact.Email.String, []string{umodels.UserTypeContact})
+	user, contactErr := m.userStore.Get(0, in.Contact.Email.String, []string{umodels.UserTypeContact})
 	if contactErr == nil {
+		m.lo.Debug("a contact already exists with the same email as visitor; not upgrading visitor", "conversation_uuid", conversation.UUID, "contact_email", in.Contact.Email.String, "contact_user_id", user.ID)
 		// A contact with this email already exists; don't upgrade visitor.
 		// Let CreateContact resolve the correct sender ID.
 		return 0, conversationID, conversationUUID, nil
@@ -1034,16 +1035,27 @@ func (m *Manager) findOrCreateConversation(in models.IncomingMessage) (int, stri
 
 	// Conversation not found, create one.
 	if conversationID == 0 {
+		m.lo.Debug("no conversation found with in-reply-to and references, creating new conversation", "in_reply_to", in.InReplyTo, "references", in.References)
 		lastMessage := stringutil.HTML2Text(in.Content)
 		lastMessageAt := time.Now()
-		conversationID, conversationUUID, err = m.CreateConversation(in.Contact.ID, in.InboxID, lastMessage, lastMessageAt, in.Subject, false /**append reference number to subject**/, nil, nil, 0, 0)
+		conversationID, conversationUUID, err = m.CreateConversation(in.Contact.ID,
+			in.InboxID,
+			lastMessage,
+			lastMessageAt,
+			in.Subject,
+			false, /**append reference number to subject**/
+			nil,   /** meta **/
+			nil,   /** customer attributes **/
+			0,     /** max conversation **/
+			0,     /** rate limit window **/
+		)
 		if err != nil || conversationID == 0 {
 			return 0, "", false, err
 		}
 		return conversationID, conversationUUID, true, nil
 	}
 
-	// Get UUID for existing conversation.
+	// Get UUID for the found conversation ID.
 	conversationUUID, err = m.GetConversationUUID(conversationID)
 	if err != nil {
 		return 0, "", false, err

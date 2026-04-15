@@ -108,6 +108,9 @@ const setupParentMessageListeners = () => {
         signalWidgetLoaded()
       }
     } else if (event.data.type === 'SET_JWT_TOKEN') {
+      if (event.data.visitorToken) {
+        initVisitorToken(event.data.visitorToken)
+      }
       if (event.data.jwt) {
         try {
           const resp = await api.exchangeJWTForSession(event.data.jwt)
