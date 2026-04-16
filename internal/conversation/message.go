@@ -30,6 +30,8 @@ import (
 
 const (
 	maxMessagesPerPage = 500
+	// Only allow visitor-to-contact upgrade within this window after the last continuity email.
+	upgradeWindowTTL = 7 * 24 * time.Hour
 )
 
 // Run starts a pool of worker goroutines to handle message dispatching via inbox's channel and processes incoming messages. It scans for
@@ -849,6 +851,11 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 		return 0, 0, "", fmt.Errorf("fetching contact by email: %w", contactErr)
 	}
 
+	// Block upgrade if continuity email TTL expired.
+	if !m.isVisitorUpgradeSafe(conversation) {
+		return 0, conversationID, conversationUUID, nil
+	}
+
 	// Upgrade visitor as no contact exist with this email.
 	if err := m.userStore.UpgradeVisitorToContact(conversation.Contact.ID); err != nil {
 		return 0, 0, "", fmt.Errorf("upgrading visitor to contact: %w", err)
@@ -860,6 +867,22 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 	m.BroadcastContactUpdate(conversation.ContactID, map[string]any{"type": umodels.UserTypeContact})
 
 	return senderID, conversationID, conversationUUID, nil
+}
+
+// isVisitorUpgradeSafe checks whether a visitor-to-contact upgrade should proceed.
+// Blocks upgrade if the continuity email TTL has expired.
+func (m *Manager) isVisitorUpgradeSafe(conversation models.Conversation) bool {
+	if conversation.LastContinuityEmailSentAt.Valid {
+		if time.Since(conversation.LastContinuityEmailSentAt.Time) > upgradeWindowTTL {
+			m.lo.Info("visitor upgrade blocked: continuity email TTL expired",
+				"conversation_uuid", conversation.UUID,
+				"last_sent", conversation.LastContinuityEmailSentAt.Time,
+				"age", time.Since(conversation.LastContinuityEmailSentAt.Time).String(),
+				"max_ttl", upgradeWindowTTL.String())
+			return false
+		}
+	}
+	return true
 }
 
 // ProcessIncomingLiveChatMessage handles incoming live chat messages.

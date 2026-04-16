@@ -178,7 +178,8 @@ SELECT
    as_latest.resolution_deadline_at,
    as_latest.id as applied_sla_id,
    nxt_resp_event.deadline_at AS next_response_deadline_at,
-   nxt_resp_event.met_at as next_response_met_at
+   nxt_resp_event.met_at as next_response_met_at,
+   c.last_continuity_email_sent_at
 FROM conversations c
 JOIN users ct ON c.contact_id = ct.id
 JOIN inboxes inb ON c.inbox_id = inb.id
