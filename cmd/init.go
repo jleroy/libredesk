@@ -298,8 +298,8 @@ func initConversations(
 	dispatcher *notifier.Dispatcher,
 ) *conversation.Manager {
 	continuityConfig := &conversation.ContinuityConfig{}
-	if ko.Exists("conversation.continuity.batch_check_interval") {
-		continuityConfig.BatchCheckInterval = ko.MustDuration("conversation.continuity.batch_check_interval")
+	if ko.Exists("conversation.continuity_scan_interval") {
+		continuityConfig.BatchCheckInterval = ko.MustDuration("conversation.continuity_scan_interval")
 	}
 
 	c, err := conversation.New(hub, i18n, sla, status, priority, inboxStore, userStore, teamStore, mediaStore, settings, csat, automationEngine, template, webhook, dispatcher, conversation.Opts{

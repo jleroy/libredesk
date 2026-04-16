@@ -131,10 +131,8 @@ allowed_hosts = []
 unsnooze_interval = "5m"
 # How long to keep drafts before deleting them from the database. (e.g. "360h", "48h")
 draft_retention_period = "360h"
-
-[conversation.continuity]
 # How often to check for offline conversations in database to send continuity emails
-batch_check_interval = "5m"
+continuity_scan_interval = "5m"
 
 [sla]
 # How often to evaluate SLA compliance for conversations
