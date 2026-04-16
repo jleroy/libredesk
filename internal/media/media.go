@@ -189,11 +189,12 @@ func (m *Manager) GetBlob(name string) ([]byte, error) {
 
 // GetURL returns the URL for accessing a media file by its name.
 func (m *Manager) GetURL(uuid, contentType, fileName string) string {
-	// Keep some content types inline.
+	// Keep some content types inline. SVG excluded.
 	disposition := "attachment"
-	if strings.HasPrefix(contentType, "image/") ||
-		strings.HasPrefix(contentType, "video/") ||
-		contentType == "application/pdf" {
+	if contentType != "image/svg+xml" &&
+		(strings.HasPrefix(contentType, "image/") ||
+			strings.HasPrefix(contentType, "video/") ||
+			contentType == "application/pdf") {
 		disposition = "inline"
 	}
 	return m.store.GetURL(uuid, disposition, fileName)

@@ -81,9 +81,11 @@ type chatInitReq struct {
 
 type chatSettingsResponse struct {
 	livechat.Config
-	// Hide server-side security fields from the public widget response.
+	// Hide server-side fields from the public widget response.
 	TrustedDomains         *struct{}                     `json:"trusted_domains,omitempty"`
 	BlockedIPs             *struct{}                     `json:"blocked_ips,omitempty"`
+	Continuity             *struct{}                     `json:"continuity,omitempty"`
+	SessionDuration        *struct{}                     `json:"session_duration,omitempty"`
 	BusinessHours          []bhmodels.BusinessHours      `json:"business_hours,omitempty"`
 	DefaultBusinessHoursID int                           `json:"default_business_hours_id,omitempty"`
 	WorkingHoursUTCOffset  *int                          `json:"working_hours_utc_offset,omitempty"`
@@ -434,14 +436,14 @@ func handleWidgetAuthMe(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
 	}
 
-	u, err := app.user.Get(contactID, "", []string{})
+	u, err := app.user.Get(contactID, "", []string{umodels.UserTypeContact, umodels.UserTypeVisitor})
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	return r.SendEnvelope(map[string]any{
 		"user_id":    u.ID,
-		"is_visitor": u.Type == "visitor",
+		"is_visitor": u.Type == umodels.UserTypeVisitor,
 		"first_name": u.FirstName,
 		"last_name":  u.LastName,
 	})
@@ -528,7 +530,7 @@ func handleChatSendMessage(r *fastglue.Request) error {
 	}
 
 	// Fetch sender.
-	sender, err := app.user.Get(senderID, "", []string{})
+	sender, err := app.user.Get(senderID, "", []string{umodels.UserTypeContact, umodels.UserTypeVisitor})
 	if err != nil {
 		app.lo.Error("error fetching sender user", "sender_id", senderID, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
@@ -690,6 +692,10 @@ func sendChatMessageResponse(app *App, r *fastglue.Request, messageUUID string) 
 	}
 	app.conversation.SignAvatarURL(&message.Author.AvatarURL)
 
+	// Strip agent email from widget responses.
+	author := message.Author
+	author.Email = null.String{}
+
 	return r.SendEnvelope(cmodels.ChatMessage{
 		UUID:             message.UUID,
 		CreatedAt:        message.CreatedAt,
@@ -697,7 +703,7 @@ func sendChatMessageResponse(app *App, r *fastglue.Request, messageUUID string) 
 		TextContent:      message.TextContent,
 		ConversationUUID: message.ConversationUUID,
 		Status:           message.Status,
-		Author:           message.Author,
+		Author:           author,
 		Attachments:      message.Attachments,
 	})
 }

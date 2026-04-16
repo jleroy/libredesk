@@ -9,6 +9,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/httputil"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
+	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	realip "github.com/ferluci/fast-realip"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
@@ -42,12 +43,9 @@ func validateWidgetInbox(next func(*fastglue.Request) error) func(*fastglue.Requ
 		inbox, err := app.inbox.GetDBRecord(inboxUUID)
 		if err != nil {
 			app.lo.Error("error fetching inbox", "inbox_uuid", inboxUUID, "error", err)
-			return sendErrorEnvelope(r, err)
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("validation.notFoundInbox"), nil, envelope.InputError)
 		}
-		if !inbox.Enabled {
-			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("status.disabledInbox"), nil, envelope.InputError)
-		}
-		if inbox.Channel != livechat.ChannelLiveChat {
+		if !inbox.Enabled || inbox.Channel != livechat.ChannelLiveChat {
 			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("validation.notFoundInbox"), nil, envelope.InputError)
 		}
 
@@ -107,8 +105,8 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 			return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
 		}
 
-		// Verify user exists and is enabled.
-		u, err := app.user.Get(session.UserID, "", []string{})
+		// Verify user exists, is enabled, and is a contact or visitor.
+		u, err := app.user.Get(session.UserID, "", []string{umodels.UserTypeContact, umodels.UserTypeVisitor})
 		if err != nil || !u.Enabled {
 			return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
 		}
@@ -120,7 +118,7 @@ func widgetAuth(next func(*fastglue.Request) error) func(*fastglue.Request) erro
 		visitorToken := string(r.RequestCtx.Request.Header.Peek(hdrWidgetVisitorToken))
 		if visitorToken != "" && session.ExternalUserID != "" && session.UserID > 0 {
 			visitorSession, vErr := loadSession(app, visitorToken, config)
-			if vErr == nil && visitorSession.IsVisitor && visitorSession.UserID > 0 && visitorSession.UserID != session.UserID {
+			if vErr == nil && visitorSession.IsVisitor && visitorSession.UserID > 0 && visitorSession.UserID != session.UserID && visitorSession.InboxID == inbox.ID {
 				if err := app.user.MergeVisitorToContact(visitorSession.UserID, session.UserID); err != nil {
 					app.lo.Error("error merging visitor to contact", "visitor_id", visitorSession.UserID, "contact_id", session.UserID, "error", err)
 				} else {

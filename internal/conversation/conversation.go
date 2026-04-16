@@ -1738,6 +1738,10 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 				attachments[j].URL = m.mediaStore.GetSignedURL(attachments[j].UUID)
 			}
 
+			// Strip agent email from widget responses.
+			author := msg.Author
+			author.Email = null.String{}
+
 			chatMessages = append(chatMessages, models.ChatMessage{
 				UUID:             msg.UUID,
 				Status:           msg.Status,
@@ -1746,7 +1750,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 				TextContent:      msg.TextContent,
 				ConversationUUID: msg.ConversationUUID,
 				Meta:             msg.Meta,
-				Author:           msg.Author,
+				Author:           author,
 				Attachments:      attachments,
 			})
 		}
