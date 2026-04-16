@@ -30,6 +30,15 @@ const (
 	pageVisitTTL            = 24 * time.Hour
 	wsReadDeadline          = 20 * time.Second
 	wsReadLimitBytes        = 64 * 1024
+
+	// Per-connection minimum intervals between inbound frames of each kind.
+	// The HTTP upgrade is rate-limited, but inbound frames aren't, so a single
+	// connection can otherwise drive unbounded DB/Redis work and agent fan-out.
+	// Values are chosen to be just loose enough that no legitimate frontend
+	// cadence is ever throttled.
+	wsMinIntervalTyping    = 50 * time.Millisecond
+	wsMinIntervalPageVisit = 1 * time.Second
+	wsMinIntervalPing      = 1 * time.Second
 )
 
 type WidgetMessage struct {
@@ -52,10 +61,14 @@ type WidgetPageVisitData struct {
 	Title string `json:"title"`
 }
 
-// safeConn wraps a WebSocket connection with a mutex for concurrent-safe writes.
+// safeConn wraps a WebSocket connection with a mutex for concurrent-safe writes
+// and a per-connection rate tracker for inbound frames.
 type safeConn struct {
 	conn *websocket.Conn
 	mu   sync.Mutex
+
+	rateMu sync.Mutex
+	lastAt map[string]time.Time
 }
 
 func (sc *safeConn) WriteJSON(v any) error {
@@ -68,6 +81,21 @@ func (sc *safeConn) WriteMessage(msgType int, data []byte) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	return sc.conn.WriteMessage(msgType, data)
+}
+
+// allow throttles abusive clients that flood typing/page_visit/ping frames.
+func (sc *safeConn) allow(kind string, minInterval time.Duration) bool {
+	sc.rateMu.Lock()
+	defer sc.rateMu.Unlock()
+	if sc.lastAt == nil {
+		sc.lastAt = make(map[string]time.Time)
+	}
+	now := time.Now()
+	if last, ok := sc.lastAt[kind]; ok && now.Sub(last) < minInterval {
+		return false
+	}
+	sc.lastAt[kind] = now
+	return true
 }
 
 func handleWidgetWS(r *fastglue.Request) error {
@@ -127,14 +155,20 @@ func handleWidgetWS(r *fastglue.Request) error {
 				if userID == 0 || inboxUUID == "" {
 					continue
 				}
+				if !sc.allow(WidgetMsgTypeTyping, wsMinIntervalTyping) {
+					continue
+				}
 				handleWidgetTyping(app, msg.Data, userID)
 
 			case WidgetMsgTypePageVisit:
-				if userID > 0 {
+				if userID > 0 && sc.allow(WidgetMsgTypePageVisit, wsMinIntervalPageVisit) {
 					handleWidgetPageVisit(app, msg.Data, userID)
 				}
 
 			case WidgetMsgTypePing:
+				if !sc.allow(WidgetMsgTypePing, wsMinIntervalPing) {
+					continue
+				}
 				if userID > 0 {
 					wasOffline := app.user.IsOffline(userID)
 					if err := app.user.UpdateLastActive(userID); err != nil {

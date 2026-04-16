@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+func IsValidHTTPURL(raw string) bool {
+	u, err := url.ParseRequestURI(raw)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == "http" || u.Scheme == "https"
+}
+
 // IsOriginTrusted checks if the given origin is trusted based on the trusted domains list
 // Expects trustedDomains to be a list of domain strings, which can include wildcards.
 // Like "*.example.com" or "example.com".
@@ -35,7 +43,7 @@ func parseHostPort(origin string) (host, port string) {
 	if err != nil {
 		return "", ""
 	}
-	
+
 	host, port, _ = net.SplitHostPort(u.Host)
 	if host == "" {
 		host = u.Host
@@ -46,7 +54,7 @@ func parseHostPort(origin string) (host, port string) {
 // parseTrustedDomain extracts host and port from trusted domain entry
 func parseTrustedDomain(domain string) (host, port string) {
 	domain = strings.ToLower(domain)
-	
+
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
 		u, err := url.Parse(domain)
 		if err != nil {
@@ -58,7 +66,7 @@ func parseTrustedDomain(domain string) (host, port string) {
 		}
 		return host, port
 	}
-	
+
 	// Handle non-URL patterns (wildcards/domains)
 	host, port, _ = net.SplitHostPort(domain)
 	if host == "" {
@@ -80,11 +88,11 @@ func hostMatches(origin, trusted string) bool {
 	if trusted == origin {
 		return true
 	}
-	
+
 	if strings.HasPrefix(trusted, "*.") {
 		base := trusted[2:]
 		return origin == base || strings.HasSuffix(origin, "."+base)
 	}
-	
+
 	return false
 }

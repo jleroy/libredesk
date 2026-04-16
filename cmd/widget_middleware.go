@@ -11,6 +11,7 @@ import (
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	realip "github.com/ferluci/fast-realip"
+	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
 )
@@ -38,6 +39,11 @@ func validateWidgetInbox(next func(*fastglue.Request) error) func(*fastglue.Requ
 		}
 		if inboxUUID == "" {
 			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.inbox}"), nil, envelope.InputError)
+		}
+
+		// Require a UUID here so widget callers cannot enumerate inboxes by numeric ID.
+		if _, err := uuid.Parse(inboxUUID); err != nil {
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("validation.notFoundInbox"), nil, envelope.InputError)
 		}
 
 		inbox, err := app.inbox.GetDBRecord(inboxUUID)

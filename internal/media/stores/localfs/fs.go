@@ -3,13 +3,11 @@ package fs
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/media"
@@ -127,26 +125,6 @@ func (c *Client) GetSignedURL(name string) string {
 		return fmt.Sprintf("%s%s/%s", c.opts.RootURL(), c.opts.UploadURI, name)
 	}
 	return c.signURL(name)
-}
-
-// VerifySignature verifies that a signature is valid for the given parameters.
-// This implements the SignedURLStore interface for secure public access.
-func (c *Client) VerifySignature(name, signature string, expiresAt time.Time) bool {
-	// Check if URL has expired
-	if time.Now().After(expiresAt) {
-		return false
-	}
-
-	// Recreate the signature payload: name + expires timestamp
-	expires := expiresAt.Unix()
-	payload := name + strconv.FormatInt(expires, 10)
-
-	// Generate expected HMAC-SHA256 signature
-	h := hmac.New(sha256.New, []byte(c.opts.SigningKey))
-	h.Write([]byte(payload))
-	expectedSignature := base64.URLEncoding.EncodeToString(h.Sum(nil))
-
-	return subtle.ConstantTimeCompare([]byte(signature), []byte(expectedSignature)) == 1
 }
 
 // getDir returns the current working directory path if no directory is specified,

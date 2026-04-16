@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/mail"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -67,12 +66,12 @@ func handleCreateInbox(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), err.Error(), envelope.InputError)
 	}
 
-	createdInbox, err := app.inbox.Create(inbox)
-	if err != nil {
+	if err := validateInbox(app, inbox); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
-	if err := validateInbox(app, createdInbox); err != nil {
+	createdInbox, err := app.inbox.Create(inbox)
+	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
@@ -265,31 +264,23 @@ func validateInbox(app *App, inbox imodels.Inbox) error {
 
 			// Validate home apps.
 			for _, ha := range config.HomeApps {
-				if ha.URL != "" {
-					if _, err := url.ParseRequestURI(ha.URL); err != nil {
-						return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
-					}
+				if ha.URL != "" && !httputil.IsValidHTTPURL(ha.URL) {
+					return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
 				}
-				if ha.Type == livechat.HomeAppAnnouncement && ha.ImageURL != "" {
-					if _, err := url.ParseRequestURI(ha.ImageURL); err != nil {
-						return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
-					}
-				}
-			}
-
-			// Validate home screen background image URL.
-			if config.HomeScreen.Background.ImageURL != "" {
-				if _, err := url.ParseRequestURI(config.HomeScreen.Background.ImageURL); err != nil {
+				if ha.Type == livechat.HomeAppAnnouncement && ha.ImageURL != "" && !httputil.IsValidHTTPURL(ha.ImageURL) {
 					return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
 				}
 			}
 
+			// Validate home screen background image URL.
+			if config.HomeScreen.Background.ImageURL != "" && !httputil.IsValidHTTPURL(config.HomeScreen.Background.ImageURL) {
+				return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
+			}
+
 			// Validate URLs if set.
 			for _, u := range []string{config.LogoURL, config.Launcher.LogoURL, config.WebsiteURL} {
-				if u != "" {
-					if _, err := url.ParseRequestURI(u); err != nil {
-						return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
-					}
+				if u != "" && !httputil.IsValidHTTPURL(u) {
+					return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidUrl"), nil)
 				}
 			}
 

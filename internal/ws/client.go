@@ -119,6 +119,12 @@ func (c *Client) processIncomingMessage(data []byte) {
 }
 
 // handleConversationSubscribe handles conversation subscription requests.
+//
+// No per-conversation authz check by design. All subscribers are authenticated
+// agents (this hub only serves /ws, which is gated by auth()), and the only
+// data that flows over a subscription is typing indicators - low value on its
+// own. Enforcing authz.EnforceConversationAccess here would add a DB lookup
+// per subscribe/typing frame for every widget visitor's keystroke.
 func (c *Client) handleConversationSubscribe(data interface{}) {
 	// Convert the data to JSON and then unmarshal to ConversationSubscribe
 	dataBytes, err := json.Marshal(data)
@@ -154,6 +160,11 @@ func (c *Client) handleConversationSubscribe(data interface{}) {
 }
 
 // handleTyping handles typing indicator messages.
+//
+// Same trust assumption as handleConversationSubscribe: the sender is an
+// authenticated agent. A hostile agent could broadcast fake typing to any
+// conversation UUID (including widget clients), but typing is ephemeral and
+// cosmetic; adding per-frame authz isn't worth the DB cost today.
 func (c *Client) handleTyping(data interface{}) {
 	// Convert the data to JSON and then unmarshal to TypingMessage
 	dataBytes, err := json.Marshal(data)

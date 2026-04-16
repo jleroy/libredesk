@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"math"
 	"path/filepath"
@@ -529,27 +530,8 @@ func handleChatSendMessage(r *fastglue.Request) error {
 		return err
 	}
 
-	// Fetch sender.
-	sender, err := app.user.Get(senderID, "", []string{umodels.UserTypeContact, umodels.UserTypeVisitor})
-	if err != nil {
-		app.lo.Error("error fetching sender user", "sender_id", senderID, "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-	}
-
-	// Check if replies to closed conversations are allowed.
-	if conversation.Status.String == cmodels.StatusClosed {
-		lcConfig, err := getWidgetConfig(r)
-		if err != nil {
-			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
-		}
-
-		preventReply := lcConfig.Visitors.PreventReplyToClosedConversation
-		if sender.Type != umodels.UserTypeVisitor {
-			preventReply = lcConfig.Users.PreventReplyToClosedConversation
-		}
-		if preventReply {
-			return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("widget.conversationClosed"), nil, envelope.InputError)
-		}
+	if err := canReply(r, conversation); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 
 	// Insert incoming message and run post processing hooks.
@@ -594,6 +576,10 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 		return err
 	}
 
+	if err := canReply(r, conversation); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
 	// Make sure file upload is enabled for the inbox.
 	config, err := getWidgetConfig(r)
 	if err != nil {
@@ -623,6 +609,10 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 	srcFileSize := fileHeader.Size
 	srcExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(srcFileName)), ".")
 
+	if srcFileSize <= 0 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("media.fileEmpty"), nil, envelope.InputError)
+	}
+
 	// Check file size
 	consts := app.consts.Load().(*constants)
 	if bytesToMegabytes(srcFileSize) > float64(consts.MaxFileUploadSizeMB) {
@@ -640,10 +630,8 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("media.fileTypeNotAllowed"), nil, envelope.InputError)
 	}
 
-	// Read file content into byte slice
-	file.Seek(0, 0)
-	fileContent := make([]byte, srcFileSize)
-	if _, err := file.Read(fileContent); err != nil {
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
 		app.lo.Error("error reading file content", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
@@ -1269,4 +1257,24 @@ func getSessionDuration(config livechat.Config) time.Duration {
 		return defaultSessionTTL
 	}
 	return d
+}
+
+// canReply checks if the conversation is closed and if the sender is allowed to reply based on inbox settings.
+func canReply(r *fastglue.Request, conversation cmodels.Conversation) error {
+	if conversation.Status.String != cmodels.StatusClosed {
+		return nil
+	}
+	app := r.Context.(*App)
+	lcConfig, err := getWidgetConfig(r)
+	if err != nil {
+		return envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	preventReply := lcConfig.Visitors.PreventReplyToClosedConversation
+	if !getWidgetIsVisitor(r) {
+		preventReply = lcConfig.Users.PreventReplyToClosedConversation
+	}
+	if preventReply {
+		return envelope.NewError(envelope.PermissionError, app.i18n.T("widget.conversationClosed"), nil)
+	}
+	return nil
 }

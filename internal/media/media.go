@@ -47,7 +47,6 @@ type Store interface {
 type SignedURLStore interface {
 	Store
 	GetSignedURL(name string) string
-	VerifySignature(name, signature string, expiresAt time.Time) bool
 }
 
 type Manager struct {
