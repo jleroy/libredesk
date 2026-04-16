@@ -260,7 +260,7 @@ func (m *Manager) sendContinuityEmail(conv models.ContinuityConversation, maxMes
 
 	m.lo.Info("sent conversation continuity email",
 		"conversation_uuid", conv.UUID,
-		"contact_email", conv.ContactEmail,
+		"contact_email", conv.ContactEmail.String,
 		"message_count", len(unreadMessages),
 		"linked_email_inbox_id", conv.LinkedEmailInboxID.Int)
 
