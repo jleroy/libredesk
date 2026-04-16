@@ -9,4 +9,4 @@ A high-performance, omni-channel, self-hosted customer support desk.
 - Contact merging - TODO
 
 ## Mid Term
-- Full-fledged live chat widget - WIP
+- Full-fledged live chat widget - DONE
