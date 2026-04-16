@@ -3,7 +3,7 @@
 
 # libredesk
 
-Modern, open source, self-hosted omnichannel customer support desk. Live chat, email, and more — packed into a single binary.
+Modern, open source, self-hosted omnichannel customer support desk. Live chat, email, and more in a single binary.
 
 ![image](https://libredesk.io/hero.png?v=1)
 
