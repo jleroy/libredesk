@@ -261,6 +261,11 @@
             this.toggleButton.style.position = 'relative';
             this.widgetButtonWrapper = widgetButtonWrapper;
 
+            const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const iframeTransition = reducedMotion
+                ? 'none'
+                : 'width 0.3s ease, height 0.3s ease, bottom 0.3s ease, border-radius 0.3s ease, box-shadow 0.3s ease';
+
             this.iframe = document.createElement('iframe');
             this.iframe.src = `${this.config.baseURL}/widget?inbox_id=${this.config.inboxID}`;
             this.iframe.style.cssText = `
@@ -271,7 +276,7 @@
                 z-index: 9999;
                 width: ${this.IFRAME_WIDTH};
                 height: ${this.IFRAME_HEIGHT};
-                transition: all 0.3s ease;
+                transition: ${iframeTransition};
                 display: none;
             `;
 
@@ -295,6 +300,11 @@
             this.toggleButton.style.height = size + 'px';
         }
 
+        getNormalIframeHeight () {
+            const bottom = this.widgetSettings.launcher.spacing.bottom;
+            return `min(${this.IFRAME_HEIGHT}, calc(100vh - ${bottom + 100}px))`;
+        }
+
         sendPageInfo () {
             this.postToIframe({
                 type: 'PAGE_VISIT',
@@ -306,12 +316,53 @@
         setLauncherPosition () {
             const spacing = this.widgetSettings.launcher.spacing;
             const side = this.widgetSettings.launcher.position === 'right' ? 'right' : 'left';
-
             this.widgetButtonWrapper.style.bottom = `${spacing.bottom}px`;
             this.widgetButtonWrapper.style[side] = `${spacing.side}px`;
+        }
 
-            this.iframe.style.bottom = `${spacing.bottom + 80}px`;
-            this.iframe.style[side] = `${spacing.side}px`;
+        applyIframeLayout () {
+            if (!this.iframe) return;
+            const iframe = this.iframe;
+
+            if (this.isMobile) {
+                iframe.style.top = '0';
+                iframe.style.left = '0';
+                iframe.style.right = '0';
+                iframe.style.bottom = '0';
+                iframe.style.width = '100vw';
+                iframe.style.height = '100dvh';
+                iframe.style.borderRadius = '0';
+                iframe.style.boxShadow = 'none';
+                return;
+            }
+
+            const spacing = this.widgetSettings.launcher.spacing;
+            const side = this.widgetSettings.launcher.position === 'right' ? 'right' : 'left';
+
+            iframe.style.top = '';
+            iframe.style.left = '';
+            iframe.style.right = '';
+            iframe.style.borderRadius = this.IFRAME_BORDER_RADIUS;
+            iframe.style.boxShadow = this.IFRAME_BOX_SHADOW;
+            iframe.style[side] = `${spacing.side}px`;
+
+            if (this.isExpanded) {
+                iframe.style.width = this.EXPANDED_WIDTH;
+                iframe.style.height = 'calc(100vh - 40px)';
+                iframe.style.bottom = '20px';
+            } else {
+                iframe.style.width = this.IFRAME_WIDTH;
+                iframe.style.height = this.getNormalIframeHeight();
+                iframe.style.bottom = `${spacing.bottom + 80}px`;
+            }
+        }
+
+        updateLauncherVisibility () {
+            if (!this.widgetButtonWrapper) return;
+            const shouldShow = this.widgetLoaded
+                && !this.hideLauncher
+                && !(this.isChatVisible && this.isMobile);
+            this.widgetButtonWrapper.style.display = shouldShow ? '' : 'none';
         }
 
         handleMessage (event) {
@@ -360,9 +411,11 @@
         }
 
         handleResize () {
+            const wasMobile = this.isMobile;
             this.sendMobileState();
-            if (this.isChatVisible) {
-                this.showChat();
+            if (this.isChatVisible && wasMobile !== this.isMobile) {
+                this.applyIframeLayout();
+                this.updateLauncherVisibility();
             }
         }
 
@@ -395,9 +448,7 @@
 
         handleWidgetLoaded () {
             this.widgetLoaded = true;
-            if (!this.hideLauncher) {
-                this.widgetButtonWrapper.style.display = '';
-            }
+            this.updateLauncherVisibility();
         }
 
         toggle () {
@@ -409,74 +460,45 @@
         }
 
         showChat () {
-            if (this.iframe) {
-                this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
-                this.iframe.style.display = 'block';
-                this.iframe.style.position = 'fixed';
+            if (!this.iframe) return;
 
-                if (this.isMobile) {
-                    this.iframe.style.top = '0';
-                    this.iframe.style.left = '0';
-                    this.iframe.style.right = '0';
-                    this.iframe.style.bottom = '0';
-                    this.iframe.style.width = '100vw';
-                    this.iframe.style.height = '100dvh';
-                    this.iframe.style.borderRadius = '0';
-                    this.iframe.style.boxShadow = 'none';
-                    this.widgetButtonWrapper.style.display = 'none';
-                } else {
-                    this.iframe.style.width = this.IFRAME_WIDTH;
-                    this.iframe.style.borderRadius = this.IFRAME_BORDER_RADIUS;
-                    this.iframe.style.boxShadow = this.IFRAME_BOX_SHADOW;
-                    this.iframe.style.top = '';
-                    this.iframe.style.left = '';
-                    if (this.widgetLoaded && !this.hideLauncher) {
-                        this.widgetButtonWrapper.style.display = '';
-                    }
+            this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
+            this.isChatVisible = true;
 
-                    if (this.isExpanded) {
-                        this.iframe.style.width = this.EXPANDED_WIDTH;
-                        this.iframe.style.height = 'calc(100vh - 40px)';
-                        this.iframe.style.bottom = '20px';
-                    } else {
-                        this.iframe.style.height = this.IFRAME_HEIGHT;
-                        this.setLauncherPosition();
-                    }
-                }
-                this.isChatVisible = true;
-                this.toggleButton.style.transform = 'scale(0.9)';
-                this.unreadBadge.style.display = 'none';
+            this.iframe.style.display = 'block';
+            this.applyIframeLayout();
+            this.updateLauncherVisibility();
 
-                if (this.defaultIcon) this.defaultIcon.style.display = 'none';
-                this.arrowIcon.style.display = 'flex';
+            this.toggleButton.style.transform = 'scale(0.9)';
+            this.unreadBadge.style.display = 'none';
 
-                this.postToIframe({ type: 'WIDGET_OPENED' });
+            if (this.defaultIcon) this.defaultIcon.style.display = 'none';
+            this.arrowIcon.style.display = 'flex';
 
-                if (this._onShowCallback) this._onShowCallback();
-            }
+            this.postToIframe({ type: 'WIDGET_OPENED' });
+
+            if (this._onShowCallback) this._onShowCallback();
         }
 
         hideChat () {
-            if (this.iframe) {
-                this.iframe.style.display = 'none';
-                this.isChatVisible = false;
-                this.toggleButton.style.transform = 'scale(1)';
-                if (this.widgetLoaded && !this.hideLauncher) {
-                    this.widgetButtonWrapper.style.display = '';
-                }
+            if (!this.iframe) return;
 
-                if (this.defaultIcon) this.defaultIcon.style.display = 'block';
-                this.arrowIcon.style.display = 'none';
+            this.iframe.style.display = 'none';
+            this.isChatVisible = false;
+            this.toggleButton.style.transform = 'scale(1)';
+            this.updateLauncherVisibility();
 
-                if (this.unreadCount > 0) {
-                    this.unreadBadge.textContent = this.formatBadgeCount(this.unreadCount);
-                    this.unreadBadge.style.display = 'flex';
-                }
+            if (this.defaultIcon) this.defaultIcon.style.display = 'block';
+            this.arrowIcon.style.display = 'none';
 
-                this.postToIframe({ type: 'WIDGET_CLOSED' });
-
-                if (this._onHideCallback) this._onHideCallback();
+            if (this.unreadCount > 0) {
+                this.unreadBadge.textContent = this.formatBadgeCount(this.unreadCount);
+                this.unreadBadge.style.display = 'flex';
             }
+
+            this.postToIframe({ type: 'WIDGET_CLOSED' });
+
+            if (this._onHideCallback) this._onHideCallback();
         }
 
         updateUnreadCount (count) {
@@ -492,24 +514,17 @@
         }
 
         expandWidget () {
-            if (this.iframe && this.isChatVisible && !this.isMobile) {
-                this.isExpanded = true;
-                this.iframe.style.width = this.EXPANDED_WIDTH;
-                this.iframe.style.height = 'calc(100vh - 40px)';
-                this.iframe.style.bottom = '20px';
-                this.postToIframe({ type: 'WIDGET_EXPANDED', isExpanded: true });
-            }
+            if (!this.iframe || !this.isChatVisible || this.isMobile) return;
+            this.isExpanded = true;
+            this.applyIframeLayout();
+            this.postToIframe({ type: 'WIDGET_EXPANDED', isExpanded: true });
         }
 
         collapseWidget () {
-            if (this.iframe && this.isChatVisible && !this.isMobile) {
-                this.isExpanded = false;
-                this.iframe.style.width = this.IFRAME_WIDTH;
-                this.iframe.style.height = this.IFRAME_HEIGHT;
-                this.iframe.style.top = '';
-                this.setLauncherPosition();
-                this.postToIframe({ type: 'WIDGET_EXPANDED', isExpanded: false });
-            }
+            if (!this.iframe || !this.isChatVisible || this.isMobile) return;
+            this.isExpanded = false;
+            this.applyIframeLayout();
+            this.postToIframe({ type: 'WIDGET_EXPANDED', isExpanded: false });
         }
 
         startPageTracking () {
