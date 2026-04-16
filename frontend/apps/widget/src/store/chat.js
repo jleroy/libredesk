@@ -194,6 +194,11 @@ export const useChatStore = defineStore('chat', () => {
         if (!conversation) {
             clearMessages()
         }
+        isTyping.value = false
+        if (typingTimeout) {
+            clearTimeout(typingTimeout)
+            typingTimeout = null
+        }
         currentConversation.value = conversation
     }
 

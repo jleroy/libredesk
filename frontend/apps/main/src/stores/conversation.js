@@ -317,6 +317,11 @@ export const useConversationStore = defineStore('conversation', () => {
     try {
       const resp = await api.getConversation(uuid)
       conversation.data = resp.data.data
+      conversation.isTyping = false
+      if (typingTimeout) {
+        clearTimeout(typingTimeout)
+        typingTimeout = null
+      }
       // Do a websocket subscription to the conversation.
       subscribeToConversation(uuid)
     } catch (error) {
