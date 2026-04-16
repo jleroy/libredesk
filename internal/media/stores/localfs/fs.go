@@ -118,6 +118,15 @@ func (c *Client) Name() string {
 	return "fs"
 }
 
+// GetSignedURL generates a signed URL for the file with expiration.
+// This implements the SignedURLStore interface for secure public access.
+func (c *Client) GetSignedURL(name string) string {
+	if c.opts.SigningKey == "" {
+		return fmt.Sprintf("%s%s/%s", c.opts.RootURL(), c.opts.UploadURI, name)
+	}
+	return c.signURL(name)
+}
+
 // getDir returns the current working directory path if no directory is specified,
 // else returns the directory path specified itself.
 func getDir(dir string) string {

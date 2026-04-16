@@ -4,6 +4,7 @@ package csat
 import (
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -59,15 +60,19 @@ func New(opts Opts) (*Manager, error) {
 	}, nil
 }
 
-// Create creates a new CSAT for the given conversation ID.
+// Create creates a new CSAT for the given conversation ID, returning ErrCSATAlreadyExists if one already exists.
 func (m *Manager) Create(conversationID int) (models.CSATResponse, error) {
 	var (
 		uuid string
 		rsp  models.CSATResponse
 	)
-	if err := m.q.Insert.QueryRow(conversationID).Scan(&uuid); err != nil {
+	err := m.q.Insert.QueryRow(conversationID).Scan(&uuid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return rsp, ErrCSATAlreadyExists
+		}
 		m.lo.Error("error creating CSAT", "error", err)
-		return rsp, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorCreating", "name", "{globals.terms.csatSurvey}"), nil)
+		return rsp, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return m.Get(uuid)
 }
@@ -78,7 +83,7 @@ func (m *Manager) Get(uuid string) (models.CSATResponse, error) {
 	err := m.q.Get.Get(&csat, uuid)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return csat, envelope.NewError(envelope.InputError, m.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.csatSurvey}"), nil)
+			return csat, envelope.NewError(envelope.InputError, m.i18n.T("validation.notFoundCsatSurvey"), nil)
 		}
 		m.lo.Error("error getting CSAT", "error", err)
 		return csat, err
@@ -87,20 +92,24 @@ func (m *Manager) Get(uuid string) (models.CSATResponse, error) {
 }
 
 // UpdateResponse updates the CSAT response for the given csat.
-func (m *Manager) UpdateResponse(uuid string, score int, feedback string) error {
+func (m *Manager) UpdateResponse(uuid string, score int, feedback string, meta json.RawMessage) error {
 	csat, err := m.Get(uuid)
 	if err != nil {
 		return err
 	}
 
-	if csat.Rating > 0 || !csat.ResponseTimestamp.IsZero() {
+	if csat.ResponseTimestamp.Valid {
 		return envelope.NewError(envelope.InputError, m.i18n.T("csat.alreadySubmitted"), nil)
 	}
 
-	_, err = m.q.Update.Exec(uuid, score, feedback)
+	if len(meta) == 0 {
+		meta = json.RawMessage(`{}`)
+	}
+
+	_, err = m.q.Update.Exec(uuid, score, feedback, meta)
 	if err != nil {
 		m.lo.Error("error updating CSAT", "error", err)
-		return envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorSaving", "name", "{globals.terms.csatResponse}"), nil)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return nil
 }

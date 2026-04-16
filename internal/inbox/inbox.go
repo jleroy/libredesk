@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
@@ -15,14 +17,17 @@ import (
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-i18n"
+	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
 
 const (
-	ChannelEmail = "email"
+	ChannelEmail    = "email"
+	ChannelLiveChat = "livechat"
 )
 
 var (
@@ -49,7 +54,7 @@ type Identifier interface {
 // MessageHandler defines methods for handling message operations.
 type MessageHandler interface {
 	Receive(context.Context) error
-	Send(models.Message) error
+	Send(models.OutboundMessage) error
 }
 
 // Inbox combines the operations of an inbox including its lifecycle, identification, and message handling.
@@ -69,7 +74,8 @@ type MessageStore interface {
 
 // UserStore defines methods for fetching user information.
 type UserStore interface {
-	GetContact(id int, email string) (umodels.User, error)
+	GetAgent(id int, email string) (umodels.User, error)
+	IsEmailBlocked(email string) (bool, error)
 }
 
 // Opts contains the options for initializing the inbox manager.
@@ -78,13 +84,19 @@ type Opts struct {
 	Concurrency int
 }
 
+// receiverState tracks a *single*s inbox receiver goroutine.
+type receiverState struct {
+	cancel context.CancelFunc
+	done   chan struct{} // closed when the goroutine exits
+}
+
 type Manager struct {
 	mu            sync.RWMutex
 	queries       queries
 	inboxes       map[int]Inbox
 	lo            *logf.Logger
 	i18n          *i18n.I18n
-	receivers     map[int]context.CancelFunc
+	receivers     map[int]receiverState
 	msgStore      MessageStore
 	usrStore      UserStore
 	wg            sync.WaitGroup
@@ -93,14 +105,15 @@ type Manager struct {
 
 // Prepared queries.
 type queries struct {
-	GetInbox     *sqlx.Stmt `query:"get-inbox"`
-	GetActive    *sqlx.Stmt `query:"get-active-inboxes"`
-	GetAll       *sqlx.Stmt `query:"get-all-inboxes"`
-	Update       *sqlx.Stmt `query:"update"`
-	Toggle       *sqlx.Stmt `query:"toggle"`
-	SoftDelete   *sqlx.Stmt `query:"soft-delete"`
-	InsertInbox  *sqlx.Stmt `query:"insert-inbox"`
-	UpdateConfig *sqlx.Stmt `query:"update-config"`
+	GetInbox       *sqlx.Stmt `query:"get-inbox"`
+	GetInboxByUUID *sqlx.Stmt `query:"get-inbox-by-uuid"`
+	GetActive      *sqlx.Stmt `query:"get-active-inboxes"`
+	GetAll         *sqlx.Stmt `query:"get-all-inboxes"`
+	Update         *sqlx.Stmt `query:"update"`
+	Toggle         *sqlx.Stmt `query:"toggle"`
+	SoftDelete     *sqlx.Stmt `query:"soft-delete"`
+	InsertInbox    *sqlx.Stmt `query:"insert-inbox"`
+	UpdateConfig   *sqlx.Stmt `query:"update-config"`
 }
 
 // New returns a new inbox manager.
@@ -113,7 +126,7 @@ func New(lo *logf.Logger, db *sqlx.DB, i18n *i18n.I18n, encryptionKey string) (*
 	m := &Manager{
 		lo:            lo,
 		inboxes:       make(map[int]Inbox),
-		receivers:     make(map[int]context.CancelFunc),
+		receivers:     make(map[int]receiverState),
 		queries:       q,
 		i18n:          i18n,
 		encryptionKey: encryptionKey,
@@ -149,24 +162,43 @@ func (m *Manager) Get(id int) (Inbox, error) {
 	return i, nil
 }
 
-// GetDBRecord returns the inbox record from the DB.
-func (m *Manager) GetDBRecord(id int) (imodels.Inbox, error) {
+// GetDBRecord returns the inbox record from the DB by numeric ID or UUID.
+// If the identifier contains a dash, it's treated as a UUID; otherwise as a numeric ID.
+func (m *Manager) GetDBRecord(identifier any) (imodels.Inbox, error) {
 	var inbox imodels.Inbox
-	if err := m.queries.GetInbox.Get(&inbox, id); err != nil {
-		if err == sql.ErrNoRows {
-			return inbox, envelope.NewError(envelope.InputError, m.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.inbox}"), nil)
+
+	// If it's a string with dashes, look up by UUID; otherwise by numeric ID.
+	str := fmt.Sprintf("%v", identifier)
+	if strings.Contains(str, "-") {
+		if err := m.queries.GetInboxByUUID.Get(&inbox, str); err != nil {
+			if err == sql.ErrNoRows {
+				return inbox, envelope.NewError(envelope.InputError, m.i18n.T("validation.notFoundInbox"), nil)
+			}
+			m.lo.Error("error fetching inbox", "error", err)
+			return inbox, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
-		m.lo.Error("error fetching inbox", "error", err)
-		return inbox, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.inbox}"), nil)
+	} else {
+		id, err := strconv.Atoi(str)
+		if err != nil {
+			return inbox, envelope.NewError(envelope.InputError, m.i18n.T("validation.notFoundInbox"), nil)
+		}
+		if err := m.queries.GetInbox.Get(&inbox, id); err != nil {
+			if err == sql.ErrNoRows {
+				return inbox, envelope.NewError(envelope.InputError, m.i18n.T("validation.notFoundInbox"), nil)
+			}
+			m.lo.Error("error fetching inbox", "error", err)
+			return inbox, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
 	}
 
-	// Decrypt sensitive fields in config
 	decryptedConfig, err := m.decryptInboxConfig(inbox.Config)
 	if err != nil {
-		m.lo.Error("error decrypting inbox config", "id", id, "error", err)
-		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.inbox}"), nil)
+		m.lo.Error("error decrypting inbox config", "identifier", identifier, "error", err)
+		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	inbox.Config = decryptedConfig
+
+	m.decryptInboxSecret(&inbox)
 
 	return inbox, nil
 }
@@ -176,7 +208,7 @@ func (m *Manager) GetAll() ([]imodels.Inbox, error) {
 	var inboxes = make([]imodels.Inbox, 0)
 	if err := m.queries.GetAll.Select(&inboxes); err != nil {
 		m.lo.Error("error fetching inboxes", "error", err)
-		return nil, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", m.i18n.P("globals.terms.inbox")), nil)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	// Decrypt sensitive fields in each inbox config
@@ -184,9 +216,12 @@ func (m *Manager) GetAll() ([]imodels.Inbox, error) {
 		decryptedConfig, err := m.decryptInboxConfig(inboxes[i].Config)
 		if err != nil {
 			m.lo.Error("error decrypting inbox config", "id", inboxes[i].ID, "error", err)
-			return nil, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorFetching", "name", m.i18n.P("globals.terms.inbox")), nil)
+			return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
 		inboxes[i].Config = decryptedConfig
+
+		// Decrypt secret field
+		m.decryptInboxSecret(&inboxes[i])
 	}
 
 	return inboxes, nil
@@ -194,17 +229,30 @@ func (m *Manager) GetAll() ([]imodels.Inbox, error) {
 
 // Create creates an inbox in the DB.
 func (m *Manager) Create(inbox imodels.Inbox) (imodels.Inbox, error) {
+	// Generate and encrypt secret for livechat inboxes if not provided
+	if inbox.Channel == ChannelLiveChat && !inbox.Secret.Valid {
+		secret, err := stringutil.RandomAlphanumeric(32)
+		if err != nil {
+			return imodels.Inbox{}, fmt.Errorf("generating inbox secret: %w", err)
+		}
+		encryptedSecret, err := crypto.Encrypt(secret, m.encryptionKey)
+		if err != nil {
+			return imodels.Inbox{}, fmt.Errorf("encrypting inbox secret: %w", err)
+		}
+		inbox.Secret = null.StringFrom(encryptedSecret)
+	}
+
 	// Encrypt sensitive fields before saving
 	encryptedConfig, err := m.encryptInboxConfig(inbox.Config)
 	if err != nil {
 		m.lo.Error("error encrypting inbox config", "error", err)
-		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorCreating", "name", "{globals.terms.inbox}"), nil)
+		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	var createdInbox imodels.Inbox
-	if err := m.queries.InsertInbox.Get(&createdInbox, inbox.Channel, encryptedConfig, inbox.Name, inbox.From, inbox.CSATEnabled); err != nil {
+	if err := m.queries.InsertInbox.Get(&createdInbox, inbox.Channel, encryptedConfig, inbox.Name, inbox.From, inbox.CSATEnabled, inbox.Secret, inbox.LinkedEmailInboxID); err != nil {
 		m.lo.Error("error creating inbox", "error", err)
-		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorCreating", "name", "{globals.terms.inbox}"), nil)
+		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	// Decrypt before returning
@@ -214,6 +262,9 @@ func (m *Manager) Create(inbox imodels.Inbox) (imodels.Inbox, error) {
 	} else {
 		createdInbox.Config = decryptedConfig
 	}
+
+	// Decrypt secret field
+	m.decryptInboxSecret(&createdInbox)
 
 	return createdInbox, nil
 }
@@ -243,54 +294,33 @@ func (m *Manager) InitInboxes(initFn initFn) error {
 	return nil
 }
 
-// Reload hot reloads the inboxes with the given init function.
-func (m *Manager) Reload(ctx context.Context, initFn initFn) error {
+// ReloadInbox reloads a single inbox by ID. It stops the old receiver,
+// fetches the current state from DB, and re-initializes if active.
+func (m *Manager) ReloadInbox(ctx context.Context, id int, initFn initFn) error {
+	// Stop old receiver and close old inbox.
+	m.stopInbox(id)
+
+	// Fetch current inbox state from DB.
+	record, err := m.GetDBRecord(id)
+	if err != nil {
+		// Not found (e.g. deleted) - already removed above.
+		return nil
+	}
+
+	// Only re-init if enabled.
+	if !record.Enabled {
+		return nil
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Cancel all existing receivers.
-	for _, cancel := range m.receivers {
-		cancel()
-	}
-	m.receivers = make(map[int]context.CancelFunc)
-
-	// Close existing inboxes.
-	for _, inb := range m.inboxes {
-		inb.Close()
-	}
-
-	// Clear and reload inboxes.
-	m.inboxes = make(map[int]Inbox)
-	inboxRecords, err := m.getActive()
+	inbox, err := initFn(record, m.msgStore, m.usrStore)
 	if err != nil {
-		return fmt.Errorf("error fetching active inboxes: %v", err)
+		return fmt.Errorf("initializing inbox %s: %w", record.Name, err)
 	}
-
-	// Initialize new inboxes.
-	for _, inboxRecord := range inboxRecords {
-		inbox, err := initFn(inboxRecord, m.msgStore, m.usrStore)
-		if err != nil {
-			m.lo.Error("error initializing inbox during reload",
-				"name", inboxRecord.Name,
-				"channel", inboxRecord.Channel,
-				"error", err)
-			continue
-		}
-		m.inboxes[inbox.Identifier()] = inbox
-	}
-
-	// Start new receivers.
-	for _, inb := range m.inboxes {
-		receiverCtx, cancel := context.WithCancel(ctx)
-		m.receivers[inb.Identifier()] = cancel
-
-		go func(inbox Inbox) {
-			if err := inbox.Receive(receiverCtx); err != nil {
-				m.lo.Error("error starting inbox receiver", "error", err)
-			}
-		}(inb)
-	}
-
+	m.inboxes[inbox.Identifier()] = inbox
+	m.startReceiver(ctx, inbox)
 	return nil
 }
 
@@ -321,14 +351,14 @@ func (m *Manager) Update(id int, inbox imodels.Inbox) (imodels.Inbox, error) {
 
 		if err := json.Unmarshal(current.Config, &currentCfg); err != nil {
 			m.lo.Error("error unmarshalling current config", "id", id, "error", err)
-			return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorParsing", "name", "{globals.terms.config}"), nil)
+			return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
 		if len(inbox.Config) == 0 {
 			return imodels.Inbox{}, envelope.NewError(envelope.InputError, m.i18n.Ts("globals.messages.empty", "name", "{globals.terms.config}"), nil)
 		}
 		if err := json.Unmarshal(inbox.Config, &updateCfg); err != nil {
 			m.lo.Error("error unmarshalling update config", "id", id, "error", err)
-			return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorParsing", "name", "{globals.terms.config}"), nil)
+			return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
 
 		if len(updateCfg.IMAP) == 0 {
@@ -371,20 +401,32 @@ func (m *Manager) Update(id int, inbox imodels.Inbox) (imodels.Inbox, error) {
 			return imodels.Inbox{}, err
 		}
 		inbox.Config = updatedConfig
+	case "livechat":
+		// Preserve existing secret if update contains password dummy
+		if inbox.Secret.Valid && strings.Contains(inbox.Secret.String, stringutil.PasswordDummy) {
+			inbox.Secret = current.Secret
+		} else if inbox.Secret.Valid && inbox.Secret.String != "" {
+			// Encrypt new secret
+			encryptedSecret, err := crypto.Encrypt(inbox.Secret.String, m.encryptionKey)
+			if err != nil {
+				return imodels.Inbox{}, fmt.Errorf("encrypting inbox secret: %w", err)
+			}
+			inbox.Secret = null.StringFrom(encryptedSecret)
+		}
 	}
 
 	// Encrypt sensitive fields before updating
 	encryptedConfig, err := m.encryptInboxConfig(inbox.Config)
 	if err != nil {
 		m.lo.Error("error encrypting inbox config", "error", err)
-		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.inbox}"), nil)
+		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	// Update the inbox in the DB.
 	var updatedInbox imodels.Inbox
-	if err := m.queries.Update.Get(&updatedInbox, id, inbox.Channel, encryptedConfig, inbox.Name, inbox.From, inbox.CSATEnabled, inbox.Enabled); err != nil {
+	if err := m.queries.Update.Get(&updatedInbox, id, inbox.Channel, encryptedConfig, inbox.Name, inbox.From, inbox.CSATEnabled, inbox.Enabled, inbox.Secret, inbox.LinkedEmailInboxID); err != nil {
 		m.lo.Error("error updating inbox", "error", err)
-		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.inbox}"), nil)
+		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	// Decrypt before returning
@@ -395,6 +437,9 @@ func (m *Manager) Update(id int, inbox imodels.Inbox) (imodels.Inbox, error) {
 		updatedInbox.Config = decryptedConfig
 	}
 
+	// Decrypt secret field
+	m.decryptInboxSecret(&updatedInbox)
+
 	return updatedInbox, nil
 }
 
@@ -403,7 +448,7 @@ func (m *Manager) Toggle(id int) (imodels.Inbox, error) {
 	var updatedInbox imodels.Inbox
 	if err := m.queries.Toggle.Get(&updatedInbox, id); err != nil {
 		m.lo.Error("error toggling inbox", "error", err)
-		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.inbox}"), nil)
+		return imodels.Inbox{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return updatedInbox, nil
 }
@@ -412,7 +457,7 @@ func (m *Manager) Toggle(id int) (imodels.Inbox, error) {
 func (m *Manager) SoftDelete(id int) error {
 	if _, err := m.queries.SoftDelete.Exec(id); err != nil {
 		m.lo.Error("error deleting inbox", "error", err)
-		return envelope.NewError(envelope.GeneralError, m.i18n.Ts("globals.messages.errorDeleting", "name", "{globals.terms.inbox}"), nil)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return nil
 }
@@ -433,21 +478,53 @@ func (m *Manager) UpdateConfig(id int, config json.RawMessage) error {
 	return nil
 }
 
+// stopInbox cancels the receiver for a single inbox, waits for its goroutine
+// to exit, then closes the inbox. Caller must NOT hold m.mu.
+func (m *Manager) stopInbox(id int) {
+	m.mu.Lock()
+	rs, hasReceiver := m.receivers[id]
+	if hasReceiver {
+		rs.cancel()
+		delete(m.receivers, id)
+	}
+	m.mu.Unlock()
+
+	// Wait outside lock so the receiver goroutine can finish.
+	if hasReceiver {
+		<-rs.done
+	}
+
+	m.mu.Lock()
+	if inb, ok := m.inboxes[id]; ok {
+		inb.Close()
+		delete(m.inboxes, id)
+	}
+	m.mu.Unlock()
+}
+
+// startReceiver starts a receiver goroutine for the given inbox.
+// Caller must hold m.mu.
+func (m *Manager) startReceiver(ctx context.Context, inb Inbox) {
+	done := make(chan struct{})
+	receiverCtx, cancel := context.WithCancel(ctx)
+	m.receivers[inb.Identifier()] = receiverState{cancel: cancel, done: done}
+
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+		defer close(done)
+		if err := inb.Receive(receiverCtx); err != nil {
+			m.lo.Error("error starting inbox receiver", "error", err)
+		}
+	}()
+}
+
 // Start starts the receiver for each inbox.
 func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, inb := range m.inboxes {
-		receiverCtx, cancel := context.WithCancel(ctx)
-		m.receivers[inb.Identifier()] = cancel
-
-		m.wg.Add(1)
-		go func(inbox Inbox) {
-			defer m.wg.Done()
-			if err := inbox.Receive(receiverCtx); err != nil {
-				m.lo.Error("error starting inbox receiver", "error", err)
-			}
-		}(inb)
+		m.startReceiver(ctx, inb)
 	}
 	return nil
 }
@@ -455,19 +532,19 @@ func (m *Manager) Start(ctx context.Context) error {
 // Close closes all inboxes.
 func (m *Manager) Close() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	// Cancel all receivers.
-	for _, cancel := range m.receivers {
-		cancel()
+	for _, rs := range m.receivers {
+		rs.cancel()
 	}
 
 	// Close all inboxes.
 	for _, inb := range m.inboxes {
 		inb.Close()
 	}
+	m.mu.Unlock()
 
-	// Wait for all workers to finish.
+	// Wait for all receiver goroutines to finish.
 	m.wg.Wait()
 }
 
@@ -487,6 +564,9 @@ func (m *Manager) getActive() ([]imodels.Inbox, error) {
 			return nil, fmt.Errorf("decrypting inbox config for ID %d: %w", inboxes[i].ID, err)
 		}
 		inboxes[i].Config = decryptedConfig
+
+		// Decrypt secret field
+		m.decryptInboxSecret(&inboxes[i])
 	}
 
 	return inboxes, nil
@@ -616,4 +696,16 @@ func (m *Manager) decryptInboxConfig(config json.RawMessage) (json.RawMessage, e
 	}
 
 	return decrypted, nil
+}
+
+// decryptInboxSecret decrypts the inbox secret field if present.
+func (m *Manager) decryptInboxSecret(inbox *imodels.Inbox) {
+	if inbox.Secret.Valid && inbox.Secret.String != "" {
+		decrypted, err := crypto.Decrypt(inbox.Secret.String, m.encryptionKey)
+		if err != nil {
+			m.lo.Error("error decrypting inbox secret", "inbox_id", inbox.ID, "error", err)
+			return
+		}
+		inbox.Secret = null.StringFrom(decrypted)
+	}
 }

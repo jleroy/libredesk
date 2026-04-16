@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
 	"github.com/abhinavxd/libredesk/internal/ws"
@@ -16,8 +18,33 @@ func ErrHandler(ctx *fasthttp.RequestCtx, status int, reason error) {
 	fmt.Printf("error status %d: %s", status, reason)
 }
 
-// upgrader is a websocket upgrader.
-var upgrader = websocket.FastHTTPUpgrader{
+// agentUpgrader: same-origin only, with loopback allowed for dev.
+var agentUpgrader = websocket.FastHTTPUpgrader{
+	ReadBufferSize:  8192,
+	WriteBufferSize: 8192,
+	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
+		origin := string(ctx.Request.Header.Peek("Origin"))
+		if origin == "" {
+			return false
+		}
+		u, err := url.Parse(origin)
+		if err != nil || u.Host == "" {
+			return false
+		}
+		isLocalhost := u.Hostname() == "localhost"
+		if u.Scheme != "https" && !isLocalhost {
+			return false
+		}
+		if strings.EqualFold(u.Host, string(ctx.Request.Host())) {
+			return true
+		}
+		return isLocalhost
+	},
+	Error: ErrHandler,
+}
+
+// widgetUpgrader: cross-origin by design.
+var widgetUpgrader = websocket.FastHTTPUpgrader{
 	ReadBufferSize:  8192,
 	WriteBufferSize: 8192,
 	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
@@ -32,7 +59,7 @@ func handleWS(r *fastglue.Request, hub *ws.Hub) error {
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 		app   = r.Context.(*App)
 	)
-	err := upgrader.Upgrade(r.RequestCtx, func(conn *websocket.Conn) {
+	err := agentUpgrader.Upgrade(r.RequestCtx, func(conn *websocket.Conn) {
 		c := ws.Client{
 			ID:   auser.ID,
 			Hub:  hub,

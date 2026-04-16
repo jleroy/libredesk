@@ -27,10 +27,12 @@ import (
 	"github.com/abhinavxd/libredesk/internal/report"
 	"github.com/abhinavxd/libredesk/internal/search"
 	"github.com/abhinavxd/libredesk/internal/sla"
+	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/abhinavxd/libredesk/internal/view"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/abhinavxd/libredesk/internal/automation"
+	contextlink "github.com/abhinavxd/libredesk/internal/context_link"
 	"github.com/abhinavxd/libredesk/internal/conversation"
 	"github.com/abhinavxd/libredesk/internal/conversation/priority"
 	"github.com/abhinavxd/libredesk/internal/conversation/status"
@@ -38,6 +40,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/media"
 	"github.com/abhinavxd/libredesk/internal/oidc"
+	"github.com/abhinavxd/libredesk/internal/ratelimit"
 	"github.com/abhinavxd/libredesk/internal/role"
 	"github.com/abhinavxd/libredesk/internal/setting"
 	"github.com/abhinavxd/libredesk/internal/tag"
@@ -57,7 +60,8 @@ var (
 	ko          = koanf.New(".")
 	ctx         = context.Background()
 	appName     = "libredesk"
-	frontendDir = "frontend/dist"
+	frontendDir = "frontend/dist/main"
+	widgetDir   = "frontend/dist/widget"
 
 	// Injected at build time.
 	buildString   string
@@ -70,7 +74,7 @@ const (
 
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
-	redis            *redis.Client
+	ctx              context.Context
 	fs               stuffbin.FileSystem
 	consts           atomic.Value
 	auth             *auth_.Auth
@@ -103,6 +107,9 @@ type App struct {
 	customAttribute  *customAttribute.Manager
 	report           *report.Manager
 	webhook          *webhook.Manager
+	contextLink      *contextlink.Manager
+	rateLimit        *ratelimit.Limiter
+	redis            *redis.Client
 	importer         *importer.Importer
 
 	// Global state that stores data on an available app update.
@@ -120,7 +127,6 @@ func main() {
 	// Load command line flags into Koanf.
 	initFlags()
 
-	// Version flag.
 	if ko.Bool("version") {
 		fmt.Println(buildString)
 		os.Exit(0)
@@ -132,19 +138,24 @@ func main() {
 	// Load the config files into Koanf.
 	initConfig(ko)
 
-	// Init stuffbin fs.
-	fs := initFS()
+	// Validate custom static directory if provided.
+	if dir := getCustomStaticDir(); dir != "" {
+		if _, err := os.Stat(dir); err != nil {
+			log.Fatalf("--static-dir path not accessible: %s: %v", dir, err)
+		}
+		colorlog.Green("Using custom static directory: %s", dir)
+	}
 
-	// Init DB.
+	// Init stuffbin fs with optional custom static dir overlay.
+	fs := initFS(getCustomStaticDir())
+
 	db := initDB()
 
-	// Installer.
 	if ko.Bool("install") {
 		install(ctx, db, fs, ko.Bool("idempotent-install"), !ko.Bool("yes"))
 		os.Exit(0)
 	}
 
-	// Set system user password.
 	if ko.Bool("set-system-user-password") {
 		setSystemUserPass(ctx, db)
 		os.Exit(0)
@@ -160,20 +171,17 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Upgrade.
 	if ko.Bool("upgrade") {
 		upgrade(db, fs, !ko.Bool("yes"))
 		os.Exit(0)
 	}
 
-	// Check for pending upgrade.
 	checkPendingUpgrade(db)
 
 	// Load app settings from DB into the Koanf instance.
 	settings := initSettings(db)
 	loadSettings(settings)
 
-	// Validate config.
 	validateConfig(ko)
 
 	// Fallback for config typo. Logs a warning but continues to work with the incorrect key.
@@ -214,31 +222,37 @@ func main() {
 		wsHub                       = initWS(user)
 		notifier                    = initNotifier()
 		userNotification            = initUserNotification(db, i18n)
-		notifDispatcher             = initNotifDispatcher(userNotification, notifier, wsHub)
+		notifDispatcher             = initNotifDispatcher(userNotification, notifier, wsHub, ko.Bool("notification.email.enabled"))
 		automation                  = initAutomationEngine(db, i18n)
 		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
 		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)
 		autoassigner                = initAutoAssigner(team, user, conversation)
+		rateLimiter                 = initRateLimit(rdb)
 	)
+
+	wsHub.SetConversationStore(conversation)
 	automation.SetConversationStore(conversation)
 
-	startInboxes(ctx, inbox, conversation, user)
+	// Start inboxes.
+	startInboxes(ctx, inbox, conversation, user, conversation.SignAvatarURL)
+
 	go automation.Run(ctx, automationWorkers)
 	go autoassigner.Run(ctx, autoAssignInterval)
 	go conversation.Run(ctx, messageIncomingQWorkers, messageOutgoingQWorkers, messageOutgoingScanInterval)
 	go conversation.RunUnsnoozer(ctx, unsnoozeInterval)
+	go conversation.RunContinuity(ctx)
 	go webhook.Run(ctx)
 	go notifier.Run(ctx)
 	go sla.Run(ctx, slaEvaluationInterval)
 	go sla.SendNotifications(ctx)
 	go media.DeleteUnlinkedMedia(ctx)
-	go user.MonitorAgentAvailability(ctx)
+	go user.MonitorUserAvailability(ctx, onUsersOffline(conversation))
 	go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
 	go userNotification.RunNotificationCleaner(ctx)
 
 	var app = &App{
+		ctx:              ctx,
 		lo:               lo,
-		redis:            rdb,
 		fs:               fs,
 		sla:              sla,
 		oidc:             oidc,
@@ -249,28 +263,31 @@ func main() {
 		inbox:            inbox,
 		user:             user,
 		team:             team,
+		csat:             csat,
 		status:           status,
 		priority:         priority,
 		tmpl:             template,
 		notifier:         notifier,
-		userNotification: userNotification,
 		consts:           atomic.Value{},
 		conversation:     conversation,
 		automation:       automation,
 		businessHours:    businessHours,
-		importer:         initImporter(i18n),
 		activityLog:      initActivityLog(db, i18n),
 		customAttribute:  initCustomAttribute(db, i18n),
 		authz:            initAuthz(i18n),
 		view:             initView(db, i18n),
 		report:           initReport(db, i18n),
-		csat:             initCSAT(db, i18n),
 		search:           initSearch(db, i18n),
 		role:             initRole(db, i18n),
 		tag:              initTag(db, i18n),
 		macro:            initMacro(db, i18n),
 		ai:               initAI(db, i18n),
+		importer:         initImporter(i18n),
 		webhook:          webhook,
+		contextLink:      initContextLink(db, i18n),
+		rateLimit:        rateLimiter,
+		redis:            rdb,
+		userNotification: userNotification,
 	}
 	app.consts.Store(constants)
 
@@ -327,4 +344,19 @@ func main() {
 	colorlog.Red("Shutting down redis...")
 	rdb.Close()
 	colorlog.Green("Shutdown complete.")
+}
+
+// onUsersOffline returns a callback for MonitorUserAvailability that broadcasts
+// offline status to the appropriate clients based on user type.
+func onUsersOffline(conv *conversation.Manager) func([]umodels.OfflineUser) {
+	return func(users []umodels.OfflineUser) {
+		for _, u := range users {
+			switch u.Type {
+			case umodels.UserTypeAgent:
+				conv.BroadcastAgentStatusToWidget(u.ID, umodels.Offline)
+			case umodels.UserTypeContact, umodels.UserTypeVisitor:
+				conv.BroadcastContactUpdate(u.ID, map[string]any{"availability_status": umodels.Offline})
+			}
+		}
+	}
 }

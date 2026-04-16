@@ -105,7 +105,7 @@ func NewSmtpPool(configs []imodels.SMTPConfig, oauth *imodels.OAuthConfig) ([]*s
 }
 
 // Send sends an email using one of the configured SMTP servers.
-func (e *Email) Send(m models.Message) error {
+func (e *Email) Send(m models.OutboundMessage) error {
 	// Refresh OAuth token if needed
 	oauthConfig, _, err := e.refreshOAuthIfNeeded()
 	if err != nil {
@@ -133,19 +133,6 @@ func (e *Email) Send(m models.Message) error {
 		}
 		e.smtpPoolsMu.Unlock()
 	}
-
-	// Select a random SMTP server if there are multiple
-	e.smtpPoolsMu.RLock()
-	var (
-		serverCount = len(e.smtpPools)
-		server      *smtppool.Pool
-	)
-	if serverCount > 1 {
-		server = e.smtpPools[rand.Intn(serverCount)]
-	} else {
-		server = e.smtpPools[0]
-	}
-	e.smtpPoolsMu.RUnlock()
 
 	// Prepare attachments if there are any
 	var attachments []smtppool.Attachment
@@ -180,22 +167,15 @@ func (e *Email) Send(m models.Message) error {
 	}
 	email.Headers.Set(headerLibredeskLoopPrevention, emailAddress)
 
-	// Set Reply-To with plus-addressing for conversation matching (if enabled)
-	// e.g., support@company.com → support+conv-{uuid}@company.com
-	if e.enablePlusAddressing && m.ConversationUUID != "" {
-		replyToAddr := buildPlusAddress(emailAddress, m.ConversationUUID)
-		email.Headers.Set("Reply-To", replyToAddr)
-		e.lo.Debug("Reply-To header set with plus-addressing", "reply_to", replyToAddr)
+	if m.ReplyTo != "" {
+		email.Headers.Set("Reply-To", m.ReplyTo)
+	} else if e.enablePlusAddressing && m.ConversationUUID != "" {
+		email.Headers.Set("Reply-To", buildPlusAddress(emailAddress, m.ConversationUUID))
 	}
 
 	// Attach SMTP level headers
 	for key, value := range e.headers {
 		email.Headers.Set(key, value)
-	}
-
-	// Attach email level headers
-	for key, value := range m.Headers {
-		email.Headers.Set(key, value[0])
 	}
 
 	// Set In-Reply-To header
@@ -205,9 +185,9 @@ func (e *Email) Send(m models.Message) error {
 	}
 
 	// Set message id header
-	if m.SourceID.String != "" {
-		email.Headers.Set(headerMessageID, fmt.Sprintf("<%s>", m.SourceID.String))
-		e.lo.Debug("Message-ID header set", "message_id", m.SourceID.String)
+	if m.SourceID != "" {
+		email.Headers.Set(headerMessageID, fmt.Sprintf("<%s>", m.SourceID))
+		e.lo.Debug("Message-ID header set", "message_id", m.SourceID)
 	}
 
 	// Set references header
@@ -234,6 +214,19 @@ func (e *Email) Send(m models.Message) error {
 		if len(m.AltContent) > 0 {
 			email.Text = []byte(m.AltContent)
 		}
+	}
+
+	e.smtpPoolsMu.RLock()
+	defer e.smtpPoolsMu.RUnlock()
+
+	var (
+		serverCount = len(e.smtpPools)
+		server      *smtppool.Pool
+	)
+	if serverCount > 1 {
+		server = e.smtpPools[rand.Intn(serverCount)]
+	} else {
+		server = e.smtpPools[0]
 	}
 	return server.Send(email)
 }

@@ -8,6 +8,70 @@ import (
 	"github.com/jhillyerd/enmime"
 )
 
+func TestEmail_extractUUIDFromReplyAddress(t *testing.T) {
+	e := &Email{}
+
+	testCases := []struct {
+		name     string
+		address  string
+		expected string
+	}{
+		{
+			name:     "Valid reply address with UUID",
+			address:  "support+550e8400-e29b-41d4-a716-446655440000@example.com",
+			expected: "550e8400-e29b-41d4-a716-446655440000",
+		},
+		{
+			name:     "Reply address with angle brackets",
+			address:  "<support+123e4567-e89b-42d3-a456-426614174000@example.com>",
+			expected: "123e4567-e89b-42d3-a456-426614174000",
+		},
+		{
+			name:     "No plus sign in address",
+			address:  "support@example.com",
+			expected: "",
+		},
+		{
+			name:     "Plus sign but no UUID",
+			address:  "support+test@example.com",
+			expected: "",
+		},
+		{
+			name:     "Invalid UUID format",
+			address:  "support+550e8400-e29b-41d4-a716-44665544000X@example.com",
+			expected: "550e8400-e29b-41d4-a716-44665544000X", // extractUUIDFromReplyAddress uses simple format check
+		},
+		{
+			name:     "Empty address",
+			address:  "",
+			expected: "",
+		},
+		{
+			name:     "UUID too short",
+			address:  "support+550e8400-e29b-41d4-a716-4466554400@example.com",
+			expected: "",
+		},
+		{
+			name:     "UUID too long",
+			address:  "support+550e8400-e29b-41d4-a716-4466554400000@example.com",
+			expected: "",
+		},
+		{
+			name:     "Multiple plus signs",
+			address:  "support+test+550e8400-e29b-41d4-a716-446655440000@example.com",
+			expected: "", // "test+550e8400-e29b-41d4-a716-446655440000" is not 36 chars, so validation fails
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := e.extractUUIDFromReplyAddress(tc.address)
+			if result != tc.expected {
+				t.Errorf("extractUUIDFromReplyAddress(%q) = %q; expected %q", tc.address, result, tc.expected)
+			}
+		})
+	}
+}
 
 // TestGoIMAPMessageIDParsing shows how go-imap fails to parse malformed Message-IDs
 // and demonstrates the fallback solution.
@@ -68,7 +132,6 @@ func TestGoIMAPMessageIDParsing(t *testing.T) {
 		})
 	}
 }
-
 
 // TestEdgeCasesMessageID tests additional edge cases for Message-ID extraction.
 func TestEdgeCasesMessageID(t *testing.T) {

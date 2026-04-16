@@ -54,7 +54,7 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 
 	// Validate credentials
 	if req.ClientID == "" || req.ClientSecret == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.badRequest"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "credentials"), nil, envelope.InputError)
 	}
 
 	if req.FlowType != FlowTypeNewInbox && req.FlowType != FlowTypeReconnect {
@@ -68,7 +68,7 @@ func handleOAuthAuthorize(r *fastglue.Request) error {
 	state, err := stringutil.RandomAlphanumeric(32)
 	if err != nil {
 		app.lo.Error("Failed to generate OAuth state", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.Ts("globals.messages.errorGenerating", "name", "state"), nil, envelope.GeneralError)
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
 	// Store OAuth data in Redis with 15 min expiry
@@ -286,9 +286,9 @@ func handleOAuthCallback(r *fastglue.Request) error {
 			return r.Redirect("/admin/inboxes?error=inbox_update_failed", fasthttp.StatusFound, nil, "")
 		}
 
-		// Reload inboxes to apply new tokens
-		if err := reloadInboxes(app); err != nil {
-			app.lo.Error("Failed to reload inboxes", "error", err)
+		// Reload inbox to apply new tokens.
+		if err := reloadInbox(app, existingInbox.ID); err != nil {
+			app.lo.Error("error reloading inbox", "id", existingInbox.ID, "error", err)
 		}
 
 		return r.Redirect("/admin/inboxes?success=oauth_reconnected", fasthttp.StatusFound, nil, "")
@@ -334,15 +334,15 @@ func handleOAuthCallback(r *fastglue.Request) error {
 		Config:      json.RawMessage(configJSON),
 	}
 
-	_, err = app.inbox.Create(newInbox)
+	createdInbox, err := app.inbox.Create(newInbox)
 	if err != nil {
 		app.lo.Error("Failed to create inbox", "error", err)
 		return r.Redirect("/admin/inboxes?error=inbox_creation_failed", fasthttp.StatusFound, nil, "")
 	}
 
-	// Reload inboxes to start the new inbox
-	if err := reloadInboxes(app); err != nil {
-		app.lo.Error("Failed to reload inboxes", "error", err)
+	// Reload inbox to start the new inbox.
+	if err := reloadInbox(app, createdInbox.ID); err != nil {
+		app.lo.Error("error reloading inbox", "id", createdInbox.ID, "error", err)
 	}
 
 	return r.Redirect("/admin/inboxes?success=oauth_connected", fasthttp.StatusFound, nil, "")

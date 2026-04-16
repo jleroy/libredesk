@@ -1,13 +1,14 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-DROP TYPE IF EXISTS "channels" CASCADE; CREATE TYPE "channels" AS ENUM ('email');
+DROP TYPE IF EXISTS "channels" CASCADE; CREATE TYPE "channels" AS ENUM ('email', 'livechat');
 DROP TYPE IF EXISTS "message_type" CASCADE; CREATE TYPE "message_type" AS ENUM ('incoming','outgoing','activity');
 DROP TYPE IF EXISTS "message_sender_type" CASCADE; CREATE TYPE "message_sender_type" AS ENUM ('agent','contact');
 DROP TYPE IF EXISTS "message_status" CASCADE; CREATE TYPE "message_status" AS ENUM ('received','sent','failed','pending');
 DROP TYPE IF EXISTS "content_type" CASCADE; CREATE TYPE "content_type" AS ENUM ('text','html');
 DROP TYPE IF EXISTS "conversation_assignment_type" CASCADE; CREATE TYPE "conversation_assignment_type" AS ENUM ('Round robin','Manual');
 DROP TYPE IF EXISTS "template_type" CASCADE; CREATE TYPE "template_type" AS ENUM ('email_outgoing', 'email_notification');
-DROP TYPE IF EXISTS "user_type" CASCADE; CREATE TYPE "user_type" AS ENUM ('agent', 'contact');
+-- Visitors are unauthenticated contacts.
+DROP TYPE IF EXISTS "user_type" CASCADE; CREATE TYPE "user_type" AS ENUM ('agent', 'contact', 'visitor');
 DROP TYPE IF EXISTS "ai_provider" CASCADE; CREATE TYPE "ai_provider" AS ENUM ('openai');
 DROP TYPE IF EXISTS "automation_execution_mode" CASCADE; CREATE TYPE "automation_execution_mode" AS ENUM ('all', 'first_match');
 DROP TYPE IF EXISTS "macro_visibility" CASCADE; CREATE TYPE "macro_visibility" AS ENUM ('all', 'team', 'user');
@@ -77,6 +78,7 @@ CREATE TABLE inboxes (
 	id SERIAL PRIMARY KEY,
 	created_at TIMESTAMPTZ DEFAULT NOW(),
 	updated_at TIMESTAMPTZ DEFAULT NOW(),
+	"uuid" UUID DEFAULT gen_random_uuid() NOT NULL UNIQUE,
 	"name" TEXT NOT NULL,
 	deleted_at TIMESTAMPTZ NULL,
 	channel channels NOT NULL,
@@ -84,6 +86,8 @@ CREATE TABLE inboxes (
 	csat_enabled bool DEFAULT false NOT NULL,
 	config jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"from" TEXT NULL,
+	secret TEXT NULL,
+	linked_email_inbox_id INT REFERENCES inboxes(id) ON DELETE SET NULL,
 	CONSTRAINT constraint_inboxes_on_name CHECK (length("name") <= 140)
 );
 
@@ -102,7 +106,7 @@ CREATE TABLE teams (
 	sla_policy_id INT REFERENCES sla_policies(id) ON DELETE SET NULL ON UPDATE CASCADE NULL,
 
 	timezone TEXT NULL,
-	CONSTRAINT constraint_teams_on_emoji CHECK (length(emoji) <= 10),
+	CONSTRAINT constraint_teams_on_emoji CHECK (length(emoji) <= 50),
 	CONSTRAINT constraint_teams_on_name CHECK (length("name") <= 140),
 	CONSTRAINT constraint_teams_on_timezone CHECK (length(timezone) <= 140),
 	CONSTRAINT constraint_teams_on_name_unique UNIQUE ("name")
@@ -137,6 +141,7 @@ CREATE TABLE users (
     "password" VARCHAR(150) NULL,
     avatar_url TEXT NULL,
 	custom_attributes JSONB DEFAULT '{}'::jsonb NOT NULL,
+	external_user_id TEXT NULL,
     reset_password_token TEXT NULL,
     reset_password_token_expiry TIMESTAMPTZ NULL,
 	availability_status user_availability_status DEFAULT 'offline' NOT NULL,
@@ -153,10 +158,17 @@ CREATE TABLE users (
     CONSTRAINT constraint_users_on_first_name CHECK (LENGTH(first_name) <= 140),
     CONSTRAINT constraint_users_on_last_name CHECK (LENGTH(last_name) <= 140)
 );
-CREATE UNIQUE INDEX index_unique_users_on_email_and_type_when_deleted_at_is_null ON users (email, type)
-WHERE deleted_at IS NULL;
 CREATE INDEX index_tgrm_users_on_email ON users USING GIN (email gin_trgm_ops);
 CREATE INDEX index_users_on_api_key ON users(api_key);
+CREATE UNIQUE INDEX index_unique_users_on_email_when_type_is_agent
+	ON users(email)
+	WHERE type = 'agent' AND deleted_at IS NULL;
+CREATE UNIQUE INDEX index_unique_users_on_ext_id_when_type_is_contact 
+	ON users (external_user_id) 
+	WHERE type = 'contact' AND deleted_at IS NULL AND external_user_id IS NOT NULL;
+CREATE UNIQUE INDEX index_unique_users_on_email_when_no_ext_id_contact
+	ON users (email)
+	WHERE type = 'contact' AND deleted_at IS NULL AND external_user_id IS NULL;
 
 DROP TABLE IF EXISTS user_roles CASCADE;
 CREATE TABLE user_roles (
@@ -188,21 +200,6 @@ CREATE TABLE conversation_priorities (
 	"name" TEXT NOT NULL UNIQUE
 );
 
-DROP TABLE IF EXISTS contact_channels CASCADE;
-CREATE TABLE contact_channels (
-	id SERIAL PRIMARY KEY,
-	created_at TIMESTAMPTZ DEFAULT NOW(),
-	updated_at TIMESTAMPTZ DEFAULT NOW(),
-
-	-- Cascade deletes when contact or inbox is deleted.
-	contact_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
-	inbox_id INT NOT NULL REFERENCES inboxes(id) ON DELETE CASCADE ON UPDATE CASCADE,
-
-	identifier TEXT NOT NULL,
-	CONSTRAINT constraint_contact_channels_on_identifier CHECK (length(identifier) <= 1000),
-	CONSTRAINT constraint_contact_channels_on_inbox_id_and_contact_id_unique UNIQUE (inbox_id, contact_id)
-);
-
 DROP TABLE IF EXISTS conversations CASCADE;
 CREATE TABLE conversations (
     id BIGSERIAL PRIMARY KEY,
@@ -225,12 +222,12 @@ CREATE TABLE conversations (
 	inbox_id INT REFERENCES inboxes(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
 
 	-- Restrict delete.
-	contact_channel_id INT REFERENCES contact_channels(id) ON DELETE RESTRICT ON UPDATE CASCADE NOT NULL,
 	status_id INT REFERENCES conversation_statuses(id) ON DELETE RESTRICT ON UPDATE CASCADE NOT NULL,
     priority_id INT REFERENCES conversation_priorities(id) ON DELETE RESTRICT ON UPDATE CASCADE,
 
 	meta JSONB DEFAULT '{}'::jsonb NOT NULL,
 	custom_attributes JSONB DEFAULT '{}'::jsonb NOT NULL,
+	contact_last_seen_at TIMESTAMPTZ DEFAULT NOW(),
     first_reply_at TIMESTAMPTZ NULL,
     last_reply_at TIMESTAMPTZ NULL,
     closed_at TIMESTAMPTZ NULL,
@@ -241,11 +238,14 @@ CREATE TABLE conversations (
 	last_message_at TIMESTAMPTZ NULL,
 	last_message TEXT NULL,
 	last_message_sender message_sender_type NULL,
+	last_message_sender_id BIGINT REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
 	last_interaction TEXT NULL,
 	last_interaction_sender message_sender_type NULL,
+	last_interaction_sender_id BIGINT REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
 	last_interaction_at TIMESTAMPTZ NULL,
 	next_sla_deadline_at TIMESTAMPTZ NULL,
-	snoozed_until TIMESTAMPTZ NULL
+	snoozed_until TIMESTAMPTZ NULL,
+	last_continuity_email_sent_at TIMESTAMPTZ NULL
 );
 CREATE INDEX index_conversations_on_assigned_user_id ON conversations (assigned_user_id);
 CREATE INDEX index_conversations_on_assigned_team_id ON conversations (assigned_team_id);
@@ -259,6 +259,7 @@ CREATE INDEX index_conversations_on_last_message_at ON conversations (last_messa
 CREATE INDEX index_conversations_on_last_interaction_at ON conversations (last_interaction_at);
 CREATE INDEX index_conversations_on_next_sla_deadline_at ON conversations (next_sla_deadline_at);
 CREATE INDEX index_conversations_on_waiting_since ON conversations (waiting_since);
+CREATE INDEX index_conversations_on_last_continuity_email_sent_at ON conversations (last_continuity_email_sent_at);
 
 DROP TABLE IF EXISTS conversation_messages CASCADE;
 CREATE TABLE conversation_messages (
@@ -283,6 +284,7 @@ CREATE INDEX index_conversation_messages_on_conversation_id ON conversation_mess
 CREATE INDEX index_conversation_messages_on_created_at ON conversation_messages (created_at);
 CREATE INDEX index_conversation_messages_on_source_id ON conversation_messages (source_id);
 CREATE INDEX index_conversation_messages_on_status ON conversation_messages (status);
+CREATE INDEX index_conversation_messages_on_conversation_id_and_created_at ON conversation_messages (conversation_id, created_at);
 
 DROP TABLE IF EXISTS automation_rules CASCADE;
 CREATE TABLE automation_rules (
@@ -481,11 +483,13 @@ CREATE TABLE csat_responses (
 
     rating INT DEFAULT 0 NOT NULL,
     feedback TEXT NULL,
+    meta JSONB DEFAULT '{}' NOT NULL,
     response_timestamp TIMESTAMPTZ NULL,
     CONSTRAINT constraint_csat_responses_on_rating CHECK (rating >= 0 AND rating <= 5),
     CONSTRAINT constraint_csat_responses_on_feedback CHECK (length(feedback) <= 1000)
 );
 CREATE INDEX index_csat_responses_on_uuid ON csat_responses(uuid);
+CREATE INDEX index_csat_responses_on_conversation_id ON csat_responses(conversation_id);
 
 DROP TABLE IF EXISTS views CASCADE;
 CREATE TABLE views (
@@ -653,6 +657,21 @@ CREATE TABLE webhooks (
 	CONSTRAINT constraint_webhooks_on_events_not_empty CHECK (array_length(events, 1) > 0)
 );
 
+DROP TABLE IF EXISTS context_links CASCADE;
+CREATE TABLE context_links (
+	id SERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ DEFAULT NOW(),
+	updated_at TIMESTAMPTZ DEFAULT NOW(),
+	name TEXT NOT NULL,
+	url_template TEXT NOT NULL,
+	signing_secret TEXT NOT NULL DEFAULT '',
+	token_expiry_seconds INT NOT NULL DEFAULT 1200,
+	is_active BOOLEAN DEFAULT true,
+	CONSTRAINT constraint_context_links_on_name CHECK (length(name) <= 255),
+	CONSTRAINT constraint_context_links_on_url_template CHECK (length(url_template) <= 2048),
+	CONSTRAINT constraint_context_links_on_signing_secret CHECK (length(signing_secret) <= 500)
+);
+
 DROP TABLE IF EXISTS user_notifications CASCADE;
 CREATE TABLE user_notifications (
 	id SERIAL PRIMARY KEY,
@@ -694,14 +713,14 @@ VALUES
     ('app.lang', '"en"'::jsonb),
     ('app.root_url', '"http://localhost:9000"'::jsonb),
     ('app.logo_url', '"http://localhost:9000/logo.png"'::jsonb),
-    ('app.site_name', '"LIBREDESK"'::jsonb),
+    ('app.site_name', '"libredesk"'::jsonb),
     ('app.favicon_url', '"http://localhost:9000/favicon.ico"'::jsonb),
     ('app.max_file_upload_size', '20'::jsonb),
     ('app.allowed_file_upload_extensions', '["*"]'::jsonb),
 	('app.timezone', '"Asia/Kolkata"'::jsonb),
 	('app.business_hours_id', '""'::jsonb),
     ('notification.email.username', '"admin@yourcompany.com"'::jsonb),
-    ('notification.email.host', '"smtp.gmail.com"'::jsonb),
+    ('notification.email.host', '""'::jsonb),
     ('notification.email.port', '587'::jsonb),
     ('notification.email.password', '""'::jsonb),
     ('notification.email.max_conns', '5'::jsonb),
@@ -744,7 +763,7 @@ VALUES
 	(
 		'Admin',
 		'Role for users who have complete access to everything.',
-		'{webhooks:manage,activity_logs:manage,custom_attributes:manage,contacts:read_all,contacts:read,contacts:write,contacts:block,contact_notes:read,contact_notes:write,contact_notes:delete,conversations:write,ai:manage,general_settings:manage,notification_settings:manage,oidc:manage,conversations:read_all,conversations:read_unassigned,conversations:read_assigned,conversations:read_team_inbox,conversations:read_team_all,conversations:read,conversations:update_user_assignee,conversations:update_team_assignee,conversations:update_priority,conversations:update_status,conversations:update_tags,messages:read,messages:write,view:manage,shared_views:manage,status:manage,tags:manage,macros:manage,users:manage,teams:manage,automations:manage,inboxes:manage,roles:manage,reports:manage,templates:manage,business_hours:manage,sla:manage}'
+		'{webhooks:manage,context_links:manage,activity_logs:manage,custom_attributes:manage,contacts:read_all,contacts:read,contacts:write,contacts:block,contact_notes:read,contact_notes:write,contact_notes:delete,conversations:write,ai:manage,general_settings:manage,notification_settings:manage,oidc:manage,conversations:read_all,conversations:read_unassigned,conversations:read_assigned,conversations:read_team_inbox,conversations:read_team_all,conversations:read,conversations:update_user_assignee,conversations:update_team_assignee,conversations:update_priority,conversations:update_status,conversations:update_tags,messages:read,messages:write,view:manage,shared_views:manage,status:manage,tags:manage,macros:manage,users:manage,teams:manage,automations:manage,inboxes:manage,roles:manage,reports:manage,templates:manage,business_hours:manage,sla:manage}'
 	);
 
 
@@ -850,11 +869,65 @@ VALUES (
 
 <p>
 Best regards,<br>
-Libredesk
+libredesk
 </p>
 ',
   false,
   'Mentioned in conversation',
   '{{ .MentionedBy.FullName }} mentioned you in conversation #{{ .Conversation.ReferenceNumber }}',
+  true
+);
+
+INSERT INTO templates
+("type", body, is_default, "name", subject, is_builtin)
+VALUES (
+  'email_notification'::template_type,
+  '
+<p style="margin: 0 0 4px; font-size: 15px; color: #374151; text-align: center; line-height: 1.5;">
+  Your conversation <strong style="color: #111827;">#{{ .Conversation.ReferenceNumber }}</strong> has been resolved.
+</p>
+<p style="margin: 0 0 28px; font-size: 13px; color: #9ca3af; text-align: center;">
+  We would love to hear how it went.
+</p>
+<p style="margin: 0 0 20px; font-size: 14px; font-weight: 600; color: #374151; text-align: center;">
+  How would you rate your experience?
+</p>
+<!-- Variable CSATUUID is also available -->
+<div style="text-align: center; margin: 0 auto; max-width: 400px; font-size: 0;">
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=1" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128546;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Poor</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=2" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128533;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Fair</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=3" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128522;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Good</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=4" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#128515;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Great</span>
+    </a>
+  </div>
+  <div style="display: inline-block; width: 72px; text-align: center; vertical-align: top; padding: 4px 0;">
+    <a href="{{ .CSATLink }}?rating=5" style="text-decoration: none; display: block;">
+      <span style="font-size: 34px; display: block; line-height: 1.4;">&#129321;</span>
+      <span style="font-size: 10px; display: block; font-weight: 600; color: #b0b5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Excellent</span>
+    </a>
+  </div>
+</div>
+',
+  false,
+  'CSAT request',
+  '',
   true
 );

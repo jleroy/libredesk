@@ -1,4 +1,4 @@
-# Contributing to Libredesk
+# Contributing to libredesk
 
 Thanks for your interest in contributing.
 
@@ -12,11 +12,11 @@ Thanks for your interest in contributing.
 ## Process
 
 - **Propose first (for large changes)**  
-  Open an issue describing what you want to build, why it fits Libredesk,
+  Open an issue describing what you want to build, why it fits libredesk,
   and the high-level implementation approach.
 
 - **Keep PRs small**  
   Smaller, well-scoped PRs are easier to review and test.
   Bundling multiple features into a single PR is discouraged.
 
-Thanks for helping keep Libredesk focused and maintainable.
+Thanks for helping keep libredesk focused and maintainable.

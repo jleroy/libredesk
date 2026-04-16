@@ -184,7 +184,7 @@ func V0_5_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 
 					<p>
 					Best regards,<br>
-					Libredesk
+					libredesk
 					</p>
 
 					',
@@ -225,7 +225,7 @@ func V0_5_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 
 					<p>
 					Best regards,<br>
-					Libredesk
+					libredesk
 					</p>
 
 					',

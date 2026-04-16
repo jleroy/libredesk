@@ -14,7 +14,7 @@ import (
 // SafeBool is a thread-safe boolean.
 type SafeBool struct {
 	flag bool
-	mu   sync.Mutex
+	mu   sync.RWMutex
 }
 
 // Set sets the value of the SafeBool.
@@ -26,8 +26,8 @@ func (b *SafeBool) Set(value bool) {
 
 // Get returns the value of the SafeBool.
 func (b *SafeBool) Get() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 	return b.flag
 }
 
@@ -100,7 +100,91 @@ func (c *Client) processIncomingMessage(data []byte) {
 		c.SendMessage([]byte("pong"), websocket.TextMessage)
 		return
 	}
-	c.SendError("unknown incoming message type")
+
+	// Try to parse as JSON message
+	var msg models.Message
+	if err := json.Unmarshal(data, &msg); err != nil {
+		c.SendError("invalid message format")
+		return
+	}
+
+	switch msg.Type {
+	case models.MessageTypeConversationSubscribe:
+		c.handleConversationSubscribe(msg.Data)
+	case models.MessageTypeTyping:
+		c.handleTyping(msg.Data)
+	default:
+		c.SendError("unknown message type")
+	}
+}
+
+// handleConversationSubscribe handles conversation subscription requests.
+//
+// No per-conversation authz check by design. All subscribers are authenticated
+// agents (this hub only serves /ws, which is gated by auth()), and the only
+// data that flows over a subscription is typing indicators - low value on its
+// own. Enforcing authz.EnforceConversationAccess here would add a DB lookup
+// per subscribe/typing frame for every widget visitor's keystroke.
+func (c *Client) handleConversationSubscribe(data interface{}) {
+	// Convert the data to JSON and then unmarshal to ConversationSubscribe
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		c.SendError("invalid subscription data")
+		return
+	}
+
+	var subscribeMsg models.ConversationSubscribe
+	if err := json.Unmarshal(dataBytes, &subscribeMsg); err != nil {
+		c.SendError("invalid subscription format")
+		return
+	}
+
+	if subscribeMsg.ConversationUUID == "" {
+		c.SendError("conversation_uuid is required")
+		return
+	}
+
+	// Subscribe to the conversation using the Hub
+	c.Hub.SubscribeToConversation(c, subscribeMsg.ConversationUUID)
+
+	// Send confirmation back to client
+	response := models.Message{
+		Type: models.MessageTypeConversationSubscribed,
+		Data: map[string]string{
+			"conversation_uuid": subscribeMsg.ConversationUUID,
+		},
+	}
+
+	responseBytes, _ := json.Marshal(response)
+	c.SendMessage(responseBytes, websocket.TextMessage)
+}
+
+// handleTyping handles typing indicator messages.
+//
+// Same trust assumption as handleConversationSubscribe: the sender is an
+// authenticated agent. A hostile agent could broadcast fake typing to any
+// conversation UUID (including widget clients), but typing is ephemeral and
+// cosmetic; adding per-frame authz isn't worth the DB cost today.
+func (c *Client) handleTyping(data interface{}) {
+	// Convert the data to JSON and then unmarshal to TypingMessage
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		c.SendError("invalid typing data")
+		return
+	}
+
+	var typingMsg models.TypingMessage
+	if err := json.Unmarshal(dataBytes, &typingMsg); err != nil {
+		c.SendError("invalid typing format")
+		return
+	}
+
+	if typingMsg.ConversationUUID == "" {
+		c.SendError("conversation_uuid is required for typing")
+		return
+	}
+
+	c.Hub.BroadcastTypingToConversation(typingMsg.ConversationUUID, typingMsg)
 }
 
 // close closes the client connection.

@@ -19,6 +19,7 @@ const (
 	// User types
 	UserTypeAgent   = "agent"
 	UserTypeContact = "contact"
+	UserTypeVisitor = "visitor"
 
 	// User availability statuses
 	Online  = "online"
@@ -31,15 +32,16 @@ const (
 )
 
 type UserCompact struct {
-	ID        int         `db:"id" json:"id"`
-	Type      string      `db:"type" json:"type"`
-	FirstName string      `db:"first_name" json:"first_name"`
-	LastName  string      `db:"last_name" json:"last_name"`
-	Email     null.String `db:"email" json:"email"`
-	Enabled   bool        `db:"enabled" json:"enabled"`
-	AvatarURL null.String `db:"avatar_url" json:"avatar_url"`
-	CreatedAt time.Time   `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time   `db:"updated_at" json:"updated_at"`
+	ID             int         `db:"id" json:"id"`
+	Type           string      `db:"type" json:"type"`
+	FirstName      string      `db:"first_name" json:"first_name"`
+	LastName       string      `db:"last_name" json:"last_name"`
+	Email          null.String `db:"email" json:"email"`
+	Enabled        bool        `db:"enabled" json:"enabled"`
+	AvatarURL      null.String `db:"avatar_url" json:"avatar_url"`
+	ExternalUserID null.String `db:"external_user_id" json:"external_user_id"`
+	CreatedAt      time.Time   `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time   `db:"updated_at" json:"updated_at"`
 
 	Total int `db:"total" json:"-"`
 }
@@ -62,7 +64,10 @@ type User struct {
 	LastLoginAt            null.Time            `db:"last_login_at" json:"last_login_at"`
 	Roles                  pq.StringArray       `db:"roles" json:"roles"`
 	Permissions            pq.StringArray       `db:"permissions" json:"permissions"`
+	Country                null.String          `db:"country" json:"country"`
+	Meta                   json.RawMessage      `db:"meta" json:"meta"`
 	CustomAttributes       json.RawMessage      `db:"custom_attributes" json:"custom_attributes"`
+	ExternalUserID         null.String          `db:"external_user_id" json:"external_user_id"`
 	Teams                  tmodels.TeamsCompact `db:"teams" json:"teams"`
 	ContactChannelID       int                  `db:"contact_channel_id" json:"contact_channel_id,omitempty"`
 	NewPassword            string               `db:"-" json:"new_password,omitempty"`
@@ -77,6 +82,17 @@ type User struct {
 	APISecret        null.String `db:"api_secret" json:"-"`
 }
 
+// ChatUser is a user with limited fields for live chat.
+type ChatUser struct {
+	ID                 int         `db:"id" json:"id"`
+	FirstName          string      `db:"first_name" json:"first_name"`
+	LastName           string      `db:"last_name" json:"last_name"`
+	AvatarURL          null.String `db:"avatar_url" json:"avatar_url"`
+	AvailabilityStatus string      `db:"availability_status" json:"availability_status"`
+	Type               string      `db:"type" json:"type"`
+	ActiveAt           null.Time   `db:"active_at" json:"active_at"`
+}
+
 type Note struct {
 	ID        int         `db:"id" json:"id"`
 	CreatedAt time.Time   `db:"created_at" json:"created_at"`
@@ -87,6 +103,11 @@ type Note struct {
 	FirstName string      `db:"first_name" json:"first_name"`
 	LastName  string      `db:"last_name" json:"last_name"`
 	AvatarURL null.String `db:"avatar_url" json:"avatar_url"`
+}
+
+type OfflineUser struct {
+	ID   int    `db:"id"`
+	Type string `db:"type"`
 }
 
 func (u *User) FullName() string {

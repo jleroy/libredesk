@@ -49,6 +49,9 @@ const (
 	// Webhooks
 	PermWebhooksManage = "webhooks:manage"
 
+	// Context Links
+	PermContextLinksManage = "context_links:manage"
+
 	// Templates
 	PermTemplatesManage = "templates:manage"
 
@@ -135,6 +138,7 @@ var validPermissions = map[string]struct{}{
 	PermContactNotesDelete:              {},
 	PermActivityLogsManage:              {},
 	PermWebhooksManage:                  {},
+	PermContextLinksManage:              {},
 }
 
 // PermissionExists returns true if the permission exists else false

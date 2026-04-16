@@ -96,6 +96,7 @@ func New(cfg Config, i18n *i18n.I18n, rd *redis.Client, logger *logf.Logger) (*A
 			Name:       "libredesk_session",
 			IsHTTPOnly: true,
 			IsSecure:   cfg.SecureCookies,
+			SameSite:   http.SameSiteLaxMode,
 			MaxAge:     time.Hour * 9,
 		},
 	})
@@ -168,7 +169,7 @@ func (a *Auth) LoginURL(providerID int, state string) (string, error) {
 	defer a.mu.RUnlock()
 	oauthCfg, ok := a.oauthCfgs[providerID]
 	if !ok {
-		return "", envelope.NewError(envelope.InputError, a.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.provider}"), nil)
+		return "", envelope.NewError(envelope.InputError, a.i18n.T("validation.notFoundProvider"), nil)
 	}
 	return oauthCfg.AuthCodeURL(state), nil
 }

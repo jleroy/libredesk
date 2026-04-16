@@ -6,6 +6,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/ws"
@@ -13,15 +14,18 @@ import (
 	"github.com/zerodha/fastglue"
 )
 
+const maxPageSize = 500
+
 // initHandlers initializes the HTTP routes and handlers for the application.
 func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Authentication.
-	g.POST("/api/v1/auth/login", handleLogin)
+	g.POST("/api/v1/auth/login", rateLimit(handleLogin, "auth"))
 	g.GET("/logout", auth(handleLogout))
-	g.GET("/api/v1/oidc/{id}/login", handleOIDCLogin)
-	g.GET("/api/v1/oidc/{id}/finish", handleOIDCCallback)
+	g.GET("/api/v1/oidc/{id}/login", rateLimit(handleOIDCLogin, "auth"))
+	g.GET("/api/v1/oidc/{id}/finish", rateLimit(handleOIDCCallback, "auth"))
 
 	// i18n.
+	g.GET("/api/v1/lang", handleGetAvailableLanguages)
 	g.GET("/api/v1/lang/{lang}", handleGetI18nLang)
 
 	// Public config for app initialization.
@@ -62,6 +66,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.PUT("/api/v1/conversations/{uuid}/last-seen", perm(handleUpdateConversationAssigneeLastSeen, "conversations:read"))
 	g.PUT("/api/v1/conversations/{uuid}/mark-unread", perm(handleMarkConversationAsUnread, "conversations:read"))
 	g.POST("/api/v1/conversations/{uuid}/tags", perm(handleUpdateConversationtags, "conversations:update_tags"))
+	g.GET("/api/v1/conversations/{uuid}/page-visits", perm(handleGetContactPageVisits, "conversations:read"))
 	g.GET("/api/v1/conversations/{cuuid}/messages/{uuid}", perm(handleGetMessage, "messages:read"))
 	g.GET("/api/v1/conversations/{uuid}/messages", perm(handleGetMessages, "messages:read"))
 	g.POST("/api/v1/conversations/{cuuid}/messages", perm(handleSendMessage, "messages:write"))
@@ -105,6 +110,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/tags", perm(handleCreateTag, "tags:manage"))
 	g.PUT("/api/v1/tags/{id}", perm(handleUpdateTag, "tags:manage"))
 	g.DELETE("/api/v1/tags/{id}", perm(handleDeleteTag, "tags:manage"))
+	g.POST("/api/v1/tags/import", perm(handleImportTags, "tags:manage"))
+	g.GET("/api/v1/tags/import/status", perm(handleGetTagImportStatus, "tags:manage"))
 
 	// Macros.
 	g.GET("/api/v1/macros", auth(handleGetMacros))
@@ -131,8 +138,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/agents/import/status", perm(handleGetAgentImportStatus, "users:manage"))
 	g.POST("/api/v1/agents/{id}/api-key", perm(handleGenerateAPIKey, "users:manage"))
 	g.DELETE("/api/v1/agents/{id}/api-key", perm(handleRevokeAPIKey, "users:manage"))
-	g.POST("/api/v1/agents/reset-password", tryAuth(handleResetPassword))
-	g.POST("/api/v1/agents/set-password", tryAuth(handleSetPassword))
+	g.POST("/api/v1/agents/reset-password", rateLimit(tryAuth(handleResetPassword), "auth"))
+	g.POST("/api/v1/agents/set-password", rateLimit(tryAuth(handleSetPassword), "auth"))
 
 	// Contacts.
 	g.GET("/api/v1/contacts", perm(handleGetContacts, "contacts:read_all"))
@@ -191,6 +198,16 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.PUT("/api/v1/webhooks/{id}/toggle", perm(handleToggleWebhook, "webhooks:manage"))
 	g.POST("/api/v1/webhooks/{id}/test", perm(handleTestWebhook, "webhooks:manage"))
 
+	// Context Links.
+	g.GET("/api/v1/context-links", perm(handleGetContextLinks, "context_links:manage"))
+	g.GET("/api/v1/context-links/active", auth(handleGetActiveContextLinks))
+	g.GET("/api/v1/context-links/{id}", perm(handleGetContextLink, "context_links:manage"))
+	g.POST("/api/v1/context-links", perm(handleCreateContextLink, "context_links:manage"))
+	g.PUT("/api/v1/context-links/{id}", perm(handleUpdateContextLink, "context_links:manage"))
+	g.DELETE("/api/v1/context-links/{id}", perm(handleDeleteContextLink, "context_links:manage"))
+	g.PUT("/api/v1/context-links/{id}/toggle", perm(handleToggleContextLink, "context_links:manage"))
+	g.GET("/api/v1/context-links/{id}/url", auth(handleGetContextLinkURL))
+
 	// Reports.
 	g.GET("/api/v1/reports/overview/sla", perm(handleOverviewSLA, "reports:manage"))
 	g.GET("/api/v1/reports/overview/counts", perm(handleOverviewCounts, "reports:manage"))
@@ -235,6 +252,9 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Actvity logs.
 	g.GET("/api/v1/activity-logs", perm(handleGetActivityLogs, "activity_logs:manage"))
 
+	// CSAT.
+	g.POST("/api/v1/csat/{uuid}/response", rateLimit(handleSubmitCSATResponse, "public"))
+
 	// User notifications.
 	g.GET("/api/v1/notifications", auth(handleGetUserNotifications))
 	g.GET("/api/v1/notifications/stats", auth(handleGetUserNotificationStats))
@@ -248,8 +268,24 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 		return handleWS(r, hub)
 	}))
 
+	// Live chat widget websocket.
+	g.GET("/widget/ws", rateLimit(handleWidgetWS, "widget"))
+
+	// Widget APIs.
+	g.GET("/api/v1/widget/chat/settings/launcher", rateLimit(validateWidgetInbox(handleGetChatLauncherSettings), "widget"))
+	g.GET("/api/v1/widget/chat/settings", rateLimit(validateWidgetInbox(handleGetChatSettings), "widget"))
+	g.POST("/api/v1/widget/chat/auth/exchange", rateLimit(validateWidgetInbox(handleAuthExchange), "widget"))
+	g.GET("/api/v1/widget/chat/auth/me", rateLimit(widgetAuth(handleWidgetAuthMe), "widget"))
+	g.POST("/api/v1/widget/chat/conversations/init", rateLimit(widgetAuth(handleChatInit), "widget"))
+	g.GET("/api/v1/widget/chat/conversations", rateLimit(widgetAuth(handleGetConversations), "widget"))
+	g.POST("/api/v1/widget/chat/conversations/{uuid}/update-last-seen", rateLimit(widgetAuth(handleChatUpdateLastSeen), "widget"))
+	g.GET("/api/v1/widget/chat/conversations/{uuid}", rateLimit(widgetAuth(handleChatGetConversation), "widget"))
+	g.POST("/api/v1/widget/chat/conversations/{uuid}/message", rateLimit(widgetAuth(handleChatSendMessage), "widget"))
+	g.POST("/api/v1/widget/media/upload", rateLimit(widgetAuth(handleWidgetMediaUpload), "widget"))
+
 	// Frontend pages.
 	g.GET("/", notAuthPage(serveIndexPage))
+	g.GET("/widget", validateWidgetInbox(serveWidgetIndexPage))
 	g.GET("/inboxes/{all:*}", authPage(serveIndexPage))
 	g.GET("/teams/{all:*}", authPage(serveIndexPage))
 	g.GET("/views/{all:*}", authPage(serveIndexPage))
@@ -259,14 +295,19 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/account/{all:*}", authPage(serveIndexPage))
 	g.GET("/reset-password", notAuthPage(serveIndexPage))
 	g.GET("/set-password", notAuthPage(serveIndexPage))
-	// FIXME: Don't need three separate routes for the same thing.
+
+	// Assets and static files.
+	// FIXME: Reduce the number of routes.
+	g.GET("/widget.js", serveWidgetJS)
 	g.GET("/assets/{all:*}", serveFrontendStaticFiles)
+	g.GET("/widget/assets/{all:*}", serveWidgetStaticFiles)
 	g.GET("/images/{all:*}", serveFrontendStaticFiles)
 	g.GET("/static/public/{all:*}", serveStaticFiles)
 
 	// Public pages.
-	g.GET("/csat/{uuid}", handleShowCSAT)
-	g.POST("/csat/{uuid}", handleUpdateCSATResponse)
+	g.GET("/csat/{uuid}", rateLimit(handleShowCSAT, "public"))
+	g.GET("/csat/{uuid}/widget", rateLimit(handleShowCSATWidget, "public"))
+	g.POST("/csat/{uuid}", rateLimit(handleUpdateCSATResponse, "public"))
 
 	// Health check.
 	g.GET("/health", handleHealthCheck)
@@ -284,7 +325,7 @@ func serveIndexPage(r *fastglue.Request) error {
 	// Serve the index.html file from the embedded filesystem.
 	file, err := app.fs.Get(path.Join(frontendDir, "index.html"))
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.file}"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", "text/html")
 	r.RequestCtx.SetBody(file.ReadBytes())
@@ -292,24 +333,48 @@ func serveIndexPage(r *fastglue.Request) error {
 	// Set CSRF cookie if not already set.
 	if err := app.auth.SetCSRFCookie(r); err != nil {
 		app.lo.Error("error setting csrf cookie", "error", err)
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.Ts("globals.messages.errorSaving", "name", "{globals.terms.session}"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 	}
 	return nil
 }
 
-// serveStaticFiles serves static assets from the embedded filesystem.
+// serveWidgetIndexPage serves the widget index page of the application.
+func serveWidgetIndexPage(r *fastglue.Request) error {
+	app := r.Context.(*App)
+
+	// Prevent caching of the index page.
+	r.RequestCtx.Response.Header.Add("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
+	r.RequestCtx.Response.Header.Add("Pragma", "no-cache")
+	r.RequestCtx.Response.Header.Add("Expires", "-1")
+
+	// CSP headers if trusted domains is set.
+	if config, err := getWidgetConfig(r); err == nil && len(config.TrustedDomains) > 0 {
+		csp := "frame-ancestors 'self' " + strings.Join(config.TrustedDomains, " ")
+		r.RequestCtx.Response.Header.Set("Content-Security-Policy", csp)
+	}
+
+	// Serve the index.html file from the embedded filesystem.
+	file, err := app.fs.Get(path.Join(widgetDir, "index.html"))
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+	}
+	r.RequestCtx.Response.Header.Set("Content-Type", "text/html")
+	r.RequestCtx.SetBody(file.ReadBytes())
+
+	return nil
+}
+
+// serveStaticFiles serves static assets from the filesystem.
 func serveStaticFiles(r *fastglue.Request) error {
 	app := r.Context.(*App)
 
-	// Get the requested file path.
 	filePath := string(r.RequestCtx.Path())
 
 	file, err := app.fs.Get(filePath)
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.file}"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
-	// Set the appropriate Content-Type based on the file extension.
 	ext := filepath.Ext(filePath)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
@@ -331,7 +396,7 @@ func serveFrontendStaticFiles(r *fastglue.Request) error {
 	finalPath := filepath.Join(frontendDir, filePath)
 	file, err := app.fs.Get(finalPath)
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.file}"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
 	// Set the appropriate Content-Type based on the file extension.
@@ -345,8 +410,46 @@ func serveFrontendStaticFiles(r *fastglue.Request) error {
 	return nil
 }
 
+// serveWidgetStaticFiles serves widget static assets from the embedded filesystem.
+func serveWidgetStaticFiles(r *fastglue.Request) error {
+	app := r.Context.(*App)
+
+	filePath := string(r.RequestCtx.Path())
+	finalPath := filepath.Join(widgetDir, strings.TrimPrefix(filePath, "/widget"))
+
+	file, err := app.fs.Get(finalPath)
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+	}
+
+	// Set the appropriate Content-Type based on the file extension.
+	ext := filepath.Ext(filePath)
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = http.DetectContentType(file.ReadBytes())
+	}
+	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
+	r.RequestCtx.SetBody(file.ReadBytes())
+	return nil
+}
+
+// serveWidgetJS serves the widget JavaScript file.
+func serveWidgetJS(r *fastglue.Request) error {
+	app := r.Context.(*App)
+
+	r.RequestCtx.Response.Header.Set("Content-Type", "application/javascript")
+	r.RequestCtx.Response.Header.Set("Cache-Control", "no-cache")
+
+	file, err := app.fs.Get("static/widget.js")
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+	}
+
+	r.RequestCtx.SetBody(file.ReadBytes())
+	return nil
+}
+
 // getPagination extracts page and page_size from query params with defaults.
-// Defaults: page=1, pageSize=30
 func getPagination(r *fastglue.Request) (page, pageSize int) {
 	page, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page")))
 	pageSize, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("page_size")))
@@ -355,6 +458,9 @@ func getPagination(r *fastglue.Request) (page, pageSize int) {
 	}
 	if pageSize < 1 {
 		pageSize = 30
+	}
+	if pageSize > maxPageSize {
+		pageSize = maxPageSize
 	}
 	return page, pageSize
 }

@@ -15,6 +15,7 @@ const (
 	TmplSLABreachWarning     = "SLA breach warning"
 	TmplSLABreached          = "SLA breached"
 	TmplMentioned            = "Mentioned in conversation"
+	TmplCSATRequest          = "CSAT request"
 
 	// Built-in templates fetched from memory stored in `static` directory.
 	TmplResetPassword = "reset-password"
@@ -24,6 +25,30 @@ const (
 	TmplBase    = "base"
 	TmplContent = "content"
 )
+
+// RenderString renders Go template variables in the given content string
+// without wrapping it in the base email template. Returns original content on any error.
+func (m *Manager) RenderString(data any, content string) string {
+	t, err := template.New("content").Funcs(m.funcMap).Parse(content)
+	if err != nil {
+		return content
+	}
+	var buf strings.Builder
+	if err := t.Execute(&buf, data); err != nil {
+		return content
+	}
+	return buf.String()
+}
+
+// RenderStoredTemplate fetches a template by name and renders its body with the provided data
+// without wrapping it in the base email template.
+func (m *Manager) RenderStoredTemplate(name string, data any) (string, error) {
+	tmpl, err := m.getByName(name)
+	if err != nil {
+		return "", err
+	}
+	return m.RenderString(data, tmpl.Body), nil
+}
 
 // RenderEmailWithTemplate renders content inside the default outgoing email template.
 func (m *Manager) RenderEmailWithTemplate(data any, content string) (string, error) {

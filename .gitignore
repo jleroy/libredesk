@@ -8,3 +8,4 @@ uploads
 .env
 dist/
 .vscode/
+static/widget.min.js

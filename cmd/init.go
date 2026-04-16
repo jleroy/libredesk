@@ -21,6 +21,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/automation"
 	businesshours "github.com/abhinavxd/libredesk/internal/business_hours"
 	"github.com/abhinavxd/libredesk/internal/colorlog"
+	contextlink "github.com/abhinavxd/libredesk/internal/context_link"
 	"github.com/abhinavxd/libredesk/internal/conversation"
 	"github.com/abhinavxd/libredesk/internal/conversation/priority"
 	"github.com/abhinavxd/libredesk/internal/conversation/status"
@@ -29,6 +30,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/importer"
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/email"
+	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
 	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	"github.com/abhinavxd/libredesk/internal/macro"
 	"github.com/abhinavxd/libredesk/internal/media"
@@ -37,6 +39,7 @@ import (
 	notifier "github.com/abhinavxd/libredesk/internal/notification"
 	emailnotifier "github.com/abhinavxd/libredesk/internal/notification/providers/email"
 	"github.com/abhinavxd/libredesk/internal/oidc"
+	"github.com/abhinavxd/libredesk/internal/ratelimit"
 	"github.com/abhinavxd/libredesk/internal/report"
 	"github.com/abhinavxd/libredesk/internal/role"
 	"github.com/abhinavxd/libredesk/internal/search"
@@ -63,6 +66,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	flag "github.com/spf13/pflag"
+	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
 
@@ -133,6 +137,7 @@ func initFlags() {
 	f.Bool("yes", false, "skip confirmation prompt")
 	f.Bool("upgrade", false, "upgrade the database schema")
 	f.Bool("set-system-user-password", false, "set password for the system user")
+	f.String("static-dir", "", "path to a directory with custom static files and templates to override the defaults")
 
 	if err := f.Parse(os.Args[1:]); err != nil {
 		log.Fatalf("loading flags: %v", err)
@@ -156,12 +161,12 @@ func initConstants() *constants {
 	}
 }
 
-// initFS initializes the stuffbin FileSystem.
-func initFS() stuffbin.FileSystem {
-	var files = []string{
-		"frontend/dist",
-		"i18n",
-		"static",
+// initFS initializes the stuffbin FileSystem. If staticDir is set, files from
+// that directory are merged into the FS, overriding embedded defaults.
+func initFS(staticDir string) stuffbin.FileSystem {
+	// Custom static dir mirrors the structure of the built-in static/ directory.
+	staticFiles := []string{
+		"./:static",
 	}
 
 	// Get self executable path.
@@ -175,8 +180,15 @@ func initFS() stuffbin.FileSystem {
 
 	if err != nil {
 		if err == stuffbin.ErrNoID {
-			// The embed failed or the binary's already unstuffed or running in local / dev mode, use the local filesystem.
+			// Running in local/dev mode, use the local filesystem.
+			// Only include frontend dirs if they exist (frontend build is optional in dev).
 			colorlog.Red("binary unstuff failed, using local filesystem for static files")
+			files := []string{"i18n", "static"}
+			for _, d := range []string{"frontend/dist/main", "frontend/dist/widget"} {
+				if _, err := os.Stat(d); err == nil {
+					files = append(files, d)
+				}
+			}
 			fs, err = stuffbin.NewLocalFS("/", files...)
 			if err != nil {
 				log.Fatalf("error initializing local FS: %v", err)
@@ -185,7 +197,41 @@ func initFS() stuffbin.FileSystem {
 			log.Fatalf("error initializing FS: %v", err)
 		}
 	}
+
+	// Merge custom static files if a custom static dir is provided.
+	if staticDir != "" {
+		// Only include paths that exist in the custom dir.
+		var sf []string
+		for _, def := range staticFiles {
+			src := strings.Split(def, ":")[0]
+			if _, err := os.Stat(filepath.Join(staticDir, src)); err == nil {
+				sf = append(sf, def)
+			}
+		}
+
+		if len(sf) > 0 {
+			files := joinFSPaths(staticDir, sf)
+			fLocal, err := stuffbin.NewLocalFS("/", files...)
+			if err != nil {
+				log.Fatalf("error loading custom static files from '%s': %v", staticDir, err)
+			}
+			if err := fs.Merge(fLocal); err != nil {
+				log.Fatalf("error merging custom static files from '%s': %v", staticDir, err)
+			}
+		}
+	}
+
 	return fs
+}
+
+// joinFSPaths joins a root directory with stuffbin path specs (local:virtual).
+func joinFSPaths(root string, paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		f := strings.Split(p, ":")
+		out = append(out, filepath.Join(root, f[0])+":"+f[1])
+	}
+	return out
 }
 
 // loadSettings loads settings from the DB into Koanf map.
@@ -251,11 +297,17 @@ func initConversations(
 	webhook *webhook.Manager,
 	dispatcher *notifier.Dispatcher,
 ) *conversation.Manager {
+	continuityConfig := &conversation.ContinuityConfig{}
+	if ko.Exists("conversation.continuity_scan_interval") {
+		continuityConfig.BatchCheckInterval = ko.MustDuration("conversation.continuity_scan_interval")
+	}
+
 	c, err := conversation.New(hub, i18n, sla, status, priority, inboxStore, userStore, teamStore, mediaStore, settings, csat, automationEngine, template, webhook, dispatcher, conversation.Opts{
 		DB:                       db,
 		Lo:                       initLogger("conversation_manager"),
 		OutgoingMessageQueueSize: ko.MustInt("message.outgoing_queue_size"),
 		IncomingMessageQueueSize: ko.MustInt("message.incoming_queue_size"),
+		ContinuityConfig:         continuityConfig,
 	})
 	if err != nil {
 		log.Fatalf("error initializing conversation manager: %v", err)
@@ -352,6 +404,22 @@ func initWS(user *user.Manager) *ws.Hub {
 	return ws.NewHub(user)
 }
 
+// getCustomStaticDir returns the custom static directory path from CLI flag or config.
+func getCustomStaticDir() string {
+	dir := ko.String("static-dir")
+	if dir == "" {
+		dir = ko.String("app.static_dir")
+	}
+	if dir == "" {
+		return ""
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	return abs
+}
+
 // initTemplates inits template manager.
 func initTemplate(db *sqlx.DB, fs stuffbin.FileSystem, consts *constants, i18n *i18n.I18n) *tmpl.Manager {
 	var (
@@ -366,6 +434,7 @@ func initTemplate(db *sqlx.DB, fs stuffbin.FileSystem, consts *constants, i18n *
 	if err != nil {
 		log.Fatalf("error parsing web templates: %v", err)
 	}
+
 	m, err := tmpl.New(lo, db, webTpls, tpls, funcMap, i18n)
 	if err != nil {
 		log.Fatalf("error initializing template manager: %v", err)
@@ -439,6 +508,7 @@ func reloadTemplates(app *App) error {
 		app.lo.Error("error parsing web templates", "error", err)
 		return err
 	}
+
 	return app.tmpl.Reload(webTpls, tpls, funcMap)
 }
 
@@ -640,30 +710,61 @@ func initEmailInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrS
 	return inbox, nil
 }
 
+// initLiveChatInbox initializes the live chat inbox.
+func initLiveChatInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrStore inbox.UserStore, signAvatarURL func(*null.String)) (inbox.Inbox, error) {
+	var config livechat.Config
+
+	// Load JSON data into Koanf.
+	if err := ko.Load(rawbytes.Provider([]byte(inboxRecord.Config)), kjson.Parser()); err != nil {
+		return nil, fmt.Errorf("loading config: %w", err)
+	}
+
+	if err := ko.UnmarshalWithConf("", &config, koanf.UnmarshalConf{Tag: "json"}); err != nil {
+		return nil, fmt.Errorf("unmarshalling `%s` %s config: %w", inboxRecord.Channel, inboxRecord.Name, err)
+	}
+
+	inbox, err := livechat.New(msgStore, usrStore, livechat.Opts{
+		ID:            inboxRecord.ID,
+		Config:        config,
+		Lo:            initLogger("livechat_inbox"),
+		SignAvatarURL: signAvatarURL,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("initializing `%s` inbox: `%s` error : %w", inboxRecord.Channel, inboxRecord.Name, err)
+	}
+
+	log.Printf("`%s` inbox successfully initialized", inboxRecord.Name)
+
+	return inbox, nil
+}
+
 // makeInboxInitializer creates an inbox initializer function.
-func makeInboxInitializer(mgr *inbox.Manager) func(imodels.Inbox, inbox.MessageStore, inbox.UserStore) (inbox.Inbox, error) {
+func makeInboxInitializer(mgr *inbox.Manager, signAvatarURL func(*null.String)) func(imodels.Inbox, inbox.MessageStore, inbox.UserStore) (inbox.Inbox, error) {
 	return func(inboxR imodels.Inbox, msgStore inbox.MessageStore, usrStore inbox.UserStore) (inbox.Inbox, error) {
 		switch inboxR.Channel {
 		case inbox.ChannelEmail:
 			return initEmailInbox(inboxR, msgStore, usrStore, mgr)
+		case inbox.ChannelLiveChat:
+			return initLiveChatInbox(inboxR, msgStore, usrStore, signAvatarURL)
 		default:
 			return nil, fmt.Errorf("unknown inbox channel: %s", inboxR.Channel)
 		}
 	}
 }
 
-// reloadInboxes reloads all inboxes.
-func reloadInboxes(app *App) error {
-	app.lo.Info("reloading inboxes")
-	return app.inbox.Reload(ctx, makeInboxInitializer(app.inbox))
+// reloadInbox reloads a single inbox by ID using the signal-aware context.
+func reloadInbox(app *App, id int) error {
+	app.lo.Info("reloading inbox", "id", id)
+	return app.inbox.ReloadInbox(app.ctx, id, makeInboxInitializer(app.inbox, app.conversation.SignAvatarURL))
 }
 
 // startInboxes registers the active inboxes and starts receiver for each.
-func startInboxes(ctx context.Context, mgr *inbox.Manager, msgStore inbox.MessageStore, usrStore inbox.UserStore) {
+func startInboxes(ctx context.Context, mgr *inbox.Manager, msgStore inbox.MessageStore, usrStore inbox.UserStore, signAvatarURL func(*null.String)) {
 	mgr.SetMessageStore(msgStore)
 	mgr.SetUserStore(usrStore)
 
-	if err := mgr.InitInboxes(makeInboxInitializer(mgr)); err != nil {
+	if err := mgr.InitInboxes(makeInboxInitializer(mgr, signAvatarURL)); err != nil {
 		log.Fatalf("error initializing inboxes: %v", err)
 	}
 
@@ -923,6 +1024,21 @@ func initReport(db *sqlx.DB, i18n *i18n.I18n) *report.Manager {
 	return m
 }
 
+// initContextLink inits context link manager.
+func initContextLink(db *sqlx.DB, i18n *i18n.I18n) *contextlink.Manager {
+	var lo = initLogger("context-link")
+	m, err := contextlink.New(contextlink.Opts{
+		DB:            db,
+		Lo:            lo,
+		I18n:          i18n,
+		EncryptionKey: ko.MustString("app.encryption_key"),
+	})
+	if err != nil {
+		log.Fatalf("error initializing context link manager: %v", err)
+	}
+	return m
+}
+
 // initWebhook inits webhook manager.
 func initWebhook(db *sqlx.DB, i18n *i18n.I18n) *webhook.Manager {
 	var lo = initLogger("webhook")
@@ -965,12 +1081,13 @@ func initImporter(i18n *i18n.I18n) *importer.Importer {
 }
 
 // initNotifDispatcher initializes the notification dispatcher.
-func initNotifDispatcher(userNotification *notifier.UserNotificationManager, outbound *notifier.Service, wsHub *ws.Hub) *notifier.Dispatcher {
+func initNotifDispatcher(userNotification *notifier.UserNotificationManager, outbound *notifier.Service, wsHub *ws.Hub, emailEnabled bool) *notifier.Dispatcher {
 	return notifier.NewDispatcher(notifier.DispatcherOpts{
-		InApp:    userNotification,
-		Outbound: outbound,
-		WSHub:    wsHub,
-		Lo:       initLogger("notification-dispatcher"),
+		InApp:        userNotification,
+		Outbound:     outbound,
+		WSHub:        wsHub,
+		EmailEnabled: emailEnabled,
+		Lo:           initLogger("notification-dispatcher"),
 	})
 }
 
@@ -1010,4 +1127,49 @@ func getLogLevel(lvl string) logf.Level {
 	default:
 		return logf.InfoLevel
 	}
+}
+
+// initRateLimit initializes the rate limiter with default rules.
+// Defaults are used unless overridden in config.toml under [rate_limit.<name>].
+func initRateLimit(redisClient *redis.Client) *ratelimit.Limiter {
+	limiter := ratelimit.New(redisClient)
+
+	defaults := []struct {
+		Name string
+		RPM  int
+	}{
+		{"widget", 100},
+		{"auth", 20},
+		{"public", 60},
+	}
+
+	for _, d := range defaults {
+		enabled := true
+		rpm := d.RPM
+
+		cfgKey := "rate_limit." + d.Name
+		if ko.Exists(cfgKey) {
+			var cfg struct {
+				Enabled           bool `toml:"enabled"`
+				RequestsPerMinute int  `toml:"requests_per_minute"`
+			}
+			ko.UnmarshalWithConf(cfgKey, &cfg, koanf.UnmarshalConf{Tag: "toml"})
+			enabled = cfg.Enabled
+			if cfg.RequestsPerMinute > 0 {
+				rpm = cfg.RequestsPerMinute
+			}
+		}
+
+		if !enabled {
+			log.Printf("WARNING: rate limit rule '%s' is disabled", d.Name)
+		}
+
+		limiter.AddRule(ratelimit.Rule{
+			Name:              d.Name,
+			Enabled:           enabled,
+			RequestsPerMinute: rpm,
+		})
+	}
+
+	return limiter
 }
