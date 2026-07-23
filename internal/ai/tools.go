@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	neturl "net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,9 +25,14 @@ const (
 
 	// maxToolResultChars caps tool output fed to the model so a large response can't blow the context window.
 	maxToolResultChars = 64 << 10
+
+	maxToolNameLen = 64
 )
 
 var (
+	// toolNameFormat must stay in sync with the ai_tools.name DB check constraint.
+	toolNameFormat = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
 	// reservedToolNames are built-in tool names (including the autonomous assistant's, see
 	// internal/aiagent/tools.go) custom tools may not use: a colliding custom tool would be
 	// silently replaced by the built-in in the agent loop's registry.

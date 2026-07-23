@@ -147,7 +147,7 @@
   "admin.ai.embeddingDescription": "The model used to embed articles and snippets for search.",
   "admin.ai.testConnection": "Test connection",
   "admin.ai.testSuccess": "Connection successful. The provider accepted the request.",
-  "admin.ai.tool.nameHint": "Letters, numbers, hyphen and underscore only. This is the function name the model calls.",
+  "admin.ai.tool.nameHint": "Letters, numbers, hyphen and underscore only, up to 64 characters. This is the function name the model calls.",
   "admin.ai.tool.method": "Method",
   "admin.ai.tool.headers": "Headers",
   "admin.ai.tool.headersHint": "Sent as HTTP headers with every request to this tool's URL. Values are encrypted at rest. Leave empty if the endpoint doesn't require auth.",

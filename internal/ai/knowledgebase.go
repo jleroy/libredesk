@@ -35,6 +35,9 @@ func (m *Manager) GetKnowledgeBaseItem(id int) (models.KnowledgeBaseItem, error)
 }
 
 func (m *Manager) CreateKnowledgeBaseItem(title, content, source, sourceURL string, enabled bool) (models.KnowledgeBaseItem, error) {
+	if strings.TrimSpace(title) == "" {
+		return models.KnowledgeBaseItem{}, envelope.NewError(envelope.InputError, m.i18n.Ts("globals.messages.empty", "name", m.i18n.T("globals.terms.title")), nil)
+	}
 	if strings.TrimSpace(content) == "" {
 		return models.KnowledgeBaseItem{}, envelope.NewError(envelope.InputError, m.i18n.Ts("globals.messages.empty", "name", m.i18n.T("globals.terms.content")), nil)
 	}
@@ -51,6 +54,9 @@ func (m *Manager) CreateKnowledgeBaseItem(title, content, source, sourceURL stri
 }
 
 func (m *Manager) UpdateKnowledgeBaseItem(id int, title, content string, enabled bool) (models.KnowledgeBaseItem, error) {
+	if strings.TrimSpace(title) == "" {
+		return models.KnowledgeBaseItem{}, envelope.NewError(envelope.InputError, m.i18n.Ts("globals.messages.empty", "name", m.i18n.T("globals.terms.title")), nil)
+	}
 	if strings.TrimSpace(content) == "" {
 		return models.KnowledgeBaseItem{}, envelope.NewError(envelope.InputError, m.i18n.Ts("globals.messages.empty", "name", m.i18n.T("globals.terms.content")), nil)
 	}

@@ -146,8 +146,11 @@ func (m *Manager) prepareToolAuth(raw, existing types.JSONText) (types.JSONText,
 	return types.JSONText(b), nil
 }
 
-// validateToolInput runs the shared create/update checks: reserved name, allowed HTTP method, valid definition.
+// validateToolInput runs the shared create/update checks: name format, reserved name, allowed HTTP method, valid definition.
 func (m *Manager) validateToolInput(t *models.Tool) error {
+	if !toolNameFormat.MatchString(t.Name) || len(t.Name) > maxToolNameLen {
+		return envelope.NewError(envelope.InputError, m.i18n.T("admin.ai.tool.nameHint"), nil)
+	}
 	if reservedToolNames[t.Name] {
 		return envelope.NewError(envelope.InputError, m.i18n.T("admin.ai.tool.reservedName"), nil)
 	}
@@ -162,7 +165,7 @@ func (m *Manager) validateToolDefinition(t *models.Tool) error {
 	t.URL = strings.TrimSpace(t.URL)
 	u, err := neturl.Parse(t.URL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return envelope.NewError(envelope.InputError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		return envelope.NewError(envelope.InputError, m.i18n.T("ai.urlImport.invalidUrl"), nil)
 	}
 	params := strings.TrimSpace(string(t.Parameters))
 	if params == "" || params == "null" {
@@ -171,7 +174,7 @@ func (m *Manager) validateToolDefinition(t *models.Tool) error {
 	}
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(params), &obj); err != nil {
-		return envelope.NewError(envelope.InputError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		return envelope.NewError(envelope.InputError, m.i18n.T("admin.ai.tool.parametersInvalid"), nil)
 	}
 	return nil
 }

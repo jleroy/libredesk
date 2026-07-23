@@ -198,6 +198,7 @@ const form = useForm({
       name: z
         .string({ required_error: t('globals.messages.required') })
         .min(1, { message: t('globals.messages.required') })
+        .max(64, { message: t('admin.ai.tool.nameHint') })
         .regex(/^[A-Za-z0-9_-]+$/, { message: t('admin.ai.tool.nameHint') }),
       description: z.string().optional(),
       url: z

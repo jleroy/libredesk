@@ -7,6 +7,7 @@ import (
 
 	"github.com/abhinavxd/libredesk/internal/ai/models"
 	"github.com/abhinavxd/libredesk/internal/crypto"
+	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/knadh/go-i18n"
@@ -32,6 +33,52 @@ func decodeToolAuth(t *testing.T, raw types.JSONText) models.ToolAuth {
 		t.Fatalf("unmarshal auth: %v", err)
 	}
 	return auth
+}
+
+func TestValidateToolInput(t *testing.T) {
+	m := newTestManager(t)
+	base := func() *models.Tool {
+		return &models.Tool{Name: "get_order", URL: "https://api.example.com/order", Method: "GET", Parameters: types.JSONText(`{}`)}
+	}
+	cases := []struct {
+		name    string
+		mutate  func(*models.Tool)
+		wantErr bool
+	}{
+		{"valid", func(*models.Tool) {}, false},
+		{"lowercase method ok", func(tl *models.Tool) { tl.Method = "post" }, false},
+		{"empty params ok", func(tl *models.Tool) { tl.Parameters = types.JSONText("") }, false},
+		{"64-char name ok", func(tl *models.Tool) { tl.Name = strings.Repeat("a", 64) }, false},
+		{"empty name", func(tl *models.Tool) { tl.Name = "" }, true},
+		{"name with space", func(tl *models.Tool) { tl.Name = "bad name" }, true},
+		{"name with symbol", func(tl *models.Tool) { tl.Name = "bad!name" }, true},
+		{"name too long", func(tl *models.Tool) { tl.Name = strings.Repeat("a", 65) }, true},
+		{"reserved name", func(tl *models.Tool) { tl.Name = "resolve" }, true},
+		{"disallowed method", func(tl *models.Tool) { tl.Method = "DELETE" }, true},
+		{"non-http url", func(tl *models.Tool) { tl.URL = "ftp://x/y" }, true},
+		{"url without host", func(tl *models.Tool) { tl.URL = "http:///nohost" }, true},
+		{"invalid params json", func(tl *models.Tool) { tl.Parameters = types.JSONText("not json") }, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tool := base()
+			tc.mutate(tool)
+			err := m.validateToolInput(tool)
+			if !tc.wantErr {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected a rejection, got nil")
+			}
+			e, ok := err.(envelope.Error)
+			if !ok || e.ErrorType != envelope.InputError {
+				t.Fatalf("expected InputError (400), got %#v", err)
+			}
+		})
+	}
 }
 
 func TestPrepareToolAuthNewTool(t *testing.T) {
