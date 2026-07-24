@@ -31,7 +31,7 @@
         @collapse="onSidebarCollapse"
         @expand="onSidebarExpand"
       >
-        <div class="h-full overflow-y-auto overflow-x-hidden">
+        <div class="h-full overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
           <ConversationSideBar />
         </div>
       </ResizablePanel>

@@ -9,21 +9,21 @@
       <router-link
         v-if="!isOutgoing"
         :to="{ name: 'contact-detail', params: { id: message.author?.id } }"
-        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-primary transition-colors duration-200"
+        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-foreground transition-colors duration-200"
       >
         {{ getFullName }}
       </router-link>
       <router-link
         v-else-if="canManageAI"
         :to="aiAssistantRoute"
-        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-primary transition-colors duration-200"
+        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-foreground transition-colors duration-200"
       >
         {{ getFullName }}
       </router-link>
       <router-link
         v-else-if="canManageUsers"
         :to="{ name: 'edit-agent', params: { id: message.author?.id } }"
-        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-primary transition-colors duration-200"
+        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-foreground transition-colors duration-200"
       >
         {{ getFullName }}
       </router-link>
@@ -148,7 +148,7 @@
             <div
               v-if="!isOutgoing && hasQuotedContent"
               @click="toggleQuote"
-              class="text-xs cursor-pointer text-muted-foreground px-2 py-1 w-max hover:bg-muted hover:text-primary rounded-md transition-colors duration-200"
+              class="text-xs cursor-pointer text-muted-foreground px-2 py-1 w-max hover:bg-muted hover:text-foreground rounded-md transition-colors duration-200"
             >
               {{ showQuotedText ? t('conversation.hideQuotedText') : t('conversation.showQuotedText') }}
             </div>
@@ -164,7 +164,7 @@
 
             <!-- Status Icons (outgoing only) -->
             <div v-if="isOutgoing" class="flex items-center space-x-2 mt-2 self-end">
-              <Lock :size="10" v-if="isPrivateMessage" class="text-muted-foreground" />
+              <Lock :size="12" v-if="isPrivateMessage" class="text-muted-foreground" />
               <Check :size="14" v-if="showCheckCheck" class="text-success" />
               <Tooltip v-if="message.meta?.continuity_emailed">
                 <TooltipTrigger>
@@ -175,7 +175,7 @@
                 </TooltipContent>
               </Tooltip>
               <RotateCcw
-                size="10"
+                size="12"
                 @click="retryMessage(message)"
                 class="cursor-pointer text-muted-foreground hover:text-foreground transition-colors duration-200"
                 v-if="showRetry"
@@ -246,7 +246,7 @@
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>{{ t('globals.messages.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction @click="deleteNote">{{ t('globals.messages.delete') }}</AlertDialogAction>
+        <AlertDialogAction variant="destructive" @click="deleteNote">{{ t('globals.messages.delete') }}</AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
@@ -388,8 +388,6 @@ const bubbleClasses = computed(() => ({
   'opacity-50 animate-pulse': isOutgoing.value && props.message.status === 'pending',
   'border-destructive': isOutgoing.value && props.message.status === 'failed',
   relative: isOutgoing.value,
-  'corner-flat-tr': isOutgoing.value && !props.groupWithPrev,
-  'corner-flat-tl': !isOutgoing.value && !props.groupWithPrev,
   'show-quoted-text': !isOutgoing.value && showQuotedText.value,
   'hide-quoted-text': !isOutgoing.value && !showQuotedText.value
 }))
@@ -467,13 +465,5 @@ const showEnvelope = computed(() => {
   max-width: 100%;
   height: auto;
   cursor: zoom-in;
-}
-
-.message-bubble.corner-flat-tr {
-  border-top-right-radius: 0;
-}
-
-.message-bubble.corner-flat-tl {
-  border-top-left-radius: 0;
 }
 </style>

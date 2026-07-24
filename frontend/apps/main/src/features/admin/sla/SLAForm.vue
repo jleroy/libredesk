@@ -100,7 +100,7 @@
                 class="flex items-center justify-center w-8 h-8 rounded-md"
                 :class="{
                   'bg-destructive/10 text-destructive': notification.type === 'breach',
-                  'bg-warning/10 text-warning': notification.type === 'warning'
+                  'bg-warning/10 text-warning-600': notification.type === 'warning'
                 }"
               >
                 <CircleAlert size="18" v-if="notification.type === 'warning'" />
@@ -119,6 +119,7 @@
               </div>
             </div>
             <Button
+              type="button"
               variant="ghost"
               size="xs"
               @click.prevent="removeNotification(index)"
@@ -400,7 +401,7 @@ watch(
     form.setValues({
       ...newValues,
       notifications: transformedNotifications
-    })
+    }, false)
   },
   { immediate: true, deep: true }
 )

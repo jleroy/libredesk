@@ -35,6 +35,7 @@ module.exports = {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        'foreground-lighter': 'hsl(var(--foreground-lighter))',
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar-background))',
           foreground: 'hsl(var(--sidebar-foreground))',
@@ -63,8 +64,10 @@ module.exports = {
         },
         warning: {
           DEFAULT: 'hsl(var(--warning))',
-          foreground: 'hsl(var(--warning-foreground))'
+          foreground: 'hsl(var(--warning-foreground))',
+          600: 'hsl(var(--warning-600))'
         },
+        link: 'hsl(var(--link))',
         muted: {
           DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))'

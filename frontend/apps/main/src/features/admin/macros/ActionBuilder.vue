@@ -12,6 +12,7 @@
         {{ $t('actions.noActions') }}
       </h3>
       <Button
+        type="button"
         @click.prevent="add"
         variant="outline"
         size="sm"

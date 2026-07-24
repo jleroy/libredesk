@@ -12,7 +12,7 @@ export const createSnippetColumns = (t, { onEdit } = {}) => [
         ? h(
             'span',
             {
-              class: 'text-primary hover:underline cursor-pointer',
+              class: 'text-foreground font-medium hover:underline cursor-pointer',
               onClick: () => onEdit(row.original)
             },
             row.getValue('title')
@@ -46,7 +46,7 @@ export const createSnippetColumns = (t, { onEdit } = {}) => [
       h(
         'div',
         { class: 'text-center' },
-        h(Badge, { variant: row.getValue('enabled') ? 'default' : 'secondary' }, () =>
+        h(Badge, { variant: row.getValue('enabled') ? 'success' : 'secondary' }, () =>
           row.getValue('enabled') ? t('globals.terms.enabled') : t('globals.terms.disabled')
         )
       )

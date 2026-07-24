@@ -623,6 +623,7 @@
   "contact.blockContact": "Block contact",
   "contact.blockedSuccessfully": "Contact blocked successfully",
   "contact.deleteNote": "Delete note",
+  "contact.deleteNoteConfirmation": "This will permanently delete the note.",
   "contact.editContact": "Edit contact",
   "contact.identityNotVerified": "Identity not verified",
   "contact.identityVerified": "Identity verified",

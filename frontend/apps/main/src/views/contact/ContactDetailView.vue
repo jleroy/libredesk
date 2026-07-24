@@ -150,7 +150,7 @@ async function fetchContact() {
   try {
     const { data } = await api.getContact(route.params.id)
     contact.value = data.data
-    form.setValues(data.data)
+    form.setValues(data.data, false)
   } catch (err) {
     showError(err)
   } finally {

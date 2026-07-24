@@ -22,25 +22,28 @@ work: `bg-success/10`, `text-primary/80`.
 
 | Token | Light | Dark | Use for |
 |---|---|---|---|
-| `background` | `0 0% 100%` | `240 7% 11%` | app/content surface |
-| `foreground` | `240 10% 3.9%` | `240 4% 94%` | primary text |
-| `card` / `card-foreground` | `0 0% 100%` / `240 10% 3.9%` | `240 5% 13%` / `240 4% 94%` | raised card surface |
-| `popover` / `popover-foreground` | `0 0% 100%` / `240 10% 3.9%` | `240 5% 15%` / `240 4% 94%` | menus, popovers, dropdowns |
-| `primary` / `primary-foreground` | `234 52% 54%` / `46 33% 97%` | `235 58% 68%` / `235 35% 10%` | brand, active state, links, unread badges, primary buttons |
-| `secondary` / `secondary-foreground` | `240 4.8% 95.9%` / `240 5.9% 10%` | `240 5% 16%` / `240 4% 94%` | secondary buttons, outgoing message bubbles |
-| `muted` / `muted-foreground` | `240 4.8% 95.9%` / `240 3.8% 46.1%` | `240 5% 16%` / `240 4% 60%` | muted backgrounds, captions/meta text, secondary labels |
-| `accent` / `accent-foreground` | `240 5% 89%` / `240 5.9% 10%` | `240 5% 19%` / `0 0% 98%` | hover and selected states |
-| `destructive` / `destructive-foreground` | `0 84.2% 60.2%` / `0 0% 98%` | `1 100% 69%` / `0 0% 100%` | errors, delete, SLA breached, overdue, offline |
+| `background` | `0 0% 99.2%` | `120 2.6% 7.6%` | app/content surface |
+| `foreground` | `0 0% 1%` | `150 6% 93%` | primary text |
+| `foreground-lighter` | `0 0% 41%` | `150 1% 60%` | washed-out text: idle sidebar nav items |
+| `card` / `card-foreground` | `0 0% 100%` / `0 0% 1%` | `120 2% 10%` / `150 6% 93%` | raised card surface |
+| `popover` / `popover-foreground` | `0 0% 100%` / `0 0% 1%` | `120 2% 12%` / `150 6% 93%` | menus, popovers, dropdowns |
+| `primary` / `primary-foreground` | `152 39% 30%` / `0 0% 100%` | `152 58% 54%` / `120 2.6% 7.6%` | brand, active state, unread badges, primary buttons |
+| `secondary` / `secondary-foreground` | `0 0% 96%` / `0 0% 1%` | `150 3% 12%` / `150 6% 93%` | secondary buttons, outgoing message bubbles |
+| `muted` / `muted-foreground` | `0 0% 96%` / `0 0% 27%` | `150 3% 13%` / `120 1% 74%` | muted backgrounds, captions/meta text, secondary labels |
+| `accent` / `accent-foreground` | `0 0% 95%` / `0 0% 1%` | `150 3% 15%` / `150 6% 93%` | hover and selected states |
+| `destructive` / `destructive-foreground` | `2 47% 46%` / `9 100% 99%` | `4 92% 74%` / `12 38% 3%` | errors, delete, SLA breached, overdue, offline |
 | `success` / `success-foreground` | `142 72% 37%` / `0 0% 98%` | `142 55% 55%` / `142 40% 10%` | positive/met, verified, online, connected, delivered |
-| `warning` / `warning-foreground` | `38 92% 45%` / `0 0% 98%` | `38 92% 60%` / `38 60% 10%` | away, pending, SLA approaching, connecting |
-| `border` | `240 6% 87%` | `240 5% 18%` | all borders/dividers |
-| `input` | `240 6% 87%` | `240 5% 16%` | form field borders |
-| `ring` | `234 52% 54%` | `235 58% 68%` | focus rings |
+| `warning` / `warning-foreground` | `39 85% 43%` / `24 45% 2%` | `36 87% 62%` / `24 45% 2%` | away, pending, SLA approaching, connecting (as background) |
+| `warning-600` | `35 92% 33%` | `36 87% 62%` | warning as TEXT/icon color (passes 4.5:1; plain `warning` fails on light bg) |
+| `link` | `210 100% 40%` | `210 90% 66%` | links inside rendered email/message content only; UI links use `.link-style` |
+| `border` | `0 0% 91%` | `150 2% 16%` | all borders/dividers |
+| `input` | `0 0% 85%` | `150 2% 19%` | form field borders |
+| `ring` | `151 41% 45%` | `152 45% 33%` | focus rings |
 | `private` | `35 90% 94%` | `30 35% 18%` | private-note background tint |
-| `canvas` | `240 6% 86%` | `240 7% 15%` | app gutter behind floating panels (deepest surface) |
+| `canvas` | `0 0% 82%` | `120 3% 4%` | app gutter behind floating panels (deepest surface) |
 
-**Sidebar tokens** (the left nav "chrome"): `sidebar-background` `240 5% 95%` (light) /
-`240 5% 7%` (dark), plus `sidebar-foreground`, `sidebar-primary`, `sidebar-accent`,
+**Sidebar tokens** (the left nav "chrome"): `sidebar-background` `0 0% 99.2%` (light) /
+`120 2.6% 7.6%` (dark), plus `sidebar-foreground`, `sidebar-primary`, `sidebar-accent`,
 `sidebar-accent-foreground`, `sidebar-border`, `sidebar-ring`.
 
 **Chart tokens** (unovis): `--vis-primary-color: var(--primary)`,
@@ -53,7 +56,7 @@ Color carries meaning; use the semantic token, never a raw palette color.
 - **success (green):** SLA met, identity verified, agent online, widget connected, message delivered/read
 - **warning (amber):** agent away, SLA approaching/remaining, widget connecting, no-internet banner
 - **destructive (red):** error, delete, SLA breached, SLA overdue
-- **primary (indigo):** brand identity, active nav, links, unread count badges, primary actions
+- **primary (green):** brand identity, active nav, unread count badges, primary actions
 - **foreground / muted:** neutral data (counts, totals, timestamps). Do not color a number
   unless the color means something. See the reports dashboard: numbers are neutral, only
   met=success / breached=destructive are colored.
@@ -115,8 +118,8 @@ Use `tabular-nums` for any numeric column, timer, or metric to prevent width jit
 
 | Class | Value | Use for |
 |---|---|---|
-| `rounded-xl` | radius + 4 (12px) | large surfaces, widget window preview |
-| `rounded-lg` | radius (8px) | cards, containers, dialogs, message bubbles |
+| `rounded-xl` | radius + 4 (12px) | large surfaces, widget window preview, dashboard message bubbles |
+| `rounded-lg` | radius (8px) | cards, containers, dialogs |
 | `rounded-md` | radius - 2 (6px) | buttons, inputs, chips, badges, small interactive |
 | `rounded-sm` | radius - 4 (4px) | tiny insets |
 | `rounded-full` | - | avatars, status dots, count badges, pills |

@@ -143,6 +143,7 @@ const isLoading = ref(false)
 const router = useRouter()
 const userStore = useUserStore()
 const shakeCard = ref(false)
+const submitted = ref(false)
 const showPassword = ref(false)
 const loginForm = ref({
   email: '',
@@ -206,6 +207,7 @@ const validateForm = () => {
 }
 
 const loginAction = () => {
+  submitted.value = true
   if (!validateForm()) return
 
   errorMessage.value = ''
@@ -245,11 +247,10 @@ const enabledOIDCProviders = computed(() => {
 })
 
 const emailHasError = computed(() => {
+  if (!submitted.value) return false
   const email = loginForm.value.email
-  return email !== 'System' && !validateEmail(email) && email !== ''
+  return email !== 'System' && !validateEmail(email)
 })
 
-const passwordHasError = computed(
-  () => !loginForm.value.password && loginForm.value.password !== ''
-)
+const passwordHasError = computed(() => submitted.value && !loginForm.value.password)
 </script>

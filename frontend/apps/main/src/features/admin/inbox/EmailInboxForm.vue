@@ -714,7 +714,7 @@
               "
               target="_blank"
               rel="noopener noreferrer"
-              class="text-primary underline"
+              class="link-style"
             >
               {{
                 selectedProvider === PROVIDER_GOOGLE
@@ -1040,7 +1040,7 @@ watch(
       isOAuthInbox.value = false
       setupMethod.value = 'manual'
     }
-    form.setValues(newValues)
+    form.setValues(newValues, false)
   },
   { deep: true, immediate: true }
 )

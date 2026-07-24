@@ -1428,7 +1428,7 @@ watch(
       prechatConfig.value = pc
     }
 
-    form.setValues(newValues)
+    form.setValues(newValues, false)
   },
   { deep: true, immediate: true }
 )

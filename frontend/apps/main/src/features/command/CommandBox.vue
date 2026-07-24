@@ -396,7 +396,10 @@ function handleCustomSnooze() {
   const diffMinutes = Math.floor((snoozeDate - new Date()) / (1000 * 60))
 
   if (diffMinutes <= 0) {
-    alert(t('globals.messages.selectAFutureTime'))
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      variant: 'destructive',
+      description: t('globals.messages.selectAFutureTime')
+    })
     return
   }
   handleSnooze(diffMinutes)

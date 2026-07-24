@@ -45,14 +45,14 @@
               'max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-5 break-words transition-all duration-200',
               message.author.type === 'contact' || message.author.type === 'visitor'
                 ? [
-                    'text-primary-foreground rounded-br-sm',
+                    'text-primary-foreground',
                     message.status === 'sending' || message.status === 'uploading'
                       ? 'bg-primary/60'
                       : message.status === 'failed'
                         ? 'bg-destructive/60'
                         : 'bg-primary'
                   ]
-                : 'bg-muted text-foreground rounded-bl-sm',
+                : 'bg-muted text-foreground',
               {
                 'show-quoted-text': isQuotedTextVisible(message.uuid),
                 'hide-quoted-text': !isQuotedTextVisible(message.uuid)
@@ -134,7 +134,7 @@
         <!-- Typing Indicator -->
         <div v-if="isTyping" class="flex flex-col items-start">
           <div
-            class="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-5 bg-muted text-foreground rounded-bl-sm"
+            class="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-5 bg-muted text-foreground"
           >
             <TypingIndicator />
           </div>

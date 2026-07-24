@@ -36,7 +36,7 @@
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>{{ $t('globals.messages.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction @click="handleDelete">
+        <AlertDialogAction variant="destructive" @click="handleDelete">
           {{ $t('globals.messages.delete') }}
         </AlertDialogAction>
       </AlertDialogFooter>

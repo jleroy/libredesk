@@ -129,7 +129,7 @@ const form = useForm({
 
 const editTag = (item) => {
   editingId.value = item.id
-  form.setValues(item)
+  form.setValues(item, false)
   form.setErrors({})
   isEditing.value = true
   dialogOpen.value = true

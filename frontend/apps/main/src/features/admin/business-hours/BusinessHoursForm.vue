@@ -95,7 +95,7 @@
         <div class="flex justify-between items-center mb-4">
           <div></div>
           <DialogTrigger as-child>
-            <Button @click="openHolidayForm = true">
+            <Button type="button" @click="openHolidayForm = true">
               {{
                 t('businessHour.newHoliday')
               }}
@@ -320,7 +320,7 @@ const initializeFromValues = (values) => {
   }
 
   // Update form
-  form.setValues(values)
+  form.setValues(values, false)
   syncHoursToForm()
 }
 

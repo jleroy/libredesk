@@ -26,7 +26,7 @@
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>{{ t('globals.messages.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction @click="deleteSnippet">{{
+        <AlertDialogAction variant="destructive" @click="deleteSnippet">{{
           t('globals.messages.delete')
         }}</AlertDialogAction>
       </AlertDialogFooter>

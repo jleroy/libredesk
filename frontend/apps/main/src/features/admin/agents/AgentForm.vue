@@ -397,11 +397,13 @@ onMounted(async () => {
 
 const availabilityStatus = computed(() => {
   const status = form.values.availability_status
-  if (status === 'active_group') return { text: t('globals.terms.active'), color: 'bg-success' }
-  if (status === 'away_manual') return { text: t('globals.terms.away'), color: 'bg-warning' }
+  if (status === 'active_group')
+    return { text: t('globals.terms.active'), color: 'bg-success text-success-foreground' }
+  if (status === 'away_manual')
+    return { text: t('globals.terms.away'), color: 'bg-warning text-warning-foreground' }
   if (status === 'away_and_reassigning')
-    return { text: t('globals.terms.awayReassigning'), color: 'bg-warning' }
-  return { text: t('globals.terms.offline'), color: 'bg-muted-foreground' }
+    return { text: t('globals.terms.awayReassigning'), color: 'bg-warning text-warning-foreground' }
+  return { text: t('globals.terms.offline'), color: 'bg-muted text-muted-foreground' }
 })
 
 const teamOptions = computed(() =>
@@ -504,7 +506,7 @@ watch(
         ) {
           newValues.availability_status = 'active_group'
         }
-        form.setValues(newValues)
+        form.setValues(newValues, false)
         form.setFieldValue(
           'teams',
           newValues.teams.map((team) => team.name)

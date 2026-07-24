@@ -11,7 +11,7 @@ export const createSuggestionColumns = (t, { onReview } = {}) => [
       h(
         'span',
         {
-          class: 'text-primary hover:underline cursor-pointer',
+          class: 'text-foreground font-medium hover:underline cursor-pointer',
           onClick: () => onReview && onReview(row.original)
         },
         row.getValue('question')
@@ -38,7 +38,7 @@ export const createSuggestionColumns = (t, { onReview } = {}) => [
         {
           href: conversationHref(uuid),
           target: '_blank',
-          class: 'text-primary hover:underline'
+          class: 'text-foreground font-medium hover:underline'
         },
         ref ? `#${ref}` : t('admin.ai.suggestion.viewSource')
       )

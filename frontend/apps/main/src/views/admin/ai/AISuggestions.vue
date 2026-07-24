@@ -31,7 +31,7 @@
                 <a
                   :href="`/inboxes/all/conversation/${reviewUUID}`"
                   target="_blank"
-                  class="text-primary hover:underline"
+                  class="text-foreground font-medium hover:underline"
                 >
                   {{ t('admin.ai.suggestion.viewSource') }}
                 </a>

@@ -364,7 +364,8 @@ const viewToDelete = ref(null)
                       <span>{{ t(item.titleKey, item.isTitleKeyPlural === true ? 2 : 1) }}</span>
                       <Badge
                         v-if="item.badge"
-                        class="ml-1.5 px-1.5 py-0 text-[10px] font-medium leading-normal"
+                        variant="outline"
+                        class="ml-1.5 rounded-full uppercase tracking-[0.07em] font-medium text-[9px] leading-none px-[5.5px] py-[3px] bg-warning/10 text-warning-600 border-warning/50 shrink-0"
                       >
                         {{ item.badge }}
                       </Badge>
@@ -536,7 +537,7 @@ const viewToDelete = ref(null)
                           <Plus
                             size="18"
                             @click.stop="openCreateViewDialog"
-                            class="rounded-md cursor-pointer opacity-0 transition-colors duration-200 group-hover/item:opacity-100 hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-accent-foreground p-1"
+                            class="rounded-md cursor-pointer opacity-0 transition-colors duration-200 group-hover/item:opacity-100 hover:bg-sidebar-accent/50 text-muted-foreground hover:text-sidebar-accent-foreground p-1"
                           />
                         </div>
                         <ChevronRight
@@ -647,7 +648,7 @@ const viewToDelete = ref(null)
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>{{ t('globals.messages.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction @click="handleDeleteView">
+        <AlertDialogAction variant="destructive" @click="handleDeleteView">
           {{ t('globals.messages.delete') }}
         </AlertDialogAction>
       </AlertDialogFooter>

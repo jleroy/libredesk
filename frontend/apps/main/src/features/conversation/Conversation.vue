@@ -23,7 +23,7 @@
               v-if="conversationStore.current?.status"
               class="flex items-center space-x-1 cursor-pointer bg-primary px-2 py-1 rounded-md text-sm"
             >
-              <span class="text-secondary font-medium inline-block">
+              <span class="text-primary-foreground font-medium inline-block">
                 {{ conversationStore.current?.status }}
               </span>
             </div>
@@ -48,7 +48,11 @@
             <DropdownMenuItem @click="downloadTranscript">
               {{ t('conversation.downloadTranscript') }}
             </DropdownMenuItem>
-            <DropdownMenuItem :disabled="isSummarizing" @click="summarize">
+            <DropdownMenuItem
+              v-if="userStore.can('messages:write')"
+              :disabled="isSummarizing"
+              @click="summarize"
+            >
               {{ t('conversation.summarize') }}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -67,6 +71,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useConversationStore } from '../../stores/conversation'
+import { useUserStore } from '@main/stores/user'
 import { Clock, MoreHorizontal } from 'lucide-vue-next'
 import {
   DropdownMenu,
@@ -86,6 +91,7 @@ import { useI18n } from 'vue-i18n'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import api from '@main/api'
 const conversationStore = useConversationStore()
+const userStore = useUserStore()
 const emitter = useEmitter()
 const { t } = useI18n()
 

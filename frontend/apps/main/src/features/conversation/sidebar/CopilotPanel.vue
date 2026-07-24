@@ -75,11 +75,11 @@
           :class="msg.isUser ? 'items-end' : 'items-start'"
         >
           <div
-            class="rounded-lg px-3 py-2 text-sm break-words"
+            class="rounded-lg px-3 py-2 text-sm [overflow-wrap:anywhere]"
             :class="
               msg.isUser
-                ? 'bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap'
-                : 'bg-muted text-foreground rounded-bl-sm'
+                ? 'bg-primary text-primary-foreground whitespace-pre-wrap'
+                : 'bg-muted text-foreground'
             "
           >
             <Letter v-if="!msg.isUser" :html="msg.content" class="native-html" />
@@ -137,7 +137,7 @@
         >
           <Bot class="h-3.5 w-3.5 text-primary" />
         </div>
-        <div class="rounded-lg rounded-bl-sm px-3 py-2 bg-muted text-muted-foreground flex items-center">
+        <div class="rounded-lg px-3 py-2 bg-muted text-muted-foreground flex items-center">
           <DotLoader />
           <span class="sr-only">{{ $t('copilot.thinking') }}</span>
         </div>

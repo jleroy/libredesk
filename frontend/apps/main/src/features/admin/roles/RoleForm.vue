@@ -228,7 +228,7 @@ const handleChange = (value, perm) => {
 watch(
   () => props.initialValues,
   (newValues) => {
-    form.setValues(newValues)
+    form.setValues(newValues, false)
     selectedPermissions.value = newValues.permissions || []
   },
   { deep: true, immediate: true }

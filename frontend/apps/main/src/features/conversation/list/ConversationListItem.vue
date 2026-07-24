@@ -27,9 +27,6 @@
                   {{ conversation.contact.first_name.substring(0, 2).toUpperCase() }}
                 </AvatarFallback>
               </Avatar>
-              <span class="absolute -bottom-0.5 -right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-background border border-border">
-                <component :is="conversation.inbox_channel === 'livechat' ? MessageSquare : Mail" class="w-2.5 h-2.5 text-muted-foreground" />
-              </span>
             </div>
             <div
               v-if="canBulkAct"
@@ -48,31 +45,37 @@
           <!-- Content container -->
           <div class="flex-1 min-w-0 space-y-1.5">
             <!-- Name + Subject group -->
-            <div>
-              <!-- Contact name + inbox + time -->
+            <div class="space-y-0.5">
+              <!-- Contact name + channel + time -->
               <div class="flex items-baseline justify-between gap-2">
-                <div class="flex items-baseline gap-1.5 min-w-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <h3
+                      class="text-sm truncate min-w-0 text-foreground"
+                      :class="isUnread ? 'font-semibold' : 'font-medium'"
+                    >
+                      {{ contactFullName }}
+                    </h3>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ contactFullName }}</TooltipContent>
+                </Tooltip>
+                <div class="flex items-center gap-1 flex-shrink-0">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <h3
-                        class="text-sm truncate text-foreground"
-                        :class="isUnread ? 'font-semibold' : 'font-medium'"
-                      >
-                        {{ contactFullName }}
-                      </h3>
+                      <component
+                        :is="conversation.inbox_channel === 'livechat' ? MessageSquare : Mail"
+                        class="w-3 h-3 text-muted-foreground"
+                      />
                     </TooltipTrigger>
-                    <TooltipContent>{{ contactFullName }}</TooltipContent>
+                    <TooltipContent>{{ conversation.inbox_name }}</TooltipContent>
                   </Tooltip>
-                  <span class="text-xs text-muted-foreground truncate">
-                    {{ conversation.inbox_name }}
+                  <span
+                    class="text-xs text-muted-foreground whitespace-nowrap tabular-nums"
+                    v-if="conversation.last_message_at"
+                  >
+                    {{ relativeLastMessageTime }}
                   </span>
                 </div>
-                <span
-                  class="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 tabular-nums"
-                  v-if="conversation.last_message_at"
-                >
-                  {{ relativeLastMessageTime }}
-                </span>
               </div>
 
               <!-- Subject -->
@@ -91,10 +94,10 @@
                 :class="isUnread ? 'text-foreground font-medium' : 'text-muted-foreground'"
               >
                 <template v-if="isTyping">
-                  <span class="italic text-primary">{{ $t('globals.terms.typing') }}</span>
+                  <span class="italic text-foreground">{{ $t('globals.terms.typing') }}</span>
                 </template>
                 <template v-else-if="hasDraftForConversation && !isCurrent">
-                  <span class="font-medium text-primary">{{ $t('globals.terms.draft') }}:</span>
+                  <span class="font-medium text-foreground">{{ $t('globals.terms.draft') }}:</span>
                   {{ draftPreview }}
                 </template>
                 <template v-else>

@@ -264,7 +264,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 
 	// AI assistant: reply drafting + copilot chat.
 	g.POST("/api/v1/ai/generate-reply", auth(handleAIGenerateReply))
-	g.POST("/api/v1/ai/summarize", auth(handleAISummarizeConversation))
+	g.POST("/api/v1/ai/summarize", perm(handleAISummarizeConversation, "messages:write"))
 	g.POST("/api/v1/ai/suggest-tags", auth(handleAISuggestTags))
 	g.POST("/api/v1/ai/copilot", auth(handleAICopilot))
 	g.GET("/api/v1/ai/copilot/messages", auth(handleGetCopilotMessages))

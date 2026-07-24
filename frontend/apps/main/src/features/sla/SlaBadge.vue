@@ -17,7 +17,7 @@
 
     <!-- Remaining -->
     <span v-else-if="sla?.status === 'remaining'" key="remaining" class="sla-badge sla-remaining">
-      <Clock size="12" class="shrink-0 text-warning" stroke-width="2" />
+      <Clock size="12" class="shrink-0 text-warning-600" stroke-width="2" />
       <span class="sla-text">{{ label }} {{ sla.value }}</span>
     </span>
   </div>

@@ -143,8 +143,8 @@
                       class="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-5 break-words"
                       :class="
                         m.type === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-sm'
-                          : 'bg-muted text-foreground rounded-bl-sm'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-foreground'
                       "
                     >
                       {{ m.content }}

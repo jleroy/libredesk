@@ -25,6 +25,7 @@
           </Tooltip>
         </div>
         <button
+          type="button"
           @click.prevent="onRemove(action)"
           class="p-2 text-muted-foreground hover:text-destructive focus:outline-none rounded-md transition-colors duration-150"
           title="Remove action"
