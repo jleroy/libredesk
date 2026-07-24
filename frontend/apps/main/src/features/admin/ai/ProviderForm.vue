@@ -324,6 +324,9 @@ onMounted(async () => {
     const resp = await api.getAIConfig(props.type)
     const data = resp.data.data || {}
     hasApiKey.value = !!data.has_api_key
+    // Defaults only seed a provider with nothing saved; on a saved one an absent value was cleared on purpose.
+    const configured = !!(data.model || data.base_url || data.has_api_key)
+    const seed = configured ? { temperature: '', maxTokens: '', dimensions: '' } : fieldDefaults
     // Pass false so loading an unconfigured provider doesn't flash a "Required" error before the admin has typed anything.
     form.setValues(
       {
@@ -332,11 +335,9 @@ onMounted(async () => {
         api_key: data.api_key || '',
         instructions: data.instructions || '',
         reasoning_effort: data.reasoning_effort || '',
-        // Fall back to sensible defaults when the provider has nothing saved (0/absent).
-        temperature:
-          data.temperature != null ? String(data.temperature) : fieldDefaults.temperature,
-        max_tokens: data.max_tokens ? String(data.max_tokens) : fieldDefaults.maxTokens,
-        dimensions: data.dimensions ? String(data.dimensions) : fieldDefaults.dimensions,
+        temperature: data.temperature != null ? String(data.temperature) : seed.temperature,
+        max_tokens: data.max_tokens ? String(data.max_tokens) : seed.maxTokens,
+        dimensions: data.dimensions ? String(data.dimensions) : seed.dimensions,
         vision: !!data.vision
       },
       false

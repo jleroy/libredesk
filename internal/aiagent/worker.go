@@ -86,18 +86,15 @@ func (m *Manager) Close() {
 	m.wg.Wait()
 }
 
+// worker drains the queue until Close shuts it; a job dropped at shutdown strands the customer with neither a reply nor a handoff.
 func (m *Manager) worker(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case convID, ok := <-m.queue:
-			if !ok {
-				return
-			}
+	for convID := range m.queue {
+		if ctx.Err() != nil {
+			m.handoffByConvID(convID, m.i18n.T("ai.agent.handoffError"))
+		} else {
 			m.handleWithRecover(ctx, convID)
-			m.markDone(convID)
 		}
+		m.markDone(convID)
 	}
 }
 

@@ -236,7 +236,7 @@ func (t *sendEmailVerificationTool) Execute(ctx context.Context, args string) (s
 	if email == "" {
 		return "The customer has no email yet. Ask them for their email and call set_contact_email first.", nil
 	}
-	capReached, err := t.m.otpSendCapReached(t.conv.UUID)
+	capReached, err := t.m.otpSendCapReached(t.conv.UUID, email)
 	if err != nil {
 		return "", err
 	}
@@ -277,13 +277,14 @@ func (t *sendEmailVerificationTool) Execute(ctx context.Context, args string) (s
 		} else {
 			t.m.lo.Warn("no-reply address unavailable, sending verification email without reply-to guard; check notification.email.email_address setting", "conversation_uuid", t.conv.UUID)
 		}
-		sendErr = t.m.notifier.Send(msg)
+		// SendSync, not Send: a queued send returns nil even when SMTP later fails.
+		sendErr = t.m.notifier.SendSync(msg)
 	}
 	if sendErr != nil {
 		t.m.lo.Error("error sending verification code email", "conversation_uuid", t.conv.UUID, "error", sendErr)
 		return "", sendErr
 	}
-	if err := t.m.incrOTPSends(t.conv.UUID); err != nil {
+	if err := t.m.incrOTPSends(t.conv.UUID, email); err != nil {
 		t.m.lo.Error("error recording verification send count", "conversation_uuid", t.conv.UUID, "error", err)
 	}
 	t.m.lo.Debug("ai agent sent verification code", "conversation_uuid", t.conv.UUID, "email", email)

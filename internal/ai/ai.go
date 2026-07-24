@@ -141,7 +141,6 @@ func New(opts Opts) (*Manager, error) {
 			Transport: transport,
 		},
 	}
-	m.chunkCfg.Logger = opts.Lo
 	m.chunkCfg.TokenizerFunc = newTokenCounter(opts.Lo)
 	go func() {
 		defer close(m.indexReady)
@@ -292,7 +291,7 @@ func (m *Manager) UpdateProviderConfig(providerType string, in models.ProviderCo
 	return nil
 }
 
-// TestProviderConfig makes one live provider request with the given config; a blank or masked api_key uses the stored key.
+// TestProviderConfig makes one live provider request with the given config; a masked api_key uses the stored key, matching what an update of the same form would store.
 func (m *Manager) TestProviderConfig(providerType string, in models.ProviderConfig) error {
 	if providerType != models.ProviderTypeCompletion && providerType != models.ProviderTypeEmbedding {
 		return envelope.NewError(envelope.InputError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
@@ -300,7 +299,7 @@ func (m *Manager) TestProviderConfig(providerType string, in models.ProviderConf
 
 	cfg := in
 	cfg.Provider = "openai"
-	if cfg.APIKey == "" || strings.Contains(cfg.APIKey, stringutil.PasswordDummy) {
+	if strings.Contains(cfg.APIKey, stringutil.PasswordDummy) {
 		stored, err := m.getProviderConfig(providerType)
 		if err != nil {
 			return err

@@ -448,7 +448,7 @@ func (c *Manager) GetContactPreviousConversations(contactID int, limit int) ([]m
 	return conversations, nil
 }
 
-// GetContactConversationsForAI returns up to 10 recent conversations of a contact, excluding excludeID, for agent-facing AI tools.
+// GetContactConversationsForAI returns recent conversations of a contact, excluding excludeID.
 func (c *Manager) GetContactConversationsForAI(contactID, excludeID int) ([]models.AIConversationSummary, error) {
 	conversations := make([]models.AIConversationSummary, 0)
 	if err := c.q.GetContactConversationsForAI.Select(&conversations, contactID, excludeID); err != nil {
@@ -458,7 +458,7 @@ func (c *Manager) GetContactConversationsForAI(contactID, excludeID int) ([]mode
 	return conversations, nil
 }
 
-// GetConversationsByContactEmailForAI returns up to 10 recent conversations of the contact matching email exactly, for agent-facing AI tools.
+// GetConversationsByContactEmailForAI returns recent conversations of the contact matching email exactly.
 func (c *Manager) GetConversationsByContactEmailForAI(email string) ([]models.AIConversationSummary, error) {
 	conversations := make([]models.AIConversationSummary, 0)
 	if err := c.q.GetConversationsByContactEmailForAI.Select(&conversations, email); err != nil {

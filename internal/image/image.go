@@ -17,9 +17,8 @@ const (
 	// llmMaxDim caps an image's longest edge before it is sent to a vision model.
 	llmMaxDim      = 1568
 	llmJPEGQuality = 85
-	// maxDecodePixels bounds width*height read from the header before decoding, blocking image bombs
-	// that declare huge dimensions in a small file.
-	maxDecodePixels = 100_000_000
+	// maxDecodePixels bounds width*height read from the header, blocking a small file that declares huge dimensions. 25 MP is ~100 MB of RGBA per agent worker.
+	maxDecodePixels = 25_000_000
 )
 
 var (

@@ -7,13 +7,29 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/zerodha/logf"
 	"golang.org/x/net/html"
 )
 
 var (
 	sentenceRegex     = regexp.MustCompile(`[.!?]+[\s]+`)
 	headingInnerRegex = regexp.MustCompile(`(?is)<h[1-6][^>]*>(.*?)</h[1-6]>`)
+
+	// nonContentElements hold markup, not prose. HTML2Text only skips head, script and style, so
+	// svg, noscript and template have to be excluded here or their text reaches the index.
+	nonContentElements = map[string]bool{
+		"head": true, "script": true, "style": true, "noscript": true, "template": true, "svg": true,
+	}
+
+	blockElements = map[string]bool{
+		"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true,
+		"p": true, "div": true, "section": true, "article": true, "aside": true,
+		"header": true, "footer": true, "main": true, "nav": true,
+		"ul": true, "ol": true, "li": true, "dl": true, "dt": true, "dd": true,
+		"table": true, "thead": true, "tbody": true, "tfoot": true, "tr": true, "td": true, "th": true,
+		"form": true, "fieldset": true, "legend": true,
+		"blockquote": true, "pre": true, "code": true, "figure": true, "figcaption": true,
+		"address": true, "details": true, "summary": true, "hr": true,
+	}
 )
 
 type ChunkConfig struct {
@@ -22,7 +38,6 @@ type ChunkConfig struct {
 	OverlapTokens  int
 	TokenizerFunc  func(string) int
 	PreserveBlocks []string
-	Logger         *logf.Logger
 }
 
 type htmlBoundary struct {
@@ -40,7 +55,6 @@ func DefaultChunkConfig() ChunkConfig {
 		OverlapTokens:  75,
 		TokenizerFunc:  defaultTokenizer,
 		PreserveBlocks: []string{"pre", "code", "table"},
-		Logger:         nil,
 	}
 }
 
@@ -77,19 +91,6 @@ func ChunkHTMLContent(title, htmlContent string, config ...ChunkConfig) ([]strin
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
-	// Plain text (or any text not wrapped in a block element) yields no boundaries;
-	// size-bound it into chunks so it still gets embedded without overflowing the model limit.
-	if len(boundaries) == 0 {
-		if text := strings.TrimSpace(HTML2Text(htmlContent)); text != "" {
-			pieces := chunkPlainText(text, cfg)
-			result := make([]string, len(pieces))
-			for i, p := range pieces {
-				result[i] = buildEmbeddingText(title, "", p)
-			}
-			return result, nil
-		}
-	}
-
 	chunks := createChunks(boundaries, cfg)
 	result := make([]string, len(chunks))
 
@@ -101,6 +102,11 @@ func ChunkHTMLContent(title, htmlContent string, config ...ChunkConfig) ([]strin
 		result[i] = buildEmbeddingText(title, lastHeading, HTML2Text(chunk.Content))
 	}
 
+	// Markup with no text at all still needs a chunk; embedding nothing is indistinguishable from success.
+	if len(result) == 0 {
+		return []string{buildEmbeddingText(title, "", "")}, nil
+	}
+
 	return result, nil
 }
 
@@ -110,16 +116,6 @@ func defaultTokenizer(text string) int {
 }
 
 func isBlockElement(tag string) bool {
-	blockElements := map[string]bool{
-		"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true,
-		"p": true, "div": true, "section": true, "article": true, "aside": true,
-		"header": true, "footer": true, "main": true, "nav": true,
-		"ul": true, "ol": true, "li": true, "dl": true, "dt": true, "dd": true,
-		"table": true, "thead": true, "tbody": true, "tfoot": true, "tr": true, "td": true, "th": true,
-		"form": true, "fieldset": true, "legend": true,
-		"blockquote": true, "pre": true, "code": true, "figure": true, "figcaption": true,
-		"address": true, "details": true, "summary": true, "hr": true,
-	}
 	return blockElements[tag]
 }
 
@@ -133,19 +129,38 @@ func parseHTMLBoundaries(htmlContent string, cfg ChunkConfig) ([]htmlBoundary, e
 
 	var extract func(*html.Node)
 	extract = func(n *html.Node) {
-		if n.Type == html.ElementNode {
+		switch n.Type {
+		case html.TextNode:
+			// Text outside any block element has no boundary of its own and would drop out of the index.
+			text := strings.TrimSpace(n.Data)
+			if text == "" {
+				return
+			}
+			// Unwrapped, so mergeBoundaries reassembles a run broken up by inline tags into one sentence.
+			boundaries = append(boundaries, htmlBoundary{
+				Type:     "p",
+				Content:  html.EscapeString(text) + " ",
+				Priority: getPriority("p"),
+				Tokens:   cfg.TokenizerFunc(text),
+			})
+			return
+		case html.ElementNode:
 			tag := strings.ToLower(n.Data)
-
-			var content strings.Builder
-			_ = html.Render(&content, n)
-			contentStr := content.String()
-
-			cleanText := HTML2Text(contentStr)
-			if strings.TrimSpace(cleanText) == "" {
+			if nonContentElements[tag] {
 				return
 			}
 
+			// Rendering a non-block wrapper would redo its whole subtree once per nesting level.
 			if isBlockElement(tag) {
+				var content strings.Builder
+				_ = html.Render(&content, n)
+				contentStr := content.String()
+
+				cleanText := HTML2Text(contentStr)
+				if strings.TrimSpace(cleanText) == "" {
+					return
+				}
+
 				tokens := cfg.TokenizerFunc(cleanText)
 				// An oversized container taken as one atomic boundary would be truncated at
 				// MaxTokens, silently dropping the rest; descend into its block children instead.
@@ -268,38 +283,18 @@ func mergeBoundaries(boundaries []htmlBoundary, cfg ChunkConfig) []htmlBoundary 
 	return merged
 }
 
-// truncateOversizedContent trims content past MaxTokens rune-by-rune, warning admins to fix the source.
-func truncateOversizedContent(boundary htmlBoundary, cfg ChunkConfig) htmlBoundary {
-	text := HTML2Text(boundary.Content)
-	if cfg.TokenizerFunc(text) <= cfg.MaxTokens {
-		return boundary
-	}
-
-	runes := []rune(text)
-	for i := 1; i <= len(runes); i++ {
-		truncated := string(runes[:len(runes)-i])
-		if cfg.TokenizerFunc(truncated) <= cfg.MaxTokens {
-			if cfg.Logger != nil {
-				cfg.Logger.Warn("Content truncated: exceeded max_tokens",
-					"type", boundary.Type,
-					"original_tokens", boundary.Tokens,
-					"truncated_tokens", cfg.TokenizerFunc(truncated))
-			}
-			boundary.Content = truncated
-			boundary.Tokens = cfg.TokenizerFunc(truncated)
-			return boundary
+// splitOversizedBoundary breaks an atomic boundary into MaxTokens-sized pieces on sentence boundaries.
+func splitOversizedBoundary(boundary htmlBoundary, cfg ChunkConfig) []htmlBoundary {
+	var out []htmlBoundary
+	// Only Content is read downstream; setting Tokens would be a second tokenizer pass over the whole block.
+	for _, piece := range chunkPlainText(HTML2Text(boundary.Content), boundary.Tokens, cfg) {
+		piece = strings.TrimSpace(piece)
+		if piece == "" {
+			continue
 		}
+		out = append(out, htmlBoundary{Content: "<p>" + html.EscapeString(piece) + "</p>"})
 	}
-
-	if cfg.Logger != nil {
-		cfg.Logger.Error("Content completely emptied: could not truncate to fit max_tokens",
-			"type", boundary.Type,
-			"original_tokens", boundary.Tokens,
-			"max_tokens", cfg.MaxTokens)
-	}
-	boundary.Content = ""
-	boundary.Tokens = 0
-	return boundary
+	return out
 }
 
 func createChunks(boundaries []htmlBoundary, cfg ChunkConfig) []htmlBoundary {
@@ -312,17 +307,13 @@ func createChunks(boundaries []htmlBoundary, cfg ChunkConfig) []htmlBoundary {
 	currentChunk.Priority = 10
 
 	for _, boundary := range boundaries {
-		// An oversized atomic boundary (a preserved or non-splittable block larger than MaxTokens)
-		// can't fit any chunk; flush the current chunk and emit it truncated on its own. Handled here
-		// so an overlap or leading-content prefix can't sneak it through un-truncated.
+		// Split here, not at the boundary source, so an overlap prefix can't push a piece back over the limit.
 		if boundary.Tokens > cfg.MaxTokens {
 			if currentChunk.Content != "" {
 				chunks = append(chunks, currentChunk)
 				currentChunk = htmlBoundary{Priority: 10}
 			}
-			if t := truncateOversizedContent(boundary, cfg); t.Content != "" {
-				chunks = append(chunks, t)
-			}
+			chunks = append(chunks, splitOversizedBoundary(boundary, cfg)...)
 			continue
 		}
 
@@ -371,7 +362,7 @@ func createChunks(boundaries []htmlBoundary, cfg ChunkConfig) []htmlBoundary {
 // extractOverlap carries trailing whole sentences into the next chunk for context continuity.
 func extractOverlap(content string, cfg ChunkConfig) string {
 	cleanText := HTML2Text(content)
-	sentences := sentenceRegex.Split(cleanText, -1)
+	sentences := splitSentences(cleanText)
 
 	if len(sentences) <= 1 {
 		return ""
@@ -397,7 +388,7 @@ func extractOverlap(content string, cfg ChunkConfig) string {
 		return ""
 	}
 
-	return "<p>" + strings.Join(overlap, ". ") + ".</p>\n"
+	return "<p>" + html.EscapeString(strings.Join(overlap, " ")) + "</p>\n"
 }
 
 // extractLeadingHeading returns the plain text of the first heading in the chunk HTML, if any.
@@ -433,9 +424,9 @@ func buildEmbeddingText(title, heading, cleanText string) string {
 	return b.String()
 }
 
-// chunkPlainText packs unstructured text into <=MaxTokens pieces on sentence boundaries, hard-splitting any single sentence that alone exceeds the cap.
-func chunkPlainText(text string, cfg ChunkConfig) []string {
-	if cfg.TokenizerFunc(text) <= cfg.MaxTokens {
+// chunkPlainText packs text into <=MaxTokens pieces on sentence boundaries, hard-splitting any single sentence over the cap; tokens is the caller's already-measured count for text.
+func chunkPlainText(text string, tokens int, cfg ChunkConfig) []string {
+	if tokens <= cfg.MaxTokens {
 		return []string{text}
 	}
 
@@ -450,7 +441,7 @@ func chunkPlainText(text string, cfg ChunkConfig) []string {
 		}
 	}
 
-	for _, s := range sentenceRegex.Split(text, -1) {
+	for _, s := range splitSentences(text) {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			continue
@@ -479,7 +470,13 @@ func hardSplit(s string, cfg ChunkConfig) []string {
 	runes := []rune(s)
 	var out []string
 	for len(runes) > 0 {
-		lo, hi, best := 1, len(runes), 1
+		// Probing upward first keeps tokenizer calls near the piece size instead of the whole remaining string.
+		hi := 2
+		for hi < len(runes) && cfg.TokenizerFunc(string(runes[:hi])) <= cfg.MaxTokens {
+			hi *= 2
+		}
+		hi = min(hi, len(runes))
+		lo, best := 1, 1
 		for lo <= hi {
 			mid := (lo + hi) / 2
 			if cfg.TokenizerFunc(string(runes[:mid])) <= cfg.MaxTokens {
@@ -493,4 +490,19 @@ func hardSplit(s string, cfg ChunkConfig) []string {
 		runes = runes[best:]
 	}
 	return out
+}
+
+// splitSentences splits on sentence boundaries, keeping each sentence's terminating punctuation.
+func splitSentences(text string) []string {
+	seps := sentenceRegex.FindAllStringIndex(text, -1)
+	if len(seps) == 0 {
+		return []string{text}
+	}
+	out := make([]string, 0, len(seps)+1)
+	prev := 0
+	for _, sep := range seps {
+		out = append(out, text[prev:sep[0]]+strings.TrimSpace(text[sep[0]:sep[1]]))
+		prev = sep[1]
+	}
+	return append(out, text[prev:])
 }

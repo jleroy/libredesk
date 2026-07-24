@@ -214,6 +214,9 @@ func (a *Auth) ExchangeOIDCToken(ctx context.Context, providerID int, code strin
 		return "", OIDCclaim{}, fmt.Errorf("invalid provider ID: %d", providerID)
 	}
 
+	// Otherwise the token exchange and JWKS fetch use http.DefaultClient, which has no SSRF guard and no timeout.
+	ctx = oidc.ClientContext(ctx, a.oidcClient)
+
 	tk, err := oauthCfg.Exchange(ctx, code)
 	if err != nil {
 		return "", OIDCclaim{}, fmt.Errorf("error exchanging token: %v", err)

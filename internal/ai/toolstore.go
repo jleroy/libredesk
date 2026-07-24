@@ -108,8 +108,8 @@ func (m *Manager) DeleteTool(id int) error {
 	return nil
 }
 
-// prepareToolAuth returns the auth JSON to store: per header, a blank or dummy-masked value keeps
-// the existing secret (matched by key), a new plaintext value is encrypted.
+// prepareToolAuth returns the auth JSON to store: per header, a blank or dummy-masked value keeps the
+// existing secret stored under that key, a new plaintext value is encrypted.
 func (m *Manager) prepareToolAuth(raw, existing types.JSONText) (types.JSONText, error) {
 	if len(raw) == 0 {
 		return emptyToolAuth, nil
@@ -118,13 +118,21 @@ func (m *Manager) prepareToolAuth(raw, existing types.JSONText) (types.JSONText,
 	if err := json.Unmarshal(raw, &auth); err != nil {
 		return raw, envelope.NewError(envelope.InputError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	existingByKey := toolAuthByKey(existing)
+	existingHeaders := toolAuthHeaders(existing)
 	for i, h := range auth.Headers {
 		switch {
 		case h.Value == "" || strings.Contains(h.Value, stringutil.PasswordDummy):
-			existingValue, ok := existingByKey[h.Key]
-			if !ok {
-				return raw, envelope.NewError(envelope.InputError, m.i18n.T("admin.ai.tool.headersInvalid"), nil)
+			// Matched by key only. Falling back to row position would hand a renamed header the secret
+			// of whichever row now sits at its index, which is silently the wrong credential.
+			existingValue := ""
+			for _, e := range existingHeaders {
+				if e.Key == h.Key && e.Value != "" {
+					existingValue = e.Value
+					break
+				}
+			}
+			if existingValue == "" {
+				return raw, envelope.NewError(envelope.InputError, m.i18n.T("admin.ai.tool.headerSecretMissing"), nil)
 			}
 			auth.Headers[i].Value = existingValue
 		case crypto.IsEncrypted(h.Value):
@@ -188,37 +196,30 @@ func toolParametersOrEmpty(t models.Tool) types.JSONText {
 
 // maskToolAuth replaces every header's stored secret with a dummy value.
 func maskToolAuth(raw types.JSONText) types.JSONText {
-	if len(raw) == 0 {
+	headers := toolAuthHeaders(raw)
+	if len(headers) == 0 {
 		return emptyToolAuth
 	}
-	var auth models.ToolAuth
-	if err := json.Unmarshal(raw, &auth); err != nil {
-		return emptyToolAuth
-	}
-	for i, h := range auth.Headers {
+	for i, h := range headers {
 		if h.Value != "" {
-			auth.Headers[i].Value = strings.Repeat(stringutil.PasswordDummy, 10)
+			headers[i].Value = strings.Repeat(stringutil.PasswordDummy, 10)
 		}
 	}
-	b, err := json.Marshal(auth)
+	b, err := json.Marshal(models.ToolAuth{Headers: headers})
 	if err != nil {
 		return emptyToolAuth
 	}
 	return types.JSONText(b)
 }
 
-// toolAuthByKey returns the stored (encrypted) header values from a raw auth JSON, keyed by header name.
-func toolAuthByKey(raw types.JSONText) map[string]string {
-	byKey := make(map[string]string)
+// toolAuthHeaders returns the stored headers, values still encrypted, from a raw auth JSON.
+func toolAuthHeaders(raw types.JSONText) []models.ToolAuthHeader {
 	if len(raw) == 0 {
-		return byKey
+		return nil
 	}
 	var auth models.ToolAuth
 	if err := json.Unmarshal(raw, &auth); err != nil {
-		return byKey
+		return nil
 	}
-	for _, h := range auth.Headers {
-		byKey[h.Key] = h.Value
-	}
-	return byKey
+	return auth.Headers
 }

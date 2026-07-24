@@ -188,10 +188,15 @@ func TestChunkHTMLContent_EdgeCases(t *testing.T) {
 			},
 		},
 		{
-			name:           "Giant Token Test - Single Massive Block",
-			html:           "<h2>" + strings.Repeat("word ", 1000) + "</h2>", // 1000 tokens in one block
-			config:         newTestConfig(50, 20, 10),
-			expectedChunks: 1, // Should truncate oversized content to fit max tokens
+			name:   "Giant Token Test - Single Massive Block",
+			html:   "<h2>" + strings.Repeat("word ", 1000) + "</h2>", // 1000 tokens in one block
+			config: newTestConfig(50, 20, 10),
+			validate: func(t *testing.T, chunks []string) {
+				assert.Greater(t, len(chunks), 1, "An oversized block must be split across chunks, not truncated")
+				kept := strings.Count(strings.Join(chunks, " "), "word")
+				assert.GreaterOrEqual(t, kept, 950, "Nearly every word must survive; truncation used to drop the tail")
+			},
+			expectedChunks: -1, // Validated via validate func
 		},
 		{
 			name:   "Oversized Wrapper Div Splits Into Children",
@@ -243,6 +248,142 @@ func TestChunkHTMLContent_PlainText(t *testing.T) {
 			assert.Contains(t, chunks[0], "25 MB")
 		})
 	}
+}
+
+// TestChunkHTMLContent_NoSilentContentLoss covers the ways content used to vanish from the index
+// with no error: text outside a block element was never collected, and an atomic block over
+// MaxTokens was truncated instead of split.
+func TestChunkHTMLContent_NoSilentContentLoss(t *testing.T) {
+	t.Run("Loose Text Around A Block Element", func(t *testing.T) {
+		chunks, err := ChunkHTMLContent("Refunds",
+			"Refunds are issued within thirty days.\n"+
+				"<table><tr><td>Plan</td><td>Price</td></tr></table>\n"+
+				"Email support to start a refund.")
+		require.NoError(t, err)
+
+		joined := strings.Join(chunks, "\n")
+		assert.Contains(t, joined, "Refunds are issued within thirty days", "Prose before the block must be indexed")
+		assert.Contains(t, joined, "Email support to start a refund", "Prose after the block must be indexed")
+		assert.Contains(t, joined, "Plan", "The block itself must still be indexed")
+	})
+
+	t.Run("Oversized Loose Text Splits", func(t *testing.T) {
+		body := "HEAD_MARKER. " + strings.Repeat("The refund window is thirty days from purchase. ", 400) + "TAIL_MARKER."
+		chunks, err := ChunkHTMLContent("Refunds", body, newTestConfig(100, 30, 10))
+		require.NoError(t, err)
+
+		joined := strings.Join(chunks, "\n")
+		assert.Greater(t, len(chunks), 1, "Oversized loose text must split across chunks")
+		assert.Contains(t, joined, "HEAD_MARKER")
+		assert.Contains(t, joined, "TAIL_MARKER", "The tail must survive; truncation used to drop it")
+	})
+
+	t.Run("Oversized Split Keeps Sentence Terminators", func(t *testing.T) {
+		body := strings.Repeat("Can I get a refund? Yes you can! Contact support today. ", 40)
+		chunks, err := ChunkHTMLContent("Refunds", body, newTestConfig(30, 10, 5))
+		require.NoError(t, err)
+
+		joined := strings.Join(chunks, "\n")
+		assert.Contains(t, joined, "Can I get a refund?", "Question marks must survive sentence splitting")
+		assert.Contains(t, joined, "Yes you can!", "Exclamation marks must survive sentence splitting")
+	})
+
+	t.Run("Markup-Like Overlap Text Must Not Swallow The Next Chunk", func(t *testing.T) {
+		chunks, err := ChunkHTMLContent("Widget",
+			"<h3>Install the widget first. Then add the &lt;script&gt; tag to your page.</h3>"+
+				"<p>REAL_MARKER content that must survive chunking in the second chunk.</p>",
+			newTestConfig(20, 10, 8))
+		require.NoError(t, err)
+
+		assert.Contains(t, strings.Join(chunks, "\n"), "REAL_MARKER",
+			"An unescaped <script> in the overlap swallows the rest of the chunk")
+	})
+
+	t.Run("Oversized Preserved Block Splits", func(t *testing.T) {
+		var b strings.Builder
+		b.WriteString("<table><tr><td>HEAD_MARKER</td></tr>")
+		for range 300 {
+			b.WriteString("<tr><td>The refund window is thirty days from purchase</td></tr>")
+		}
+		b.WriteString("<tr><td>TAIL_MARKER</td></tr></table>")
+
+		chunks, err := ChunkHTMLContent("Refunds", b.String(), newTestConfig(100, 30, 10))
+		require.NoError(t, err)
+
+		joined := strings.Join(chunks, "\n")
+		assert.Greater(t, len(chunks), 1, "A preserved block over MaxTokens must split")
+		assert.Contains(t, joined, "HEAD_MARKER")
+		assert.Contains(t, joined, "TAIL_MARKER", "The tail must survive; truncation used to drop it")
+	})
+}
+
+// TestChunkHTMLContent_NonContentElements guards loose-text collection against markup that is not prose.
+// HTML2Text only skips head, script and style, so svg and friends are excluded by this package alone.
+func TestChunkHTMLContent_NonContentElements(t *testing.T) {
+	chunks, err := ChunkHTMLContent("Guide",
+		"<html><head><title>PAGE_TITLE_TAG</title><style>.a{color:red}</style></head>"+
+			"<body><script>var tracker = 1</script><p>Reset your password from settings.</p>trailing note</body></html>")
+	require.NoError(t, err)
+
+	joined := strings.Join(chunks, "\n")
+	assert.NotContains(t, joined, "PAGE_TITLE_TAG", "Head content must not be embedded")
+	assert.NotContains(t, joined, "tracker", "Script source must not be embedded")
+	assert.NotContains(t, joined, "color:red", "Stylesheet source must not be embedded")
+	assert.Contains(t, joined, "Reset your password from settings")
+	assert.Contains(t, joined, "trailing note")
+
+	t.Run("svg text is excluded even when it is the only content", func(t *testing.T) {
+		chunks, err := ChunkHTMLContent("Diagram", "<svg><text>SVG_LABEL</text></svg>")
+		require.NoError(t, err)
+		assert.NotContains(t, strings.Join(chunks, "\n"), "SVG_LABEL")
+	})
+}
+
+// TestChunkHTMLContent_InlineRunStaysOneSentence pins that inline tags do not fragment a sentence:
+// collecting loose text per node splits on every <b>/<a>, and the pieces have to reassemble.
+func TestChunkHTMLContent_InlineRunStaysOneSentence(t *testing.T) {
+	chunks, err := ChunkHTMLContent("Pricing", "The price is <b>$10</b> per month, billed yearly.")
+	require.NoError(t, err)
+	require.Len(t, chunks, 1)
+	assert.Contains(t, chunks[0], "The price is $10 per month, billed yearly.")
+}
+
+// TestChunkHTMLContent_TextlessMarkup pins the title-only fallback: zero chunks would let the caller
+// record the snippet as embedded while nothing reached the index.
+func TestChunkHTMLContent_TextlessMarkup(t *testing.T) {
+	for _, html := range []string{`<div><img src="x.png"></div>`, "<div></div>", "<p>  </p>"} {
+		t.Run(html, func(t *testing.T) {
+			chunks, err := ChunkHTMLContent("Screenshot Only", html)
+			require.NoError(t, err)
+			require.Len(t, chunks, 1)
+			assert.Equal(t, "Screenshot Only", chunks[0])
+		})
+	}
+}
+
+// TestChunkHTMLContent_TokenizerVolumeIsBounded guards the oversized-block path. It counts characters
+// handed to the tokenizer rather than wall clock: production uses a tiktoken encoder whose cost scales
+// with input length, so a wall-clock budget against the cheap default tokenizer hides a real regression.
+func TestChunkHTMLContent_TokenizerVolumeIsBounded(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("<table>")
+	for range 2000 {
+		b.WriteString("<tr><td>The refund window is thirty days.</td><td>Contact support to start one.</td></tr>")
+	}
+	b.WriteString("</table>")
+
+	chars := 0
+	cfg := DefaultChunkConfig()
+	cfg.TokenizerFunc = func(s string) int { chars += len(s); return defaultTokenizer(s) }
+
+	chunks, err := ChunkHTMLContent("Big Table", b.String(), cfg)
+	require.NoError(t, err)
+	assert.NotEmpty(t, chunks)
+
+	plain := len(HTML2Text(b.String()))
+	ratio := float64(chars) / float64(plain)
+	t.Logf("tokenizer chars=%d plain=%d ratio=%.2fx", chars, plain, ratio)
+	assert.Less(t, ratio, 8.0, "tokenizer volume is %.2fx the document; the prefix search has regressed", ratio)
 }
 
 func TestChunkingLogic(t *testing.T) {
@@ -428,6 +569,23 @@ func TestDefaultTokenizer(t *testing.T) {
 			tokens := defaultTokenizer(tc.text)
 			assert.Equal(t, tc.expected, tokens)
 		})
+	}
+}
+
+func TestExtractOverlap_PreservesSentenceTerminators(t *testing.T) {
+	cfg := newTestConfig(50, 20, 15)
+	overlap := extractOverlap("<p>Install the app first. Does it need a license key? Yes it does!</p>", cfg)
+	assert.Contains(t, overlap, "Does it need a license key?")
+	assert.Contains(t, overlap, "Yes it does!")
+}
+
+func TestHardSplit_LosslessAndBounded(t *testing.T) {
+	cfg := newTestConfig(10, 5, 2)
+	s := strings.Repeat("abcdefghij ", 100)
+	pieces := hardSplit(s, cfg)
+	assert.Equal(t, s, strings.Join(pieces, ""), "hardSplit must not lose or reorder content")
+	for _, p := range pieces {
+		assert.LessOrEqual(t, cfg.TokenizerFunc(p), cfg.MaxTokens)
 	}
 }
 
@@ -1264,7 +1422,7 @@ func TestRealWorldScenarios(t *testing.T) {
 			name:              "Legal Wall of Text",
 			htmlKey:           "legal_wall_text",
 			expectedMinChunks: 1,
-			expectedMaxChunks: 3,
+			expectedMaxChunks: 6,
 			validationCallback: func(t *testing.T, chunks []string, scenario string) {
 				if len(chunks) > 1 {
 					for i, chunk := range chunks {
@@ -1272,6 +1430,8 @@ func TestRealWorldScenarios(t *testing.T) {
 						assert.True(t, tokens <= config.MaxTokens*2, "Chunk %d should not be excessively large (%d tokens)", i, tokens)
 					}
 				}
+				assert.Contains(t, strings.Join(chunks, " "), "may mislead other users",
+					"The end of an oversized paragraph must survive chunking")
 			},
 		},
 		{
@@ -1425,7 +1585,7 @@ func TestRealWorldScenarios(t *testing.T) {
 			name:              "Giant Code Block",
 			htmlKey:           "giant_code_block",
 			expectedMinChunks: 1,
-			expectedMaxChunks: 3,
+			expectedMaxChunks: 8,
 			validationCallback: func(t *testing.T, chunks []string, scenario string) {
 				hasCodeBlocks := false
 				for _, chunk := range chunks {
@@ -1434,6 +1594,8 @@ func TestRealWorldScenarios(t *testing.T) {
 					}
 				}
 				assert.True(t, hasCodeBlocks, "Should have code blocks")
+				assert.Contains(t, strings.Join(chunks, " "), "max_custom_attributes",
+					"The end of an oversized code block must survive chunking")
 			},
 		},
 	}

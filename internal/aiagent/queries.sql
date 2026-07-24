@@ -55,7 +55,8 @@ DELETE FROM ai_assistants WHERE id = $1;
 -- name: unassign-assistant-conversations
 UPDATE conversations
 SET assigned_user_id = NULL, assigned_team_id = COALESCE($2, assigned_team_id), updated_at = now()
-WHERE assigned_user_id = $1;
+WHERE assigned_user_id = $1
+  AND status_id IN (SELECT id FROM conversation_statuses WHERE category <> 'resolved');
 
 -- name: get-assistant-tools
 SELECT tool_id FROM ai_assistant_tools WHERE assistant_id = $1 ORDER BY tool_id;

@@ -152,6 +152,7 @@
   "admin.ai.tool.headers": "Headers",
   "admin.ai.tool.headersHint": "Sent as HTTP headers with every request to this tool's URL. Values are encrypted at rest. Leave empty if the endpoint doesn't require auth.",
   "admin.ai.tool.headersInvalid": "Enter both a name and a value for every header, or remove the incomplete one.",
+  "admin.ai.tool.headerSecretMissing": "This header has no saved value. Renaming a header does not carry over its stored secret. Enter the value again.",
   "admin.ai.tool.headerKeyPlaceholder": "Authorization",
   "admin.ai.tool.headerValuePlaceholder": "Bearer xxx",
   "admin.ai.tool.addHeader": "Add header",

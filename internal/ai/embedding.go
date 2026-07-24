@@ -298,6 +298,9 @@ func (m *Manager) reconcile(ctx context.Context) {
 
 	reindexed := 0
 	for _, item := range items {
+		if ctx.Err() != nil {
+			return
+		}
 		if !item.Enabled {
 			// A disabled item should carry no embeddings; clean up any left behind.
 			if item.EmbeddedFingerprint != "" {

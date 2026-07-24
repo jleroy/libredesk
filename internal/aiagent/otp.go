@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/stringutil"
@@ -19,7 +21,10 @@ const (
 	otpVerifiedTTL = 30 * time.Minute
 
 	otpMaxAttempts = 3
-	otpMaxSends    = 3
+	// otpMaxSends is the per-address nag limit; otpMaxConvSends bounds total outbound mail for the
+	// conversation, since set_contact_email lets the customer switch to a fresh address at will.
+	otpMaxSends     = 3
+	otpMaxConvSends = 6
 )
 
 // checkOTPScript matches the pending code and sets the verified flag on match, all in one step.
@@ -65,7 +70,13 @@ type pendingOTP struct {
 
 func otpPendingKey(convUUID string) string  { return otpPendingKeyPrefix + convUUID }
 func otpVerifiedKey(convUUID string) string { return otpVerifiedKeyPrefix + convUUID }
-func otpSendsKey(convUUID string) string    { return otpSendsKeyPrefix + convUUID }
+
+// otpSendsKey scopes the send budget to one address so correcting a mistyped email gets a fresh one.
+func otpSendsKey(convUUID, email string) string {
+	return otpSendsKeyPrefix + convUUID + ":" + strings.ToLower(strings.TrimSpace(email))
+}
+
+func otpConvSendsKey(convUUID string) string { return otpSendsKeyPrefix + convUUID }
 
 func (m *Manager) isConversationVerified(convUUID string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -88,26 +99,26 @@ func (m *Manager) clearConversationVerified(convUUID string) error {
 	return m.redis.Del(ctx, otpVerifiedKey(convUUID), otpPendingKey(convUUID)).Err()
 }
 
-// otpSendCapReached reports whether otpMaxSends codes have already been emailed for the conversation.
-func (m *Manager) otpSendCapReached(convUUID string) (bool, error) {
+// otpSendCapReached reports whether this address or the conversation as a whole is out of sends.
+func (m *Manager) otpSendCapReached(convUUID, email string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	n, err := m.redis.Get(ctx, otpSendsKey(convUUID)).Int64()
+	counts, err := m.redis.MGet(ctx, otpSendsKey(convUUID, email), otpConvSendsKey(convUUID)).Result()
 	if err != nil {
-		if err == redis.Nil {
-			return false, nil
-		}
 		return false, err
 	}
-	return n >= otpMaxSends, nil
+	return otpCount(counts[0]) >= otpMaxSends || otpCount(counts[1]) >= otpMaxConvSends, nil
 }
 
-// incrOTPSends records a code that was actually emailed, bumping the send counter and setting its TTL
-// on the first send.
-func (m *Manager) incrOTPSends(convUUID string) error {
+// incrOTPSends records a code that was actually emailed against both the address and conversation budgets.
+func (m *Manager) incrOTPSends(convUUID, email string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	return incrOTPSendsScript.Run(ctx, m.redis, []string{otpSendsKey(convUUID)}, int(otpVerifiedTTL.Seconds())).Err()
+	ttl := int(otpVerifiedTTL.Seconds())
+	if err := incrOTPSendsScript.Run(ctx, m.redis, []string{otpSendsKey(convUUID, email)}, ttl).Err(); err != nil {
+		return err
+	}
+	return incrOTPSendsScript.Run(ctx, m.redis, []string{otpConvSendsKey(convUUID)}, ttl).Err()
 }
 
 func (m *Manager) storePendingOTP(convUUID, code string) error {
@@ -144,4 +155,17 @@ func (m *Manager) checkPendingOTP(convUUID, code string) (bool, error) {
 // generateOTP returns a random 6-digit numeric code.
 func generateOTP() (string, error) {
 	return stringutil.RandomNumeric(6)
+}
+
+// otpCount reads one counter out of an MGet result, treating a missing or unparseable key as zero.
+func otpCount(v any) int64 {
+	s, ok := v.(string)
+	if !ok {
+		return 0
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
 }

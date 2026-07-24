@@ -325,7 +325,7 @@ LEFT JOIN conversation_statuses cs ON c.status_id = cs.id
 WHERE c.contact_id = $1
   AND c.id != $2
 ORDER BY c.created_at DESC
-LIMIT 10;
+LIMIT 50;
 
 -- name: get-conversations-by-contact-email-for-ai
 SELECT
@@ -345,7 +345,7 @@ WHERE LOWER(u.email) = LOWER($1)
   AND u.type = 'contact'
   AND u.deleted_at IS NULL
 ORDER BY c.created_at DESC
-LIMIT 10;
+LIMIT 50;
 
 -- name: get-chat-conversation
 SELECT
