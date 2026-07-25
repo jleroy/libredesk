@@ -13,7 +13,9 @@
           </div>
         </div>
 
-        <div class="flex-1 flex min-h-0">
+        <Spinner v-if="isLoadingArticle" class="flex-1" />
+
+        <div v-else class="flex-1 flex min-h-0">
           <div class="flex-1 flex flex-col p-6 space-y-6 min-h-0">
             <form @submit="onSubmit" novalidate class="space-y-6 flex-1 flex flex-col min-h-0">
               <FormField v-slot="{ componentField }" name="title">
@@ -35,7 +37,8 @@
                   <FormControl class="flex-1 min-h-0">
                     <div class="flex-1 flex flex-col min-h-0">
                       <Editor
-                        v-model:htmlContent="componentField.modelValue"
+                        v-model:textContent="editorText"
+                        :htmlContent="componentField.modelValue"
                         @update:htmlContent="(value) => componentField.onChange(value)"
                         :placeholder="t('editor.newLine')"
                         enableInlineImages
@@ -47,8 +50,6 @@
                   <FormMessage />
                 </FormItem>
               </FormField>
-
-              <button type="submit" class="hidden" ref="submitButton"></button>
             </form>
           </div>
 
@@ -72,7 +73,7 @@
                   <Button
                     type="button"
                     size="sm"
-                    @click="handleSubmit"
+                    @click="onSubmit"
                     :isLoading="isLoading"
                     class="flex-1"
                   >
@@ -278,8 +279,8 @@ import {
 } from '@shared-ui/components/ui/form/index.js'
 import { createArticleFormSchema } from './articleFormSchema.js'
 import { useI18n } from 'vue-i18n'
-import { getTextFromHTML } from '@shared-ui/utils/string.js'
 import Editor from '@main/components/editor/ArticleEditor.vue'
+import { Spinner } from '@shared-ui/components/ui/spinner'
 import api from '@/api'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useEmitter } from '@/composables/useEmitter.js'
@@ -330,26 +331,32 @@ const props = defineProps({
 defineEmits(['update:open', 'cancel'])
 const emitter = useEmitter()
 
+const isLoadingArticle = ref(false)
 const availableCollections = ref([])
-const submitButton = ref(null)
+const editorText = ref('')
+// The tree omits article bodies, so the full row is loaded when the sheet opens.
+const loadedArticle = ref(null)
 
 const submitLabel = computed(() =>
   props.article ? t('globals.messages.update') : t('globals.messages.create')
 )
 
-const toFormValues = () => ({
-  title: props.article?.title || '',
-  content: props.article?.content || '',
-  status: props.article?.status || 'draft',
-  collection_id: String(props.article?.collection_id || props.collectionId || ''),
-  sort_order: props.article?.sort_order || 0,
-  ai_enabled: props.article?.ai_enabled || false,
-  locale: props.article?.locale || props.defaultLocale || props.helpCenterLocales?.[0] || 'en',
-  excerpt: props.article?.excerpt || '',
-  meta_title: props.article?.meta_title || '',
-  meta_description: props.article?.meta_description || '',
-  meta_image_url: props.article?.meta_image_url || ''
-})
+const toFormValues = () => {
+  const article = loadedArticle.value || props.article
+  return {
+    title: article?.title || '',
+    content: article?.content || '',
+    status: article?.status || 'draft',
+    collection_id: String(article?.collection_id || props.collectionId || ''),
+    sort_order: article?.sort_order || 0,
+    ai_enabled: article?.ai_enabled || false,
+    locale: article?.locale || props.defaultLocale || props.helpCenterLocales?.[0] || 'en',
+    excerpt: article?.excerpt || '',
+    meta_title: article?.meta_title || '',
+    meta_description: article?.meta_description || '',
+    meta_image_url: article?.meta_image_url || ''
+  }
+}
 
 const form = useForm({
   validationSchema: toTypedSchema(createArticleFormSchema(t)),
@@ -360,7 +367,7 @@ const form = useForm({
 const EXCERPT_LIMIT = 160
 
 const derivedExcerpt = computed(() => {
-  const text = getTextFromHTML(form.values.content || '').replace(/\s+/g, ' ').trim()
+  const text = editorText.value.replace(/\s+/g, ' ').trim()
   if (text.length <= EXCERPT_LIMIT) return text
   const cut = text.slice(0, EXCERPT_LIMIT)
   const lastSpace = cut.lastIndexOf(' ')
@@ -381,7 +388,10 @@ watch(
   () => [props.article, props.collectionId, props.isOpen],
   async () => {
     if (!props.isOpen) return
-    await fetchAvailableCollections()
+    loadedArticle.value = null
+    isLoadingArticle.value = Boolean(props.article)
+    await Promise.all([fetchAvailableCollections(), fetchArticle()])
+    isLoadingArticle.value = false
     form.resetForm({ values: toFormValues() })
   },
   { immediate: true }
@@ -399,16 +409,20 @@ const fetchAvailableCollections = async () => {
   }
 }
 
-const onSubmit = form.handleSubmit(async (values) => {
-  if (getTextFromHTML(values.content).length === 0) {
-    values.content = ''
-  }
-  props.submitForm(values)
-})
-
-const handleSubmit = () => {
-  if (submitButton.value) {
-    submitButton.value.click()
+const fetchArticle = async () => {
+  if (!props.article) return
+  try {
+    const { data } = await api.getArticle(props.article.collection_id, props.article.id)
+    loadedArticle.value = data.data
+  } catch (error) {
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      variant: 'destructive',
+      description: handleHTTPError(error).message
+    })
   }
 }
+
+const onSubmit = form.handleSubmit(async (values) => {
+  props.submitForm(values)
+})
 </script>

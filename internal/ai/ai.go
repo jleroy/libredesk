@@ -47,12 +47,12 @@ type Manager struct {
 	chunkCfg      stringutil.ChunkConfig
 	index         *embeddingIndex
 	// indexReady is closed once the boot-time index load finishes; Search blocks on it.
-	indexReady   chan struct{}
-	reindexMu    sync.Mutex
-	reconcileMu  sync.Mutex
-	snippetGenMu sync.Mutex
-	snippetGen   map[int]uint64
-	// embedSem caps concurrent background snippet embeds.
+	indexReady  chan struct{}
+	reindexMu   sync.Mutex
+	reconcileMu sync.Mutex
+	genMu       sync.Mutex
+	gen         map[genKey]uint64
+	// embedSem caps concurrent background embed jobs.
 	embedSem           chan struct{}
 	httpClient         *http.Client
 	toolHTTPClient     *http.Client
@@ -92,6 +92,7 @@ type queries struct {
 	SetKnowledgeBaseFingerprint *sqlx.Stmt `query:"set-knowledge-base-embedded-fingerprint"`
 	GetEmbeddableHelpArticles   *sqlx.Stmt `query:"get-embeddable-help-articles"`
 	GetEmbeddableHelpArticle    *sqlx.Stmt `query:"get-embeddable-help-article"`
+	HelpArticleExists           *sqlx.Stmt `query:"help-article-exists"`
 	SetHelpArticleFingerprint   *sqlx.Stmt `query:"set-help-article-embedded-fingerprint"`
 	DeleteOrphanArticleVectors  *sqlx.Stmt `query:"delete-orphan-help-article-embeddings"`
 	InsertEmbedding             *sqlx.Stmt `query:"insert-embedding"`
@@ -126,7 +127,7 @@ func New(opts Opts) (*Manager, error) {
 		chunkCfg:      stringutil.DefaultChunkConfig(),
 		index:         newEmbeddingIndex(),
 		indexReady:    make(chan struct{}),
-		snippetGen:    make(map[int]uint64),
+		gen:           make(map[genKey]uint64),
 		embedSem:      make(chan struct{}, maxConcurrentEmbeds),
 		httpClient: &http.Client{
 			Timeout:   20 * time.Second,

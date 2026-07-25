@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html/template"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -24,8 +25,18 @@ const (
 	sitemapArticlesLimit  = 5000
 	insightsTermLimit     = 20
 	markdownSlugExtension = ".md"
-	metaDescriptionLimit  = 160
 )
+
+type sitemapURL struct {
+	Loc     string `xml:"loc"`
+	LastMod string `xml:"lastmod,omitempty"`
+}
+
+type urlset struct {
+	XMLName xml.Name     `xml:"urlset"`
+	Xmlns   string       `xml:"xmlns,attr"`
+	URLs    []sitemapURL `xml:"url"`
+}
 
 // handleGetHelpCenters returns all help centers.
 func handleGetHelpCenters(r *fastglue.Request) error {
@@ -191,7 +202,7 @@ func handleCreateCollection(r *fastglue.Request) error {
 	if err := validateCollection(r, &req); err != nil {
 		return err
 	}
-	req.Slug = stringutil.GenerateSlug(req.Name, false)
+	req.Slug = stringutil.GenerateSlug(req.Name)
 	collection, err := app.helpcenter.CreateCollection(helpCenterID, req)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
@@ -306,7 +317,7 @@ func handleCreateArticle(r *fastglue.Request) error {
 	if err := validateArticle(r, &req); err != nil {
 		return err
 	}
-	req.Slug = stringutil.GenerateSlug(req.Title, false)
+	req.Slug = stringutil.GenerateSlug(req.Title)
 	req.CollectionID = nil
 	if req.Status == "" {
 		req.Status = hcmodels.ArticleStatusDraft
@@ -319,20 +330,8 @@ func handleCreateArticle(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	// Best-effort; unlinked media is swept by the janitor after 7 days, so a failure
-	// here must not fail the already-saved article.
 	app.media.LinkHelpArticleMedia(article.ID, article.Content)
 	return r.SendEnvelope(article)
-}
-
-// handleUpdateArticle updates an article, keeping its existing slug and collection.
-func handleUpdateArticle(r *fastglue.Request) error {
-	return updateArticle(r, false)
-}
-
-// handleUpdateArticleByID updates an article and allows moving it to another collection.
-func handleUpdateArticleByID(r *fastglue.Request) error {
-	return updateArticle(r, true)
 }
 
 // handleDeleteArticle deletes an article.
@@ -383,7 +382,7 @@ func handleRedirectHelpCenterHome(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, nil)
 	}
 	r.RequestCtx.Redirect(fmt.Sprintf("/hc/%s/%s", slug, helpCenter.DefaultLocale), fasthttp.StatusFound)
 	return nil
@@ -397,20 +396,22 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, nil)
 	}
-	locale := resolveLocale(r, helpCenter)
-	tree, err := app.helpcenter.GetPublicTree(slug, locale)
+	locale, ok := resolveLocale(r, helpCenter)
+	if !ok {
+		return renderHelpCenterNotFound(r, &helpCenter)
+	}
+	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, &helpCenter)
 	}
 	popular, err := app.helpcenter.GetPopularArticles(slug, locale, popularArticlesLimit)
 	if err != nil {
 		popular = nil
 	}
 	app.helpcenter.IncrementHelpCenterViewCount(tree.HelpCenter.ID)
-	data := helpCenterTemplateData(tree.HelpCenter)
-	addLocaleData(data, app, helpCenter, locale)
+	data := helpCenterTemplateData(tree.HelpCenter, locale)
 	return app.tmpl.RenderWebPage(r.RequestCtx, "help-center", map[string]interface{}{
 		"Data": map[string]interface{}{
 			"Title":           tree.HelpCenter.PageTitle,
@@ -432,19 +433,21 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, nil)
 	}
-	locale := resolveLocale(r, helpCenter)
-	tree, err := app.helpcenter.GetPublicTree(slug, locale)
+	locale, ok := resolveLocale(r, helpCenter)
+	if !ok {
+		return renderHelpCenterNotFound(r, &helpCenter)
+	}
+	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, &helpCenter)
 	}
 	collection := findCollectionNode(tree.Tree, collectionSlug)
 	if collection == nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, &helpCenter)
 	}
-	data := helpCenterTemplateData(helpCenter)
-	addLocaleData(data, app, helpCenter, locale)
+	data := helpCenterTemplateData(helpCenter, locale)
 	return app.tmpl.RenderWebPage(r.RequestCtx, "help-collection", map[string]interface{}{
 		"Data": map[string]interface{}{
 			"Title":           fmt.Sprintf("%s - %s", collection.Name, helpCenter.Name),
@@ -470,12 +473,15 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	}
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, nil)
 	}
-	locale := resolveLocale(r, helpCenter)
+	locale, ok := resolveLocale(r, helpCenter)
+	if !ok {
+		return renderHelpCenterNotFound(r, &helpCenter)
+	}
 	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, locale)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, &helpCenter)
 	}
 	app.helpcenter.IncrementArticleViewCount(article.ID)
 
@@ -494,14 +500,13 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	}
 	metaDescription := article.MetaDescription
 	if metaDescription == "" {
-		metaDescription = articleExcerpt(article.Content)
+		metaDescription = article.Excerpt
 	}
 	metaTitle := article.MetaTitle
 	if metaTitle == "" {
 		metaTitle = fmt.Sprintf("%s - %s", article.Title, helpCenter.Name)
 	}
-	data := helpCenterTemplateData(helpCenter)
-	addLocaleData(data, app, helpCenter, locale)
+	data := helpCenterTemplateData(helpCenter, locale)
 	return app.tmpl.RenderWebPage(r.RequestCtx, "help-article", map[string]interface{}{
 		"Data": map[string]interface{}{
 			"Title":           metaTitle,
@@ -528,9 +533,12 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, slug)
+		return renderHelpCenterNotFound(r, nil)
 	}
-	locale := resolveLocale(r, helpCenter)
+	locale, ok := resolveLocale(r, helpCenter)
+	if !ok {
+		return renderHelpCenterNotFound(r, &helpCenter)
+	}
 	var articles []hcmodels.Article
 	if query != "" {
 		articles, err = app.helpcenter.SearchPublishedArticles(slug, query, locale, publicSearchLimit)
@@ -539,8 +547,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 		}
 		app.helpcenter.LogSearch(helpCenter.ID, query, len(articles))
 	}
-	data := helpCenterTemplateData(helpCenter)
-	addLocaleData(data, app, helpCenter, locale)
+	data := helpCenterTemplateData(helpCenter, locale)
 	return app.tmpl.RenderWebPage(r.RequestCtx, "help-search", map[string]interface{}{
 		"Data": map[string]interface{}{
 			"Title":      fmt.Sprintf("%s - %s", app.i18n.T("globals.terms.search"), helpCenter.Name),
@@ -562,22 +569,16 @@ func handleHelpCenterSitemap(r *fastglue.Request) error {
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.T("globals.messages.notFound"), nil, envelope.NotFoundError)
 	}
-	locale := resolveLocale(r, helpCenter)
+	locale, ok := resolveLocale(r, helpCenter)
+	if !ok {
+		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.T("globals.messages.notFound"), nil, envelope.NotFoundError)
+	}
 	articles, err := app.helpcenter.GetPopularArticles(slug, locale, sitemapArticlesLimit)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
 	rootURL, _ := app.setting.GetAppRootURL()
-	type sitemapURL struct {
-		Loc     string `xml:"loc"`
-		LastMod string `xml:"lastmod,omitempty"`
-	}
-	type urlset struct {
-		XMLName xml.Name     `xml:"urlset"`
-		Xmlns   string       `xml:"xmlns,attr"`
-		URLs    []sitemapURL `xml:"url"`
-	}
 	set := urlset{Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9"}
 	set.URLs = append(set.URLs, sitemapURL{Loc: fmt.Sprintf("%s/hc/%s/%s", rootURL, helpCenter.Slug, locale)})
 	for _, a := range articles {
@@ -606,7 +607,8 @@ func handleGetPublicHelpCenterTree(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	tree, err := app.helpcenter.GetPublicTree(slug, resolveLocale(r, helpCenter))
+	locale, _ := resolveLocale(r, helpCenter)
+	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -624,7 +626,8 @@ func handleGetPublicHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, resolveLocale(r, helpCenter))
+	locale, _ := resolveLocale(r, helpCenter)
+	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, locale)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -646,7 +649,8 @@ func handlePublicHelpCenterSearch(r *fastglue.Request) error {
 	if query == "" {
 		return r.SendEnvelope([]hcmodels.Article{})
 	}
-	articles, err := app.helpcenter.SearchPublishedArticles(slug, query, resolveLocale(r, helpCenter), publicSearchLimit)
+	locale, _ := resolveLocale(r, helpCenter)
+	articles, err := app.helpcenter.SearchPublishedArticles(slug, query, locale, publicSearchLimit)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -666,6 +670,9 @@ func handleHelpCenterArticleFeedback(r *fastglue.Request) error {
 	)
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+	}
+	if _, err := app.helpcenter.GetHelpCenterBySlug(slug); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, "")
 	if err != nil {
@@ -693,8 +700,8 @@ func handleGetHelpCenterInsights(r *fastglue.Request) error {
 	return r.SendEnvelope(insights)
 }
 
-// updateArticle performs the shared article update flow; allowMove permits changing the collection.
-func updateArticle(r *fastglue.Request, allowMove bool) error {
+// handleUpdateArticle updates an article, keeping its existing slug.
+func handleUpdateArticle(r *fastglue.Request) error {
 	var (
 		app   = r.Context.(*App)
 		req   = helpcenter.ArticleRequest{}
@@ -714,8 +721,18 @@ func updateArticle(r *fastglue.Request, allowMove bool) error {
 		return sendErrorEnvelope(r, err)
 	}
 	req.Slug = existing.Slug
-	if !allowMove {
-		req.CollectionID = nil
+	if req.CollectionID != nil && *req.CollectionID != existing.CollectionID {
+		from, err := app.helpcenter.GetCollectionByID(existing.CollectionID)
+		if err != nil {
+			return sendErrorEnvelope(r, err)
+		}
+		to, err := app.helpcenter.GetCollectionByID(*req.CollectionID)
+		if err != nil {
+			return sendErrorEnvelope(r, err)
+		}
+		if from.HelpCenterID != to.HelpCenterID {
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("helpCenter.invalidParent"), nil, envelope.InputError)
+		}
 	}
 	if req.Status == "" {
 		req.Status = hcmodels.ArticleStatusDraft
@@ -741,30 +758,30 @@ func findCollectionNode(cols []hcmodels.TreeCollection, slug string) *hcmodels.T
 	return nil
 }
 
-// resolveLocale returns the locale path segment, falling back to the help center's default.
-func resolveLocale(r *fastglue.Request, hc hcmodels.HelpCenter) string {
-	if v, ok := r.RequestCtx.UserValue("locale").(string); ok {
-		if loc := strings.TrimSpace(v); loc != "" {
-			return loc
-		}
+// resolveLocale returns the locale path segment and whether the help center serves it,
+// falling back to the help center's default when the segment is absent.
+func resolveLocale(r *fastglue.Request, hc hcmodels.HelpCenter) (string, bool) {
+	v, _ := r.RequestCtx.UserValue("locale").(string)
+	loc := strings.TrimSpace(v)
+	if loc == "" || loc == hc.DefaultLocale {
+		return hc.DefaultLocale, true
 	}
-	return hc.DefaultLocale
+	return loc, slices.Contains(helpCenterLocales(hc), loc)
 }
 
-// addLocaleData adds the current locale and the help center's configured languages (for the switcher) to the template data.
-func addLocaleData(data map[string]interface{}, app *App, hc hcmodels.HelpCenter, current string) {
+// helpCenterLocales returns the help center's configured locale codes.
+func helpCenterLocales(hc hcmodels.HelpCenter) []string {
 	locales := []string{}
 	if len(hc.AllowedLocales) > 0 {
 		if err := json.Unmarshal(hc.AllowedLocales, &locales); err != nil {
-			locales = nil
+			return nil
 		}
 	}
-	data["CurrentLocale"] = current
-	data["AvailableLocales"] = locales
+	return locales
 }
 
 // helpCenterTemplateData shapes a help center row for the public templates.
-func helpCenterTemplateData(hc hcmodels.HelpCenter) map[string]interface{} {
+func helpCenterTemplateData(hc hcmodels.HelpCenter, locale string) map[string]interface{} {
 	navLinks := []hcmodels.NavLink{}
 	if len(hc.NavLinks) > 0 {
 		if err := json.Unmarshal(hc.NavLinks, &navLinks); err != nil {
@@ -778,23 +795,24 @@ func helpCenterTemplateData(hc hcmodels.HelpCenter) map[string]interface{} {
 		}
 	}
 	return map[string]interface{}{
-		"Slug":          hc.Slug,
-		"Name":          hc.Name,
-		"PageTitle":     hc.PageTitle,
-		"HeaderText":    hc.HeaderText,
-		"LogoURL":       hc.LogoURL,
-		"Color":         hc.Color,
-		"DefaultLocale": hc.DefaultLocale,
-		"NavLinks":      navLinks,
-		"Theme":         theme,
-		"ThemeCSS":      buildThemeCSSVars(theme),
-		"CustomCSS":     template.CSS(hc.CustomCSS),
-		"CustomJS":      template.JS(hc.CustomJS),
+		"Slug":             hc.Slug,
+		"Name":             hc.Name,
+		"PageTitle":        hc.PageTitle,
+		"HeaderText":       hc.HeaderText,
+		"LogoURL":          hc.LogoURL,
+		"Color":            hc.Color,
+		"DefaultLocale":    hc.DefaultLocale,
+		"CurrentLocale":    locale,
+		"AvailableLocales": helpCenterLocales(hc),
+		"NavLinks":         navLinks,
+		"Theme":            theme,
+		"ThemeCSS":         buildThemeCSSVars(theme),
+		"CustomCSS":        template.CSS(hc.CustomCSS),
+		"CustomJS":         template.JS(hc.CustomJS),
 	}
 }
 
-// buildThemeCSSVars emits the theme's CSS custom-property overrides. Colors are
-// hex-validated on save before reaching this trusted-CSS output.
+// buildThemeCSSVars emits the theme's CSS custom-property overrides.
 func buildThemeCSSVars(t hcmodels.Theme) template.CSS {
 	var b strings.Builder
 	if t.Header.BackgroundType == "gradient" && t.Header.GradientFrom != "" && t.Header.GradientTo != "" {
@@ -814,31 +832,20 @@ func buildThemeCSSVars(t hcmodels.Theme) template.CSS {
 	return template.CSS(b.String())
 }
 
-// articleExcerpt returns a plain-text excerpt for meta description tags.
-func articleExcerpt(htmlContent string) string {
-	text := stringutil.HTML2Text(htmlContent)
-	text = strings.Join(strings.Fields(text), " ")
-	runes := []rune(text)
-	if len(runes) <= metaDescriptionLimit {
-		return text
-	}
-	text = string(runes[:metaDescriptionLimit])
-	if i := strings.LastIndex(text, " "); i > 0 {
-		text = text[:i]
-	}
-	return text
-}
-
 // renderHelpCenterNotFound renders the help center's themed 404, falling back to the
-// generic error page when the help center slug itself is unknown.
-func renderHelpCenterNotFound(r *fastglue.Request, slug string) error {
+// generic error page when the help center is nil.
+func renderHelpCenterNotFound(r *fastglue.Request, hc *hcmodels.HelpCenter) error {
 	app := r.Context.(*App)
-	if helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug); err == nil {
-		data := helpCenterTemplateData(helpCenter)
-		addLocaleData(data, app, helpCenter, resolveLocale(r, helpCenter))
+	if hc != nil {
+		helpCenter := *hc
+		locale, ok := resolveLocale(r, helpCenter)
+		if !ok {
+			locale = helpCenter.DefaultLocale
+		}
+		data := helpCenterTemplateData(helpCenter, locale)
 		rerr := app.tmpl.RenderWebPage(r.RequestCtx, "help-notfound", map[string]interface{}{
 			"Data": map[string]interface{}{
-				"Title":       app.i18n.T("helpCenter.notFoundTitle"),
+				"Title":       app.i18n.T("globals.messages.pageNotFound"),
 				"NoIndex":     true,
 				"CompactHero": true,
 				"HelpCenter":  data,

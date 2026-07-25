@@ -8,7 +8,6 @@ SELECT id, created_at, updated_at, name, slug, page_title, header_text, logo_url
 FROM help_centers
 WHERE id = $1;
 
--- lookup by slug is the public access path; paused help centers must not resolve.
 -- name: get-help-center-by-slug
 SELECT id, created_at, updated_at, name, slug, page_title, header_text, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
 FROM help_centers
@@ -159,7 +158,7 @@ SELECT
     NULL::BOOLEAN AS is_published,
     a.collection_id,
     a.title,
-    a.content,
+    '' AS content,
     a.status,
     a.view_count,
     a.ai_enabled

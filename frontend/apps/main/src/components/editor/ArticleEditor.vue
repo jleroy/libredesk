@@ -60,12 +60,16 @@ const linkDialog = ref(null)
 const youtubeDialog = ref(null)
 const imageInput = ref(null)
 
-const { editor, insertImages, extractMentions, focus } = useTextEditor({
-  props,
+const { editor, insertImages, focus } = useTextEditor({
   extensions: buildArticleExtensions({ getPlaceholder: () => props.placeholder }),
   htmlContent,
   textContent,
-  emit
+  autoFocus: props.autoFocus,
+  insertContent: () => props.insertContent,
+  isInlineEnabled: () => props.enableInlineImages,
+  linkedModel: props.linkedModel,
+  onSend: () => emit('send'),
+  onOtherFiles: (files) => emit('filesDropped', files)
 })
 
 const onImageInputChange = (event) => {
@@ -74,77 +78,22 @@ const onImageInputChange = (event) => {
   event.target.value = ''
 }
 
-defineExpose({ focus, extractMentions })
+defineExpose({ focus })
 </script>
 
 <style lang="scss" src="./editorStyles.scss"></style>
 
+<style src="@public-static/article-content.css"></style>
+
 <style lang="scss">
 .tiptap {
-  // Link styled as a call-to-action button
-  a.hc-button {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    border-radius: 0.375rem;
-    font-weight: 500;
-    text-decoration: none;
+  --hc-accent: hsl(var(--primary));
+  --hc-border: hsl(var(--border));
 
-    &:hover {
-      color: hsl(var(--primary-foreground));
-    }
-  }
-
-  // Callout blocks
-  .hc-callout {
-    position: relative;
-    margin: 1rem 0;
-    padding: 0.75rem 1rem 0.75rem 2.75rem;
-    border-radius: 6px;
-
-    &::before {
-      position: absolute;
-      left: 0.85rem;
-      top: 0.8rem;
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.8rem;
-      line-height: 1;
-    }
-
-    > :last-child { margin-bottom: 0; }
-  }
-  .hc-callout-info { background: #eff6ff; &::before { content: "i"; background: #3b82f6; } }
-  .hc-callout-success { background: #f0fdf4; &::before { content: "✓"; background: #22c55e; } }
-  .hc-callout-warning { background: #fffbeb; &::before { content: "!"; background: #f59e0b; } }
-  .hc-callout-danger { background: #fef2f2; &::before { content: "!"; background: #ef4444; } }
-
-  // Collapsible section (native <details>)
-  details.hc-details {
-    margin: 1rem 0;
-    padding: 0.5rem 0.85rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: 8px;
-
-    > summary.hc-details-summary {
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    // Keep the body visible/editable regardless of the native open state.
-    > .hc-details-content {
-      display: block !important;
-      margin-top: 0.5rem;
-
-      > :last-child { margin-bottom: 0; }
-    }
+  // Keep the body visible/editable regardless of the native open state.
+  details.hc-details > .hc-details-content {
+    display: block !important;
+    margin-top: 0.5rem;
   }
 }
 </style>

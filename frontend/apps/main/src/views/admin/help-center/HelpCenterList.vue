@@ -153,9 +153,9 @@ const handleToggle = async (helpCenter) => {
   }
 }
 
-const handleDelete = async (id) => {
+const handleDelete = async (helpCenter) => {
   try {
-    await api.deleteHelpCenter(id)
+    await api.deleteHelpCenter(helpCenter.id)
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.deletedSuccessfully')
     })

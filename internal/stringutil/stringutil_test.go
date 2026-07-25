@@ -346,7 +346,7 @@ func TestGenerateSlug(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GenerateSlug(tt.input, false)
+			result := GenerateSlug(tt.input)
 			if result != tt.expected {
 				t.Errorf("GenerateSlug(%q) = %q, want %q", tt.input, result, tt.expected)
 			}

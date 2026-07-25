@@ -61,8 +61,7 @@ type SocialLink struct {
 	URL      string `json:"url"`
 }
 
-// ArticleTheme uses hide-flags so the zero value (empty theme) keeps the
-// default of showing the table of contents and related articles.
+// ArticleTheme uses hide-flags so an empty theme shows everything by default.
 type ArticleTheme struct {
 	HideToc     bool `json:"hide_toc"`
 	HideRelated bool `json:"hide_related"`

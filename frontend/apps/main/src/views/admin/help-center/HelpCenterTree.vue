@@ -344,6 +344,7 @@ const fetchTree = async () => {
   try {
     loading.value = true
     const { data } = await api.getHelpCenterTree(props.id, props.locale)
+    helpCenter.value = data.data.help_center || helpCenter.value
     treeData.value = data.data.tree || []
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
@@ -420,7 +421,6 @@ const handleHelpCenterSave = async (formData) => {
       description: t('globals.messages.savedSuccessfully')
     })
     closeHelpCenterEditSheet()
-    await fetchHelpCenter()
     await fetchTree()
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
@@ -487,12 +487,7 @@ const handleArticleSave = async (formData) => {
   isSubmittingArticle.value = true
   try {
     if (editingArticle.value) {
-      const targetArticle = editingArticle.value
-      if (formData.collection_id !== targetArticle.collection_id) {
-        await api.updateArticleByID(targetArticle.id, formData)
-      } else {
-        await api.updateArticle(targetArticle.collection_id, targetArticle.id, formData)
-      }
+      await api.updateArticle(editingArticle.value.id, formData)
     } else {
       await api.createArticle(createArticleCollectionId.value, formData)
     }

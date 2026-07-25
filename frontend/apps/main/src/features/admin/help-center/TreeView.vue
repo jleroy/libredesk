@@ -5,7 +5,6 @@
       :key="element.id"
       :item="element"
       :selected-item="selectedItem"
-      :level="0"
       @select="$emit('select', $event)"
       @create-collection="$emit('create-collection', $event)"
       @create-article="$emit('create-article', $event)"

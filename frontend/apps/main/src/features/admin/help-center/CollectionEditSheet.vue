@@ -44,8 +44,6 @@
                   <FormMessage />
                 </FormItem>
               </FormField>
-
-              <button type="submit" class="hidden" ref="submitButton"></button>
             </form>
           </div>
 
@@ -69,7 +67,7 @@
                   <Button
                     type="button"
                     size="sm"
-                    @click="handleSubmit"
+                    @click="onSubmit"
                     :isLoading="isLoading"
                     class="flex-1"
                   >
@@ -234,7 +232,6 @@ defineEmits(['update:open', 'cancel'])
 const emitter = useEmitter()
 
 const availableParents = ref([])
-const submitButton = ref(null)
 
 const submitLabel = computed(() =>
   props.collection ? t('globals.messages.update') : t('globals.messages.create')
@@ -283,10 +280,4 @@ const fetchAvailableParents = async () => {
 const onSubmit = form.handleSubmit(async (values) => {
   props.submitForm({ ...values, parent_id: values.parent_id ? values.parent_id : null })
 })
-
-const handleSubmit = () => {
-  if (submitButton.value) {
-    submitButton.value.click()
-  }
-}
 </script>

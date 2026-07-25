@@ -14,7 +14,7 @@
 <article class="hc-article">
     <h1>{{ .Data.Article.Title }}</h1>
     <div class="hc-meta">
-        {{ if .Data.Article.AuthorName }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ L.T "helpCenter.lastUpdated" }} {{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}
+        {{ if .Data.Article.AuthorName }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ L.T "globals.terms.lastUpdated" }} {{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}
     </div>
     {{ if not .Data.HelpCenter.Theme.Article.HideToc }}
     <nav class="hc-toc" id="hc-toc" aria-label="{{ L.T "helpCenter.onThisPage" }}" hidden>
@@ -27,8 +27,8 @@
 
 <div class="hc-helpful" id="hc-helpful" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback">
     <span class="hc-helpful-q">{{ L.T "helpCenter.wasHelpful" }}</span>
-    <button type="button" data-helpful="true">{{ L.T "helpCenter.yes" }}</button>
-    <button type="button" data-helpful="false">{{ L.T "helpCenter.no" }}</button>
+    <button type="button" data-helpful="true">{{ L.T "globals.messages.yes" }}</button>
+    <button type="button" data-helpful="false">{{ L.T "globals.messages.no" }}</button>
     <span class="hc-helpful-thanks" hidden>{{ L.T "helpCenter.feedbackThanks" }}</span>
 </div>
 

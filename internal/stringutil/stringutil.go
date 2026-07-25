@@ -45,8 +45,8 @@ func SanitizeUTF8(s string) string {
 	return strings.ToValidUTF8(s, "�")
 }
 
-// GenerateSlug generates a URL-friendly slug from a title, optionally prefixed with a random string.
-func GenerateSlug(title string, prefixRandom bool) string {
+// GenerateSlug generates a URL-friendly slug from a title.
+func GenerateSlug(title string) string {
 	slug := strings.ToLower(strings.TrimSpace(title))
 	slug = regexpSpaces.ReplaceAllString(slug, "-")
 	slug = regexpSlugChars.ReplaceAllString(slug, "")
@@ -62,13 +62,6 @@ func GenerateSlug(title string, prefixRandom bool) string {
 		}
 	}
 
-	if prefixRandom {
-		randomPrefix, err := RandomAlphanumeric(12)
-		if err != nil {
-			return slug
-		}
-		slug = fmt.Sprintf("%s-%s", strings.ToLower(randomPrefix), slug)
-	}
 	return slug
 }
 

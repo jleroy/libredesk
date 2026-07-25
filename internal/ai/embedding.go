@@ -276,7 +276,7 @@ func (m *Manager) reconcileLoop(ctx context.Context) {
 	}
 }
 
-// reconcile re-embeds every enabled snippet whose stored fingerprint no longer matches its content and the active model.
+// reconcile re-embeds every eligible row whose stored fingerprint no longer matches its content and the active model.
 func (m *Manager) reconcile(ctx context.Context) {
 	if !m.reconcileMu.TryLock() {
 		return
@@ -291,34 +291,13 @@ func (m *Manager) reconcile(ctx context.Context) {
 	if cfg.APIKey == "" {
 		return
 	}
-	items, err := m.GetKnowledgeBaseItems()
-	if err != nil {
-		return
-	}
 
-	reindexed := 0
-	for _, item := range items {
+	for _, src := range m.embedSources() {
 		if ctx.Err() != nil {
 			return
 		}
-		if !item.Enabled {
-			// A disabled item should carry no embeddings; clean up any left behind.
-			if item.EmbeddedFingerprint != "" {
-				m.reindexSnippetWith(ctx, item, cfg.BaseURL, cfg.Model, cfg.Dimensions, m.nextSnippetGen(item.ID))
-			}
-			continue
-		}
-		if item.EmbeddedFingerprint == snippetFingerprint(item, cfg.BaseURL, cfg.Model, cfg.Dimensions) {
-			continue
-		}
-		m.reindexSnippetWith(ctx, item, cfg.BaseURL, cfg.Model, cfg.Dimensions, m.nextSnippetGen(item.ID))
-		reindexed++
+		m.reconcileSource(ctx, src, cfg.BaseURL, cfg.Model, cfg.Dimensions)
 	}
-	if reindexed > 0 {
-		m.lo.Info("reconciled knowledge base embeddings", "reindexed", reindexed)
-	}
-
-	m.reconcileHelpArticles(cfg.Model, cfg.Dimensions)
 }
 
 func serializeEmbedding(vec []float32) []byte {

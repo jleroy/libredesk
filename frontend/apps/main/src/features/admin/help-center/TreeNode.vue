@@ -70,45 +70,16 @@
           </div>
 
           <div class="space-y-1.5">
-            <div
+            <TreeNode
               v-for="element in articles"
               :key="element.id"
-              class="group tree-node--article"
-              :class="{
-                'tree-node--selected':
-                  selectedItem?.id === element.id && selectedItem?.type === 'article'
-              }"
-              @click="selectArticle(element)"
-            >
-              <div class="flex items-center gap-2">
-                <div class="icon-container-article">
-                  <FileText class="h-4 w-4 text-muted-foreground" />
-                </div>
-
-                <div class="flex-1 min-w-0">
-                  <h5 class="text-sm font-medium truncate text-foreground">
-                    {{ element.title }}
-                  </h5>
-                </div>
-
-                <div class="hover-actions--compact">
-                  <Badge
-                    v-if="element.status"
-                    :variant="getArticleStatusVariant(element.status)"
-                    class="text-[11px] px-1.5 py-0.5 font-normal"
-                  >
-                    {{ getArticleStatusLabel(element.status) }}
-                  </Badge>
-
-                  <TreeDropdown
-                    :item="{ ...element, type: 'article' }"
-                    @edit="$emit('edit', $event)"
-                    @delete="$emit('delete', $event)"
-                    @toggle-status="$emit('toggle-status', $event)"
-                  />
-                </div>
-              </div>
-            </div>
+              :item="{ ...element, type: 'article' }"
+              :selected-item="selectedItem"
+              @select="$emit('select', $event)"
+              @edit="$emit('edit', $event)"
+              @delete="$emit('delete', $event)"
+              @toggle-status="$emit('toggle-status', $event)"
+            />
           </div>
 
           <div class="space-y-1.5">
@@ -117,7 +88,6 @@
               :key="element.id"
               :item="{ ...element, type: 'collection' }"
               :selected-item="selectedItem"
-              :level="level + 1"
               @select="$emit('select', $event)"
               @create-collection="$emit('create-collection', $event)"
               @create-article="$emit('create-article', $event)"
@@ -193,10 +163,6 @@ const props = defineProps({
   selectedItem: {
     type: Object,
     default: null
-  },
-  level: {
-    type: Number,
-    default: 0
   }
 })
 
@@ -221,10 +187,6 @@ const articles = computed(() => props.item.articles || [])
 
 const selectItem = () => {
   emit('select', props.item)
-}
-
-const selectArticle = (article) => {
-  emit('select', { ...article, type: 'article' })
 }
 
 const getArticleStatusVariant = (status) => (status === 'published' ? 'default' : 'secondary')

@@ -70,7 +70,7 @@ const props = defineProps({
 const emit = defineEmits(['edit', 'delete', 'toggle'])
 
 function handleDelete() {
-  emit('delete', props.helpCenter.id)
+  emit('delete', props.helpCenter)
   alertOpen.value = false
 }
 </script>

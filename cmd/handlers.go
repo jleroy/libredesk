@@ -304,9 +304,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/collections/{col_id}/articles", auth(handleGetArticles))
 	g.GET("/api/v1/collections/{col_id}/articles/{id}", auth(handleGetArticle))
 	g.POST("/api/v1/collections/{col_id}/articles", perm(handleCreateArticle, "help_center:manage"))
-	g.PUT("/api/v1/collections/{col_id}/articles/{id}", perm(handleUpdateArticle, "help_center:manage"))
 	g.DELETE("/api/v1/collections/{col_id}/articles/{id}", perm(handleDeleteArticle, "help_center:manage"))
-	g.PUT("/api/v1/articles/{id}", perm(handleUpdateArticleByID, "help_center:manage"))
+	g.PUT("/api/v1/articles/{id}", perm(handleUpdateArticle, "help_center:manage"))
 	g.PUT("/api/v1/articles/{id}/status", perm(handleUpdateArticleStatus, "help_center:manage"))
 	g.GET("/api/v1/help-centers/{id}/insights", perm(handleGetHelpCenterInsights, "help_center:manage"))
 

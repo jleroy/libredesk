@@ -96,16 +96,16 @@ const sharedExtensions = ({ getPlaceholder }) => [
     allowBase64: false
   }),
   Placeholder.configure({ placeholder: () => getPlaceholder?.() }),
-  CustomLink,
-  CustomMention.configure({
-    HTMLAttributes: { class: 'ld-mention' },
-    suggestion: mentionSuggestion
-  })
+  CustomLink
 ]
 
 export function buildConversationExtensions({ getPlaceholder }) {
   return [
     ...sharedExtensions({ getPlaceholder }),
+    CustomMention.configure({
+      HTMLAttributes: { class: 'ld-mention' },
+      suggestion: mentionSuggestion
+    }),
     CustomTable.configure({ resizable: false }),
     TableRow,
     CustomTableCell,

@@ -1,6 +1,6 @@
 {{ define "hc-header" }}
 <!DOCTYPE html>
-<html lang="{{ if .Data.HelpCenter.DefaultLocale }}{{ .Data.HelpCenter.DefaultLocale }}{{ else }}en{{ end }}">
+<html lang="{{ if .Data.HelpCenter.CurrentLocale }}{{ .Data.HelpCenter.CurrentLocale }}{{ else if .Data.HelpCenter.DefaultLocale }}{{ .Data.HelpCenter.DefaultLocale }}{{ else }}en{{ end }}">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -18,6 +18,7 @@
     <meta name="theme-color" content="{{ .Data.HelpCenter.Color }}" />
     {{ if .Data.HelpCenter.Theme.Favicon }}<link rel="icon" href="{{ .Data.HelpCenter.Theme.Favicon }}" />{{ else if ne FaviconURL "" }}<link rel="icon" href="{{ FaviconURL }}" />{{ end }}
     <link rel="stylesheet" href="/static/public/static/help-center.css" />
+    <link rel="stylesheet" href="/static/public/static/article-content.css" />
     <style>:root { --hc-accent: {{ .Data.HelpCenter.Color }}; {{ .Data.HelpCenter.ThemeCSS }} }</style>
     {{ if .Data.HelpCenter.CustomCSS }}<style>{{ .Data.HelpCenter.CustomCSS }}</style>{{ end }}
 </head>

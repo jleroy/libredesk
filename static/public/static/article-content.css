@@ -1,0 +1,63 @@
+/* Rendering of the custom article nodes (button links, callouts, collapsibles).
+   Shared by the admin article editor and the published help center page: if these
+   two disagree, the editor stops being WYSIWYG. Colors come from --hc-* variables
+   the host defines. */
+
+a.hc-button {
+    display: inline-block;
+    margin: .35rem 0;
+    padding: .6rem 1.15rem;
+    background: var(--hc-accent);
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+}
+a.hc-button:hover { text-decoration: none; opacity: .92; color: #fff; }
+
+.hc-callout {
+    position: relative;
+    margin: 1.25rem 0;
+    padding: .85rem 1rem .85rem 2.9rem;
+    border-radius: 6px;
+    font-size: .98rem;
+}
+.hc-callout::before {
+    position: absolute;
+    left: 1rem;
+    top: .95rem;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: .82rem;
+    line-height: 1;
+}
+.hc-callout > :last-child { margin-bottom: 0; }
+.hc-callout-info { background: #eff6ff; }
+.hc-callout-info::before { content: "i"; background: #3b82f6; }
+.hc-callout-success { background: #f0fdf4; }
+.hc-callout-success::before { content: "✓"; background: #22c55e; }
+.hc-callout-warning { background: #fffbeb; }
+.hc-callout-warning::before { content: "!"; background: #f59e0b; }
+.hc-callout-danger { background: #fef2f2; }
+.hc-callout-danger::before { content: "!"; background: #ef4444; }
+
+details.hc-details {
+    margin: 1.25rem 0;
+    padding: .5rem 1.1rem;
+    border: 1px solid var(--hc-border);
+    border-radius: 8px;
+}
+details.hc-details > summary.hc-details-summary {
+    font-weight: 600;
+    cursor: pointer;
+    padding: .35rem 0;
+    list-style-position: inside;
+}
+details.hc-details[open] > summary.hc-details-summary { margin-bottom: .35rem; }
+details.hc-details > .hc-details-content > :last-child { margin-bottom: 0; }

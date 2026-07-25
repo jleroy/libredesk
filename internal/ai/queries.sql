@@ -32,10 +32,14 @@ DELETE FROM ai_knowledge_base WHERE id = $1;
 UPDATE ai_knowledge_base SET embedded_fingerprint = $2 WHERE id = $1;
 
 -- name: get-embeddable-help-articles
-SELECT id, title, content, status, ai_enabled, embedded_fingerprint FROM help_articles;
+SELECT id, title, content, status, ai_enabled, embedded_fingerprint FROM help_articles
+WHERE (status = 'published' AND ai_enabled) OR embedded_fingerprint <> '';
 
 -- name: get-embeddable-help-article
 SELECT id, title, content, status, ai_enabled, embedded_fingerprint FROM help_articles WHERE id = $1;
+
+-- name: help-article-exists
+SELECT EXISTS(SELECT 1 FROM help_articles WHERE id = $1);
 
 -- name: set-help-article-embedded-fingerprint
 UPDATE help_articles SET embedded_fingerprint = $2 WHERE id = $1;

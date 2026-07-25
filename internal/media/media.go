@@ -118,7 +118,7 @@ func (m *Manager) UploadAndInsert(srcFilename, contentType, contentID string, mo
 		return models.Media{}, err
 	}
 
-	media, err := m.Insert(disposition, srcFilename, contentType, contentID, modelType, uuid.String(), modelID, fileSize, meta, true)
+	media, err := m.Insert(disposition, srcFilename, contentType, contentID, modelType, uuid.String(), modelID, fileSize, meta)
 	if err != nil {
 		m.store.Delete(uuid.String())
 		return models.Media{}, err
@@ -147,8 +147,9 @@ func (m *Manager) Upload(fileName, contentType string, content io.ReadSeeker) (s
 }
 
 // Insert inserts media details into the database and returns the inserted media record.
-func (m *Manager) Insert(disposition null.String, fileName, contentType, contentID string, modelType null.String, uuid string, modelID null.Int, fileSize int, meta []byte, private bool) (models.Media, error) {
+func (m *Manager) Insert(disposition null.String, fileName, contentType, contentID string, modelType null.String, uuid string, modelID null.Int, fileSize int, meta []byte) (models.Media, error) {
 	var id int
+	private := !models.IsPublicModel(modelType.String)
 	if err := m.queries.Insert.QueryRow(m.store.Name(), fileName, contentType, fileSize, meta, modelID, modelType, disposition, contentID, uuid, private).Scan(&id); err != nil {
 		m.lo.Error("error inserting media", "error", err, "file_name", fileName, "content_type", contentType, "store", m.store.Name())
 		return models.Media{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
@@ -192,9 +193,7 @@ func (m *Manager) PublicURL(uuid string) string {
 	return m.rootURL() + PublicURI + "/" + uuid
 }
 
-// LinkHelpArticleMedia links help-article media referenced in the article content to the
-// article and unlinks previously linked media no longer referenced, leaving it for the
-// unlinked-media janitor.
+// LinkHelpArticleMedia links media referenced in the article content and unlinks the rest.
 func (m *Manager) LinkHelpArticleMedia(articleID int, content string) error {
 	uuids := []string{}
 	for _, match := range publicMediaURLRe.FindAllStringSubmatch(content, -1) {

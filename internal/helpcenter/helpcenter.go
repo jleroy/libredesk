@@ -480,12 +480,8 @@ func (m *Manager) GetHelpCenterTree(helpCenterID int, locale string) (models.Tre
 	return models.TreeResponse{HelpCenter: helpCenter, Tree: tree}, nil
 }
 
-// GetPublicTree returns the published-only tree for a help center by slug, filtered to locale (empty = all).
-func (m *Manager) GetPublicTree(slug, locale string) (models.TreeResponse, error) {
-	helpCenter, err := m.GetHelpCenterBySlug(slug)
-	if err != nil {
-		return models.TreeResponse{}, err
-	}
+// GetPublicTree returns the published-only tree for a help center, filtered to locale (empty = all).
+func (m *Manager) GetPublicTree(helpCenter models.HelpCenter, locale string) (models.TreeResponse, error) {
 	rows, err := m.q.GetPublicTreeData.Query(helpCenter.ID, locale)
 	if err != nil {
 		m.lo.Error("error fetching public tree data", "error", err, "help_center_id", helpCenter.ID)
@@ -771,6 +767,29 @@ func (m *Manager) uniqueArticleSlug(collectionID int, slug, locale string) (stri
 }
 
 // normalizeHelpCenterRequest fills defaults for optional fields and keeps the language config consistent.
+func (m *Manager) validateSlug(slug string) error {
+	if slug == "" {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidSlug"), nil)
+	}
+	return nil
+}
+
+// validateHelpCenterSlug rejects empty slugs and slugs that collide with public help center routes.
+func (m *Manager) validateHelpCenterSlug(slug string) error {
+	if slug == "" || slices.Contains(reservedSlugs, slug) {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidSlug"), nil)
+	}
+	return nil
+}
+
+// validateColor rejects accent colors that are not hex color codes.
+func (m *Manager) validateColor(color string) error {
+	if !hexColorRe.MatchString(color) {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidColor"), nil)
+	}
+	return nil
+}
+
 func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	if req.DefaultLocale == "" {
 		req.DefaultLocale = defaultLocale
@@ -843,31 +862,6 @@ func normalizeLocales(locales []string, defaultLocale string) []string {
 	return out
 }
 
-// validateSlug rejects empty slugs.
-func (m *Manager) validateSlug(slug string) error {
-	if slug == "" {
-		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidSlug"), nil)
-	}
-	return nil
-}
-
-// validateHelpCenterSlug rejects empty slugs and slugs that collide with public help center routes.
-func (m *Manager) validateHelpCenterSlug(slug string) error {
-	if slug == "" || slices.Contains(reservedSlugs, slug) {
-		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidSlug"), nil)
-	}
-	return nil
-}
-
-// validateColor rejects accent colors that are not hex color codes.
-func (m *Manager) validateColor(color string) error {
-	if !hexColorRe.MatchString(color) {
-		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidColor"), nil)
-	}
-	return nil
-}
-
-// isValidArticleStatus checks if the given status is valid.
 func isValidArticleStatus(status string) bool {
 	return status == models.ArticleStatusDraft || status == models.ArticleStatusPublished || status == models.ArticleStatusArchived
 }

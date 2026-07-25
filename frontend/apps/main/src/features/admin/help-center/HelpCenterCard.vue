@@ -28,7 +28,7 @@
         </Badge>
       </div>
       <span class="text-xs text-muted-foreground whitespace-nowrap">
-        {{ $t('helpCenter.lastUpdated') }} {{ format(helpCenter.updated_at, 'PP') }}
+        {{ $t('globals.terms.lastUpdated') }} {{ format(helpCenter.updated_at, 'PP') }}
       </span>
     </CardContent>
   </Card>
@@ -54,5 +54,5 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['click', 'edit', 'delete'])
+const emit = defineEmits(['click', 'edit', 'delete', 'toggle'])
 </script>

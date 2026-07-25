@@ -522,9 +522,7 @@ const getArticle = (collectionId, id) =>
   http.get(`/api/v1/collections/${collectionId}/articles/${id}`)
 const createArticle = (collectionId, data) =>
   http.post(`/api/v1/collections/${collectionId}/articles`, data)
-const updateArticle = (collectionId, id, data) =>
-  http.put(`/api/v1/collections/${collectionId}/articles/${id}`, data)
-const updateArticleByID = (id, data) => http.put(`/api/v1/articles/${id}`, data)
+const updateArticle = (id, data) => http.put(`/api/v1/articles/${id}`, data)
 const deleteArticle = (collectionId, id) =>
   http.delete(`/api/v1/collections/${collectionId}/articles/${id}`)
 const updateArticleStatus = (id, data) => http.put(`/api/v1/articles/${id}/status`, data)
@@ -763,7 +761,6 @@ export default {
   getArticle,
   createArticle,
   updateArticle,
-  updateArticleByID,
   deleteArticle,
   updateArticleStatus,
   getHelpCenterInsights,

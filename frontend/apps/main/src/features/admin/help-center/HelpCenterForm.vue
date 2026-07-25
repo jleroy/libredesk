@@ -63,7 +63,7 @@
 
     <FormField v-slot="{ componentField }" name="theme.favicon">
       <FormItem>
-        <FormLabel>{{ t('helpCenter.favicon') }}</FormLabel>
+        <FormLabel>{{ t('admin.general.faviconURL') }}</FormLabel>
         <FormControl>
           <Input type="text" :placeholder="t('helpCenter.faviconHint')" v-bind="componentField" />
         </FormControl>
@@ -96,7 +96,7 @@
               <SelectContent>
                 <SelectItem value="default">{{ t('helpCenter.styling.bgDefault') }}</SelectItem>
                 <SelectItem value="solid">{{ t('helpCenter.styling.bgSolid') }}</SelectItem>
-                <SelectItem value="gradient">{{ t('helpCenter.styling.bgGradient') }}</SelectItem>
+                <SelectItem value="gradient">{{ t('globals.terms.gradient') }}</SelectItem>
               </SelectContent>
             </Select>
           </FormControl>
@@ -109,7 +109,7 @@
         name="theme.header.background_color"
       >
         <FormItem>
-          <FormLabel>{{ t('helpCenter.styling.backgroundColor') }}</FormLabel>
+          <FormLabel>{{ t('globals.messages.backgroundColor') }}</FormLabel>
           <FormControl>
             <Input type="color" v-bind="componentField" />
           </FormControl>
@@ -119,7 +119,7 @@
       <div v-if="form.values.theme?.header?.background_type === 'gradient'" class="flex gap-4">
         <FormField v-slot="{ componentField }" name="theme.header.gradient_from">
           <FormItem class="flex-1">
-            <FormLabel>{{ t('helpCenter.styling.gradientFrom') }}</FormLabel>
+            <FormLabel>{{ t('globals.messages.gradientStart') }}</FormLabel>
             <FormControl>
               <Input type="color" v-bind="componentField" />
             </FormControl>
@@ -127,7 +127,7 @@
         </FormField>
         <FormField v-slot="{ componentField }" name="theme.header.gradient_to">
           <FormItem class="flex-1">
-            <FormLabel>{{ t('helpCenter.styling.gradientTo') }}</FormLabel>
+            <FormLabel>{{ t('globals.messages.gradientEnd') }}</FormLabel>
             <FormControl>
               <Input type="color" v-bind="componentField" />
             </FormControl>
@@ -154,7 +154,7 @@
       <div class="flex gap-4">
         <FormField v-slot="{ componentField }" name="theme.footer.background_color">
           <FormItem class="flex-1">
-            <FormLabel>{{ t('helpCenter.styling.backgroundColor') }}</FormLabel>
+            <FormLabel>{{ t('globals.messages.backgroundColor') }}</FormLabel>
             <FormControl>
               <Input type="text" placeholder="#ffffff" v-bind="componentField" />
             </FormControl>
@@ -182,37 +182,14 @@
         </FormItem>
       </FormField>
 
-      <div class="space-y-2">
-        <Label class="block">{{ t('helpCenter.styling.footerLinks') }}</Label>
-        <div v-for="(field, index) in footerLinkFields" :key="field.key" class="flex items-start gap-2">
-          <FormField v-slot="{ componentField }" :name="`theme.footer_links[${index}].label`">
-            <FormItem class="flex-1">
-              <FormControl>
-                <Input type="text" :placeholder="t('globals.terms.label')" v-bind="componentField" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
-          <FormField v-slot="{ componentField }" :name="`theme.footer_links[${index}].url`">
-            <FormItem class="flex-1">
-              <FormControl>
-                <Input type="text" :placeholder="t('globals.terms.url')" v-bind="componentField" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
-          <Button type="button" variant="ghost" size="icon" @click="removeFooterLink(index)">
-            <X class="w-4 h-4" />
-          </Button>
-        </div>
-        <Button type="button" variant="outline" size="sm" @click="pushFooterLink({ label: '', url: '' })">
-          {{ t('globals.messages.add') }}
-        </Button>
-      </div>
+      <LinkListField name="theme.footer_links" :label="t('helpCenter.styling.footerLinks')" />
 
-      <div class="space-y-2">
-        <Label class="block">{{ t('helpCenter.styling.socialLinks') }}</Label>
-        <div v-for="(field, index) in socialLinkFields" :key="field.key" class="flex items-start gap-2">
+      <LinkListField
+        name="theme.social_links"
+        :label="t('helpCenter.styling.socialLinks')"
+        :new-item="{ platform: 'website', url: '' }"
+      >
+        <template #leading="{ index }">
           <FormField v-slot="{ componentField }" :name="`theme.social_links[${index}].platform`">
             <FormItem class="w-40">
               <FormControl>
@@ -228,22 +205,8 @@
               <FormMessage />
             </FormItem>
           </FormField>
-          <FormField v-slot="{ componentField }" :name="`theme.social_links[${index}].url`">
-            <FormItem class="flex-1">
-              <FormControl>
-                <Input type="text" :placeholder="t('globals.terms.url')" v-bind="componentField" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
-          <Button type="button" variant="ghost" size="icon" @click="removeSocialLink(index)">
-            <X class="w-4 h-4" />
-          </Button>
-        </div>
-        <Button type="button" variant="outline" size="sm" @click="pushSocialLink({ platform: 'website', url: '' })">
-          {{ t('globals.messages.add') }}
-        </Button>
-      </div>
+        </template>
+      </LinkListField>
     </div>
 
     <!-- Article page -->
@@ -267,32 +230,8 @@
       </FormField>
     </div>
 
-    <div class="border-t pt-6 space-y-2">
-      <Label class="block">{{ t('helpCenter.navLinks') }}</Label>
-      <div v-for="(field, index) in navLinkFields" :key="field.key" class="flex items-start gap-2">
-        <FormField v-slot="{ componentField }" :name="`nav_links[${index}].label`">
-          <FormItem class="flex-1">
-            <FormControl>
-              <Input type="text" :placeholder="t('globals.terms.label')" v-bind="componentField" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
-        <FormField v-slot="{ componentField }" :name="`nav_links[${index}].url`">
-          <FormItem class="flex-1">
-            <FormControl>
-              <Input type="text" :placeholder="t('globals.terms.url')" v-bind="componentField" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
-        <Button type="button" variant="ghost" size="icon" @click="removeNavLink(index)">
-          <X class="w-4 h-4" />
-        </Button>
-      </div>
-      <Button type="button" variant="outline" size="sm" @click="pushNavLink({ label: '', url: '' })">
-        {{ t('globals.messages.add') }}
-      </Button>
+    <div class="border-t pt-6">
+      <LinkListField name="nav_links" :label="t('helpCenter.navLinks')" />
     </div>
 
     <div class="space-y-2">
@@ -396,6 +335,7 @@ import {
   FormDescription
 } from '@shared-ui/components/ui/form/index.js'
 import { X } from 'lucide-vue-next'
+import LinkListField from './LinkListField.vue'
 import { createHelpCenterFormSchema } from './helpCenterFormSchema.js'
 import { useI18n } from 'vue-i18n'
 
@@ -466,40 +406,25 @@ const form = useForm({
 })
 
 const {
-  fields: navLinkFields,
-  push: pushNavLink,
-  remove: removeNavLink
-} = useFieldArray('nav_links')
-
-const {
   fields: localeFields,
   push: pushLocale,
   remove: removeLocale
 } = useFieldArray('allowed_locales')
 
-const {
-  fields: footerLinkFields,
-  push: pushFooterLink,
-  remove: removeFooterLink
-} = useFieldArray('theme.footer_links')
+const cleanLocales = (locales) => (locales || []).map((l) => (l || '').trim()).filter(Boolean)
 
-const {
-  fields: socialLinkFields,
-  push: pushSocialLink,
-  remove: removeSocialLink
-} = useFieldArray('theme.social_links')
+const localeOptions = computed(() => cleanLocales(form.values.allowed_locales))
 
-const localeOptions = computed(() =>
-  (form.values.allowed_locales || []).map((l) => (l || '').trim()).filter(Boolean)
-)
-
+// Mirrors stringutil.GenerateSlug on the backend so the suggestion matches what gets saved.
 const generateSlug = () => {
   if (!props.helpCenter && form.values.name) {
     form.setFieldValue(
       'slug',
       form.values.name
+        .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9\-_]+/g, '')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')
     )
@@ -507,7 +432,7 @@ const generateSlug = () => {
 }
 
 const onSubmit = form.handleSubmit(async (values) => {
-  const allowed = (values.allowed_locales || []).map((l) => (l || '').trim()).filter(Boolean)
+  const allowed = cleanLocales(values.allowed_locales)
   props.submitForm({
     ...values,
     nav_links: values.nav_links || [],
@@ -519,7 +444,7 @@ watch(
   () => props.helpCenter,
   (newValues) => {
     if (newValues && Object.keys(newValues).length > 0) {
-      form.setValues(toFormValues(newValues))
+      form.setValues(toFormValues(newValues), false)
     }
   },
   { immediate: true }
