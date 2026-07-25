@@ -105,6 +105,9 @@ import { Eye, EyeOff } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import AuthLayout from '@/layouts/auth/AuthLayout.vue'
 
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_MAX_LENGTH = 72
+
 const { t } = useI18n()
 const errorMessage = ref('')
 const showPassword = ref(false)
@@ -134,6 +137,14 @@ onMounted(() => {
 const validateForm = () => {
   if (!passwordForm.value.password) {
     errorMessage.value = t('auth.passwordRequired')
+    useTemporaryClass('set-password-container', 'animate-shake')
+    return false
+  }
+  if (!isPasswordLengthValid(passwordForm.value.password)) {
+    errorMessage.value = t('validation.minmax', {
+      min: PASSWORD_MIN_LENGTH,
+      max: PASSWORD_MAX_LENGTH
+    })
     useTemporaryClass('set-password-container', 'animate-shake')
     return false
   }
@@ -170,14 +181,14 @@ const setPasswordAction = async () => {
 }
 
 const passwordHasError = computed(() => {
-  return submitted.value && passwordForm.value.password !== '' && passwordForm.value.password.length < 8
+  return submitted.value && !isPasswordLengthValid(passwordForm.value.password)
 })
 
 const confirmPasswordHasError = computed(() => {
-  return (
-    submitted.value &&
-    passwordForm.value.confirmPassword !== '' &&
-    passwordForm.value.password !== passwordForm.value.confirmPassword
-  )
+  return submitted.value && passwordForm.value.password !== passwordForm.value.confirmPassword
 })
+
+function isPasswordLengthValid(password) {
+  return password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH
+}
 </script>
