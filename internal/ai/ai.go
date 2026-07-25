@@ -90,6 +90,10 @@ type queries struct {
 	UpdateKnowledgeBaseItem     *sqlx.Stmt `query:"update-knowledge-base-item"`
 	DeleteKnowledgeBaseItem     *sqlx.Stmt `query:"delete-knowledge-base-item"`
 	SetKnowledgeBaseFingerprint *sqlx.Stmt `query:"set-knowledge-base-embedded-fingerprint"`
+	GetEmbeddableHelpArticles   *sqlx.Stmt `query:"get-embeddable-help-articles"`
+	GetEmbeddableHelpArticle    *sqlx.Stmt `query:"get-embeddable-help-article"`
+	SetHelpArticleFingerprint   *sqlx.Stmt `query:"set-help-article-embedded-fingerprint"`
+	DeleteOrphanArticleVectors  *sqlx.Stmt `query:"delete-orphan-help-article-embeddings"`
 	InsertEmbedding             *sqlx.Stmt `query:"insert-embedding"`
 	DeleteEmbeddingsBySource    *sqlx.Stmt `query:"delete-embeddings-by-source"`
 	GetAllEmbeddings            *sqlx.Stmt `query:"get-all-embeddings"`

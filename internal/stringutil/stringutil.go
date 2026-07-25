@@ -25,6 +25,8 @@ var (
 	regexpSpaces    = regexp.MustCompile(`[\s]+`)
 	uuidV4Regex     = regexp.MustCompile(`[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[89abAB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}`)
 	regexpRefNumber = regexp.MustCompile(`#(\d+)`)
+	regexpSlugChars = regexp.MustCompile(`[^a-z0-9\-_]+`)
+	regexpHyphens   = regexp.MustCompile(`-+`)
 	regexpConvUUID  = regexp.MustCompile(`(?i)\+conv-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}@`)
 
 	// markdownRenderer escapes raw HTML in the input; single newlines render as <br>.
@@ -41,6 +43,33 @@ func SanitizeUTF8(s string) string {
 	}
 	s = strings.ReplaceAll(s, "\x00", "")
 	return strings.ToValidUTF8(s, "�")
+}
+
+// GenerateSlug generates a URL-friendly slug from a title, optionally prefixed with a random string.
+func GenerateSlug(title string, prefixRandom bool) string {
+	slug := strings.ToLower(strings.TrimSpace(title))
+	slug = regexpSpaces.ReplaceAllString(slug, "-")
+	slug = regexpSlugChars.ReplaceAllString(slug, "")
+	slug = regexpHyphens.ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+
+	if slug == "" {
+		randomSlug, err := RandomAlphanumeric(12)
+		if err != nil {
+			slug = "untitled"
+		} else {
+			slug = strings.ToLower(randomSlug)
+		}
+	}
+
+	if prefixRandom {
+		randomPrefix, err := RandomAlphanumeric(12)
+		if err != nil {
+			return slug
+		}
+		slug = fmt.Sprintf("%s-%s", strings.ToLower(randomPrefix), slug)
+	}
+	return slug
 }
 
 // HTML2Text converts HTML to text.

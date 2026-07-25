@@ -317,6 +317,8 @@ func (m *Manager) reconcile(ctx context.Context) {
 	if reindexed > 0 {
 		m.lo.Info("reconciled knowledge base embeddings", "reindexed", reindexed)
 	}
+
+	m.reconcileHelpArticles(cfg.Model, cfg.Dimensions)
 }
 
 func serializeEmbedding(vec []float32) []byte {

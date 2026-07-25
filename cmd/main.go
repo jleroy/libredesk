@@ -38,6 +38,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/conversation/priority"
 	"github.com/abhinavxd/libredesk/internal/conversation/status"
 	"github.com/abhinavxd/libredesk/internal/importer"
+	"github.com/abhinavxd/libredesk/internal/helpcenter"
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/media"
 	"github.com/abhinavxd/libredesk/internal/oidc"
@@ -103,6 +104,7 @@ type App struct {
 	view             *view.Manager
 	ai               *ai.Manager
 	aiAgent          *aiagent.Manager
+	helpcenter       *helpcenter.Manager
 	search           *search.Manager
 	activityLog      *activitylog.Manager
 	notifier         *notifier.Service
@@ -233,6 +235,7 @@ func main() {
 		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
 		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)
 		aiAgent                     = initAIAgent(db, i18n, ai, conversation, media, settings, user, notifier, rdb)
+		helpCenter                  = initHelpCenter(db, i18n, ai)
 		autoassigner                = initAutoAssigner(team, user, conversation)
 		rateLimiter                 = initRateLimit(rdb)
 	)
@@ -292,6 +295,7 @@ func main() {
 		macro:            initMacro(db, i18n),
 		ai:               ai,
 		aiAgent:          aiAgent,
+		helpcenter:       helpCenter,
 		importer:         initImporter(i18n),
 		webhook:          webhook,
 		contextLink:      initContextLink(db, i18n),

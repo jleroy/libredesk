@@ -214,7 +214,7 @@ import {
   ClockIcon,
   MessageSquareIcon
 } from 'lucide-vue-next'
-import Editor from '@main/components/editor/TextEditor.vue'
+import Editor from '@main/components/editor/ConversationEditor.vue'
 import { useI18n } from 'vue-i18n'
 import { useEmitter } from '@main/composables/useEmitter'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'

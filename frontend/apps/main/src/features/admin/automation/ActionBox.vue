@@ -100,7 +100,7 @@ import { SelectTag } from '@shared-ui/components/ui/select'
 import { useConversationFilters } from '../../../composables/useConversationFilters'
 import { getTextFromHTML } from '@shared-ui/utils/string'
 import { useI18n } from 'vue-i18n'
-import Editor from '@main/components/editor/TextEditor.vue'
+import Editor from '@main/components/editor/ConversationEditor.vue'
 import SelectComboBox from '@main/components/combobox/SelectCombobox.vue'
 
 const props = defineProps({

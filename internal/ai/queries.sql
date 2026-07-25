@@ -31,6 +31,20 @@ DELETE FROM ai_knowledge_base WHERE id = $1;
 -- name: set-knowledge-base-embedded-fingerprint
 UPDATE ai_knowledge_base SET embedded_fingerprint = $2 WHERE id = $1;
 
+-- name: get-embeddable-help-articles
+SELECT id, title, content, status, ai_enabled, embedded_fingerprint FROM help_articles;
+
+-- name: get-embeddable-help-article
+SELECT id, title, content, status, ai_enabled, embedded_fingerprint FROM help_articles WHERE id = $1;
+
+-- name: set-help-article-embedded-fingerprint
+UPDATE help_articles SET embedded_fingerprint = $2 WHERE id = $1;
+
+-- name: delete-orphan-help-article-embeddings
+DELETE FROM embeddings e
+WHERE e.source_type = 'help_article' AND NOT EXISTS (SELECT 1 FROM help_articles a WHERE a.id = e.source_id)
+RETURNING e.source_id;
+
 -- name: insert-embedding
 INSERT INTO embeddings (source_type, source_id, chunk_text, embedding, dimensions) VALUES ($1, $2, $3, $4, $5);
 
