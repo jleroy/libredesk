@@ -34,8 +34,10 @@ var (
 	//go:embed queries.sql
 	efs embed.FS
 
-	ErrInvalidAPIKey = errors.New("invalid API Key")
-	ErrApiKeyNotSet  = errors.New("api Key not set")
+	ErrInvalidAPIKey       = errors.New("invalid API Key")
+	ErrApiKeyNotSet        = errors.New("api Key not set")
+	ErrRateLimited         = errors.New("rate limited by AI provider")
+	ErrProviderUnavailable = errors.New("AI provider unavailable")
 )
 
 type Manager struct {
@@ -382,10 +384,22 @@ func (m *Manager) getProviderClient(providerType string) (ProviderClient, error)
 func (m *Manager) providerError(err error) error {
 	if errors.Is(err, ErrInvalidAPIKey) {
 		m.lo.Error("invalid provider API key")
-		return envelope.NewError(envelope.InputError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		return envelope.NewError(envelope.InputError, m.i18n.T("ai.invalidAPIKey"), nil)
 	}
 	if errors.Is(err, ErrApiKeyNotSet) {
 		return envelope.NewError(envelope.InputError, m.i18n.T("ai.apiKeyNotSet"), nil)
+	}
+	if errors.Is(err, ErrRateLimited) {
+		m.lo.Error("rate limited by AI provider", "error", err)
+		return envelope.NewError(envelope.RateLimitError, m.i18n.T("ai.rateLimited"), nil)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		m.lo.Error("AI provider request timed out", "error", err)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("ai.providerTimeout"), nil)
+	}
+	if errors.Is(err, ErrProviderUnavailable) {
+		m.lo.Error("AI provider unavailable", "error", err)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("ai.providerUnavailable"), nil)
 	}
 	m.lo.Error("error from AI provider", "error", err)
 	return envelope.NewError(envelope.GeneralError, capProviderErrorMessage(err), nil)

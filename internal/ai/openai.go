@@ -351,7 +351,7 @@ func (o *OpenAIClient) doRequest(ctx context.Context, path string, bodyBytes []b
 	resp, err := o.client.Do(req)
 	if err != nil {
 		o.lo.Error("error making request to AI provider", "error", err)
-		return nil, 0, true, fmt.Errorf("making HTTP request: %w", err)
+		return nil, 0, true, fmt.Errorf("%w: making HTTP request: %w", ErrProviderUnavailable, err)
 	}
 	defer resp.Body.Close()
 
@@ -368,10 +368,10 @@ func (o *OpenAIClient) doRequest(ctx context.Context, path string, bodyBytes []b
 		return nil, 0, false, ErrInvalidAPIKey
 	case resp.StatusCode == http.StatusTooManyRequests:
 		o.lo.Error("rate limited by AI provider (429)", "response", string(respBytes))
-		return nil, parseRetryAfter(resp.Header.Get("Retry-After")), true, fmt.Errorf("provider API error: status %d: %s", resp.StatusCode, string(respBytes))
+		return nil, parseRetryAfter(resp.Header.Get("Retry-After")), true, fmt.Errorf("%w: status %d: %s", ErrRateLimited, resp.StatusCode, string(respBytes))
 	case resp.StatusCode >= 500:
 		o.lo.Error("server error from AI provider", "status", resp.StatusCode, "response", string(respBytes))
-		return nil, 0, true, fmt.Errorf("provider API error: status %d: %s", resp.StatusCode, string(respBytes))
+		return nil, 0, true, fmt.Errorf("%w: status %d: %s", ErrProviderUnavailable, resp.StatusCode, string(respBytes))
 	default:
 		o.lo.Error("non-ok response from AI provider", "status", resp.StatusCode, "response", string(respBytes))
 		return respBytes, 0, false, fmt.Errorf("provider API error: status %d: %s", resp.StatusCode, string(respBytes))
