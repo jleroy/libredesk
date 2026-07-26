@@ -161,6 +161,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared-ui/components/
 import { useEmitter } from '@/composables/useEmitter.js'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
+import { useAIAssistantStore } from '@/stores/aiAssistant'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
@@ -170,6 +171,7 @@ const props = defineProps({
 const { t } = useI18n()
 const router = useRouter()
 const emitter = useEmitter()
+const aiAssistantStore = useAIAssistantStore()
 const assistant = ref({})
 const isLoading = ref(false)
 const stats = ref({})
@@ -233,6 +235,7 @@ const submitForm = async (values) => {
       await api.createAIAssistant(values)
       router.push({ name: 'ai-assistants' })
     }
+    aiAssistantStore.invalidate()
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.savedSuccessfully')
     })
