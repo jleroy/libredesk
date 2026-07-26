@@ -554,6 +554,7 @@
   "agent.selectAvailabilityStatus": "Select availability status",
   "ai.apiKeyNotSet": "The AI provider API key is not set. Please ask your administrator to set it up",
   "ai.faqAlreadyReviewed": "This suggestion has already been reviewed.",
+  "ai.noAnswerWithinSteps": "The AI hit its step limit before answering. Try a simpler request, or ask an admin to raise the limit.",
   "ai.agent.handoffDefault": "The AI assistant handed this conversation off to a human.",
   "ai.agent.handoffMaxTurns": "The AI assistant reached its response limit for this conversation and handed it off to a human.",
   "ai.agent.handoffError": "The AI assistant could not respond and handed this conversation off to a human.",

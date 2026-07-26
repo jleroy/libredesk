@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 
+	"time"
+
 	"github.com/abhinavxd/libredesk/internal/ai"
 	aimodels "github.com/abhinavxd/libredesk/internal/ai/models"
 	"github.com/abhinavxd/libredesk/internal/aiagent/models"
@@ -14,7 +16,6 @@ import (
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	statusmodels "github.com/abhinavxd/libredesk/internal/conversation/status/models"
 	imageutil "github.com/abhinavxd/libredesk/internal/image"
-	"time"
 
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"

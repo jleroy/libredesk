@@ -60,6 +60,30 @@ type OpenAIClient struct {
 
 type embeddingBatch struct{ start, end int }
 
+type chatCompletionResponse struct {
+	Choices []struct {
+		Message struct {
+			Content   string            `json:"content"`
+			ToolCalls []models.ToolCall `json:"tool_calls"`
+		} `json:"message"`
+	} `json:"choices"`
+	Usage json.RawMessage `json:"usage"`
+}
+
+type embeddingsResponse struct {
+	Data []struct {
+		Index     int       `json:"index"`
+		Embedding []float32 `json:"embedding"`
+	} `json:"data"`
+}
+
+type apiErrorResponse struct {
+	Error struct {
+		Code  string `json:"code"`
+		Param string `json:"param"`
+	} `json:"error"`
+}
+
 func NewOpenAIClient(cfg models.ProviderConfig, lo *logf.Logger, client *http.Client) *OpenAIClient {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = defaultOpenAIBaseURL
@@ -132,15 +156,7 @@ func (o *OpenAIClient) SendChatCompletion(ctx context.Context, payload models.Ch
 		return models.ChatCompletionResult{}, err
 	}
 
-	var parsed struct {
-		Choices []struct {
-			Message struct {
-				Content   string            `json:"content"`
-				ToolCalls []models.ToolCall `json:"tool_calls"`
-			} `json:"message"`
-		} `json:"choices"`
-		Usage json.RawMessage `json:"usage"`
-	}
+	var parsed chatCompletionResponse
 	if err := json.Unmarshal(respBytes, &parsed); err != nil {
 		return models.ChatCompletionResult{}, fmt.Errorf("decoding response body: %w", err)
 	}
@@ -227,12 +243,7 @@ func (o *OpenAIClient) embedBatch(ctx context.Context, model string, inputs []st
 		return nil, err
 	}
 
-	var parsed struct {
-		Data []struct {
-			Index     int       `json:"index"`
-			Embedding []float32 `json:"embedding"`
-		} `json:"data"`
-	}
+	var parsed embeddingsResponse
 	if err := json.Unmarshal(respBytes, &parsed); err != nil {
 		return nil, fmt.Errorf("decoding embedding response: %w", err)
 	}
@@ -377,12 +388,7 @@ func backoffDelay(attempt int) time.Duration {
 
 // adaptUnsupportedParam adjusts body in place when the provider rejected a tuning parameter, reporting which one.
 func adaptUnsupportedParam(body map[string]any, resp []byte) (string, bool) {
-	var parsed struct {
-		Error struct {
-			Code  string `json:"code"`
-			Param string `json:"param"`
-		} `json:"error"`
-	}
+	var parsed apiErrorResponse
 	if err := json.Unmarshal(resp, &parsed); err != nil {
 		return "", false
 	}
