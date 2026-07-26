@@ -1,7 +1,7 @@
 name: i18n guard
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
@@ -23,8 +23,8 @@ jobs:
             echo "allow-i18n-edit label present, skipping."
             exit 0
           fi
-          changed=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' \
-            | grep '^i18n/.*\.json$' | grep -v '^i18n/en-US\.json$' || true)
+          files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename')
+          changed=$(printf '%s\n' "$files" | grep '^i18n/.*\.json$' | grep -v '^i18n/en-US\.json$' || true)
           if [ -z "$changed" ]; then
             exit 0
           fi
