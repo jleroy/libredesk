@@ -1,7 +1,7 @@
 name: i18n guard
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
