@@ -18,7 +18,7 @@ import (
 
 const (
 	defaultOpenAIBaseURL   = "https://api.openai.com/v1"
-	defaultCompletionModel = "gpt-4o-mini"
+	defaultCompletionModel = "gpt-5.4-mini"
 	defaultEmbeddingModel  = "text-embedding-3-small"
 
 	// Transient provider failures (429, 5xx, network errors) are retried with exponential backoff.
