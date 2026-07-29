@@ -23,6 +23,7 @@ import { RouterLink } from 'vue-router'
 import InboxDataTableDropDown from '@main/features/admin/inbox/InboxDataTableDropDown.vue'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { Button } from '@shared-ui/components/ui/button'
+import { Badge } from '@shared-ui/components/ui/badge/index.js'
 import DataTable from '@main/components/datatable/DataTable.vue'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import { useEmitter } from '@main/composables/useEmitter'
@@ -123,10 +124,16 @@ const columns = [
   },
   {
     accessorKey: 'enabled',
-    header: () => h('div', { class: 'text-center' }, t('globals.terms.enabled')),
+    header: () => h('div', { class: 'text-center' }, t('globals.terms.status')),
     cell: ({ row }) => {
       const enabled = row.getValue('enabled')
-      return h('div', { class: 'text-center' }, enabled ? 'Yes' : 'No')
+      return h(
+        'div',
+        { class: 'text-center' },
+        h(Badge, { variant: enabled ? 'success' : 'secondary' }, () =>
+          enabled ? t('globals.terms.enabled') : t('globals.terms.disabled')
+        )
+      )
     }
   },
   {
