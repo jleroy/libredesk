@@ -293,7 +293,7 @@ func handleAIGenerateReply(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	if strings.TrimSpace(resp) == "" {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("ai.emptyResponse"), nil))
 	}
 	return r.SendEnvelope(resp)
 }
@@ -322,7 +322,7 @@ func handleAISummarizeConversation(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	if strings.TrimSpace(summary) == "" {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("ai.emptyResponse"), nil))
 	}
 	auser := r.RequestCtx.UserValue("user").(amodels.User)
 	note := "**" + app.i18n.T("ai.summaryNoteTitle") + "**\n\n" + summary
@@ -421,7 +421,7 @@ func handleAICopilot(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	if strings.TrimSpace(resp) == "" {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("ai.emptyResponse"), nil))
 	}
 	// Copilot answers in markdown; store and return HTML so the panel, reply editor and private notes consume it as is.
 	resp = stringutil.Markdown2HTML(resp)

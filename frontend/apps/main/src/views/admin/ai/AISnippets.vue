@@ -55,7 +55,7 @@
     <template #help>
       <p>{{ t('admin.ai.snippetsHelp') }}</p>
       <a
-        href="https://docs.libredesk.io/configuration/ai"
+        href="https://docs.libredesk.io/configuration/ai#snippets"
         target="_blank"
         rel="noopener noreferrer"
         class="link-style"

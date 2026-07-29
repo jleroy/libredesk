@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 
+	"time"
+
 	"github.com/abhinavxd/libredesk/internal/ai"
 	aimodels "github.com/abhinavxd/libredesk/internal/ai/models"
 	"github.com/abhinavxd/libredesk/internal/aiagent/models"
@@ -14,7 +16,6 @@ import (
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	statusmodels "github.com/abhinavxd/libredesk/internal/conversation/status/models"
 	imageutil "github.com/abhinavxd/libredesk/internal/image"
-	"time"
 
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
@@ -22,8 +23,6 @@ import (
 
 const (
 	channelEmail = "email"
-
-	maxHistoryMessages = 30
 
 	maxImagesPerMessage = 3
 	maxImagesTotal      = 4
@@ -220,7 +219,7 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 	}
 
 	private := false
-	msgs, _, err := m.convo.GetConversationMessages(conv.UUID, 1, maxHistoryMessages, &private, []string{cmodels.MessageIncoming, cmodels.MessageOutgoing})
+	msgs, _, err := m.convo.GetConversationMessages(conv.UUID, 1, m.maxHistoryMessages, &private, []string{cmodels.MessageIncoming, cmodels.MessageOutgoing})
 	if err != nil {
 		m.lo.Error("error fetching messages for ai agent", "conversation_uuid", conv.UUID, "error", err)
 		return
@@ -333,7 +332,7 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	stopTyping := m.keepTyping(conv.UUID)
-	answer, err := m.ai.RunAgentWithTools(runCtx, systemPrompt, history, aiRunMaxSteps, tctx, assistant.ToolIDs, false, false, tools)
+	answer, err := m.ai.RunAgentWithTools(runCtx, systemPrompt, history, m.maxSteps, tctx, assistant.ToolIDs, false, false, tools)
 	stopTyping()
 	// A human agent may have taken over or resolved the conversation mid-run; if so, drop this
 	// run's reply and status actions instead of talking over them.
@@ -485,7 +484,7 @@ func (m *Manager) PreviewReply(ctx context.Context, assistantID int, message str
 	runCtx, cancel := context.WithTimeout(ctx, livechatRunTimeout)
 	defer cancel()
 	// Preview is search-only: no custom tools (empty allowed set), no built-in, no side effects.
-	answer, err := m.ai.RunAgentWithTools(runCtx, buildSystemPrompt(a), history, aiRunMaxSteps, ai.ToolContext{}, []int{}, false, false, tools)
+	answer, err := m.ai.RunAgentWithTools(runCtx, buildSystemPrompt(a), history, m.maxSteps, ai.ToolContext{}, []int{}, false, false, tools)
 	if err != nil {
 		return "", nil, err
 	}
@@ -547,9 +546,6 @@ func (m *Manager) buildHistory(msgs []cmodels.Message, contactID int) []aimodels
 		kept = append(kept, msg)
 	}
 	msgs = kept
-	if len(msgs) > maxHistoryMessages {
-		msgs = msgs[len(msgs)-maxHistoryMessages:]
-	}
 	vision := m.ai.VisionEnabled()
 	m.lo.Debug("ai agent building history", "messages", len(msgs), "vision", vision)
 	// Spend the image budget newest-first so the message being answered never loses its

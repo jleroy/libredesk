@@ -77,9 +77,8 @@ func isQuoteNode(n *html.Node) bool {
 	if n.Data == "blockquote" {
 		return true
 	}
-	class := attrValue(n, "class")
 	for _, c := range quoteContainerClasses {
-		if strings.Contains(class, c) {
+		if hasClass(n, c) {
 			return true
 		}
 	}
@@ -93,9 +92,8 @@ func isQuoteMarkerNode(n *html.Node) bool {
 	if quoteMarkerIDs[attrValue(n, "id")] {
 		return true
 	}
-	class := attrValue(n, "class")
 	for _, c := range quoteMarkerClasses {
-		if strings.Contains(class, c) {
+		if hasClass(n, c) {
 			return true
 		}
 	}
@@ -109,4 +107,13 @@ func attrValue(n *html.Node, key string) string {
 		}
 	}
 	return ""
+}
+
+func hasClass(n *html.Node, want string) bool {
+	for _, class := range strings.Fields(attrValue(n, "class")) {
+		if class == want {
+			return true
+		}
+	}
+	return false
 }

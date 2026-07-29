@@ -121,6 +121,10 @@ worker_count = 10
 worker_count = 10
 # Maximum number of AI assistant response jobs that can be queued
 queue_size = 1000
+# Maximum number of tool calls the assistant can make while working on one reply. (1-20)
+max_steps = 6
+# Conversation messages sent to the model as history. (5-100)
+max_history_messages = 30
 
 [autoassigner]
 # How often to run automatic conversation assignment

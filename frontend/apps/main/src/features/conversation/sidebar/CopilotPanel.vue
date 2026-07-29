@@ -178,6 +178,7 @@ import { Eraser, Bot, Copy, Reply, StickyNote } from 'lucide-vue-next'
 import { useConversationStore } from '@/stores/conversation'
 import { useCopilotStore } from '@/stores/copilot'
 import { useAppSettingsStore } from '@/stores/appSettings'
+import { useAIAssistantStore } from '@/stores/aiAssistant'
 import { useEmitter } from '@/composables/useEmitter'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
@@ -189,6 +190,7 @@ import api from '@/api'
 const conversationStore = useConversationStore()
 const copilotStore = useCopilotStore()
 const appSettingsStore = useAppSettingsStore()
+const aiAssistantStore = useAIAssistantStore()
 const emitter = useEmitter()
 const { t } = useI18n()
 
@@ -214,7 +216,7 @@ const scrollRef = ref(null)
 // Persona selection is global per agent (a stored assistant whose instructions Copilot borrows for
 // tone), not per conversation. 0 means the default Copilot.
 const ASSISTANT_STORAGE_KEY = 'copilot_assistant_id'
-const assistants = ref([])
+const assistants = computed(() => aiAssistantStore.assistants)
 const selectedAssistantId = ref(0)
 
 const persistAssistant = (value) => {
@@ -226,17 +228,12 @@ const persistAssistant = (value) => {
 const loadAssistants = async () => {
   const stored = parseInt(localStorage.getItem(ASSISTANT_STORAGE_KEY) || '0', 10)
   if (!Number.isNaN(stored)) selectedAssistantId.value = stored
-  try {
-    const resp = await api.getAIAssistantsCompact()
-    assistants.value = resp.data.data || []
-    if (
-      selectedAssistantId.value &&
-      !assistants.value.some((a) => a.id === selectedAssistantId.value)
-    ) {
-      persistAssistant(0)
-    }
-  } catch {
-    assistants.value = []
+  await aiAssistantStore.loadAssistants()
+  if (
+    selectedAssistantId.value &&
+    !assistants.value.some((a) => a.id === selectedAssistantId.value)
+  ) {
+    persistAssistant(0)
   }
 }
 

@@ -57,12 +57,14 @@ import {
 import { useEmitter } from '@/composables/useEmitter.js'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
+import { useAIAssistantStore } from '@/stores/aiAssistant'
 import { useI18n } from 'vue-i18n'
 import api from '@/api'
 
 const { t } = useI18n()
 const alertOpen = ref(false)
 const emitter = useEmitter()
+const aiAssistantStore = useAIAssistantStore()
 
 const props = defineProps({
   assistant: { type: Object, required: true }
@@ -75,6 +77,7 @@ const editAssistant = () => {
 const deleteAssistant = async () => {
   try {
     await api.deleteAIAssistant(props.assistant.id)
+    aiAssistantStore.invalidate()
     alertOpen.value = false
     emitter.emit(EMITTER_EVENTS.REFRESH_LIST, { model: 'ai_assistants' })
   } catch (error) {
