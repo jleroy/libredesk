@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/ai/models"
@@ -54,6 +55,8 @@ type Manager struct {
 	reconcileMu  sync.Mutex
 	snippetGenMu sync.Mutex
 	snippetGen   map[int]uint64
+	// tagGen is bumped on every tag vector purge; an in-flight tag reindex only commits if its gen is still current.
+	tagGen atomic.Uint64
 	// embedSem caps concurrent background snippet embeds.
 	embedSem           chan struct{}
 	httpClient         *http.Client
@@ -81,30 +84,33 @@ type ProviderConfigView struct {
 }
 
 type queries struct {
-	GetProviderByType           *sqlx.Stmt `query:"get-provider-by-type"`
-	UpdateProviderConfig        *sqlx.Stmt `query:"update-provider-config"`
-	GetPrompt                   *sqlx.Stmt `query:"get-prompt"`
-	GetPrompts                  *sqlx.Stmt `query:"get-prompts"`
-	GetKnowledgeBaseItems       *sqlx.Stmt `query:"get-knowledge-base-items"`
-	GetKnowledgeBaseItem        *sqlx.Stmt `query:"get-knowledge-base-item"`
-	KnowledgeBaseItemExists     *sqlx.Stmt `query:"knowledge-base-item-exists"`
-	InsertKnowledgeBaseItem     *sqlx.Stmt `query:"insert-knowledge-base-item"`
-	UpdateKnowledgeBaseItem     *sqlx.Stmt `query:"update-knowledge-base-item"`
-	DeleteKnowledgeBaseItem     *sqlx.Stmt `query:"delete-knowledge-base-item"`
-	SetKnowledgeBaseFingerprint *sqlx.Stmt `query:"set-knowledge-base-embedded-fingerprint"`
-	InsertEmbedding             *sqlx.Stmt `query:"insert-embedding"`
-	DeleteEmbeddingsBySource    *sqlx.Stmt `query:"delete-embeddings-by-source"`
-	GetAllEmbeddings            *sqlx.Stmt `query:"get-all-embeddings"`
-	GetTools                    *sqlx.Stmt `query:"get-tools"`
-	GetTool                     *sqlx.Stmt `query:"get-tool"`
-	GetEnabledToolsByIDs        *sqlx.Stmt `query:"get-enabled-tools-by-ids"`
-	GetToolAuth                 *sqlx.Stmt `query:"get-tool-auth"`
-	InsertTool                  *sqlx.Stmt `query:"insert-tool"`
-	UpdateTool                  *sqlx.Stmt `query:"update-tool"`
-	DeleteTool                  *sqlx.Stmt `query:"delete-tool"`
-	GetCopilotMessages          *sqlx.Stmt `query:"get-copilot-messages"`
-	InsertCopilotMessage        *sqlx.Stmt `query:"insert-copilot-message"`
-	DeleteCopilotMessages       *sqlx.Stmt `query:"delete-copilot-messages"`
+	GetProviderByType            *sqlx.Stmt `query:"get-provider-by-type"`
+	UpdateProviderConfig         *sqlx.Stmt `query:"update-provider-config"`
+	GetPrompt                    *sqlx.Stmt `query:"get-prompt"`
+	GetPrompts                   *sqlx.Stmt `query:"get-prompts"`
+	GetKnowledgeBaseItems        *sqlx.Stmt `query:"get-knowledge-base-items"`
+	GetKnowledgeBaseItem         *sqlx.Stmt `query:"get-knowledge-base-item"`
+	KnowledgeBaseItemExists      *sqlx.Stmt `query:"knowledge-base-item-exists"`
+	InsertKnowledgeBaseItem      *sqlx.Stmt `query:"insert-knowledge-base-item"`
+	UpdateKnowledgeBaseItem      *sqlx.Stmt `query:"update-knowledge-base-item"`
+	DeleteKnowledgeBaseItem      *sqlx.Stmt `query:"delete-knowledge-base-item"`
+	SetKnowledgeBaseFingerprint  *sqlx.Stmt `query:"set-knowledge-base-embedded-fingerprint"`
+	InsertEmbedding              *sqlx.Stmt `query:"insert-embedding"`
+	DeleteEmbeddingsBySource     *sqlx.Stmt `query:"delete-embeddings-by-source"`
+	DeleteEmbeddingsBySourceIDs  *sqlx.Stmt `query:"delete-embeddings-by-source-ids"`
+	DeleteEmbeddingsBySourceType *sqlx.Stmt `query:"delete-embeddings-by-source-type"`
+	GetAllEmbeddings             *sqlx.Stmt `query:"get-all-embeddings"`
+	GetTags                      *sqlx.Stmt `query:"get-tags"`
+	GetTools                     *sqlx.Stmt `query:"get-tools"`
+	GetTool                      *sqlx.Stmt `query:"get-tool"`
+	GetEnabledToolsByIDs         *sqlx.Stmt `query:"get-enabled-tools-by-ids"`
+	GetToolAuth                  *sqlx.Stmt `query:"get-tool-auth"`
+	InsertTool                   *sqlx.Stmt `query:"insert-tool"`
+	UpdateTool                   *sqlx.Stmt `query:"update-tool"`
+	DeleteTool                   *sqlx.Stmt `query:"delete-tool"`
+	GetCopilotMessages           *sqlx.Stmt `query:"get-copilot-messages"`
+	InsertCopilotMessage         *sqlx.Stmt `query:"insert-copilot-message"`
+	DeleteCopilotMessages        *sqlx.Stmt `query:"delete-copilot-messages"`
 }
 
 // New creates and returns a new instance of the Manager.
@@ -288,6 +294,7 @@ func (m *Manager) UpdateProviderConfig(providerType string, in models.ProviderCo
 	// A changed embedding model, dimension count, or backend URL produces vectors incomparable to the stored ones.
 	if providerType == models.ProviderTypeEmbedding && (existing.Model != cfg.Model || existing.Dimensions != cfg.Dimensions || existing.BaseURL != cfg.BaseURL) {
 		m.lo.Info("embedding provider changed, reindexing knowledge base", "old_model", existing.Model, "new_model", cfg.Model, "old_base_url", existing.BaseURL, "new_base_url", cfg.BaseURL)
+		m.purgeTagEmbeddings()
 		m.ReindexAll()
 	}
 	return nil

@@ -13,6 +13,9 @@ import (
 // maxSuggestTagsList bounds how many tag names are sent to the LLM for a tag suggestion.
 const maxSuggestTagsList = 300
 
+// maxTagQueryChars bounds the transcript embedded to retrieve tag candidates.
+const maxTagQueryChars = 4000
+
 // maxSuggestedTags caps how many tags a suggestion returns, whatever the model replies with.
 const maxSuggestedTags = 3
 
@@ -83,12 +86,17 @@ func (m *Manager) Summarize(ctx context.Context, transcript string) (string, err
 	return m.CompletionRaw(ctx, summarizeSystemPrompt, "Conversation:\n"+transcript)
 }
 
-// SuggestTags picks up to 3 allowed tags that fit the transcript; empty (never nil) when none fit or the reply is unparseable.
-func (m *Manager) SuggestTags(ctx context.Context, transcript string, allowed []string) ([]string, error) {
-	if len(allowed) > maxSuggestTagsList {
-		m.lo.Warn("tag list truncated for ai tag suggestion", "total", len(allowed), "cap", maxSuggestTagsList)
-		allowed = allowed[:maxSuggestTagsList]
+// SuggestTags picks up to 3 existing tags that fit the transcript; empty (never nil) when none fit or the reply is unparseable.
+func (m *Manager) SuggestTags(ctx context.Context, transcript string) ([]string, error) {
+	tags, err := m.getTags()
+	if err != nil {
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	if len(tags) == 0 {
+		return nil, envelope.NewError(envelope.InputError, m.i18n.T("ai.noTagsConfigured"), nil)
+	}
+
+	allowed := m.tagShortlist(ctx, transcript, tags)
 	userPrompt := "Allowed tags:\n" + strings.Join(allowed, "\n") + "\n\nConversation:\n" + transcript
 	resp, err := m.CompletionRaw(ctx, suggestTagsSystemPrompt, userPrompt)
 	if err != nil {
@@ -100,6 +108,24 @@ func (m *Manager) SuggestTags(ctx context.Context, transcript string, allowed []
 		return []string{}, nil
 	}
 	return suggestions, nil
+}
+
+// tagShortlist narrows the tag list to the tags most similar to the transcript, or a truncated list when the tag index is unavailable.
+func (m *Manager) tagShortlist(ctx context.Context, transcript string, tags []models.TagRef) []string {
+	names := tagNames(tags)
+	if len(names) <= maxSuggestTagsList {
+		return names
+	}
+
+	candidates, err := m.tagCandidates(ctx, trimToRuneBoundary(transcript, maxTagQueryChars), maxSuggestTagsList, tags)
+	if err != nil {
+		m.lo.Warn("error retrieving tag candidates for ai tag suggestion", "error", err, "total", len(names))
+	} else if len(candidates) > 0 {
+		return candidates
+	}
+
+	m.lo.Warn("tag list truncated for ai tag suggestion", "total", len(names), "cap", maxSuggestTagsList)
+	return names[:maxSuggestTagsList]
 }
 
 // parseSuggestedTags extracts the model's JSON tag array, keeping only allowed names; nil means unparseable (vs none fit).

@@ -153,7 +153,7 @@ func (m *Manager) reindexSnippetWith(ctx context.Context, item models.KnowledgeB
 	if !m.canCommitSnippet(item.ID, gen) {
 		return
 	}
-	if err := m.commitEmbeddings(models.SourceSnippet, item.ID, indexed); err != nil {
+	if err := m.commitEmbeddings(models.SourceSnippet, []int{item.ID}, indexed); err != nil {
 		m.lo.Error("error indexing snippet", "error", err, "id", item.ID)
 		return
 	}

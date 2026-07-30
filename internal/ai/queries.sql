@@ -37,6 +37,15 @@ INSERT INTO embeddings (source_type, source_id, chunk_text, embedding, dimension
 -- name: delete-embeddings-by-source
 DELETE FROM embeddings WHERE source_type = $1 AND source_id = $2;
 
+-- name: delete-embeddings-by-source-ids
+DELETE FROM embeddings WHERE source_type = $1 AND source_id = ANY($2);
+
+-- name: delete-embeddings-by-source-type
+DELETE FROM embeddings WHERE source_type = $1;
+
+-- name: get-tags
+SELECT id, name FROM tags ORDER BY id;
+
 -- name: get-all-embeddings
 SELECT id, source_type, source_id, chunk_text, embedding, dimensions FROM embeddings;
 
