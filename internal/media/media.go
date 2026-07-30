@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -239,6 +240,24 @@ func (m *Manager) GetSignedURL(name string) string {
 	}
 	// Fallback to regular URL if signed URLs not supported
 	return m.GetURL(name, "", "")
+}
+
+// GetThumbnailURL returns the URL for an image thumbnail.
+// FS signs the original UUID; S3 signs the thumbnail object.
+func (m *Manager) GetThumbnailURL(uuid string) string {
+	if _, ok := m.store.(SignedURLStore); ok {
+		// FS validates thumbnail requests with the original UUID signature.
+		u, err := url.Parse(m.GetSignedURL(uuid))
+		if err == nil {
+			if idx := strings.LastIndex(u.Path, "/"); idx >= 0 {
+				u.Path = u.Path[:idx+1] + image.ThumbPrefix + uuid
+			} else {
+				u.Path = image.ThumbPrefix + uuid
+			}
+			return u.String()
+		}
+	}
+	return m.GetSignedURL(image.ThumbPrefix + uuid)
 }
 
 // SignedURLValidator returns the store's signature validator if available.
