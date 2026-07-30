@@ -118,7 +118,6 @@
   "admin.ai.snippet.autoCreated": "Auto-created",
   "admin.ai.snippet.imported": "Imported",
   "admin.ai.snippet.importUrl": "Import from URL",
-  "admin.ai.snippet.importUrlHint": "Fetches the page and adds its readable content as a snippet. You can edit it afterwards like any other snippet.",
   "admin.ai.snippet.importUrlPlaceholder": "https://example.com/help/article",
   "admin.ai.snippet.titlePlaceholder": "Refund policy",
   "admin.ai.snippet.contentPlaceholder": "We offer refunds within 30 days of purchase. To request one, ...",
