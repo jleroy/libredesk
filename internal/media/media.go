@@ -257,7 +257,7 @@ func (m *Manager) GetThumbnailURL(uuid string) string {
 			return u.String()
 		}
 	}
-	return m.GetSignedURL(image.ThumbPrefix + uuid)
+	return m.store.GetURL(image.ThumbPrefix+uuid, "inline", "")
 }
 
 // SignedURLValidator returns the store's signature validator if available.
