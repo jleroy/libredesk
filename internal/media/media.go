@@ -243,7 +243,6 @@ func (m *Manager) GetSignedURL(name string) string {
 }
 
 // GetThumbnailURL returns the URL for an image thumbnail.
-// FS signs the original UUID; S3 signs the thumbnail object.
 func (m *Manager) GetThumbnailURL(uuid string) string {
 	if m.store.Name() == "fs" {
 		// FS validates thumbnail requests with the original UUID signature.

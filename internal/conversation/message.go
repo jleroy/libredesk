@@ -392,13 +392,13 @@ func (m *Manager) GetMessage(uuid string) (models.Message, error) {
 	}
 
 	// Generate signed URLs for attachments.
-	m.signAttachmentURLs(message.Attachments)
+	m.SignAttachmentURLs(message.Attachments)
 
 	return message, nil
 }
 
-// signAttachmentURLs adds access URLs for the original image and its thumbnail.
-func (m *Manager) signAttachmentURLs(attachments attachment.Attachments) {
+// SignAttachmentURLs adds access URLs for the original image and its thumbnail.
+func (m *Manager) SignAttachmentURLs(attachments attachment.Attachments) {
 	for i := range attachments {
 		attachments[i].URL = m.mediaStore.GetURL(attachments[i].UUID, attachments[i].ContentType, attachments[i].Name)
 		if strings.HasPrefix(attachments[i].ContentType, "image/") {
@@ -1460,7 +1460,7 @@ func (m *Manager) broadcastMessageToWidgetClients(message *models.Message) {
 		return
 	}
 
-	m.signAttachmentURLs(message.Attachments)
+	m.SignAttachmentURLs(message.Attachments)
 	m.SignAvatarURL(&message.Author.AvatarURL)
 	liveChatInbox.BroadcastMessageToClients(message.ConversationUUID, conversation.ContactID, models.ChatMessage{
 		UUID:             message.UUID,

@@ -1830,7 +1830,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 		for _, msg := range messages {
 			m.SignAvatarURL(&msg.Author.AvatarURL)
 			attachments := msg.Attachments
-			m.signAttachmentURLs(attachments)
+			m.SignAttachmentURLs(attachments)
 
 			// Strip agent email from widget responses.
 			author := msg.Author
