@@ -400,7 +400,7 @@ func (m *Manager) GetMessage(uuid string) (models.Message, error) {
 // signAttachmentURLs adds access URLs for the original image and its thumbnail.
 func (m *Manager) signAttachmentURLs(attachments attachment.Attachments) {
 	for i := range attachments {
-		attachments[i].URL = m.mediaStore.GetSignedURL(attachments[i].UUID)
+		attachments[i].URL = m.mediaStore.GetURL(attachments[i].UUID, attachments[i].ContentType, attachments[i].Name)
 		if strings.HasPrefix(attachments[i].ContentType, "image/") {
 			attachments[i].ThumbnailURL = m.mediaStore.GetThumbnailURL(attachments[i].UUID)
 		}
