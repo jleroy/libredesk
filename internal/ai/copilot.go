@@ -13,8 +13,8 @@ import (
 // maxSuggestTagsList bounds how many tag names are sent to the LLM for a tag suggestion.
 const maxSuggestTagsList = 300
 
-// maxTagQueryChars bounds the transcript embedded to retrieve tag candidates.
-const maxTagQueryChars = 4000
+// maxTagQueryTokens bounds the transcript embedded to retrieve tag candidates; a longer transcript averages every topic in the thread into one vector and retrieves worse.
+const maxTagQueryTokens = 1000
 
 // maxSuggestedTags caps how many tags a suggestion returns, whatever the model replies with.
 const maxSuggestedTags = 3
@@ -117,7 +117,7 @@ func (m *Manager) tagShortlist(ctx context.Context, transcript string, tags []mo
 		return names
 	}
 
-	candidates, err := m.tagCandidates(ctx, trimToRuneBoundary(transcript, maxTagQueryChars), maxSuggestTagsList, tags)
+	candidates, err := m.tagCandidates(ctx, capToTokens(transcript, maxTagQueryTokens), maxSuggestTagsList, tags)
 	if err != nil {
 		m.lo.Warn("error retrieving tag candidates for ai tag suggestion", "error", err, "total", len(names))
 	} else if len(candidates) > 0 {

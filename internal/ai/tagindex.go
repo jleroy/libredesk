@@ -65,11 +65,11 @@ func (m *Manager) purgeTagEmbeddings() {
 	m.reindexMu.Lock()
 	defer m.reindexMu.Unlock()
 	m.tagGen.Add(1)
+	// Clearing the index even on a failed delete keeps this self-healing: the next reconcile re-embeds every tag and overwrites the rows left behind.
+	m.index.removeSourceType(models.SourceTag)
 	if _, err := m.q.DeleteEmbeddingsBySourceType.Exec(models.SourceTag); err != nil {
 		m.lo.Error("error deleting tag embeddings", "error", err)
-		return
 	}
-	m.index.removeSourceType(models.SourceTag)
 }
 
 // tagCandidates returns the current names of the tags most similar to text, most similar first; a name only the index still knows is dropped.
