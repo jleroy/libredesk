@@ -168,6 +168,7 @@ type mediaStore interface {
 	GetBlob(name string) ([]byte, error)
 	GetURL(uuid, contentType, fileName string) string
 	GetSignedURL(name string) string
+	GetThumbnailURL(uuid string) string
 	Attach(id int, model string, modelID int) error
 	SetContentID(id int, contentID string) error
 	GetByModel(id int, model string) ([]mmodels.Media, error)
@@ -1829,9 +1830,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 		for _, msg := range messages {
 			m.SignAvatarURL(&msg.Author.AvatarURL)
 			attachments := msg.Attachments
-			for j := range attachments {
-				attachments[j].URL = m.mediaStore.GetSignedURL(attachments[j].UUID)
-			}
+			m.SignAttachmentURLs(attachments)
 
 			// Strip agent email from widget responses.
 			author := msg.Author

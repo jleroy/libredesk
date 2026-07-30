@@ -392,11 +392,19 @@ func (m *Manager) GetMessage(uuid string) (models.Message, error) {
 	}
 
 	// Generate signed URLs for attachments.
-	for i := range message.Attachments {
-		message.Attachments[i].URL = m.mediaStore.GetSignedURL(message.Attachments[i].UUID)
-	}
+	m.SignAttachmentURLs(message.Attachments)
 
 	return message, nil
+}
+
+// SignAttachmentURLs adds access URLs for the original image and its thumbnail.
+func (m *Manager) SignAttachmentURLs(attachments attachment.Attachments) {
+	for i := range attachments {
+		attachments[i].URL = m.mediaStore.GetURL(attachments[i].UUID, attachments[i].ContentType, attachments[i].Name)
+		if strings.HasPrefix(attachments[i].ContentType, "image/") {
+			attachments[i].ThumbnailURL = m.mediaStore.GetThumbnailURL(attachments[i].UUID)
+		}
+	}
 }
 
 // UpdateMessageStatus updates the status of a message.
@@ -1314,7 +1322,10 @@ func (m *Manager) fetchMessageAttachments(messageID int) (attachment.Attachments
 			Content:     blob,
 			Size:        media.Size,
 			Header:      attachment.MakeHeader(media.ContentType, contentID, media.Filename, "base64", media.Disposition.String),
-			URL:         m.mediaStore.GetSignedURL(media.UUID),
+			URL:         m.mediaStore.GetURL(media.UUID, media.ContentType, media.Filename),
+		}
+		if strings.HasPrefix(media.ContentType, "image/") {
+			attachment.ThumbnailURL = m.mediaStore.GetThumbnailURL(media.UUID)
 		}
 		attachments = append(attachments, attachment)
 	}
@@ -1449,6 +1460,7 @@ func (m *Manager) broadcastMessageToWidgetClients(message *models.Message) {
 		return
 	}
 
+	m.SignAttachmentURLs(message.Attachments)
 	m.SignAvatarURL(&message.Author.AvatarURL)
 	liveChatInbox.BroadcastMessageToClients(message.ConversationUUID, conversation.ContactID, models.ChatMessage{
 		UUID:             message.UUID,
