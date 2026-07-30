@@ -1322,7 +1322,10 @@ func (m *Manager) fetchMessageAttachments(messageID int) (attachment.Attachments
 			Content:     blob,
 			Size:        media.Size,
 			Header:      attachment.MakeHeader(media.ContentType, contentID, media.Filename, "base64", media.Disposition.String),
-			URL:         m.mediaStore.GetSignedURL(media.UUID),
+			URL:         m.mediaStore.GetURL(media.UUID, media.ContentType, media.Filename),
+		}
+		if strings.HasPrefix(media.ContentType, "image/") {
+			attachment.ThumbnailURL = m.mediaStore.GetThumbnailURL(media.UUID)
 		}
 		attachments = append(attachments, attachment)
 	}
