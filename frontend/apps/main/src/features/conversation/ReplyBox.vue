@@ -213,7 +213,7 @@ const mentions = ref([])
 
 aiPromptStore.fetchPrompts()
 
-const runAiGeneration = async (requestFn) => {
+const runAiGeneration = async (requestFn, returnsHtml = false) => {
   if (isGenerating.value) return
   const uuid = currentConversationUUID.value
   if (!uuid) return
@@ -221,7 +221,8 @@ const runAiGeneration = async (requestFn) => {
   try {
     const resp = await requestFn(uuid)
     if (uuid !== currentConversationUUID.value) return
-    htmlContent.value = convertTextToHtml(resp.data.data || '')
+    const out = resp.data.data || ''
+    htmlContent.value = returnsHtml ? out : convertTextToHtml(out)
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
@@ -236,7 +237,10 @@ const handleAiPromptSelected = (key) =>
   runAiGeneration(() => api.aiCompletion({ prompt_key: key, content: textContent.value }))
 
 const handleGenerateReply = () =>
-  runAiGeneration((uuid) => api.aiGenerateReply({ conversation_uuid: uuid, instruction: textContent.value }))
+  runAiGeneration(
+    (uuid) => api.aiGenerateReply({ conversation_uuid: uuid, instruction: textContent.value }),
+    true
+  )
 
 // Copilot's "Insert into reply" replaces the draft with its answer (already HTML from the panel),
 // forcing reply mode so a private note in progress does not silently receive customer-facing text.
