@@ -348,25 +348,12 @@ func handleAISuggestTags(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	tags, err := app.tag.GetAll()
-	if err != nil {
-		return sendErrorEnvelope(r, err)
-	}
-	if len(tags) == 0 {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("ai.noTagsConfigured"), nil))
-	}
-
 	transcript := conversationTranscript(app, req.ConversationUUID)
 	if strings.TrimSpace(transcript) == "" {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("ai.tagSuggestEmptyConversation"), nil))
 	}
 
-	names := make([]string, 0, len(tags))
-	for _, t := range tags {
-		names = append(names, t.Name)
-	}
-
-	suggestions, err := app.ai.SuggestTags(r.RequestCtx, transcript, names)
+	suggestions, err := app.ai.SuggestTags(r.RequestCtx, transcript)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}

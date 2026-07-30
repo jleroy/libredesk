@@ -23,6 +23,7 @@ const (
 
 	// Source types for embeddings.
 	SourceSnippet = "snippet"
+	SourceTag     = "tag"
 
 	// ai_knowledge_base.source values.
 	KnowledgeSourceManual       = "manual"
@@ -122,6 +123,12 @@ type Embedding struct {
 	ChunkText  string `db:"chunk_text"`
 	Embedding  []byte `db:"embedding"`
 	Dimensions int    `db:"dimensions"`
+}
+
+// TagRef is a tag id and name.
+type TagRef struct {
+	ID   int    `db:"id"`
+	Name string `db:"name"`
 }
 
 // SearchResult is one hit from the in-memory embedding search.
