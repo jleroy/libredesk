@@ -295,7 +295,7 @@ func handleAIGenerateReply(r *fastglue.Request) error {
 	if strings.TrimSpace(resp) == "" {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("ai.emptyResponse"), nil))
 	}
-	return r.SendEnvelope(resp)
+	return r.SendEnvelope(stringutil.Markdown2HTML(resp))
 }
 
 // handleAISummarizeConversation summarizes a conversation and posts the summary as the requesting agent's private note.
