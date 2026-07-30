@@ -86,12 +86,11 @@ type queries struct {
 	Get                     *sqlx.Stmt `query:"get-media"`
 	GetByUUID               *sqlx.Stmt `query:"get-media-by-uuid"`
 	Delete                  *sqlx.Stmt `query:"delete-media"`
-	Attach                  *sqlx.Stmt `query:"attach-to-model"`
+	LinkMessageMedia        *sqlx.Stmt `query:"link-message-media"`
 	GetByModel              *sqlx.Stmt `query:"get-model-media"`
 	GetUnlinkedMessageMedia *sqlx.Stmt `query:"get-unlinked-message-media"`
 	ContentIDExists         *sqlx.Stmt `query:"content-id-exists"`
 	GetByContentIDs         *sqlx.Stmt `query:"get-media-by-content-ids"`
-	SetContentID            *sqlx.Stmt `query:"set-media-content-id"`
 }
 
 // UploadAndInsert uploads file on storage and inserts an entry in db.
@@ -170,15 +169,6 @@ func (m *Manager) Get(id int, uuid string) (models.Media, error) {
 	}
 	media.URL = m.GetURL(media.UUID, media.ContentType, media.Filename)
 	return media, nil
-}
-
-// SetContentID stamps a content_id onto a media row if one isn't already set.
-func (m *Manager) SetContentID(id int, contentID string) error {
-	if _, err := m.queries.SetContentID.Exec(id, contentID); err != nil {
-		m.lo.Error("error setting media content_id", "id", id, "content_id", contentID, "error", err)
-		return fmt.Errorf("setting media content_id: %w", err)
-	}
-	return nil
 }
 
 // ContentIDExists reports whether a media row with the given content_id is linked to a message in the given conversation. Scoped this way so an orphan media row (e.g., from a partial failure) doesn't short-circuit a retry into skipping the upload.
@@ -265,11 +255,18 @@ func (m *Manager) SignedURLValidator() func(name, sig string, exp int64) bool {
 	return m.store.SignedURLValidator()
 }
 
-// Attach associates a media file with a specific model by its ID and model name.
-func (m *Manager) Attach(id int, model string, modelID int) error {
-	if _, err := m.queries.Attach.Exec(id, model, modelID); err != nil {
-		m.lo.Error("error attaching media to model", "model", model, "model_id", modelID, "media_id", id, "error", err)
-		return fmt.Errorf("attaching media;%d to model:%s model_id:%d: %w", id, model, modelID, err)
+// LinkMessageMediaTx links a message's attachments and inline images to it within the given transaction, stamping a content_id on the inline ones.
+func (m *Manager) LinkMessageMediaTx(tx *sqlx.Tx, messageID int, media []models.Media, inlineUUIDs []string) error {
+	if len(media) == 0 && len(inlineUUIDs) == 0 {
+		return nil
+	}
+	ids := make([]int, 0, len(media))
+	for _, med := range media {
+		ids = append(ids, med.ID)
+	}
+	if _, err := tx.Stmtx(m.queries.LinkMessageMedia).Exec(messageID, pq.Array(ids), pq.Array(inlineUUIDs)); err != nil {
+		m.lo.Error("error linking media to message", "message_id", messageID, "error", err)
+		return fmt.Errorf("linking media to message:%d: %w", messageID, err)
 	}
 	return nil
 }
