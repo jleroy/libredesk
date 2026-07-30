@@ -207,10 +207,6 @@ func V2_6_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 
-	if _, err := db.Exec(`INSERT INTO settings ("key", value) VALUES ('app.copilot_name', '"Juno"'::jsonb) ON CONFLICT ("key") DO NOTHING;`); err != nil {
-		return err
-	}
-
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS ai_faq_suggestions (
 			id BIGSERIAL PRIMARY KEY,
