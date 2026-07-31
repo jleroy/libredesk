@@ -398,12 +398,7 @@ func handleAICopilot(r *fastglue.Request) error {
 	}
 	history := make([]aimodels.ChatMessage, 0, len(saved)+1)
 	for _, m := range saved {
-		content := m.Content
-		// Assistant turns are stored as HTML for the panel; feed them back as text so the model keeps answering in markdown.
-		if m.Role == aimodels.RoleAssistant {
-			content = stringutil.HTML2TextWithLinks(content)
-		}
-		history = append(history, aimodels.ChatMessage{Role: m.Role, Content: content})
+		history = append(history, aimodels.ChatMessage{Role: m.Role, Content: m.Content})
 	}
 	history = append(history, aimodels.ChatMessage{Role: aimodels.RoleUser, Content: req.Message})
 
@@ -415,8 +410,6 @@ func handleAICopilot(r *fastglue.Request) error {
 	if strings.TrimSpace(resp) == "" {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("ai.emptyResponse"), nil))
 	}
-	// Copilot answers in markdown; store and return HTML so the panel, reply editor and private notes consume it as is.
-	resp = stringutil.Markdown2HTML(resp)
 	// Persist the exchange only after a successful reply, so a failed or empty call leaves no orphaned turn.
 	if err := app.ai.SaveCopilotMessage(conv.ID, auser.ID, aimodels.RoleUser, req.Message); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -424,7 +417,7 @@ func handleAICopilot(r *fastglue.Request) error {
 	if err := app.ai.SaveCopilotMessage(conv.ID, auser.ID, aimodels.RoleAssistant, resp); err != nil {
 		app.lo.Error("error saving copilot reply", "error", err)
 	}
-	return r.SendEnvelope(resp)
+	return r.SendEnvelope(stringutil.Markdown2HTML(resp))
 }
 
 // handleGetCopilotMessages returns the requesting agent's persisted copilot chat for a conversation.
@@ -442,6 +435,12 @@ func handleGetCopilotMessages(r *fastglue.Request) error {
 	msgs, err := app.ai.GetCopilotMessages(conv.ID, auser.ID, maxCopilotHistoryMessages)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
+	}
+	// Assistant turns are stored as markdown; the panel renders HTML.
+	for i := range msgs {
+		if msgs[i].Role == aimodels.RoleAssistant {
+			msgs[i].Content = stringutil.Markdown2HTML(msgs[i].Content)
+		}
 	}
 	return r.SendEnvelope(msgs)
 }

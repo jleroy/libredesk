@@ -141,6 +141,7 @@ import { Dialog, DialogContent } from '@shared-ui/components/ui/dialog'
 import { useEmitter } from '@main/composables/useEmitter'
 import { useFileUpload } from '@main/composables/useFileUpload'
 import { hasInlineImage, hasPendingInlineUpload } from '@main/composables/useInlineImageUpload'
+import { convertTextToHtml } from '@shared-ui/utils/string'
 import ReplyBoxContent from '@/features/conversation/ReplyBoxContent.vue'
 import { UserTypeAgent } from '@/constants/user'
 
@@ -220,7 +221,9 @@ const runAiGeneration = async (requestFn) => {
   try {
     const resp = await requestFn(uuid)
     if (uuid !== currentConversationUUID.value) return
-    htmlContent.value = resp.data.data || ''
+    const out = resp.data.data || ''
+    // A model can ignore the HTML-output instruction; plain text pasted into the editor loses its line breaks.
+    htmlContent.value = /<[a-z][\s\S]*>/i.test(out) ? out : convertTextToHtml(out)
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +39,8 @@ The draft is an HTML fragment and your reply must be one too. Keep every tag, at
 var (
 	//go:embed queries.sql
 	efs embed.FS
+
+	codeFenceOpenRe = regexp.MustCompile("^```[a-zA-Z0-9]*$")
 
 	ErrInvalidAPIKey       = errors.New("invalid API Key")
 	ErrApiKeyNotSet        = errors.New("api Key not set")
@@ -438,8 +441,8 @@ func stripCodeFence(s string) string {
 	if !strings.HasPrefix(t, "```") || !strings.HasSuffix(t, "```") || strings.Count(t, "```") != 2 {
 		return s
 	}
-	_, body, found := strings.Cut(strings.TrimSuffix(t, "```"), "\n")
-	if !found {
+	open, body, found := strings.Cut(strings.TrimSuffix(t, "```"), "\n")
+	if !found || !codeFenceOpenRe.MatchString(strings.TrimSpace(open)) {
 		return s
 	}
 	return strings.TrimSpace(body)

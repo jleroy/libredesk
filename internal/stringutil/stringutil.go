@@ -43,22 +43,14 @@ func SanitizeUTF8(s string) string {
 	return strings.ToValidUTF8(s, "�")
 }
 
-// HTML2Text converts HTML to text.
+// HTML2Text converts HTML to plain text, dropping link URLs.
 func HTML2Text(html string) string {
-	out, err := html2text.FromString(html, html2text.Options{TextOnly: true})
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(out)
+	return htmlToText(html, html2text.Options{TextOnly: true})
 }
 
-// HTML2TextWithLinks converts HTML to text keeping link URLs as "text ( url )", for LLM-facing text.
+// HTML2TextWithLinks converts HTML to text keeping link URLs as "text ( url )".
 func HTML2TextWithLinks(html string) string {
-	out, err := html2text.FromString(html, html2text.Options{})
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(out)
+	return htmlToText(html, html2text.Options{})
 }
 
 // Markdown2HTML converts markdown to HTML, falling back to the input on error.
@@ -275,4 +267,12 @@ func SplitName(name string) (string, string) {
 		return fields[0], ""
 	}
 	return fields[0], strings.Join(fields[1:], " ")
+}
+
+func htmlToText(html string, opts html2text.Options) string {
+	out, err := html2text.FromString(html, opts)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
 }

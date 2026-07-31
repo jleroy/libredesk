@@ -43,6 +43,11 @@ func TestStripCodeFence(t *testing.T) {
 			in:   "``````",
 			want: "``````",
 		},
+		{
+			name: "content on opening fence line untouched",
+			in:   "```<p>Hello,</p>\n<p>Thanks.</p>\n```",
+			want: "```<p>Hello,</p>\n<p>Thanks.</p>\n```",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
