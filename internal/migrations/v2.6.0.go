@@ -7,7 +7,6 @@ import (
 )
 
 func V2_6_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
-	// ALTER TYPE ADD VALUE cannot run inside a transaction; each Exec here is autocommit.
 	if _, err := db.Exec(`ALTER TYPE user_type ADD VALUE IF NOT EXISTS 'ai_assistant';`); err != nil {
 		return err
 	}
@@ -38,7 +37,6 @@ func V2_6_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	`); err != nil {
 		return err
 	}
-	// Older releases hardcoded temperature 0.7; keep that behavior for configured providers that predate the field.
 	if _, err := db.Exec(`
 		UPDATE ai_providers SET config = config || '{"temperature": 0.7}'::jsonb
 		WHERE type = 'completion' AND COALESCE(config->>'api_key', '') <> '' AND NOT config ? 'temperature';
