@@ -48,11 +48,6 @@ func HTML2Text(html string) string {
 	return htmlToText(html, html2text.Options{TextOnly: true})
 }
 
-// HTML2TextWithLinks converts HTML to text keeping link URLs as "text ( url )".
-func HTML2TextWithLinks(html string) string {
-	return htmlToText(html, html2text.Options{})
-}
-
 // Markdown2HTML converts markdown to HTML, falling back to the input on error.
 func Markdown2HTML(md string) string {
 	var b strings.Builder

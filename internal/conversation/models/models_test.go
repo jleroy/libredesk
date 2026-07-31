@@ -33,7 +33,7 @@ func TestTranscript(t *testing.T) {
 	}
 
 	got := Transcript(msgs, 50)
-	want := "Customer: My payment on this page ( https://example.com/pay ) failed.\n" +
+	want := "Customer: My payment on [this page](https://example.com/pay) failed.\n" +
 		"Agent: Looking into it.\n" +
 		"Customer: Any update?\n"
 	if got != want {

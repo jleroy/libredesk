@@ -568,7 +568,7 @@ func Transcript(msgs []Message, max int) string {
 		}
 		text := strings.TrimSpace(msg.TextContent)
 		if msg.ContentType == ContentTypeHTML {
-			if t := stringutil.HTML2TextWithLinks(msg.Content); t != "" {
+			if t := stringutil.HTML2TextMarkdownLinks(msg.Content); t != "" {
 				text = t
 			}
 		}
