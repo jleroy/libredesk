@@ -223,7 +223,8 @@ const runAiGeneration = async (requestFn) => {
     if (uuid !== currentConversationUUID.value) return
     const out = resp.data.data || ''
     // A model can ignore the HTML-output instruction; plain text pasted into the editor loses its line breaks.
-    htmlContent.value = /<[a-z][\s\S]*>/i.test(out) ? out : convertTextToHtml(out)
+    // The tag check must not match angle-bracketed plain text like "Contact <user@example.com>".
+    htmlContent.value = /<\/?[a-z][a-z0-9]*(\s[^>]*)?\/?>/i.test(out) ? out : convertTextToHtml(out)
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',

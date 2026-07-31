@@ -40,7 +40,7 @@ var (
 	//go:embed queries.sql
 	efs embed.FS
 
-	codeFenceOpenRe = regexp.MustCompile("^```[a-zA-Z0-9]*$")
+	codeFenceOpenRe = regexp.MustCompile("^```[a-zA-Z0-9+#./_-]*$")
 
 	ErrInvalidAPIKey       = errors.New("invalid API Key")
 	ErrApiKeyNotSet        = errors.New("api Key not set")

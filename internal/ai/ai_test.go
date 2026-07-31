@@ -48,6 +48,16 @@ func TestStripCodeFence(t *testing.T) {
 			in:   "```<p>Hello,</p>\n<p>Thanks.</p>\n```",
 			want: "```<p>Hello,</p>\n<p>Thanks.</p>\n```",
 		},
+		{
+			name: "c++ fence unwrapped",
+			in:   "```c++\nint main() {}\n```",
+			want: "int main() {}",
+		},
+		{
+			name: "text/plain fence unwrapped",
+			in:   "```text/plain\nHello there.\n```",
+			want: "Hello there.",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
