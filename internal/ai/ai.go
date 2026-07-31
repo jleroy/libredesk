@@ -8,6 +8,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"html"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -41,6 +42,8 @@ var (
 	efs embed.FS
 
 	codeFenceOpenRe = regexp.MustCompile("^```[a-zA-Z0-9+#./_-]*$")
+
+	htmlTagRe = regexp.MustCompile(`(?i)</?[a-z][a-z0-9]*(\s[^>]*)?/?>`)
 
 	ErrInvalidAPIKey       = errors.New("invalid API Key")
 	ErrApiKeyNotSet        = errors.New("api Key not set")
@@ -182,7 +185,7 @@ func (m *Manager) Completion(ctx context.Context, k string, prompt string) (stri
 	if err != nil {
 		return "", m.providerError(err)
 	}
-	return stripCodeFence(response), nil
+	return ensureHTMLFragment(stripCodeFence(response)), nil
 }
 
 // CompletionRaw runs an ad-hoc system+user prompt (no DB-stored prompt) and returns the text.
@@ -433,6 +436,14 @@ func capProviderErrorMessage(err error) string {
 		msg = trimToRuneBoundary(msg, maxProviderErrorLen) + "…"
 	}
 	return msg
+}
+
+// ensureHTMLFragment converts a plain-text response to HTML, which models return despite being told to answer in HTML.
+func ensureHTMLFragment(s string) string {
+	if htmlTagRe.MatchString(s) {
+		return s
+	}
+	return strings.ReplaceAll(html.EscapeString(s), "\n", "<br>")
 }
 
 // stripCodeFence unwraps a whole-response ```lang fence, which models add around HTML output despite being told not to.

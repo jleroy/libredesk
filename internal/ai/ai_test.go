@@ -67,3 +67,39 @@ func TestStripCodeFence(t *testing.T) {
 		})
 	}
 }
+
+func TestEnsureHTMLFragment(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "html untouched",
+			in:   "<p>Hello <a href=\"https://example.com\">link</a></p>",
+			want: "<p>Hello <a href=\"https://example.com\">link</a></p>",
+		},
+		{
+			name: "plain text escaped with line breaks",
+			in:   "Hello,\nHow are you? 1 < 2",
+			want: "Hello,<br>How are you? 1 &lt; 2",
+		},
+		{
+			name: "angle-bracketed email is not html",
+			in:   "Contact <customer@example.com>",
+			want: "Contact &lt;customer@example.com&gt;",
+		},
+		{
+			name: "self-closing tag untouched",
+			in:   "line one<br/>line two",
+			want: "line one<br/>line two",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ensureHTMLFragment(tt.in); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

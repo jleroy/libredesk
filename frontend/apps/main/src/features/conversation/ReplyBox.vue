@@ -141,7 +141,6 @@ import { Dialog, DialogContent } from '@shared-ui/components/ui/dialog'
 import { useEmitter } from '@main/composables/useEmitter'
 import { useFileUpload } from '@main/composables/useFileUpload'
 import { hasInlineImage, hasPendingInlineUpload } from '@main/composables/useInlineImageUpload'
-import { convertTextToHtml } from '@shared-ui/utils/string'
 import ReplyBoxContent from '@/features/conversation/ReplyBoxContent.vue'
 import { UserTypeAgent } from '@/constants/user'
 
@@ -221,10 +220,7 @@ const runAiGeneration = async (requestFn) => {
   try {
     const resp = await requestFn(uuid)
     if (uuid !== currentConversationUUID.value) return
-    const out = resp.data.data || ''
-    // A model can ignore the HTML-output instruction; plain text pasted into the editor loses its line breaks.
-    // The tag check must not match angle-bracketed plain text like "Contact <user@example.com>".
-    htmlContent.value = /<\/?[a-z][a-z0-9]*(\s[^>]*)?\/?>/i.test(out) ? out : convertTextToHtml(out)
+    htmlContent.value = resp.data.data || ''
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
