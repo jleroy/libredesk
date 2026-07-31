@@ -52,6 +52,15 @@ func HTML2Text(html string) string {
 	return strings.TrimSpace(out)
 }
 
+// HTML2TextWithLinks converts HTML to text keeping link URLs as "text ( url )", for LLM-facing text.
+func HTML2TextWithLinks(html string) string {
+	out, err := html2text.FromString(html, html2text.Options{})
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
 // Markdown2HTML converts markdown to HTML, falling back to the input on error.
 func Markdown2HTML(md string) string {
 	var b strings.Builder

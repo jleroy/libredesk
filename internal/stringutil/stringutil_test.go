@@ -296,3 +296,34 @@ func TestSplitName(t *testing.T) {
 		})
 	}
 }
+
+func TestHTML2TextWithLinks(t *testing.T) {
+	tests := []struct {
+		name string
+		html string
+		want string
+	}{
+		{
+			name: "link with distinct text keeps url",
+			html: `<p>See <a href="https://example.com/guide">the guide</a> for steps.</p>`,
+			want: "See the guide ( https://example.com/guide ) for steps.",
+		},
+		{
+			name: "link text equal to url not duplicated",
+			html: `<p><a href="https://example.com">https://example.com</a></p>`,
+			want: "https://example.com",
+		},
+		{
+			name: "plain text unchanged",
+			html: `<p>No links here.</p>`,
+			want: "No links here.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HTML2TextWithLinks(tt.html); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

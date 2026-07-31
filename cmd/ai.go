@@ -398,7 +398,12 @@ func handleAICopilot(r *fastglue.Request) error {
 	}
 	history := make([]aimodels.ChatMessage, 0, len(saved)+1)
 	for _, m := range saved {
-		history = append(history, aimodels.ChatMessage{Role: m.Role, Content: m.Content})
+		content := m.Content
+		// Assistant turns are stored as HTML for the panel; feed them back as text so the model keeps answering in markdown.
+		if m.Role == aimodels.RoleAssistant {
+			content = stringutil.HTML2TextWithLinks(content)
+		}
+		history = append(history, aimodels.ChatMessage{Role: m.Role, Content: content})
 	}
 	history = append(history, aimodels.ChatMessage{Role: aimodels.RoleUser, Content: req.Message})
 

@@ -567,6 +567,11 @@ func Transcript(msgs []Message, max int) string {
 			role = "Customer"
 		}
 		text := strings.TrimSpace(msg.TextContent)
+		if msg.ContentType == ContentTypeHTML && msg.Content != "" {
+			if t := stringutil.HTML2TextWithLinks(msg.Content); t != "" {
+				text = t
+			}
+		}
 		if text == "" {
 			continue
 		}
