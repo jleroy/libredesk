@@ -39,7 +39,7 @@
                 {{ range .Data.HelpCenter.NavLinks }}<a href="{{ .URL }}">{{ .Label }}</a>{{ end }}
                 {{ if gt (len .Data.HelpCenter.AvailableLocales) 1 }}
                 <div class="hc-lang" data-hc-lang>
-                    <button type="button" class="hc-lang-btn" aria-haspopup="true" aria-expanded="false" aria-label="{{ $.L.T "helpCenter.language" }}">
+                    <button type="button" class="hc-lang-btn" aria-haspopup="true" aria-expanded="false" aria-label="{{ $.L.T "globals.terms.language" }}">
                         <svg class="hc-lang-globe" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c2.5 2.4 2.5 12.6 0 15M10 2.5c-2.5 2.4-2.5 12.6 0 15" stroke-linecap="round"/></svg>
                         <span class="hc-lang-current">{{ .Data.HelpCenter.CurrentLocale }}</span>
                         <svg class="hc-lang-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>

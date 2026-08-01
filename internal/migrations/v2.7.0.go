@@ -165,6 +165,14 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	}
 
 	if _, err := db.Exec(`
+		UPDATE media SET private = false
+		WHERE model_type = 'users'
+		AND model_id IN (SELECT id FROM users WHERE type = 'agent');
+	`); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(`
 		UPDATE roles
 		SET permissions = array_append(permissions, 'help_center:manage')
 		WHERE name = 'Admin' AND NOT ('help_center:manage' = ANY(permissions));

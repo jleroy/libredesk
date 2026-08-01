@@ -57,7 +57,8 @@ const emit = defineEmits([
   'delete',
   'toggle-status',
   'reorder-collections',
-  'reorder-articles'
+  'reorder-articles',
+  'move-article'
 ])
 
 const collections = ref([])

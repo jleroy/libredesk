@@ -13,6 +13,7 @@ import (
 	"time"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
+	realip "github.com/ferluci/fast-realip"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/helpcenter"
 	hcmodels "github.com/abhinavxd/libredesk/internal/helpcenter/models"
@@ -37,6 +38,9 @@ const (
 	schemaOrgContext = "https://schema.org"
 
 	helpCenterCacheControl = "public, max-age=300, stale-while-revalidate=3600"
+
+	// articleFeedbackDedupTTL is how long a reader IP's vote on an article suppresses further votes.
+	articleFeedbackDedupTTL = 24 * time.Hour
 
 	noIndexHeader = "noindex"
 
@@ -703,8 +707,9 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 		articles, err = app.helpcenter.SearchPublishedArticles(slug, query, locale, publicSearchLimit)
 		if err != nil {
 			articles = nil
+		} else {
+			app.helpcenter.LogSearch(helpCenter.ID, query, len(articles))
 		}
-		app.helpcenter.LogSearch(helpCenter.ID, query, len(articles))
 	}
 	var (
 		data    = helpCenterTemplateData(helpCenter, locale)
@@ -836,7 +841,9 @@ func handleGetPublicHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	app.helpcenter.IncrementArticleViewCount(article.ID)
+	if !isCrawler(r) {
+		app.helpcenter.IncrementArticleViewCount(article.ID)
+	}
 	return r.SendEnvelope(article)
 }
 
@@ -876,12 +883,17 @@ func handleHelpCenterArticleFeedback(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
 	}
-	if _, err := app.helpcenter.GetHelpCenterBySlug(slug); err != nil {
-		return sendErrorEnvelope(r, err)
-	}
-	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, "")
+	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
+	}
+	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, resolveQueryLocale(r, helpCenter))
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	dedupKey := fmt.Sprintf("help_center:feedback:%d:%s", article.ID, realip.FromRequest(r.RequestCtx))
+	if ok, err := app.redis.SetNX(r.RequestCtx, dedupKey, "1", articleFeedbackDedupTTL).Result(); err == nil && !ok {
+		return r.SendEnvelope(true)
 	}
 	if err := app.helpcenter.RecordArticleFeedback(article.ID, req.Helpful); err != nil {
 		return sendErrorEnvelope(r, err)

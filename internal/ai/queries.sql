@@ -33,7 +33,9 @@ UPDATE ai_knowledge_base SET embedded_fingerprint = $2 WHERE id = $1;
 
 -- name: get-embeddable-help-articles
 WITH RECURSIVE published_collections AS (
-    SELECT id FROM article_collections WHERE parent_id IS NULL AND is_published = true
+    SELECT c.id FROM article_collections c
+    JOIN help_centers hc ON hc.id = c.help_center_id AND hc.is_active
+    WHERE c.parent_id IS NULL AND c.is_published = true
     UNION
     SELECT c.id FROM article_collections c JOIN published_collections p ON c.parent_id = p.id
     WHERE c.is_published = true
@@ -45,7 +47,9 @@ WHERE (a.status = 'published' AND a.ai_enabled) OR a.embedded_fingerprint <> '';
 
 -- name: get-embeddable-help-article
 WITH RECURSIVE published_collections AS (
-    SELECT id FROM article_collections WHERE parent_id IS NULL AND is_published = true
+    SELECT c.id FROM article_collections c
+    JOIN help_centers hc ON hc.id = c.help_center_id AND hc.is_active
+    WHERE c.parent_id IS NULL AND c.is_published = true
     UNION
     SELECT c.id FROM article_collections c JOIN published_collections p ON c.parent_id = p.id
     WHERE c.is_published = true

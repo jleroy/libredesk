@@ -12,7 +12,7 @@
 
     <FormField v-slot="{ componentField }" name="slug">
       <FormItem>
-        <FormLabel>{{ t('helpCenter.slug') }}</FormLabel>
+        <FormLabel>{{ t('globals.terms.slug') }}</FormLabel>
         <FormControl>
           <Input type="text" v-bind="componentField" />
         </FormControl>
@@ -172,7 +172,7 @@
 
       <FormField v-slot="{ componentField }" name="theme.header.text_color">
         <FormItem>
-          <FormLabel>{{ t('helpCenter.styling.textColor') }}</FormLabel>
+          <FormLabel>{{ t('globals.terms.textColor') }}</FormLabel>
           <FormControl>
             <Input type="text" placeholder="#ffffff" v-bind="componentField" />
           </FormControl>
@@ -272,7 +272,7 @@
         </FormField>
         <FormField v-slot="{ componentField }" name="theme.footer.text_color">
           <FormItem class="flex-1">
-            <FormLabel>{{ t('helpCenter.styling.textColor') }}</FormLabel>
+            <FormLabel>{{ t('globals.terms.textColor') }}</FormLabel>
             <FormControl>
               <Input type="text" placeholder="#909aa5" v-bind="componentField" />
             </FormControl>
@@ -308,7 +308,7 @@
               <FormControl>
                 <Select v-bind="componentField">
                   <SelectTrigger>
-                    <SelectValue :placeholder="t('helpCenter.styling.platform')" />
+                    <SelectValue :placeholder="t('globals.terms.platform')" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem v-for="p in socialPlatforms" :key="p" :value="p">{{
@@ -600,7 +600,8 @@ const generateSlug = () => {
         .replace(/\s+/g, '-')
         .replace(/[^a-z0-9\-_]+/g, '')
         .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
+        .replace(/^-|-$/g, ''),
+      false
     )
   }
 }

@@ -44,14 +44,16 @@ func (m *Manager) reindexItem(src embedSource, item embedItem) {
 	})
 }
 
-// reindexItemByID fetches the item, then embeds it in the background.
+// reindexItemByID fetches the item, then embeds it in the background. The generation is
+// taken at enqueue time so jobs commit in the order the edits were made.
 func (m *Manager) reindexItemByID(src embedSource, id int) {
+	gen := m.nextGen(src.sourceType(), id)
 	m.runEmbedJob(func(baseURL, model string, dimensions int) {
 		item, err := src.get(id)
 		if err != nil {
 			return
 		}
-		m.reindexItemWith(m.ctx, src, item, baseURL, model, dimensions, m.nextGen(src.sourceType(), id))
+		m.reindexItemWith(m.ctx, src, item, baseURL, model, dimensions, gen)
 	})
 }
 

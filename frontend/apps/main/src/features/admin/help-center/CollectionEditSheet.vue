@@ -79,7 +79,7 @@
               <FormField v-slot="{ componentField, handleChange }" name="is_published">
                 <FormItem>
                   <SwitchField
-                    :title="t('helpCenter.published')"
+                    :title="t('globals.terms.published')"
                     :checked="componentField.modelValue"
                     @update:checked="handleChange"
                   />
@@ -88,14 +88,13 @@
 
               <div class="space-y-3">
                 <h3 class="font-medium text-sm text-muted-foreground">
-                  {{ t('helpCenter.collectionIcon') }}
+                  {{ t('globals.terms.icon') }}
                 </h3>
                 <FormField v-slot="{ value, handleChange }" name="icon">
                   <FormItem>
                     <FormControl>
                       <IconPicker :model-value="value" @update:model-value="handleChange" />
                     </FormControl>
-                    <FormDescription>{{ t('helpCenter.collectionIconHint') }}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 </FormField>
@@ -103,7 +102,7 @@
 
               <div class="space-y-3">
                 <h3 class="font-medium text-sm text-muted-foreground">
-                  {{ t('helpCenter.language') }}
+                  {{ t('globals.terms.language') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="locale">
                   <FormItem>
@@ -295,11 +294,28 @@ watch(
 const fetchAvailableParents = async () => {
   try {
     const { data } = await api.getCollections(props.helpCenterId)
-    availableParents.value = (data.data || []).filter((collection) => {
-      if (props.collection && collection.id === props.collection.id) return false
-      if (props.collection && collection.parent_id === props.collection.id) return false
-      return true
-    })
+    const collections = data.data || []
+    // Exclude the collection itself and every descendant, since re-parenting into
+    // its own subtree would form a cycle.
+    const excluded = new Set()
+    if (props.collection) {
+      excluded.add(props.collection.id)
+      let grew = true
+      while (grew) {
+        grew = false
+        for (const collection of collections) {
+          if (
+            collection.parent_id &&
+            excluded.has(collection.parent_id) &&
+            !excluded.has(collection.id)
+          ) {
+            excluded.add(collection.id)
+            grew = true
+          }
+        }
+      }
+    }
+    availableParents.value = collections.filter((collection) => !excluded.has(collection.id))
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',

@@ -81,7 +81,11 @@ const search = ref('')
 const iconNames = ref([])
 
 onMounted(async () => {
-  iconNames.value = await loadLucideSprite()
+  try {
+    iconNames.value = await loadLucideSprite()
+  } catch {
+    iconNames.value = []
+  }
 })
 
 const filteredIcons = computed(() => {

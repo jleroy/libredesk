@@ -120,8 +120,11 @@ type Article struct {
 	Status          string    `db:"status" json:"status"`
 	ViewCount       int       `db:"view_count" json:"view_count"`
 	AIEnabled       bool      `db:"ai_enabled" json:"ai_enabled"`
-	HelpfulCount    int       `db:"helpful_count" json:"helpful_count"`
-	NotHelpfulCount int       `db:"not_helpful_count" json:"not_helpful_count"`
+	// EmbeddedFingerprint is internal AI-index state; mapped so RETURNING * scans in
+	// safe-mode transactions don't fail, but never exposed in API responses.
+	EmbeddedFingerprint string `db:"embedded_fingerprint" json:"-"`
+	HelpfulCount        int    `db:"helpful_count" json:"helpful_count"`
+	NotHelpfulCount     int    `db:"not_helpful_count" json:"not_helpful_count"`
 }
 
 // NavLink is a single header navigation link on the public help center pages.

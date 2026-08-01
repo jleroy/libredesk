@@ -284,7 +284,7 @@ const selectItem = () => {
 }
 
 const getArticleStatusLabel = (status) =>
-  status === 'archived' ? t('helpCenter.archived') : t('globals.terms.draft')
+  status === 'archived' ? t('globals.terms.archived') : t('globals.terms.draft')
 </script>
 
 <style scoped>

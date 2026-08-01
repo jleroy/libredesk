@@ -59,6 +59,16 @@ WITH RECURSIVE subtree AS (
 )
 SELECT COALESCE(MAX(depth), 1) FROM subtree;
 
+-- name: lock-help-center-by-collection
+SELECT hc.id FROM help_centers hc
+JOIN article_collections c ON c.help_center_id = hc.id
+WHERE c.id = $1
+FOR UPDATE OF hc;
+
+-- name: collection-has-content
+SELECT EXISTS(SELECT 1 FROM article_collections WHERE parent_id = $1)
+    OR EXISTS(SELECT 1 FROM help_articles WHERE collection_id = $1);
+
 -- name: get-article-ids-in-collection-subtree
 WITH RECURSIVE subtree AS (
     SELECT id FROM article_collections WHERE id = $1
@@ -66,6 +76,11 @@ WITH RECURSIVE subtree AS (
     SELECT c.id FROM article_collections c JOIN subtree s ON c.parent_id = s.id
 )
 SELECT a.id FROM help_articles a WHERE a.collection_id IN (SELECT id FROM subtree);
+
+-- name: get-article-ids-in-help-center
+SELECT a.id FROM help_articles a
+JOIN article_collections c ON c.id = a.collection_id
+WHERE c.help_center_id = $1;
 
 -- name: update-collection-sort-order
 UPDATE article_collections

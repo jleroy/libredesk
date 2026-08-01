@@ -13,6 +13,9 @@
             :placeholder="$t('placeholders.enterUrl')"
             @keydown.enter.prevent="setYoutubeVideo"
           />
+          <p v-if="showError" class="text-sm text-destructive">
+            {{ $t('editor.invalidYoutubeUrl') }}
+          </p>
         </div>
         <DialogFooter>
           <Button type="submit">
@@ -43,15 +46,21 @@ const props = defineProps({
 
 const isOpen = ref(false)
 const youtubeUrl = ref('')
+const showError = ref(false)
 
 const open = () => {
   youtubeUrl.value = ''
+  showError.value = false
   isOpen.value = true
 }
 
 const setYoutubeVideo = () => {
   if (youtubeUrl.value) {
-    props.editor?.chain().focus().setYoutubeVideo({ src: youtubeUrl.value }).run()
+    const inserted = props.editor?.chain().focus().setYoutubeVideo({ src: youtubeUrl.value }).run()
+    if (!inserted) {
+      showError.value = true
+      return
+    }
   }
   isOpen.value = false
 }

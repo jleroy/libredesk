@@ -97,8 +97,8 @@
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="draft">{{ t('globals.terms.draft') }}</SelectItem>
-                          <SelectItem value="published">{{ t('helpCenter.published') }}</SelectItem>
-                          <SelectItem value="archived">{{ t('helpCenter.archived') }}</SelectItem>
+                          <SelectItem value="published">{{ t('globals.terms.published') }}</SelectItem>
+                          <SelectItem value="archived">{{ t('globals.terms.archived') }}</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -148,7 +148,7 @@
 
               <div class="space-y-3">
                 <h3 class="font-medium text-sm text-muted-foreground">
-                  {{ t('helpCenter.language') }}
+                  {{ t('globals.terms.language') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="locale">
                   <FormItem>
@@ -164,7 +164,6 @@
                         </SelectContent>
                       </Select>
                     </FormControl>
-                    <FormDescription>{{ t('helpCenter.localeHint') }}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 </FormField>
@@ -227,7 +226,6 @@
                     <FormControl>
                       <Input type="text" placeholder="https://" v-bind="componentField" />
                     </FormControl>
-                    <FormDescription>{{ t('helpCenter.metaImageURLHint') }}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 </FormField>
@@ -235,11 +233,11 @@
 
               <div v-if="article" class="space-y-3 text-sm border-t pt-4">
                 <div v-if="article.author_name" class="flex justify-between py-1">
-                  <span class="text-muted-foreground">{{ t('helpCenter.author') }}</span>
+                  <span class="text-muted-foreground">{{ t('globals.terms.author') }}</span>
                   <span>{{ article.author_name }}</span>
                 </div>
                 <div v-if="article.helpful_count !== undefined" class="flex justify-between py-1">
-                  <span class="text-muted-foreground">{{ t('helpCenter.feedback') }}</span>
+                  <span class="text-muted-foreground">{{ t('globals.terms.feedback') }}</span>
                   <span>👍 {{ article.helpful_count }} · 👎 {{ article.not_helpful_count }}</span>
                 </div>
                 <div class="flex justify-between py-1">
@@ -407,13 +405,19 @@ const metaDescriptionPlaceholder = computed(
   () => (form.values.excerpt || '').trim() || derivedExcerpt.value
 )
 
+// loadSeq drops stale fetches so a slow response for a previously opened article
+// can't fill the form after another article was opened.
+let loadSeq = 0
 watch(
   () => [props.article, props.collectionId, props.isOpen],
   async () => {
     if (!props.isOpen) return
+    const seq = ++loadSeq
     loadedArticle.value = null
     isLoadingArticle.value = Boolean(props.article)
-    await Promise.all([fetchAvailableCollections(), fetchArticle()])
+    const [, article] = await Promise.all([fetchAvailableCollections(), fetchArticle()])
+    if (seq !== loadSeq) return
+    loadedArticle.value = article
     isLoadingArticle.value = false
     form.resetForm({ values: toFormValues() })
   },
@@ -433,15 +437,16 @@ const fetchAvailableCollections = async () => {
 }
 
 const fetchArticle = async () => {
-  if (!props.article) return
+  if (!props.article) return null
   try {
     const { data } = await api.getArticle(props.article.collection_id, props.article.id)
-    loadedArticle.value = data.data
+    return data.data
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
       description: handleHTTPError(error).message
     })
+    return null
   }
 }
 

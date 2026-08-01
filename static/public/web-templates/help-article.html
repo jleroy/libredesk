@@ -28,7 +28,7 @@
     <div class="hc-prose" id="hc-prose">{{ .Data.Content }}</div>
 </article>
 
-<div class="hc-helpful" id="hc-helpful" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback">
+<div class="hc-helpful" id="hc-helpful" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback?locale={{ .Data.Article.Locale }}">
     <span class="hc-helpful-q">{{ $.L.T "helpCenter.wasHelpful" }}</span>
     <button type="button" data-helpful="true">{{ $.L.T "globals.messages.yes" }}</button>
     <button type="button" data-helpful="false">{{ $.L.T "globals.messages.no" }}</button>

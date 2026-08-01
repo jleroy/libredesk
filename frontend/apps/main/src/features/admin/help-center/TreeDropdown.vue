@@ -42,12 +42,12 @@
         <template v-if="item.type === 'collection'">
           <Eye v-if="!item.is_published" class="mr-2 h-4 w-4" />
           <EyeOff v-else class="mr-2 h-4 w-4" />
-          {{ item.is_published ? t('helpCenter.unpublish') : t('helpCenter.publish') }}
+          {{ item.is_published ? t('globals.messages.unpublish') : t('globals.messages.publish') }}
         </template>
         <template v-else>
           <Eye v-if="item.status === 'draft'" class="mr-2 h-4 w-4" />
           <EyeOff v-else class="mr-2 h-4 w-4" />
-          {{ item.status === 'published' ? t('helpCenter.unpublish') : t('helpCenter.publish') }}
+          {{ item.status === 'published' ? t('globals.messages.unpublish') : t('globals.messages.publish') }}
         </template>
       </DropdownMenuItem>
 

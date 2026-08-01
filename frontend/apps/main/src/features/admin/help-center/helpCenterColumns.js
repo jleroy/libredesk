@@ -23,7 +23,7 @@ export const createHelpCenterColumns = (t, { onOpen, onEdit, onDelete, onToggle 
   },
   {
     accessorKey: 'slug',
-    header: () => h('div', { class: 'text-center' }, t('helpCenter.slug')),
+    header: () => h('div', { class: 'text-center' }, t('globals.terms.slug')),
     cell: ({ row }) =>
       h(
         'div',

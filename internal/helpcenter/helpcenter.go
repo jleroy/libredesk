@@ -50,6 +50,9 @@ var (
 	// iconNameRe matches lucide icon slugs, e.g. "rocket", "user-check".
 	iconNameRe = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
 
+	// slugRe matches the charset stringutil.GenerateSlug emits; anything else breaks /hc/ URLs.
+	slugRe = regexp.MustCompile(`^[a-z0-9_-]{1,200}$`)
+
 	ilikeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 	youtubeEmbedRe = regexp.MustCompile(`^https://(www\.)?(youtube\.com|youtube-nocookie\.com)/embed/[\w-]+`)
@@ -145,7 +148,10 @@ type queries struct {
 	GetCollectionByID          *sqlx.Stmt `query:"get-collection-by-id"`
 	GetCollectionByIDForUpdate *sqlx.Stmt `query:"get-collection-by-id-for-update"`
 	GetCollectionSubtreeDepth  *sqlx.Stmt `query:"get-collection-subtree-depth"`
+	CollectionHasContent       *sqlx.Stmt `query:"collection-has-content"`
+	LockHelpCenterByCollection *sqlx.Stmt `query:"lock-help-center-by-collection"`
 	GetSubtreeArticleIDs       *sqlx.Stmt `query:"get-article-ids-in-collection-subtree"`
+	GetHelpCenterArticleIDs    *sqlx.Stmt `query:"get-article-ids-in-help-center"`
 	UpdateCollectionSortOrder  *sqlx.Stmt `query:"update-collection-sort-order"`
 	InsertCollection           *sqlx.Stmt `query:"insert-collection"`
 	UpdateCollection           *sqlx.Stmt `query:"update-collection"`
@@ -288,7 +294,23 @@ func (m *Manager) ToggleHelpCenterActive(id int) (models.HelpCenter, error) {
 		m.lo.Error("error toggling help center active status", "error", err, "id", id)
 		return hc, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	// A paused help center 404s publicly, so its articles must leave the AI index too.
+	m.reindexHelpCenterArticles(id)
 	return hc, nil
+}
+
+func (m *Manager) reindexHelpCenterArticles(helpCenterID int) {
+	if m.indexer == nil {
+		return
+	}
+	var ids []int
+	if err := m.q.GetHelpCenterArticleIDs.Select(&ids, helpCenterID); err != nil {
+		m.lo.Error("error fetching help center articles", "error", err, "help_center_id", helpCenterID)
+		return
+	}
+	for _, id := range ids {
+		m.indexer.ReindexHelpArticle(id)
+	}
 }
 
 // DeleteHelpCenter deletes a help center by ID.
@@ -367,12 +389,22 @@ func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collec
 	}
 	defer tx.Rollback()
 
-	if req.ParentID != nil {
-		get := m.lockedCollectionGetter(tx)
-		existing, err := get(id)
-		if err != nil {
-			return collection, err
+	get := m.lockedCollectionGetter(tx)
+	existing, err := get(id)
+	if err != nil {
+		return collection, err
+	}
+	if req.Locale != existing.Locale {
+		var hasContent bool
+		if err := tx.Stmtx(m.q.CollectionHasContent).Get(&hasContent, id); err != nil {
+			m.lo.Error("error checking collection content", "error", err, "id", id)
+			return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
+		if hasContent {
+			return collection, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.localeChangeHasContent"), nil)
+		}
+	}
+	if req.ParentID != nil {
 		if err := m.validateCollectionParent(get, *req.ParentID, id, existing.HelpCenterID, req.Locale); err != nil {
 			return collection, err
 		}
@@ -476,18 +508,36 @@ func (m *Manager) CreateArticle(collectionID int, req ArticleRequest) (models.Ar
 	if err := m.validateArticleCollectionLocale(collectionID, req.Locale); err != nil {
 		return article, err
 	}
-	slug, err := m.uniqueArticleSlug(collectionID, req.Slug, req.Locale)
+
+	// Slug uniqueness is per help center but the DB index is per collection, so the
+	// check and insert lock the help center row to serialize concurrent creates.
+	tx, err := m.db.Beginx()
+	if err != nil {
+		m.lo.Error("error starting transaction", "error", err)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
+	var hcID int
+	if err := tx.Stmtx(m.q.LockHelpCenterByCollection).Get(&hcID, collectionID); err != nil {
+		m.lo.Error("error locking help center", "error", err, "collection_id", collectionID)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	slug, err := m.uniqueArticleSlug(tx, collectionID, req.Slug, req.Locale)
 	if err != nil {
 		return article, err
 	}
 	req.Slug = slug
 	req.Content = articleSanitizer.Sanitize(req.Content)
 	req.Excerpt = resolveExcerpt(req.Excerpt, req.Content)
-	if err := m.q.InsertArticle.Get(&article, collectionID, req.AuthorID, req.Slug, req.Locale, req.Title, req.Content, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.SortOrder, req.Status, req.AIEnabled); err != nil {
+	if err := tx.Stmtx(m.q.InsertArticle).Get(&article, collectionID, req.AuthorID, req.Slug, req.Locale, req.Title, req.Content, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.SortOrder, req.Status, req.AIEnabled); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
 		m.lo.Error("error creating article", "error", err)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if err := tx.Commit(); err != nil {
+		m.lo.Error("error committing article create", "error", err)
 		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	m.reindexArticle(article.ID)
@@ -513,9 +563,9 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 	collectionID := existing.CollectionID
 	if req.CollectionID != nil {
 		collectionID = *req.CollectionID
-		if err := m.validateArticleCollectionLocale(collectionID, req.Locale); err != nil {
-			return article, err
-		}
+	}
+	if err := m.validateArticleCollectionLocale(collectionID, req.Locale); err != nil {
+		return article, err
 	}
 	var slugTaken bool
 	if err := m.q.OtherArticleSlugExists.Get(&slugTaken, collectionID, req.Slug, req.Locale, id); err != nil {
@@ -1024,11 +1074,11 @@ func (m *Manager) validateArticleCollectionLocale(collectionID int, locale strin
 }
 
 // uniqueArticleSlug appends a numeric suffix until the slug is unique within the collection's help center.
-func (m *Manager) uniqueArticleSlug(collectionID int, slug, locale string) (string, error) {
+func (m *Manager) uniqueArticleSlug(tx *sqlx.Tx, collectionID int, slug, locale string) (string, error) {
 	candidate := slug
 	for i := 2; ; i++ {
 		var exists bool
-		if err := m.q.ArticleSlugExistsInHelpCenter.Get(&exists, collectionID, candidate, locale); err != nil {
+		if err := tx.Stmtx(m.q.ArticleSlugExistsInHelpCenter).Get(&exists, collectionID, candidate, locale); err != nil {
 			m.lo.Error("error checking article slug uniqueness", "error", err, "slug", candidate)
 			return "", envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
@@ -1039,17 +1089,17 @@ func (m *Manager) uniqueArticleSlug(collectionID int, slug, locale string) (stri
 	}
 }
 
-// normalizeHelpCenterRequest fills defaults for optional fields and keeps the language config consistent.
+// validateSlug rejects slugs whose charset would break /hc/ URLs.
 func (m *Manager) validateSlug(slug string) error {
-	if slug == "" {
+	if !slugRe.MatchString(slug) {
 		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidSlug"), nil)
 	}
 	return nil
 }
 
-// validateHelpCenterSlug rejects empty slugs and slugs that collide with public help center routes.
+// validateHelpCenterSlug rejects malformed slugs and slugs that collide with public help center routes.
 func (m *Manager) validateHelpCenterSlug(slug string) error {
-	if slug == "" || slices.Contains(reservedSlugs, slug) {
+	if !slugRe.MatchString(slug) || slices.Contains(reservedSlugs, slug) {
 		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidSlug"), nil)
 	}
 	return nil
@@ -1202,7 +1252,7 @@ func buildArticleSanitizer() *bluemonday.Policy {
 	p.AllowStyles("width", "height", "max-width").OnElements("img")
 	p.AllowStyles("border", "width", "margin", "table-layout", "border-collapse", "border-radius",
 		"box-sizing", "min-width", "padding", "vertical-align", "background-color", "color",
-		"font-weight", "text-align", "position").OnElements("table", "td", "th")
+		"font-weight", "text-align").OnElements("table", "td", "th")
 	// YouTube embeds as rendered by the tiptap Youtube extension.
 	p.AllowAttrs("data-youtube-video").OnElements("div")
 	p.AllowAttrs("src").Matching(youtubeEmbedRe).OnElements("iframe")
