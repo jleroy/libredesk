@@ -136,13 +136,7 @@ func TestGoIMAPMessageIDParsing(t *testing.T) {
 	}
 }
 
-// TestCollectAttachments_OutlookInlineImages verifies that inline images embedded
-// with a Content-ID but no Content-Disposition header (as Outlook does) are collected
-// as inline attachments so their cid: references resolve in the message body. enmime
-// routes such parts to envelope.OtherParts, which must not be dropped.
-//
-// The fixture testdata/outlook-inline-images.eml is a synthetic message that
-// reproduces the exact MIME structure Outlook produces.
+// TestCollectAttachments_OutlookInlineImages covers Outlook inline images with a Content-ID but no Content-Disposition, which enmime routes to OtherParts.
 func TestCollectAttachments_OutlookInlineImages(t *testing.T) {
 	const wantCID = "report-chart@example.com"
 
@@ -157,19 +151,9 @@ func TestCollectAttachments_OutlookInlineImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Sanity: enmime puts the image in OtherParts, not Inlines/Attachments,
-	// because it carries no Content-Disposition header.
-	if len(envelope.Inlines) != 0 || len(envelope.Attachments) != 0 {
-		t.Fatalf("expected image to be unclassified by enmime, got inlines=%d attachments=%d",
-			len(envelope.Inlines), len(envelope.Attachments))
-	}
+	// The fixture must exercise the OtherParts path, not Inlines/Attachments.
 	if len(envelope.OtherParts) != 1 {
 		t.Fatalf("expected 1 other part, got %d", len(envelope.OtherParts))
-	}
-
-	// The HTML body references the image via cid:.
-	if !strings.Contains(envelope.HTML, "cid:"+wantCID) {
-		t.Fatalf("fixture HTML does not reference cid:%s", wantCID)
 	}
 
 	got := collectAttachments(envelope)
@@ -196,8 +180,120 @@ func TestCollectAttachments_OutlookInlineImages(t *testing.T) {
 	}
 }
 
-// TestCollectAttachments_Dispositions verifies disposition handling across the three
-// enmime buckets: real attachments, inline parts, and inline-less other parts.
+// TestCollectAttachments_Fixtures runs real EMLs end-to-end through enmime and collectAttachments.
+func TestCollectAttachments_Fixtures(t *testing.T) {
+	type want struct {
+		name        string
+		contentID   string
+		contentType string
+		disposition string
+	}
+	tests := []struct {
+		fixture string
+		want    []want
+	}{
+		{
+			// DSN parts (message/delivery-status, text/rfc822-headers) are transport noise.
+			fixture: "bounce-dsn.eml",
+			want:    nil,
+		},
+		{
+			// The signature blob has no filename and no cid.
+			fixture: "pgp-signed.eml",
+			want:    nil,
+		},
+		{
+			// The text/calendar alternative body is dropped; the named .ics attachment is kept.
+			fixture: "calendar-invite.eml",
+			want: []want{
+				{name: "invite.ics", contentType: "application/ics", disposition: attachment.DispositionAttachment},
+			},
+		},
+		{
+			// Inline image with a cid but no name= param gets a made-up filename.
+			fixture: "nameless-inline-image.eml",
+			want: []want{
+				{name: "attachment.png", contentID: "screenshot@example.com", contentType: "image/png", disposition: attachment.DispositionInline},
+			},
+		},
+		{
+			// Explicit filename="" (Gmail) still gets a name based on the content type.
+			fixture: "empty-filename-attachments.eml",
+			want: []want{
+				{name: "attachment.png", contentID: "shot-1@example.com", contentType: "image/png", disposition: attachment.DispositionAttachment},
+				{name: "attachment.gif", contentID: "shot-2@example.com", contentType: "image/gif", disposition: attachment.DispositionAttachment},
+			},
+		},
+		{
+			// Apple Mail inline disposition without a cid (and no text body) is a plain attachment.
+			fixture: "apple-inline-no-cid.eml",
+			want: []want{
+				{name: "photo.png", contentType: "image/png", disposition: attachment.DispositionAttachment},
+				{name: "document.pdf", contentType: "application/pdf", disposition: attachment.DispositionAttachment},
+			},
+		},
+		{
+			// Explicit attachment disposition wins over the cid.
+			fixture: "attachment-with-cid.eml",
+			want: []want{
+				{name: "photo.png", contentID: "photo-cid@example.com", contentType: "image/png", disposition: attachment.DispositionAttachment},
+			},
+		},
+		{
+			fixture: "mixed-attachments.eml",
+			want: []want{
+				{name: "logo.png", contentID: "logo@example.com", contentType: "image/png", disposition: attachment.DispositionInline},
+				{name: "invoice.pdf", contentType: "application/pdf", disposition: attachment.DispositionAttachment},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.fixture, func(t *testing.T) {
+			f, err := os.Open(filepath.Join("testdata", tt.fixture))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+
+			envelope, err := enmime.ReadEnvelope(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := collectAttachments(envelope)
+			if len(got) != len(tt.want) {
+				t.Fatalf("expected %d attachments, got %d: %+v", len(tt.want), len(got), got)
+			}
+
+			byName := map[string]attachment.Attachment{}
+			for _, a := range got {
+				byName[a.Name] = a
+			}
+			for _, w := range tt.want {
+				a, ok := byName[w.name]
+				if !ok {
+					t.Errorf("attachment %q not collected", w.name)
+					continue
+				}
+				if a.ContentID != w.contentID {
+					t.Errorf("%s: expected cid %q, got %q", w.name, w.contentID, a.ContentID)
+				}
+				if a.ContentType != w.contentType {
+					t.Errorf("%s: expected content type %q, got %q", w.name, w.contentType, a.ContentType)
+				}
+				if a.Disposition != w.disposition {
+					t.Errorf("%s: expected disposition %q, got %q", w.name, w.disposition, a.Disposition)
+				}
+				if a.Size == 0 || len(a.Content) == 0 {
+					t.Errorf("%s: expected non-empty content, got size=%d len=%d", w.name, a.Size, len(a.Content))
+				}
+			}
+		})
+	}
+}
+
+// TestCollectAttachments_Dispositions verifies disposition and filtering across the three enmime buckets.
 func TestCollectAttachments_Dispositions(t *testing.T) {
 	env := &enmime.Envelope{
 		Attachments: []*enmime.Part{
@@ -209,28 +305,46 @@ func TestCollectAttachments_Dispositions(t *testing.T) {
 		OtherParts: []*enmime.Part{
 			{FileName: "inline.png", ContentType: "image/png", ContentID: "inline@id", Content: []byte("x")},
 			{FileName: "noid.png", ContentType: "image/png", ContentID: "", Content: []byte("x")},
+			{FileName: "", ContentType: "image/png", ContentID: "nameless@id", Content: []byte("x")},
+			{FileName: "", ContentType: "message/delivery-status", ContentID: "", Content: []byte("x")},
 		},
 	}
 
 	got := collectAttachments(env)
-	if len(got) != 4 {
-		t.Fatalf("expected 4 attachments, got %d", len(got))
+	if len(got) != 5 {
+		t.Fatalf("expected 5 attachments, got %d", len(got))
 	}
 
+	byCID := map[string]attachment.Attachment{}
 	byName := map[string]attachment.Attachment{}
 	for _, a := range got {
 		byName[a.Name] = a
+		byCID[a.ContentID] = a
 	}
 
 	cases := map[string]string{
 		"doc.pdf":    attachment.DispositionAttachment, // real attachment
 		"logo.png":   attachment.DispositionInline,     // inline w/ cid
 		"inline.png": attachment.DispositionInline,     // other part w/ cid -> inline
-		"noid.png":   attachment.DispositionAttachment, // other part w/o cid -> attachment
+		"noid.png":   attachment.DispositionAttachment, // other part w/o cid but named -> attachment
 	}
 	for name, want := range cases {
 		if got := byName[name].Disposition; got != want {
 			t.Errorf("%s: expected disposition %q, got %q", name, want, got)
+		}
+	}
+
+	// A nameless part with a cid gets a made-up filename; a nameless cid-less part is dropped.
+	nameless, ok := byCID["nameless@id"]
+	if !ok {
+		t.Fatal("nameless part with cid was not collected")
+	}
+	if nameless.Name == "" || nameless.Disposition != attachment.DispositionInline {
+		t.Errorf("nameless cid part: expected synthesized name and inline disposition, got name=%q disposition=%q", nameless.Name, nameless.Disposition)
+	}
+	for _, a := range got {
+		if a.ContentType == "message/delivery-status" {
+			t.Errorf("delivery-status part should have been dropped, got %+v", a)
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"mime"
 	"strings"
 	"time"
 
@@ -511,50 +512,61 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 	incomingMsg.Contact.LastName = stringutil.SanitizeUTF8(incomingMsg.Contact.LastName)
 
 	e.lo.Debug("enqueuing incoming email message", "message_id", incomingMsg.SourceID.String,
+		"collected_attachments", len(incomingMsg.Attachments),
 		"attachments", len(envelope.Attachments), "inline_attachments", len(envelope.Inlines),
 		"other_parts", len(envelope.OtherParts))
 
-	if err := e.messageStore.EnqueueIncoming(incomingMsg); err != nil {
-		return err
-	}
-	return nil
+	return e.messageStore.EnqueueIncoming(incomingMsg)
 }
 
-// collectAttachments gathers all attachment and inline parts from an email
-// envelope into a single list of attachments.
+// collectAttachments builds the attachment list from an envelope's attachment, inline, and unclassified parts.
 func collectAttachments(envelope *enmime.Envelope) []attachment.Attachment {
 	attachments := make([]attachment.Attachment, 0, len(envelope.Attachments)+len(envelope.Inlines)+len(envelope.OtherParts))
 
-	// Attachments always use the attachment disposition.
 	for _, att := range envelope.Attachments {
-		attachments = append(attachments, attachment.Attachment{
-			Name:        att.FileName,
-			Content:     att.Content,
-			ContentType: att.ContentType,
-			ContentID:   att.ContentID,
-			Size:        len(att.Content),
-			Disposition: attachment.DispositionAttachment,
-		})
+		attachments = append(attachments, partToAttachment(att, attachment.DispositionAttachment))
 	}
 
-	// Inlines and other (unclassified) parts are inline when they carry a
-	// ContentID, otherwise they are treated as regular attachments.
-	for _, part := range append(append([]*enmime.Part{}, envelope.Inlines...), envelope.OtherParts...) {
-		disposition := attachment.DispositionInline
-		if part.ContentID == "" {
-			disposition = attachment.DispositionAttachment
+	for _, part := range envelope.Inlines {
+		attachments = append(attachments, partToAttachment(part, dispositionForPart(part)))
+	}
+
+	// OtherParts with neither a ContentID nor a filename are transport noise (DSN reports, signature blobs).
+	for _, part := range envelope.OtherParts {
+		if part.ContentID == "" && part.FileName == "" {
+			continue
 		}
-		attachments = append(attachments, attachment.Attachment{
-			Name:        part.FileName,
-			Content:     part.Content,
-			ContentType: part.ContentType,
-			ContentID:   part.ContentID,
-			Size:        len(part.Content),
-			Disposition: disposition,
-		})
+		attachments = append(attachments, partToAttachment(part, dispositionForPart(part)))
 	}
 
 	return attachments
+}
+
+// dispositionForPart returns inline for parts that have a ContentID, attachment otherwise.
+func dispositionForPart(part *enmime.Part) string {
+	if part.ContentID == "" {
+		return attachment.DispositionAttachment
+	}
+	return attachment.DispositionInline
+}
+
+// partToAttachment converts an enmime part and makes up a filename if the part has none.
+func partToAttachment(part *enmime.Part, disposition string) attachment.Attachment {
+	name := part.FileName
+	if name == "" {
+		name = "attachment"
+		if exts, _ := mime.ExtensionsByType(part.ContentType); len(exts) > 0 {
+			name += exts[0]
+		}
+	}
+	return attachment.Attachment{
+		Name:        name,
+		Content:     part.Content,
+		ContentType: part.ContentType,
+		ContentID:   part.ContentID,
+		Size:        len(part.Content),
+		Disposition: disposition,
+	}
 }
 
 // getContactName extracts the contact's first and last name from the IMAP address.
