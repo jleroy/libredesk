@@ -27,6 +27,17 @@
 
       <DropdownMenuSeparator />
 
+      <DropdownMenuItem @click="emit('move', { item, direction: -1 })">
+        <ArrowUp class="mr-2 h-4 w-4" />
+        {{ t('globals.messages.moveUp') }}
+      </DropdownMenuItem>
+      <DropdownMenuItem @click="emit('move', { item, direction: 1 })">
+        <ArrowDown class="mr-2 h-4 w-4" />
+        {{ t('globals.messages.moveDown') }}
+      </DropdownMenuItem>
+
+      <DropdownMenuSeparator />
+
       <DropdownMenuItem @click="emit('toggle-status', item)">
         <template v-if="item.type === 'collection'">
           <Eye v-if="!item.is_published" class="mr-2 h-4 w-4" />
@@ -42,7 +53,10 @@
 
       <DropdownMenuSeparator />
 
-      <DropdownMenuItem @click="emit('delete', item)" class="text-destructive focus:text-destructive">
+      <DropdownMenuItem
+        @click="emit('delete', item)"
+        class="text-destructive focus:text-destructive"
+      >
         <Trash class="mr-2 h-4 w-4" />
         {{ t('globals.messages.delete') }}
       </DropdownMenuItem>
@@ -59,7 +73,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@shared-ui/components/ui/dropdown-menu'
-import { Eye, EyeOff, FilePlus, FolderPlus, MoreHorizontal, Pencil, Trash } from 'lucide-vue-next'
+import {
+  ArrowDown,
+  ArrowUp,
+  Eye,
+  EyeOff,
+  FilePlus,
+  FolderPlus,
+  MoreHorizontal,
+  Pencil,
+  Trash
+} from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -71,5 +95,12 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['create-collection', 'create-article', 'edit', 'delete', 'toggle-status'])
+const emit = defineEmits([
+  'create-collection',
+  'create-article',
+  'edit',
+  'delete',
+  'toggle-status',
+  'move'
+])
 </script>

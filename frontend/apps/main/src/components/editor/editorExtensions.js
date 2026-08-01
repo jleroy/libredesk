@@ -88,10 +88,11 @@ const CustomMention = Mention.extend({
   }
 })
 
-const sharedExtensions = ({ getPlaceholder }) => [
+const sharedExtensions = ({ getPlaceholder, imageInline = false }) => [
   StarterKit.configure(),
   Underline,
   ResizableImage.configure({
+    inline: imageInline,
     HTMLAttributes: { class: 'inline-image', style: 'max-width: 100%; height: auto;' },
     allowBase64: false
   }),
@@ -114,9 +115,10 @@ export function buildConversationExtensions({ getPlaceholder }) {
 }
 
 // Articles render inside their own themed CSS, so plain tables are fine here.
+// Images are inline there so the paragraph text-align buttons can position them.
 export function buildArticleExtensions({ getPlaceholder }) {
   return [
-    ...sharedExtensions({ getPlaceholder }),
+    ...sharedExtensions({ getPlaceholder, imageInline: true }),
     Table.configure({ resizable: false }),
     TableRow,
     TableCell,

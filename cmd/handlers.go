@@ -300,12 +300,15 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/help-centers/{hc_id}/collections", perm(handleCreateCollection, "help_center:manage"))
 	g.PUT("/api/v1/help-centers/{hc_id}/collections/{id}", perm(handleUpdateCollection, "help_center:manage"))
 	g.DELETE("/api/v1/help-centers/{hc_id}/collections/{id}", perm(handleDeleteCollection, "help_center:manage"))
+	g.PUT("/api/v1/help-centers/{hc_id}/collection-sort-order", perm(handleUpdateCollectionSortOrders, "help_center:manage"))
 	g.PUT("/api/v1/collections/{id}/toggle", perm(handleToggleCollection, "help_center:manage"))
+	g.PUT("/api/v1/collections/{col_id}/article-sort-order", perm(handleUpdateArticleSortOrders, "help_center:manage"))
 	g.GET("/api/v1/collections/{col_id}/articles", auth(handleGetArticles))
 	g.GET("/api/v1/collections/{col_id}/articles/{id}", auth(handleGetArticle))
 	g.POST("/api/v1/collections/{col_id}/articles", perm(handleCreateArticle, "help_center:manage"))
 	g.DELETE("/api/v1/collections/{col_id}/articles/{id}", perm(handleDeleteArticle, "help_center:manage"))
 	g.PUT("/api/v1/articles/{id}", perm(handleUpdateArticle, "help_center:manage"))
+	g.PUT("/api/v1/articles/{id}/collection", perm(handleMoveArticle, "help_center:manage"))
 	g.PUT("/api/v1/articles/{id}/status", perm(handleUpdateArticleStatus, "help_center:manage"))
 	g.GET("/api/v1/help-centers/{id}/insights", perm(handleGetHelpCenterInsights, "help_center:manage"))
 
@@ -378,6 +381,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/static/public/{all:*}", serveStaticFiles)
 
 	// Public pages.
+	g.GET("/robots.txt", rateLimit(handleRobotsTxt, "public"))
+	g.GET("/sitemap.xml", rateLimit(handleSitemapIndex, "public"))
 	g.GET("/hc/{slug}", rateLimit(handleRedirectHelpCenterHome, "public"))
 	g.GET("/hc/{slug}/{locale}", rateLimit(handleShowHelpCenterHome, "public"))
 	g.GET("/hc/{slug}/{locale}/sitemap.xml", rateLimit(handleHelpCenterSitemap, "public"))

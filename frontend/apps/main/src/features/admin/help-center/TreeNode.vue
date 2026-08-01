@@ -1,148 +1,163 @@
 <template>
-  <div>
-    <Collapsible v-if="item.type === 'collection'" v-model:open="isOpen">
+  <Collapsible v-if="item.type === 'collection'" v-model:open="isOpen" as-child>
+    <section :class="depth === 0 ? 'overflow-hidden rounded-lg border bg-card' : 'border-t'">
       <div
-        class="group tree-node"
-        :class="{
-          'tree-node--selected': isSelected,
-          'hover:shadow-sm': !isSelected
-        }"
+        class="group tree-node tree-node--collection"
+        :class="{ 'tree-node--selected': isSelected }"
         @click="selectItem"
       >
-        <div class="flex items-center gap-3">
-          <CollapsibleTrigger as-child @click.stop>
-            <ChevronRight
-              class="h-4 w-4 transition-transform text-muted-foreground hover:text-foreground flex-shrink-0"
-              :class="{ 'rotate-90': isOpen }"
-            />
-          </CollapsibleTrigger>
+        <GripVertical
+          class="drag-handle h-4 w-4 flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+          aria-hidden="true"
+          @click.stop
+        />
 
-          <div class="icon-container-folder">
-            <Folder class="h-4 w-4 text-primary" />
-          </div>
+        <CollapsibleTrigger as-child @click.stop>
+          <ChevronRight
+            class="h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform hover:text-foreground"
+            :class="{ 'rotate-90': isOpen }"
+          />
+        </CollapsibleTrigger>
 
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <h4 class="text-sm font-semibold truncate text-foreground">
-                {{ item.name }}
-              </h4>
-              <Badge v-if="!item.is_published" variant="secondary" class="text-[10px] px-1.5 py-0.5 font-normal">
-                {{ $t('globals.terms.draft') }}
-              </Badge>
-            </div>
-            <p
-              v-if="item.description"
-              class="text-xs text-muted-foreground leading-tight line-clamp-2 max-w-xs"
-            >
-              {{ item.description }}
-            </p>
-          </div>
+        <Folder class="h-4 w-4 flex-shrink-0 text-primary" />
 
-          <div class="hover-actions ml-2">
-            <Badge
-              v-if="item.articles && item.articles.length > 0"
-              variant="outline"
-              class="text-xs px-2 py-0.5 font-normal bg-card/50 text-muted-foreground"
-            >
-              {{ item.articles.length }} {{ $t('globals.terms.article', item.articles.length) }}
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <span class="truncate text-sm font-medium text-foreground">{{ item.name }}</span>
+            <Badge v-if="!item.is_published" variant="secondary" class="flex-shrink-0 font-normal">
+              {{ $t('globals.terms.draft') }}
             </Badge>
-
-            <TreeDropdown
-              :item="item"
-              @create-collection="$emit('create-collection', item.id)"
-              @create-article="$emit('create-article', item)"
-              @edit="$emit('edit', $event)"
-              @delete="$emit('delete', $event)"
-              @toggle-status="$emit('toggle-status', $event)"
-            />
           </div>
+          <p v-if="item.description" class="truncate text-xs text-muted-foreground">
+            {{ item.description }}
+          </p>
         </div>
+
+        <span v-if="item.article_count" class="flex-shrink-0 text-xs text-muted-foreground">
+          {{ item.article_count }} {{ $t('globals.terms.article', item.article_count) }}
+        </span>
+
+        <span class="hover-actions flex-shrink-0">
+          <TreeDropdown
+            :item="item"
+            @create-collection="$emit('create-collection', item.id)"
+            @create-article="$emit('create-article', item)"
+            @edit="$emit('edit', $event)"
+            @delete="$emit('delete', $event)"
+            @toggle-status="$emit('toggle-status', $event)"
+            @move="$emit('move', $event)"
+          />
+        </span>
       </div>
 
       <CollapsibleContent>
-        <div class="ml-10 mt-2 pl-2 border-l border-border/20">
-          <div
-            v-if="!childCollections.length && !articles.length"
-            class="text-sm text-muted-foreground bg-muted/10 rounded-md py-3 px-4 text-center italic"
-          >
-            <FolderOpen class="h-4 w-4 mx-auto mb-1.5 opacity-60" />
-            {{ $t('globals.messages.empty', { name: $t('globals.terms.collection') }) }}
-          </div>
+        <p
+          v-if="!childCollections.length && !articles.length"
+          class="border-t px-4 py-2.5 text-sm text-muted-foreground"
+          :style="indentStyle"
+        >
+          {{ $t('globals.messages.empty', { name: $t('globals.terms.collection') }) }}
+        </p>
 
-          <div class="space-y-1.5">
+        <Draggable
+          v-model="articles"
+          class="divide-y border-t empty:hidden"
+          item-key="id"
+          handle=".drag-handle"
+          group="help-center-articles"
+          :force-fallback="true"
+          fallback-on-body
+          :fallback-tolerance="3"
+          :scroll-sensitivity="120"
+          :scroll-speed="18"
+          ghost-class="tree-node--ghost"
+          @change="onArticleChange"
+        >
+          <template #item="{ element }">
             <TreeNode
-              v-for="element in articles"
-              :key="element.id"
               :item="{ ...element, type: 'article' }"
               :selected-item="selectedItem"
+              :depth="depth + 1"
               @select="$emit('select', $event)"
               @edit="$emit('edit', $event)"
               @delete="$emit('delete', $event)"
               @toggle-status="$emit('toggle-status', $event)"
+              @move="moveArticle"
             />
-          </div>
+          </template>
+        </Draggable>
 
-          <div class="space-y-1.5">
+        <Draggable
+          v-model="childCollections"
+          item-key="id"
+          handle=".drag-handle"
+          :group="`collections-${item.id}`"
+          :force-fallback="true"
+          fallback-on-body
+          :fallback-tolerance="3"
+          :scroll-sensitivity="120"
+          :scroll-speed="18"
+          ghost-class="tree-node--ghost"
+          @end="emitCollectionOrder"
+        >
+          <template #item="{ element }">
             <TreeNode
-              v-for="element in childCollections"
-              :key="element.id"
               :item="{ ...element, type: 'collection' }"
               :selected-item="selectedItem"
+              :depth="depth + 1"
               @select="$emit('select', $event)"
               @create-collection="$emit('create-collection', $event)"
               @create-article="$emit('create-article', $event)"
               @edit="$emit('edit', $event)"
               @delete="$emit('delete', $event)"
               @toggle-status="$emit('toggle-status', $event)"
+              @reorder-collections="$emit('reorder-collections', $event)"
+              @reorder-articles="$emit('reorder-articles', $event)"
+              @move-article="$emit('move-article', $event)"
+              @move="moveChildCollection"
             />
-          </div>
-        </div>
+          </template>
+        </Draggable>
       </CollapsibleContent>
-    </Collapsible>
+    </section>
+  </Collapsible>
 
-    <div
-      v-else
-      class="group tree-node--article"
-      :class="{
-        'tree-node--selected': isSelected,
-        'hover:shadow-sm': !isSelected
-      }"
-      @click="selectItem"
-    >
-      <div class="flex items-center gap-2">
-        <div class="icon-container-article">
-          <FileText class="h-4 w-4 text-muted-foreground" />
-        </div>
+  <div
+    v-else
+    class="group tree-node"
+    :class="{ 'tree-node--selected': isSelected }"
+    :style="indentStyle"
+    @click="selectItem"
+  >
+    <GripVertical
+      class="drag-handle h-4 w-4 flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+      aria-hidden="true"
+      @click.stop
+    />
 
-        <div class="flex-1 min-w-0">
-          <h5 class="text-sm font-medium truncate text-foreground">
-            {{ item.title }}
-          </h5>
-        </div>
+    <FileText class="h-4 w-4 flex-shrink-0 text-muted-foreground" />
 
-        <div class="hover-actions--compact">
-          <Badge
-            v-if="item.status"
-            :variant="getArticleStatusVariant(item.status)"
-            class="text-[11px] px-1.5 py-0.5 font-normal"
-          >
-            {{ getArticleStatusLabel(item.status) }}
-          </Badge>
+    <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ item.title }}</span>
 
-          <TreeDropdown
-            :item="item"
-            @edit="$emit('edit', $event)"
-            @delete="$emit('delete', $event)"
-            @toggle-status="$emit('toggle-status', $event)"
-          />
-        </div>
-      </div>
-    </div>
+    <Badge v-if="item.status !== 'published'" variant="secondary" class="flex-shrink-0 font-normal">
+      {{ getArticleStatusLabel(item.status) }}
+    </Badge>
+
+    <span class="hover-actions flex-shrink-0">
+      <TreeDropdown
+        :item="item"
+        @edit="$emit('edit', $event)"
+        @delete="$emit('delete', $event)"
+        @toggle-status="$emit('toggle-status', $event)"
+        @move="$emit('move', $event)"
+      />
+    </span>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
+import Draggable from 'vuedraggable'
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@shared-ui/components/ui/badge'
 import {
@@ -150,8 +165,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from '@shared-ui/components/ui/collapsible'
-import { ChevronRight, FileText, Folder, FolderOpen } from 'lucide-vue-next'
+import { ChevronRight, FileText, Folder, GripVertical } from 'lucide-vue-next'
 import TreeDropdown from './TreeDropdown.vue'
+import { moveWithin } from './treeReorder.js'
 
 const { t } = useI18n()
 
@@ -163,6 +179,10 @@ const props = defineProps({
   selectedItem: {
     type: Object,
     default: null
+  },
+  depth: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -172,55 +192,127 @@ const emit = defineEmits([
   'create-article',
   'edit',
   'delete',
-  'toggle-status'
+  'toggle-status',
+  'reorder-collections',
+  'reorder-articles',
+  'move-article',
+  'move'
 ])
 
-const isOpen = ref(true)
+const collapsedStore = inject('helpCenterTreeCollapsed', null)
+const expandSignal = inject('helpCenterTreeExpand', null)
+
+const isOpen = ref(!collapsedStore?.isCollapsed(props.item.id))
+
+watch(isOpen, (open) => collapsedStore?.setCollapsed(props.item.id, !open))
+
+if (expandSignal) {
+  watch(
+    () => expandSignal.value.n,
+    () => {
+      isOpen.value = expandSignal.value.open
+    }
+  )
+}
 
 const isSelected = computed(() => {
   if (!props.selectedItem) return false
   return props.selectedItem.id === props.item.id && props.selectedItem.type === props.item.type
 })
 
-const childCollections = computed(() => props.item.children || [])
-const articles = computed(() => props.item.articles || [])
+const indentStyle = computed(() => ({ paddingLeft: `${0.75 + props.depth * 1.5}rem` }))
+
+const childCollections = ref([])
+const articles = ref([])
+
+watch(
+  () => props.item.children,
+  (children) => {
+    childCollections.value = [...(children || [])]
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.item.articles,
+  (items) => {
+    articles.value = [...(items || [])]
+  },
+  { immediate: true }
+)
+
+const emitCollectionOrder = () => {
+  emit(
+    'reorder-collections',
+    childCollections.value.map((collection) => collection.id)
+  )
+}
+
+const emitArticleOrder = () => {
+  emit('reorder-articles', {
+    collectionId: props.item.id,
+    ids: articles.value.map((article) => article.id)
+  })
+}
+
+// vuedraggable reports the source list's removal and the target list's insertion separately;
+// only the target knows the article's new collection.
+const onArticleChange = (event) => {
+  if (event.added) {
+    emit('move-article', {
+      articleId: event.added.element.id,
+      collectionId: props.item.id,
+      ids: articles.value.map((article) => article.id)
+    })
+    return
+  }
+  emitArticleOrder()
+}
+
+const moveArticle = ({ item, direction }) => {
+  if (!moveWithin(articles.value, item.id, direction)) return
+  emitArticleOrder()
+}
+
+const moveChildCollection = ({ item, direction }) => {
+  if (!moveWithin(childCollections.value, item.id, direction)) return
+  emitCollectionOrder()
+}
 
 const selectItem = () => {
   emit('select', props.item)
 }
 
-const getArticleStatusVariant = (status) => (status === 'published' ? 'default' : 'secondary')
-
 const getArticleStatusLabel = (status) =>
-  status === 'published' ? t('helpCenter.published') : t('globals.terms.draft')
+  status === 'archived' ? t('helpCenter.archived') : t('globals.terms.draft')
 </script>
 
 <style scoped>
 .tree-node {
-  @apply border border-transparent hover:border-border hover:bg-muted/20 rounded-lg p-3 transition-all duration-200 cursor-pointer;
+  @apply flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-muted/50;
 }
 
-.tree-node--article {
-  @apply border border-transparent hover:border-border hover:bg-muted/20 rounded-md p-2.5 transition-all duration-200 cursor-pointer;
+.tree-node--collection {
+  @apply bg-muted/40 py-2.5 hover:bg-muted/60;
 }
 
 .tree-node--selected {
-  @apply bg-accent/10 border-border shadow-sm ring-1 ring-accent/20;
+  @apply bg-accent;
 }
 
-.icon-container-folder {
-  @apply flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 border border-border;
-}
-
-.icon-container-article {
-  @apply flex items-center justify-center w-7 h-7 rounded-md bg-muted border border-border;
+.tree-node--ghost {
+  @apply bg-accent/60 opacity-60;
 }
 
 .hover-actions {
-  @apply flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150;
+  @apply opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100;
 }
 
-.hover-actions--compact {
-  @apply flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150;
+/* Touch devices have no hover, so row actions stay visible there. */
+@media (hover: none) {
+  .drag-handle,
+  .hover-actions {
+    @apply opacity-100;
+  }
 }
 </style>

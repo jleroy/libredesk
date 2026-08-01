@@ -8,7 +8,8 @@
               {{ article ? t('helpCenter.editArticle') : t('helpCenter.newArticle') }}
             </h2>
             <p v-if="article" class="text-sm text-muted-foreground mt-1">
-              {{ t('globals.terms.lastUpdated') }}: {{ format(new Date(article.updated_at), 'PPpp') }}
+              {{ t('globals.terms.lastUpdated') }}:
+              {{ format(new Date(article.updated_at), 'PPpp') }}
             </p>
           </div>
         </div>
@@ -40,7 +41,7 @@
                         v-model:textContent="editorText"
                         :htmlContent="componentField.modelValue"
                         @update:htmlContent="(value) => componentField.onChange(value)"
-                        :placeholder="t('editor.newLine')"
+                        :placeholder="t('helpCenter.articlePlaceholder')"
                         enableInlineImages
                         linkedModel="help_articles"
                         class="min-h-[400px] border-0 px-0 shadow-none focus-visible:ring-0"
@@ -106,7 +107,7 @@
                 </FormField>
               </div>
 
-              <div v-if="availableCollections.length > 0" class="space-y-3">
+              <div v-if="localeCollections.length > 0" class="space-y-3">
                 <h3 class="font-medium text-sm text-muted-foreground">
                   {{ t('globals.terms.collection') }}
                 </h3>
@@ -120,7 +121,7 @@
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem
-                            v-for="collection in availableCollections"
+                            v-for="collection in localeCollections"
                             :key="collection.id"
                             :value="String(collection.id)"
                           >
@@ -176,7 +177,11 @@
                 <FormField v-slot="{ componentField }" name="excerpt">
                   <FormItem>
                     <FormControl>
-                      <Textarea :rows="3" :placeholder="derivedExcerpt || t('helpCenter.excerpt')" v-bind="componentField" />
+                      <Textarea
+                        :rows="3"
+                        :placeholder="derivedExcerpt || t('helpCenter.excerpt')"
+                        v-bind="componentField"
+                      />
                     </FormControl>
                     <FormDescription>{{ t('helpCenter.excerptHint') }}</FormDescription>
                     <FormMessage />
@@ -192,7 +197,11 @@
                   <FormItem>
                     <FormLabel>{{ t('helpCenter.metaTitle') }}</FormLabel>
                     <FormControl>
-                      <Input type="text" :placeholder="metaTitlePlaceholder" v-bind="componentField" />
+                      <Input
+                        type="text"
+                        :placeholder="metaTitlePlaceholder"
+                        v-bind="componentField"
+                      />
                     </FormControl>
                     <FormDescription>{{ t('helpCenter.metaTitleHint') }}</FormDescription>
                     <FormMessage />
@@ -202,7 +211,11 @@
                   <FormItem>
                     <FormLabel>{{ t('helpCenter.metaDescription') }}</FormLabel>
                     <FormControl>
-                      <Textarea :rows="2" :placeholder="metaDescriptionPlaceholder" v-bind="componentField" />
+                      <Textarea
+                        :rows="2"
+                        :placeholder="metaDescriptionPlaceholder"
+                        v-bind="componentField"
+                      />
                     </FormControl>
                     <FormDescription>{{ t('helpCenter.metaDescriptionHint') }}</FormDescription>
                     <FormMessage />
@@ -225,10 +238,7 @@
                   <span class="text-muted-foreground">{{ t('helpCenter.author') }}</span>
                   <span>{{ article.author_name }}</span>
                 </div>
-                <div
-                  v-if="article.helpful_count !== undefined"
-                  class="flex justify-between py-1"
-                >
+                <div v-if="article.helpful_count !== undefined" class="flex justify-between py-1">
                   <span class="text-muted-foreground">{{ t('helpCenter.feedback') }}</span>
                   <span>👍 {{ article.helpful_count }} · 👎 {{ article.not_helpful_count }}</span>
                 </div>
@@ -361,6 +371,19 @@ const toFormValues = () => {
 const form = useForm({
   validationSchema: toTypedSchema(createArticleFormSchema(t)),
   initialValues: toFormValues()
+})
+
+// An article and its collection must share a language, else the article drops out of that
+// language's tree.
+const localeCollections = computed(() =>
+  availableCollections.value.filter((collection) => collection.locale === form.values.locale)
+)
+
+watch(localeCollections, (collections) => {
+  const current = Number(form.values.collection_id)
+  if (current && !collections.some((collection) => collection.id === current)) {
+    form.setFieldValue('collection_id', String(collections[0]?.id || ''), false)
+  }
 })
 
 // Placeholders preview what the public page falls back to when these fields are left blank.

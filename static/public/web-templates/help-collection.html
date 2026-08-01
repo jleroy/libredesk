@@ -16,8 +16,11 @@
 </nav>
 
 <header class="hc-collection-head">
-    <h1>{{ .Data.Collection.Name }}</h1>
-    {{ if .Data.Collection.Description }}<p class="hc-desc">{{ .Data.Collection.Description }}</p>{{ end }}
+    {{ with LucideIcon .Data.Collection.Icon }}<div class="hc-collection-icon">{{ . }}</div>{{ end }}
+    <div class="hc-collection-headings">
+        <h1>{{ .Data.Collection.Name }}</h1>
+        {{ if .Data.Collection.Description }}<p class="hc-desc">{{ .Data.Collection.Description }}</p>{{ end }}
+    </div>
 </header>
 
 {{ if .Data.Collection.Articles }}
@@ -41,7 +44,7 @@
 {{ end }}
 
 {{ if and (not .Data.Collection.Articles) (not .Data.Collection.Children) }}
-<p class="hc-empty">{{ L.T "helpCenter.noArticles" }}</p>
+<p class="hc-empty">{{ $.L.T "helpCenter.noArticles" }}</p>
 {{ end }}
 
 {{ template "hc-footer" . }}

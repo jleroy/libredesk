@@ -41,6 +41,17 @@
       </FormItem>
     </FormField>
 
+    <FormField v-slot="{ componentField }" name="meta_description">
+      <FormItem>
+        <FormLabel>{{ t('helpCenter.metaDescription') }}</FormLabel>
+        <FormControl>
+          <Textarea :rows="2" v-bind="componentField" />
+        </FormControl>
+        <FormDescription>{{ t('helpCenter.homeMetaDescriptionHint') }}</FormDescription>
+        <FormMessage />
+      </FormItem>
+    </FormField>
+
     <FormField v-slot="{ componentField }" name="logo_url">
       <FormItem>
         <FormLabel>{{ t('globals.terms.logoUrl') }}</FormLabel>
@@ -79,7 +90,11 @@
         <FormItem>
           <FormLabel>{{ t('helpCenter.styling.tagline') }}</FormLabel>
           <FormControl>
-            <Input type="text" :placeholder="t('helpCenter.styling.taglineHint')" v-bind="componentField" />
+            <Input
+              type="text"
+              :placeholder="t('helpCenter.styling.taglineHint')"
+              v-bind="componentField"
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -97,6 +112,7 @@
                 <SelectItem value="default">{{ t('helpCenter.styling.bgDefault') }}</SelectItem>
                 <SelectItem value="solid">{{ t('helpCenter.styling.bgSolid') }}</SelectItem>
                 <SelectItem value="gradient">{{ t('globals.terms.gradient') }}</SelectItem>
+                <SelectItem value="image">{{ t('globals.terms.image') }}</SelectItem>
               </SelectContent>
             </Select>
           </FormControl>
@@ -135,6 +151,25 @@
         </FormField>
       </div>
 
+      <FormField
+        v-if="form.values.theme?.header?.background_type === 'image'"
+        v-slot="{ componentField }"
+        name="theme.header.background_image"
+      >
+        <FormItem>
+          <FormLabel>{{ t('helpCenter.styling.headerImage') }}</FormLabel>
+          <FormControl>
+            <Input
+              type="text"
+              placeholder="https://example.com/header.jpg"
+              v-bind="componentField"
+            />
+          </FormControl>
+          <FormDescription>{{ t('helpCenter.styling.headerImageHint') }}</FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+
       <FormField v-slot="{ componentField }" name="theme.header.text_color">
         <FormItem>
           <FormLabel>{{ t('helpCenter.styling.textColor') }}</FormLabel>
@@ -143,6 +178,80 @@
           </FormControl>
           <FormDescription>{{ t('helpCenter.styling.textColorHint') }}</FormDescription>
           <FormMessage />
+        </FormItem>
+      </FormField>
+    </div>
+
+    <!-- Landing page -->
+    <div class="border-t pt-6 space-y-4">
+      <h3 class="text-sm font-semibold">{{ t('helpCenter.styling.landingPage') }}</h3>
+
+      <FormField v-slot="{ componentField }" name="theme.layout.collections">
+        <FormItem>
+          <FormLabel>{{ t('helpCenter.styling.collectionLayout') }}</FormLabel>
+          <FormControl>
+            <Select v-bind="componentField">
+              <SelectTrigger>
+                <SelectValue :placeholder="t('helpCenter.styling.layoutGrid')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="grid">{{ t('helpCenter.styling.layoutGrid') }}</SelectItem>
+                <SelectItem value="list">{{ t('helpCenter.styling.layoutList') }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      </FormField>
+
+      <FormField
+        v-if="form.values.theme?.layout?.collections !== 'list'"
+        v-slot="{ componentField }"
+        name="theme.layout.columns"
+      >
+        <FormItem>
+          <FormLabel>{{ t('helpCenter.styling.cardsPerRow') }}</FormLabel>
+          <FormControl>
+            <Select v-bind="componentField">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2">2</SelectItem>
+                <SelectItem value="3">3</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      </FormField>
+
+      <FormField v-slot="{ value, handleChange }" name="theme.cards.hide_description">
+        <FormItem class="flex items-center gap-2 space-y-0">
+          <FormControl>
+            <Checkbox :checked="!value" @update:checked="(v) => handleChange(!v)" />
+          </FormControl>
+          <FormLabel class="font-normal cursor-pointer">{{
+            t('helpCenter.styling.showCardDescription')
+          }}</FormLabel>
+        </FormItem>
+      </FormField>
+      <FormField v-slot="{ value, handleChange }" name="theme.cards.hide_count">
+        <FormItem class="flex items-center gap-2 space-y-0">
+          <FormControl>
+            <Checkbox :checked="!value" @update:checked="(v) => handleChange(!v)" />
+          </FormControl>
+          <FormLabel class="font-normal cursor-pointer">{{
+            t('helpCenter.styling.showCardCount')
+          }}</FormLabel>
+        </FormItem>
+      </FormField>
+      <FormField v-slot="{ value, handleChange }" name="theme.cards.show_authors">
+        <FormItem class="flex items-center gap-2 space-y-0">
+          <FormControl>
+            <Checkbox :checked="value" @update:checked="handleChange" />
+          </FormControl>
+          <FormLabel class="font-normal cursor-pointer">{{
+            t('helpCenter.styling.showCardAuthors')
+          }}</FormLabel>
         </FormItem>
       </FormField>
     </div>
@@ -176,7 +285,11 @@
         <FormItem>
           <FormLabel>{{ t('helpCenter.styling.footerTagline') }}</FormLabel>
           <FormControl>
-            <Input type="text" :placeholder="t('helpCenter.styling.footerTaglineHint')" v-bind="componentField" />
+            <Input
+              type="text"
+              :placeholder="t('helpCenter.styling.footerTaglineHint')"
+              v-bind="componentField"
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -198,7 +311,9 @@
                     <SelectValue :placeholder="t('helpCenter.styling.platform')" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem v-for="p in socialPlatforms" :key="p" :value="p">{{ t(`helpCenter.social.${p}`) }}</SelectItem>
+                    <SelectItem v-for="p in socialPlatforms" :key="p" :value="p">{{
+                      t(`helpCenter.social.${p}`)
+                    }}</SelectItem>
                   </SelectContent>
                 </Select>
               </FormControl>
@@ -217,7 +332,9 @@
           <FormControl>
             <Checkbox :checked="!value" @update:checked="(v) => handleChange(!v)" />
           </FormControl>
-          <FormLabel class="font-normal cursor-pointer">{{ t('helpCenter.styling.showToc') }}</FormLabel>
+          <FormLabel class="font-normal cursor-pointer">{{
+            t('helpCenter.styling.showToc')
+          }}</FormLabel>
         </FormItem>
       </FormField>
       <FormField v-slot="{ value, handleChange }" name="theme.article.hide_related">
@@ -225,7 +342,19 @@
           <FormControl>
             <Checkbox :checked="!value" @update:checked="(v) => handleChange(!v)" />
           </FormControl>
-          <FormLabel class="font-normal cursor-pointer">{{ t('helpCenter.styling.showRelated') }}</FormLabel>
+          <FormLabel class="font-normal cursor-pointer">{{
+            t('helpCenter.styling.showRelated')
+          }}</FormLabel>
+        </FormItem>
+      </FormField>
+      <FormField v-slot="{ value, handleChange }" name="theme.article.show_author_avatar">
+        <FormItem class="flex items-center gap-2 space-y-0">
+          <FormControl>
+            <Checkbox :checked="value" @update:checked="handleChange" />
+          </FormControl>
+          <FormLabel class="font-normal cursor-pointer">{{
+            t('helpCenter.styling.showAuthorAvatar')
+          }}</FormLabel>
         </FormItem>
       </FormField>
     </div>
@@ -241,7 +370,12 @@
         <FormField v-slot="{ componentField }" :name="`allowed_locales[${index}]`">
           <FormItem class="flex-1">
             <FormControl>
-              <Input type="text" placeholder="en" v-bind="componentField" />
+              <Input
+                type="text"
+                placeholder="en"
+                list="hc-locale-suggestions"
+                v-bind="componentField"
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -259,6 +393,11 @@
       <Button type="button" variant="outline" size="sm" @click="pushLocale('')">
         {{ t('globals.messages.add') }}
       </Button>
+      <datalist id="hc-locale-suggestions">
+        <option v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
+          {{ lang.name }}
+        </option>
+      </datalist>
     </div>
 
     <FormField v-slot="{ componentField }" name="default_locale">
@@ -270,7 +409,9 @@
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="loc in localeOptions" :key="loc" :value="loc">{{ loc }}</SelectItem>
+              <SelectItem v-for="loc in localeOptions" :key="loc" :value="loc">{{
+                loc
+              }}</SelectItem>
             </SelectContent>
           </Select>
         </FormControl>
@@ -311,7 +452,7 @@
 </template>
 
 <script setup>
-import { watch, computed } from 'vue'
+import { watch, computed, ref, onMounted } from 'vue'
 import { useForm, useFieldArray } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@shared-ui/components/ui/button'
@@ -337,6 +478,7 @@ import {
 import { X } from 'lucide-vue-next'
 import LinkListField from './LinkListField.vue'
 import { createHelpCenterFormSchema } from './helpCenterFormSchema.js'
+import api from '@/api'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
@@ -362,20 +504,30 @@ const submitLabel = computed(() =>
   props.helpCenter ? t('globals.messages.update') : t('globals.messages.create')
 )
 
-const socialPlatforms = ['website', 'twitter', 'github', 'linkedin', 'facebook', 'instagram', 'youtube']
+const socialPlatforms = [
+  'website',
+  'twitter',
+  'github',
+  'linkedin',
+  'facebook',
+  'instagram',
+  'youtube'
+]
 
 const toFormValues = (hc) => ({
   name: hc?.name || '',
   slug: hc?.slug || '',
   page_title: hc?.page_title || '',
   header_text: hc?.header_text || '',
+  meta_description: hc?.meta_description || '',
   logo_url: hc?.logo_url || '',
   color: hc?.color || '#1f93ff',
   nav_links: Array.isArray(hc?.nav_links) ? hc.nav_links : [],
   custom_css: hc?.custom_css || '',
   custom_js: hc?.custom_js || '',
   default_locale: hc?.default_locale || 'en',
-  allowed_locales: Array.isArray(hc?.allowed_locales) && hc.allowed_locales.length ? hc.allowed_locales : ['en'],
+  allowed_locales:
+    Array.isArray(hc?.allowed_locales) && hc.allowed_locales.length ? hc.allowed_locales : ['en'],
   theme: {
     favicon: hc?.theme?.favicon || '',
     tagline: hc?.theme?.tagline || '',
@@ -384,7 +536,17 @@ const toFormValues = (hc) => ({
       background_color: hc?.theme?.header?.background_color || '#1f93ff',
       gradient_from: hc?.theme?.header?.gradient_from || '#1f93ff',
       gradient_to: hc?.theme?.header?.gradient_to || '#ffffff',
+      background_image: hc?.theme?.header?.background_image || '',
       text_color: hc?.theme?.header?.text_color || ''
+    },
+    layout: {
+      collections: hc?.theme?.layout?.collections || 'grid',
+      columns: String(hc?.theme?.layout?.columns || 2)
+    },
+    cards: {
+      hide_description: !!hc?.theme?.cards?.hide_description,
+      hide_count: !!hc?.theme?.cards?.hide_count,
+      show_authors: !!hc?.theme?.cards?.show_authors
     },
     footer: {
       background_color: hc?.theme?.footer?.background_color || '',
@@ -395,7 +557,8 @@ const toFormValues = (hc) => ({
     social_links: Array.isArray(hc?.theme?.social_links) ? hc.theme.social_links : [],
     article: {
       hide_toc: !!hc?.theme?.article?.hide_toc,
-      hide_related: !!hc?.theme?.article?.hide_related
+      hide_related: !!hc?.theme?.article?.hide_related,
+      show_author_avatar: !!hc?.theme?.article?.show_author_avatar
     }
   }
 })
@@ -410,6 +573,17 @@ const {
   push: pushLocale,
   remove: removeLocale
 } = useFieldArray('allowed_locales')
+
+const availableLanguages = ref([])
+
+onMounted(async () => {
+  try {
+    const { data } = await api.getAvailableLanguages()
+    availableLanguages.value = data.data || []
+  } catch {
+    availableLanguages.value = []
+  }
+})
 
 const cleanLocales = (locales) => (locales || []).map((l) => (l || '').trim()).filter(Boolean)
 

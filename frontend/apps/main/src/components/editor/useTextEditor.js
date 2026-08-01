@@ -7,6 +7,7 @@ export function useTextEditor({
   htmlContent,
   textContent,
   autoFocus = true,
+  editable = true,
   insertContent = () => '',
   isInlineEnabled = () => false,
   linkedModel = 'messages',
@@ -44,6 +45,7 @@ export function useTextEditor({
   const editor = useEditor({
     extensions,
     autofocus: autoFocus,
+    editable,
     content: htmlContent.value,
     editorProps: {
       attributes: { class: 'outline-none' },

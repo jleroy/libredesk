@@ -88,6 +88,21 @@
 
               <div class="space-y-3">
                 <h3 class="font-medium text-sm text-muted-foreground">
+                  {{ t('helpCenter.collectionIcon') }}
+                </h3>
+                <FormField v-slot="{ value, handleChange }" name="icon">
+                  <FormItem>
+                    <FormControl>
+                      <IconPicker :model-value="value" @update:model-value="handleChange" />
+                    </FormControl>
+                    <FormDescription>{{ t('helpCenter.collectionIconHint') }}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+              </div>
+
+              <div class="space-y-3">
+                <h3 class="font-medium text-sm text-muted-foreground">
                   {{ t('helpCenter.language') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="locale">
@@ -109,7 +124,7 @@
                 </FormField>
               </div>
 
-              <div v-if="availableParents.length > 0" class="space-y-3">
+              <div v-if="localeParents.length > 0" class="space-y-3">
                 <h3 class="font-medium text-sm text-muted-foreground">
                   {{ t('helpCenter.parentCollection') }}
                 </h3>
@@ -124,7 +139,7 @@
                         <SelectContent>
                           <SelectItem value="0">{{ t('globals.terms.none') }}</SelectItem>
                           <SelectItem
-                            v-for="parent in availableParents"
+                            v-for="parent in localeParents"
                             :key="parent.id"
                             :value="String(parent.id)"
                           >
@@ -179,11 +194,13 @@ import {
 import { Sheet, SheetContent } from '@shared-ui/components/ui/sheet'
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormMessage
 } from '@shared-ui/components/ui/form/index.js'
 import { createCollectionFormSchema } from './collectionFormSchema.js'
+import IconPicker from './IconPicker.vue'
 import { useI18n } from 'vue-i18n'
 import api from '@/api'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
@@ -240,6 +257,7 @@ const submitLabel = computed(() =>
 const toFormValues = () => ({
   name: props.collection?.name || '',
   description: props.collection?.description || '',
+  icon: props.collection?.icon || '',
   parent_id: String(props.collection?.parent_id || props.parentId || 0),
   is_published: props.collection?.is_published ?? true,
   sort_order: props.collection?.sort_order || 0,
@@ -249,6 +267,19 @@ const toFormValues = () => ({
 const form = useForm({
   validationSchema: toTypedSchema(createCollectionFormSchema(t)),
   initialValues: toFormValues()
+})
+
+// A collection and its parent must share a language, else the child drops out of that
+// language's tree.
+const localeParents = computed(() =>
+  availableParents.value.filter((parent) => parent.locale === form.values.locale)
+)
+
+watch(localeParents, (parents) => {
+  const current = Number(form.values.parent_id)
+  if (current && !parents.some((parent) => parent.id === current)) {
+    form.setFieldValue('parent_id', '0', false)
+  }
 })
 
 watch(

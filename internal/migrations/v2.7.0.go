@@ -16,6 +16,7 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			slug TEXT NOT NULL UNIQUE,
 			page_title TEXT NOT NULL DEFAULT '',
 			header_text TEXT NOT NULL DEFAULT '',
+			meta_description TEXT NOT NULL DEFAULT '',
 			logo_url TEXT NOT NULL DEFAULT '',
 			color TEXT NOT NULL DEFAULT '#1f93ff',
 			nav_links JSONB NOT NULL DEFAULT '[]',
@@ -39,6 +40,9 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS theme JSONB NOT NULL DEFAULT '{}';`); err != nil {
 		return err
 	}
+	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS meta_description TEXT NOT NULL DEFAULT '';`); err != nil {
+		return err
+	}
 
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS article_collections (
@@ -51,10 +55,14 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			locale TEXT NOT NULL DEFAULT 'en',
 			name TEXT NOT NULL,
 			description TEXT NOT NULL DEFAULT '',
+			icon TEXT NOT NULL DEFAULT '',
 			sort_order INTEGER NOT NULL DEFAULT 0,
 			is_published BOOLEAN NOT NULL DEFAULT false
 		);
 	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`ALTER TABLE article_collections ADD COLUMN IF NOT EXISTS icon TEXT NOT NULL DEFAULT '';`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS index_unique_article_collections_on_help_center_slug_locale ON article_collections(help_center_id, slug, locale);`); err != nil {
@@ -114,6 +122,12 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		}
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_articles_on_author_id ON help_articles(author_id);`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_articles_on_title_trgm ON help_articles USING gin (title gin_trgm_ops);`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_articles_on_content_trgm ON help_articles USING gin (content gin_trgm_ops);`); err != nil {
 		return err
 	}
 

@@ -77,8 +77,12 @@ const open = () => {
 
 const setLink = () => {
   if (linkUrl.value) {
-    const attrs = { href: linkUrl.value }
-    if (props.allowButton && linkAsButton.value) attrs.class = 'hc-button'
+    // class must be set explicitly: setLink merges attrs, so omitting it would
+    // keep a previously applied hc-button class.
+    const attrs = {
+      href: linkUrl.value,
+      class: props.allowButton && linkAsButton.value ? 'hc-button' : null
+    }
     props.editor?.chain().focus().extendMarkRange('link').setLink(attrs).run()
   }
   isOpen.value = false

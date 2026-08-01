@@ -12,23 +12,24 @@ const (
 )
 
 type HelpCenter struct {
-	ID             int             `db:"id" json:"id"`
-	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
-	Name           string          `db:"name" json:"name"`
-	Slug           string          `db:"slug" json:"slug"`
-	PageTitle      string          `db:"page_title" json:"page_title"`
-	HeaderText     string          `db:"header_text" json:"header_text"`
-	LogoURL        string          `db:"logo_url" json:"logo_url"`
-	Color          string          `db:"color" json:"color"`
-	NavLinks       json.RawMessage `db:"nav_links" json:"nav_links"`
-	CustomCSS      string          `db:"custom_css" json:"custom_css"`
-	CustomJS       string          `db:"custom_js" json:"custom_js"`
-	ViewCount      int             `db:"view_count" json:"view_count"`
-	DefaultLocale  string          `db:"default_locale" json:"default_locale"`
-	AllowedLocales json.RawMessage `db:"allowed_locales" json:"allowed_locales"`
-	IsActive       bool            `db:"is_active" json:"is_active"`
-	Theme          json.RawMessage `db:"theme" json:"theme"`
+	ID              int             `db:"id" json:"id"`
+	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
+	Name            string          `db:"name" json:"name"`
+	Slug            string          `db:"slug" json:"slug"`
+	PageTitle       string          `db:"page_title" json:"page_title"`
+	HeaderText      string          `db:"header_text" json:"header_text"`
+	MetaDescription string          `db:"meta_description" json:"meta_description"`
+	LogoURL         string          `db:"logo_url" json:"logo_url"`
+	Color           string          `db:"color" json:"color"`
+	NavLinks        json.RawMessage `db:"nav_links" json:"nav_links"`
+	CustomCSS       string          `db:"custom_css" json:"custom_css"`
+	CustomJS        string          `db:"custom_js" json:"custom_js"`
+	ViewCount       int             `db:"view_count" json:"view_count"`
+	DefaultLocale   string          `db:"default_locale" json:"default_locale"`
+	AllowedLocales  json.RawMessage `db:"allowed_locales" json:"allowed_locales"`
+	IsActive        bool            `db:"is_active" json:"is_active"`
+	Theme           json.RawMessage `db:"theme" json:"theme"`
 }
 
 // Theme holds the customizable branding for a help center's public pages.
@@ -40,14 +41,30 @@ type Theme struct {
 	FooterLinks []NavLink    `json:"footer_links"`
 	SocialLinks []SocialLink `json:"social_links"`
 	Article     ArticleTheme `json:"article"`
+	Layout      LayoutTheme  `json:"layout"`
+	Cards       CardTheme    `json:"cards"`
 }
 
 type HeaderTheme struct {
-	BackgroundType  string `json:"background_type"` // "solid" | "gradient"
+	BackgroundType  string `json:"background_type"` // "solid" | "gradient" | "image"
 	BackgroundColor string `json:"background_color"`
 	GradientFrom    string `json:"gradient_from"`
 	GradientTo      string `json:"gradient_to"`
+	BackgroundImage string `json:"background_image"`
 	TextColor       string `json:"text_color"`
+}
+
+type LayoutTheme struct {
+	Collections string `json:"collections"` // "grid" (default) | "list"
+	Columns     int    `json:"columns"`     // grid columns: 2 (default) | 3
+}
+
+// CardTheme uses hide-flags for what renders today and show-flags for opt-ins, so an
+// empty theme keeps the current look.
+type CardTheme struct {
+	HideDescription bool `json:"hide_description"`
+	HideCount       bool `json:"hide_count"`
+	ShowAuthors     bool `json:"show_authors"`
 }
 
 type FooterTheme struct {
@@ -63,8 +80,9 @@ type SocialLink struct {
 
 // ArticleTheme uses hide-flags so an empty theme shows everything by default.
 type ArticleTheme struct {
-	HideToc     bool `json:"hide_toc"`
-	HideRelated bool `json:"hide_related"`
+	HideToc          bool `json:"hide_toc"`
+	HideRelated      bool `json:"hide_related"`
+	ShowAuthorAvatar bool `json:"show_author_avatar"`
 }
 
 type Collection struct {
@@ -77,6 +95,7 @@ type Collection struct {
 	Locale       string    `db:"locale" json:"locale"`
 	Name         string    `db:"name" json:"name"`
 	Description  string    `db:"description" json:"description"`
+	Icon         string    `db:"icon" json:"icon"`
 	SortOrder    int       `db:"sort_order" json:"sort_order"`
 	IsPublished  bool      `db:"is_published" json:"is_published"`
 }
@@ -88,6 +107,7 @@ type Article struct {
 	CollectionID    int       `db:"collection_id" json:"collection_id"`
 	AuthorID        *int64    `db:"author_id" json:"author_id"`
 	AuthorName      *string   `db:"author_name" json:"author_name"`
+	AuthorAvatar    *string   `db:"author_avatar" json:"author_avatar"`
 	Slug            string    `db:"slug" json:"slug"`
 	Locale          string    `db:"locale" json:"locale"`
 	Title           string    `db:"title" json:"title"`
@@ -115,6 +135,14 @@ type TreeCollection struct {
 	Articles     []Article        `json:"articles"`
 	Children     []TreeCollection `json:"children"`
 	ArticleCount int              `json:"article_count"`
+	Authors      []ArticleAuthor  `json:"authors"`
+	AuthorCount  int              `json:"author_count"`
+}
+
+// ArticleAuthor is a distinct article author shown on collection cards.
+type ArticleAuthor struct {
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
 }
 
 type TreeResponse struct {

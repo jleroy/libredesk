@@ -517,6 +517,11 @@ const updateCollection = (helpCenterId, id, data) =>
 const deleteCollection = (helpCenterId, id) =>
   http.delete(`/api/v1/help-centers/${helpCenterId}/collections/${id}`)
 const toggleCollection = (id) => http.put(`/api/v1/collections/${id}/toggle`)
+const updateCollectionSortOrders = (helpCenterId, data) =>
+  http.put(`/api/v1/help-centers/${helpCenterId}/collection-sort-order`, data)
+const moveArticleToCollection = (id, data) => http.put(`/api/v1/articles/${id}/collection`, data)
+const updateArticleSortOrders = (collectionId, data) =>
+  http.put(`/api/v1/collections/${collectionId}/article-sort-order`, data)
 const getArticles = (collectionId) => http.get(`/api/v1/collections/${collectionId}/articles`)
 const getArticle = (collectionId, id) =>
   http.get(`/api/v1/collections/${collectionId}/articles/${id}`)
@@ -757,6 +762,9 @@ export default {
   updateCollection,
   deleteCollection,
   toggleCollection,
+  updateCollectionSortOrders,
+  updateArticleSortOrders,
+  moveArticleToCollection,
   getArticles,
   getArticle,
   createArticle,

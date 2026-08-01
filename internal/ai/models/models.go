@@ -95,6 +95,7 @@ type HelpArticleItem struct {
 	Content             string `db:"content"`
 	Status              string `db:"status"`
 	AIEnabled           bool   `db:"ai_enabled"`
+	IsReachable         bool   `db:"is_reachable"`
 	EmbeddedFingerprint string `db:"embedded_fingerprint"`
 }
 

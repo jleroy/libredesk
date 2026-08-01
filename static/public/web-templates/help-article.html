@@ -13,12 +13,15 @@
 
 <article class="hc-article">
     <h1>{{ .Data.Article.Title }}</h1>
-    <div class="hc-meta">
-        {{ if .Data.Article.AuthorName }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ L.T "globals.terms.lastUpdated" }} {{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}
+    <div class="hc-meta{{ if and .Data.HelpCenter.Theme.Article.ShowAuthorAvatar .Data.Article.AuthorName }} hc-meta-byline{{ end }}">
+        {{ if and .Data.HelpCenter.Theme.Article.ShowAuthorAvatar .Data.Article.AuthorName }}
+        {{ if .Data.Article.AuthorAvatar }}<img class="hc-avatar hc-byline-avatar" src="{{ .Data.Article.AuthorAvatar }}" alt="" loading="lazy" />{{ else }}<span class="hc-avatar hc-avatar-initial hc-byline-avatar">{{ .Data.AuthorInitial }}</span>{{ end }}
+        {{ end }}
+        <span>{{ if .Data.Article.AuthorName }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ $.L.T "globals.terms.lastUpdated" }} <time datetime="{{ .Data.ModifiedTime }}">{{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}</time></span>
     </div>
     {{ if not .Data.HelpCenter.Theme.Article.HideToc }}
-    <nav class="hc-toc" id="hc-toc" aria-label="{{ L.T "helpCenter.onThisPage" }}" hidden>
-        <p class="hc-toc-title">{{ L.T "helpCenter.onThisPage" }}</p>
+    <nav class="hc-toc" id="hc-toc" aria-label="{{ $.L.T "helpCenter.onThisPage" }}" hidden>
+        <p class="hc-toc-title">{{ $.L.T "helpCenter.onThisPage" }}</p>
         <ul></ul>
     </nav>
     {{ end }}
@@ -26,15 +29,15 @@
 </article>
 
 <div class="hc-helpful" id="hc-helpful" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback">
-    <span class="hc-helpful-q">{{ L.T "helpCenter.wasHelpful" }}</span>
-    <button type="button" data-helpful="true">{{ L.T "globals.messages.yes" }}</button>
-    <button type="button" data-helpful="false">{{ L.T "globals.messages.no" }}</button>
-    <span class="hc-helpful-thanks" hidden>{{ L.T "helpCenter.feedbackThanks" }}</span>
+    <span class="hc-helpful-q">{{ $.L.T "helpCenter.wasHelpful" }}</span>
+    <button type="button" data-helpful="true">{{ $.L.T "globals.messages.yes" }}</button>
+    <button type="button" data-helpful="false">{{ $.L.T "globals.messages.no" }}</button>
+    <span class="hc-helpful-thanks" hidden>{{ $.L.T "helpCenter.feedbackThanks" }}</span>
 </div>
 
 {{ if and .Data.Related (not .Data.HelpCenter.Theme.Article.HideRelated) }}
 <aside class="hc-related">
-    <p class="hc-eyebrow">{{ L.T "helpCenter.moreInCollection" }}</p>
+    <p class="hc-eyebrow">{{ $.L.T "helpCenter.moreInCollection" }}</p>
     <ul class="hc-article-list">
         {{ range .Data.Related }}
         <li><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}</a></li>
@@ -72,6 +75,7 @@
         var key = 'hc-feedback:' + box.dataset.endpoint;
         var done = function () {
             box.querySelectorAll('button').forEach(function (b) { b.hidden = true; });
+            box.querySelector('.hc-helpful-q').hidden = true;
             box.querySelector('.hc-helpful-thanks').hidden = false;
         };
         if (localStorage.getItem(key)) { done(); }

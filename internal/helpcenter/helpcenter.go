@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -26,6 +27,8 @@ const (
 	defaultLocale      = "en"
 	defaultAccentColor = "#1f93ff"
 	excerptLimit       = 160
+	maxCardAuthors     = 3
+	maxSearchQueryLen  = 200
 )
 
 var (
@@ -35,7 +38,17 @@ var (
 	// reservedSlugs collide with public help center routes.
 	reservedSlugs = []string{"articles", "search", "api", "sitemap.xml"}
 
+	headerBackgroundTypes = []string{"solid", "gradient", "image"}
+
 	hexColorRe = regexp.MustCompile(`^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$`)
+
+	// assetURLRe accepts http(s) and root-relative URLs; quotes, parens, whitespace, angle
+	// brackets and CSS block punctuation are excluded so a value can never escape a CSS
+	// url(), a <style> block or an HTML attribute.
+	assetURLRe = regexp.MustCompile(`^(?:https?://|/)[^"'()\s\\<>;{}]+$`)
+
+	// iconNameRe matches lucide icon slugs, e.g. "rocket", "user-check".
+	iconNameRe = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
 
 	ilikeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
@@ -55,19 +68,23 @@ type ArticleIndexer interface {
 	RemoveHelpArticleEmbeddings(articleID int) error
 }
 
+// collectionGetter fetches a collection, optionally inside a transaction that locks the row.
+type collectionGetter func(id int) (models.Collection, error)
+
 type HelpCenterRequest struct {
-	Name           string          `json:"name"`
-	Slug           string          `json:"slug"`
-	PageTitle      string          `json:"page_title"`
-	HeaderText     string          `json:"header_text"`
-	LogoURL        string          `json:"logo_url"`
-	Color          string          `json:"color"`
-	NavLinks       json.RawMessage `json:"nav_links"`
-	CustomCSS      string          `json:"custom_css"`
-	CustomJS       string          `json:"custom_js"`
-	DefaultLocale  string          `json:"default_locale"`
-	AllowedLocales json.RawMessage `json:"allowed_locales"`
-	Theme          json.RawMessage `json:"theme"`
+	Name            string          `json:"name"`
+	Slug            string          `json:"slug"`
+	PageTitle       string          `json:"page_title"`
+	HeaderText      string          `json:"header_text"`
+	MetaDescription string          `json:"meta_description"`
+	LogoURL         string          `json:"logo_url"`
+	Color           string          `json:"color"`
+	NavLinks        json.RawMessage `json:"nav_links"`
+	CustomCSS       string          `json:"custom_css"`
+	CustomJS        string          `json:"custom_js"`
+	DefaultLocale   string          `json:"default_locale"`
+	AllowedLocales  json.RawMessage `json:"allowed_locales"`
+	Theme           json.RawMessage `json:"theme"`
 }
 
 type CollectionRequest struct {
@@ -76,6 +93,7 @@ type CollectionRequest struct {
 	Locale      string `json:"locale"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Icon        string `json:"icon"`
 	SortOrder   int    `json:"sort_order"`
 	IsPublished bool   `json:"is_published"`
 }
@@ -97,6 +115,7 @@ type ArticleRequest struct {
 }
 
 type Manager struct {
+	db      *sqlx.DB
 	q       queries
 	lo      *logf.Logger
 	i18n    *i18n.I18n
@@ -113,16 +132,21 @@ type Opts struct {
 
 // queries contains prepared SQL queries.
 type queries struct {
-	GetAllHelpCenters   *sqlx.Stmt `query:"get-all-help-centers"`
-	GetHelpCenterByID   *sqlx.Stmt `query:"get-help-center-by-id"`
-	GetHelpCenterBySlug *sqlx.Stmt `query:"get-help-center-by-slug"`
-	InsertHelpCenter    *sqlx.Stmt `query:"insert-help-center"`
-	UpdateHelpCenter    *sqlx.Stmt `query:"update-help-center"`
-	ToggleHelpCenter    *sqlx.Stmt `query:"toggle-help-center-active"`
-	DeleteHelpCenter    *sqlx.Stmt `query:"delete-help-center"`
+	GetAllHelpCenters    *sqlx.Stmt `query:"get-all-help-centers"`
+	GetActiveHelpCenters *sqlx.Stmt `query:"get-active-help-centers"`
+	GetHelpCenterByID    *sqlx.Stmt `query:"get-help-center-by-id"`
+	GetHelpCenterBySlug  *sqlx.Stmt `query:"get-help-center-by-slug"`
+	InsertHelpCenter     *sqlx.Stmt `query:"insert-help-center"`
+	UpdateHelpCenter     *sqlx.Stmt `query:"update-help-center"`
+	ToggleHelpCenter     *sqlx.Stmt `query:"toggle-help-center-active"`
+	DeleteHelpCenter     *sqlx.Stmt `query:"delete-help-center"`
 
 	GetCollectionsByHelpCenter *sqlx.Stmt `query:"get-collections-by-help-center"`
 	GetCollectionByID          *sqlx.Stmt `query:"get-collection-by-id"`
+	GetCollectionByIDForUpdate *sqlx.Stmt `query:"get-collection-by-id-for-update"`
+	GetCollectionSubtreeDepth  *sqlx.Stmt `query:"get-collection-subtree-depth"`
+	GetSubtreeArticleIDs       *sqlx.Stmt `query:"get-article-ids-in-collection-subtree"`
+	UpdateCollectionSortOrder  *sqlx.Stmt `query:"update-collection-sort-order"`
 	InsertCollection           *sqlx.Stmt `query:"insert-collection"`
 	UpdateCollection           *sqlx.Stmt `query:"update-collection"`
 	ToggleCollectionPublished  *sqlx.Stmt `query:"toggle-collection-published"`
@@ -133,12 +157,17 @@ type queries struct {
 	InsertArticle                 *sqlx.Stmt `query:"insert-article"`
 	UpdateArticle                 *sqlx.Stmt `query:"update-article"`
 	ArticleSlugExistsInHelpCenter *sqlx.Stmt `query:"article-slug-exists-in-help-center"`
+	OtherArticleSlugExists        *sqlx.Stmt `query:"other-article-slug-exists-in-help-center"`
+	MoveArticleToCollection       *sqlx.Stmt `query:"move-article-to-collection"`
+	UpdateArticleSortOrder        *sqlx.Stmt `query:"update-article-sort-order"`
 	UpdateArticleStatus           *sqlx.Stmt `query:"update-article-status"`
 	DeleteArticle                 *sqlx.Stmt `query:"delete-article"`
 
 	GetHelpCenterTreeData            *sqlx.Stmt `query:"get-help-center-tree-data"`
 	GetPublicTreeData                *sqlx.Stmt `query:"get-public-tree-data"`
 	GetPublishedArticleBySlug        *sqlx.Stmt `query:"get-published-article-by-slug"`
+	GetPublishedArticleLocales       *sqlx.Stmt `query:"get-published-article-locales"`
+	GetPublishedCollectionLocales    *sqlx.Stmt `query:"get-published-collection-locales"`
 	GetPublishedArticles             *sqlx.Stmt `query:"get-published-articles"`
 	GetPublishedArticlesByCollection *sqlx.Stmt `query:"get-published-articles-by-collection"`
 	SearchPublishedArticles          *sqlx.Stmt `query:"search-published-articles"`
@@ -158,6 +187,7 @@ func New(opts Opts) (*Manager, error) {
 		return nil, err
 	}
 	return &Manager{
+		db:      opts.DB,
 		q:       q,
 		lo:      opts.Lo,
 		i18n:    opts.I18n,
@@ -170,6 +200,16 @@ func (m *Manager) GetAllHelpCenters() ([]models.HelpCenter, error) {
 	var helpCenters = make([]models.HelpCenter, 0)
 	if err := m.q.GetAllHelpCenters.Select(&helpCenters); err != nil {
 		m.lo.Error("error fetching help centers", "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return helpCenters, nil
+}
+
+// GetActiveHelpCenters retrieves the help centers whose public pages are live.
+func (m *Manager) GetActiveHelpCenters() ([]models.HelpCenter, error) {
+	var helpCenters = make([]models.HelpCenter, 0)
+	if err := m.q.GetActiveHelpCenters.Select(&helpCenters); err != nil {
+		m.lo.Error("error fetching active help centers", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return helpCenters, nil
@@ -211,7 +251,7 @@ func (m *Manager) CreateHelpCenter(req HelpCenterRequest) (models.HelpCenter, er
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
-	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme); err != nil {
+	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -231,7 +271,7 @@ func (m *Manager) UpdateHelpCenter(id int, req HelpCenterRequest) (models.HelpCe
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
-	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme); err != nil {
+	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -290,14 +330,15 @@ func (m *Manager) CreateCollection(helpCenterID int, req CollectionRequest) (mod
 		return collection, err
 	}
 	if req.ParentID != nil {
-		if err := m.validateCollectionParent(*req.ParentID, 0, helpCenterID); err != nil {
+		if err := m.validateCollectionParent(m.GetCollectionByID, *req.ParentID, 0, helpCenterID, req.Locale); err != nil {
 			return collection, err
 		}
 	}
 	if req.Locale == "" {
 		req.Locale = defaultLocale
 	}
-	if err := m.q.InsertCollection.Get(&collection, helpCenterID, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.SortOrder, req.IsPublished); err != nil {
+	req.Icon = sanitizeIconName(req.Icon)
+	if err := m.q.InsertCollection.Get(&collection, helpCenterID, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.Icon, req.SortOrder, req.IsPublished); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return collection, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -307,32 +348,58 @@ func (m *Manager) CreateCollection(helpCenterID int, req CollectionRequest) (mod
 	return collection, nil
 }
 
-// UpdateCollection updates a collection.
+// UpdateCollection updates a collection. The parent check and the write share one
+// transaction that locks the ancestor walk, so two simultaneous re-parents cannot form a cycle.
 func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collection, error) {
 	var collection models.Collection
 	if err := m.validateSlug(req.Slug); err != nil {
 		return collection, err
 	}
-	if req.ParentID != nil {
-		existing, err := m.GetCollectionByID(id)
-		if err != nil {
-			return collection, err
-		}
-		if err := m.validateCollectionParent(*req.ParentID, id, existing.HelpCenterID); err != nil {
-			return collection, err
-		}
-	}
 	if req.Locale == "" {
 		req.Locale = defaultLocale
 	}
-	if err := m.q.UpdateCollection.Get(&collection, id, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.SortOrder, req.IsPublished); err != nil {
+	req.Icon = sanitizeIconName(req.Icon)
+
+	tx, err := m.db.Beginx()
+	if err != nil {
+		m.lo.Error("error starting transaction", "error", err)
+		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
+
+	if req.ParentID != nil {
+		get := m.lockedCollectionGetter(tx)
+		existing, err := get(id)
+		if err != nil {
+			return collection, err
+		}
+		if err := m.validateCollectionParent(get, *req.ParentID, id, existing.HelpCenterID, req.Locale); err != nil {
+			return collection, err
+		}
+	}
+	if err := tx.Stmtx(m.q.UpdateCollection).Get(&collection, id, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.Icon, req.SortOrder, req.IsPublished); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return collection, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
 		m.lo.Error("error updating collection", "error", err, "id", id)
 		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	if err := tx.Commit(); err != nil {
+		m.lo.Error("error committing collection update", "error", err, "id", id)
+		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
 	return collection, nil
+}
+
+// UpdateCollectionSortOrders sets the sort order of the given collections in a help center.
+func (m *Manager) UpdateCollectionSortOrders(helpCenterID int, orders map[int]int) error {
+	for id, order := range orders {
+		if _, err := m.q.UpdateCollectionSortOrder.Exec(id, helpCenterID, order); err != nil {
+			m.lo.Error("error updating collection sort order", "error", err, "id", id)
+			return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
+	}
+	return nil
 }
 
 // ToggleCollectionPublished toggles the published status of a collection.
@@ -342,7 +409,24 @@ func (m *Manager) ToggleCollectionPublished(id int) (models.Collection, error) {
 		m.lo.Error("error toggling collection published status", "error", err, "id", id)
 		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	// Publishing state decides whether the articles below are reachable, and only reachable
+	// articles may be indexed for the AI agent.
+	m.reindexSubtreeArticles(id)
 	return collection, nil
+}
+
+func (m *Manager) reindexSubtreeArticles(collectionID int) {
+	if m.indexer == nil {
+		return
+	}
+	var ids []int
+	if err := m.q.GetSubtreeArticleIDs.Select(&ids, collectionID); err != nil {
+		m.lo.Error("error fetching collection subtree articles", "error", err, "collection_id", collectionID)
+		return
+	}
+	for _, id := range ids {
+		m.indexer.ReindexHelpArticle(id)
+	}
 }
 
 // DeleteCollection deletes a collection by ID.
@@ -389,6 +473,9 @@ func (m *Manager) CreateArticle(collectionID int, req ArticleRequest) (models.Ar
 	if req.Locale == "" {
 		req.Locale = defaultLocale
 	}
+	if err := m.validateArticleCollectionLocale(collectionID, req.Locale); err != nil {
+		return article, err
+	}
 	slug, err := m.uniqueArticleSlug(collectionID, req.Slug, req.Locale)
 	if err != nil {
 		return article, err
@@ -419,6 +506,25 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 	if req.Locale == "" {
 		req.Locale = defaultLocale
 	}
+	existing, err := m.GetArticleByID(id)
+	if err != nil {
+		return article, err
+	}
+	collectionID := existing.CollectionID
+	if req.CollectionID != nil {
+		collectionID = *req.CollectionID
+		if err := m.validateArticleCollectionLocale(collectionID, req.Locale); err != nil {
+			return article, err
+		}
+	}
+	var slugTaken bool
+	if err := m.q.OtherArticleSlugExists.Get(&slugTaken, collectionID, req.Slug, req.Locale, id); err != nil {
+		m.lo.Error("error checking article slug uniqueness", "error", err, "id", id, "slug", req.Slug)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if slugTaken {
+		return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
+	}
 	req.Content = articleSanitizer.Sanitize(req.Content)
 	req.Excerpt = resolveExcerpt(req.Excerpt, req.Content)
 	if err := m.q.UpdateArticle.Get(&article, id, req.Slug, req.Locale, req.Title, req.Content, req.SortOrder, req.Status, req.AIEnabled, req.CollectionID, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL); err != nil {
@@ -430,6 +536,55 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 	}
 	m.reindexArticle(article.ID)
 	return article, nil
+}
+
+// MoveArticle moves an article to another collection, rejecting a slug that is already
+// taken in the target collection's help center.
+func (m *Manager) MoveArticle(id, collectionID int) (models.Article, error) {
+	var article models.Article
+	existing, err := m.GetArticleByID(id)
+	if err != nil {
+		return article, err
+	}
+	source, err := m.GetCollectionByID(existing.CollectionID)
+	if err != nil {
+		return article, err
+	}
+	target, err := m.GetCollectionByID(collectionID)
+	if err != nil {
+		return article, err
+	}
+	if target.HelpCenterID != source.HelpCenterID {
+		return article, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidCollection"), nil)
+	}
+	if target.Locale != existing.Locale {
+		return article, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.collectionLocaleMismatch"), nil)
+	}
+	var slugTaken bool
+	if err := m.q.OtherArticleSlugExists.Get(&slugTaken, collectionID, existing.Slug, existing.Locale, id); err != nil {
+		m.lo.Error("error checking article slug uniqueness", "error", err, "id", id)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if slugTaken {
+		return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
+	}
+	if err := m.q.MoveArticleToCollection.Get(&article, id, collectionID); err != nil {
+		m.lo.Error("error moving article", "error", err, "id", id, "collection_id", collectionID)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	m.reindexArticle(article.ID)
+	return article, nil
+}
+
+// UpdateArticleSortOrders sets the sort order of the given articles in a collection.
+func (m *Manager) UpdateArticleSortOrders(collectionID int, orders map[int]int) error {
+	for id, order := range orders {
+		if _, err := m.q.UpdateArticleSortOrder.Exec(id, collectionID, order); err != nil {
+			m.lo.Error("error updating article sort order", "error", err, "id", id)
+			return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
+	}
+	return nil
 }
 
 // UpdateArticleStatus updates the status of an article.
@@ -496,7 +651,7 @@ func (m *Manager) GetPublicTree(helpCenter models.HelpCenter, locale string) (mo
 	return models.TreeResponse{HelpCenter: helpCenter, Tree: tree}, nil
 }
 
-// GetPublishedArticle retrieves a published article by help center slug and article slug, preferring locale (empty = any).
+// GetPublishedArticle retrieves a published article by help center slug and article slug, restricted to locale (empty = any).
 func (m *Manager) GetPublishedArticle(helpCenterSlug, articleSlug, locale string) (models.Article, error) {
 	var article models.Article
 	if err := m.q.GetPublishedArticleBySlug.Get(&article, helpCenterSlug, articleSlug, locale); err != nil {
@@ -519,20 +674,40 @@ func (m *Manager) GetPopularArticles(helpCenterSlug, locale string, limit int) (
 	return articles, nil
 }
 
-// GetPublishedArticlesByCollection returns published articles in a collection, excluding one article.
-func (m *Manager) GetPublishedArticlesByCollection(collectionID, excludeArticleID, limit int) ([]models.Article, error) {
+// GetPublishedArticlesByCollection returns published articles in a collection, excluding one article, filtered to locale (empty = all).
+func (m *Manager) GetPublishedArticlesByCollection(collectionID, excludeArticleID int, locale string, limit int) ([]models.Article, error) {
 	var articles = make([]models.Article, 0)
-	if err := m.q.GetPublishedArticlesByCollection.Select(&articles, collectionID, excludeArticleID, limit); err != nil {
+	if err := m.q.GetPublishedArticlesByCollection.Select(&articles, collectionID, excludeArticleID, locale, limit); err != nil {
 		m.lo.Error("error fetching collection articles", "error", err, "collection_id", collectionID)
 		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return articles, nil
 }
 
+// GetPublishedArticleLocales returns the locales a published article with the given slug exists in.
+func (m *Manager) GetPublishedArticleLocales(helpCenterSlug, articleSlug string) ([]string, error) {
+	var locales = make([]string, 0)
+	if err := m.q.GetPublishedArticleLocales.Select(&locales, helpCenterSlug, articleSlug); err != nil {
+		m.lo.Error("error fetching article locales", "error", err, "help_center_slug", helpCenterSlug, "article_slug", articleSlug)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return locales, nil
+}
+
+// GetPublishedCollectionLocales returns the locales a published collection with the given slug exists in.
+func (m *Manager) GetPublishedCollectionLocales(helpCenterSlug, collectionSlug string) ([]string, error) {
+	var locales = make([]string, 0)
+	if err := m.q.GetPublishedCollectionLocales.Select(&locales, helpCenterSlug, collectionSlug); err != nil {
+		m.lo.Error("error fetching collection locales", "error", err, "help_center_slug", helpCenterSlug, "collection_slug", collectionSlug)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return locales, nil
+}
+
 // SearchPublishedArticles searches published articles in a help center, content trimmed to an excerpt, filtered to locale (empty = all).
 func (m *Manager) SearchPublishedArticles(helpCenterSlug, query, locale string, limit int) ([]models.Article, error) {
 	var articles = make([]models.Article, 0)
-	query = ilikeEscaper.Replace(query)
+	query = ilikeEscaper.Replace(truncateRunes(query, maxSearchQueryLen))
 	if err := m.q.SearchPublishedArticles.Select(&articles, helpCenterSlug, query, limit, locale); err != nil {
 		m.lo.Error("error searching published articles", "error", err, "help_center_slug", helpCenterSlug)
 		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
@@ -565,7 +740,7 @@ func (m *Manager) RecordArticleFeedback(articleID int, isHelpful bool) error {
 
 // LogSearch records a public search term and how many results it returned.
 func (m *Manager) LogSearch(helpCenterID int, query string, resultsCount int) {
-	query = strings.TrimSpace(query)
+	query = truncateRunes(strings.TrimSpace(query), maxSearchQueryLen)
 	if query == "" {
 		return
 	}
@@ -607,6 +782,7 @@ func (m *Manager) scanTree(rows *sql.Rows) ([]models.TreeCollection, error) {
 			locale       string
 			name         string
 			description  *string
+			icon         *string
 			sortOrder    int
 			isPublished  *bool
 			collectionID *int
@@ -615,8 +791,10 @@ func (m *Manager) scanTree(rows *sql.Rows) ([]models.TreeCollection, error) {
 			status       *string
 			viewCount    *int
 			aiEnabled    *bool
+			authorName   *string
+			authorAvatar *string
 		)
-		if err := rows.Scan(&itemType, &id, &createdAt, &updatedAt, &helpCenterID, &slug, &parentID, &locale, &name, &description, &sortOrder, &isPublished, &collectionID, &title, &content, &status, &viewCount, &aiEnabled); err != nil {
+		if err := rows.Scan(&itemType, &id, &createdAt, &updatedAt, &helpCenterID, &slug, &parentID, &locale, &name, &description, &icon, &sortOrder, &isPublished, &collectionID, &title, &content, &status, &viewCount, &aiEnabled, &authorName, &authorAvatar); err != nil {
 			m.lo.Error("error scanning tree data", "error", err)
 			return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
@@ -626,6 +804,10 @@ func (m *Manager) scanTree(rows *sql.Rows) ([]models.TreeCollection, error) {
 			desc := ""
 			if description != nil {
 				desc = *description
+			}
+			ic := ""
+			if icon != nil {
+				ic = *icon
 			}
 			collections[id] = &models.TreeCollection{
 				Collection: models.Collection{
@@ -638,6 +820,7 @@ func (m *Manager) scanTree(rows *sql.Rows) ([]models.TreeCollection, error) {
 					Locale:       locale,
 					Name:         name,
 					Description:  desc,
+					Icon:         ic,
 					SortOrder:    sortOrder,
 					IsPublished:  isPublished != nil && *isPublished,
 				},
@@ -677,6 +860,8 @@ func (m *Manager) scanTree(rows *sql.Rows) ([]models.TreeCollection, error) {
 			if aiEnabled != nil {
 				article.AIEnabled = *aiEnabled
 			}
+			article.AuthorName = authorName
+			article.AuthorAvatar = authorAvatar
 			collection.Articles = append(collection.Articles, article)
 		}
 	}
@@ -711,8 +896,45 @@ func (m *Manager) scanTree(rows *sql.Rows) ([]models.TreeCollection, error) {
 		return total
 	}
 	fillCounts(tree)
+	fillAuthors(tree)
 
 	return tree, nil
+}
+
+// fillAuthors aggregates the distinct article authors of each collection and its
+// descendants, keeping at most maxCardAuthors for the avatar stack.
+func fillAuthors(cols []models.TreeCollection) {
+	var collect func(col *models.TreeCollection) map[string]models.ArticleAuthor
+	collect = func(col *models.TreeCollection) map[string]models.ArticleAuthor {
+		authors := map[string]models.ArticleAuthor{}
+		for _, a := range col.Articles {
+			if a.AuthorName == nil || strings.TrimSpace(*a.AuthorName) == "" {
+				continue
+			}
+			author := models.ArticleAuthor{Name: strings.TrimSpace(*a.AuthorName)}
+			if a.AuthorAvatar != nil {
+				author.Avatar = *a.AuthorAvatar
+			}
+			authors[author.Name] = author
+		}
+		for i := range col.Children {
+			for name, author := range collect(&col.Children[i]) {
+				authors[name] = author
+			}
+		}
+		col.AuthorCount = len(authors)
+		col.Authors = col.Authors[:0]
+		for _, name := range slices.Sorted(maps.Keys(authors)) {
+			if len(col.Authors) == maxCardAuthors {
+				break
+			}
+			col.Authors = append(col.Authors, authors[name])
+		}
+		return authors
+	}
+	for i := range cols {
+		collect(&cols[i])
+	}
 }
 
 // reindexArticle asks the AI indexer to re-sync an article's embeddings.
@@ -722,21 +944,40 @@ func (m *Manager) reindexArticle(id int) {
 	}
 }
 
-// validateCollectionParent rejects parents that nest deeper than maxCollectionDepth,
-// belong to another help center, or would make the collection its own ancestor.
-func (m *Manager) validateCollectionParent(parentID, selfID, helpCenterID int) error {
+// lockedCollectionGetter returns a getter that reads collections through tx with FOR UPDATE.
+func (m *Manager) lockedCollectionGetter(tx *sqlx.Tx) collectionGetter {
+	return func(id int) (models.Collection, error) {
+		var collection models.Collection
+		if err := tx.Stmtx(m.q.GetCollectionByIDForUpdate).Get(&collection, id); err != nil {
+			if err == sql.ErrNoRows {
+				return collection, envelope.NewError(envelope.NotFoundError, m.i18n.T("globals.messages.notFound"), nil)
+			}
+			m.lo.Error("error locking collection", "error", err, "id", id)
+			return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
+		return collection, nil
+	}
+}
+
+// validateCollectionParent rejects parents that belong to another help center, use another
+// language, would make the collection its own ancestor, or would push the collection's own
+// descendants past maxCollectionDepth.
+func (m *Manager) validateCollectionParent(get collectionGetter, parentID, selfID, helpCenterID int, locale string) error {
 	depth := 2
 	currentID := parentID
 	for {
 		if currentID == selfID {
 			return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidParent"), nil)
 		}
-		parent, err := m.GetCollectionByID(currentID)
+		parent, err := get(currentID)
 		if err != nil {
 			return err
 		}
 		if parent.HelpCenterID != helpCenterID {
 			return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidParent"), nil)
+		}
+		if parent.Locale != locale {
+			return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.parentLocaleMismatch"), nil)
 		}
 		if parent.ParentID == nil {
 			break
@@ -746,6 +987,38 @@ func (m *Manager) validateCollectionParent(parentID, selfID, helpCenterID int) e
 		if depth > maxCollectionDepth {
 			return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.maxDepthReached"), nil)
 		}
+	}
+	if selfID == 0 {
+		return nil
+	}
+	subtreeDepth, err := m.collectionSubtreeDepth(selfID)
+	if err != nil {
+		return err
+	}
+	if depth+subtreeDepth-1 > maxCollectionDepth {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.maxDepthReached"), nil)
+	}
+	return nil
+}
+
+// collectionSubtreeDepth returns how many levels the collection spans, itself counting as one.
+func (m *Manager) collectionSubtreeDepth(id int) (int, error) {
+	var depth int
+	if err := m.q.GetCollectionSubtreeDepth.Get(&depth, id); err != nil {
+		m.lo.Error("error fetching collection subtree depth", "error", err, "id", id)
+		return 0, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return depth, nil
+}
+
+// validateArticleCollectionLocale rejects a collection in a different language than the article.
+func (m *Manager) validateArticleCollectionLocale(collectionID int, locale string) error {
+	collection, err := m.GetCollectionByID(collectionID)
+	if err != nil {
+		return err
+	}
+	if collection.Locale != locale {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.collectionLocaleMismatch"), nil)
 	}
 	return nil
 }
@@ -826,11 +1099,18 @@ func normalizeTheme(raw json.RawMessage) json.RawMessage {
 	t.Header.BackgroundColor = sanitizeHexColor(t.Header.BackgroundColor)
 	t.Header.GradientFrom = sanitizeHexColor(t.Header.GradientFrom)
 	t.Header.GradientTo = sanitizeHexColor(t.Header.GradientTo)
+	t.Header.BackgroundImage = sanitizeAssetURL(t.Header.BackgroundImage)
 	t.Header.TextColor = sanitizeHexColor(t.Header.TextColor)
 	t.Footer.BackgroundColor = sanitizeHexColor(t.Footer.BackgroundColor)
 	t.Footer.TextColor = sanitizeHexColor(t.Footer.TextColor)
-	if t.Header.BackgroundType != "gradient" && t.Header.BackgroundType != "solid" {
+	if !slices.Contains(headerBackgroundTypes, t.Header.BackgroundType) {
 		t.Header.BackgroundType = ""
+	}
+	if t.Layout.Collections != "list" {
+		t.Layout.Collections = ""
+	}
+	if t.Layout.Columns != 2 && t.Layout.Columns != 3 {
+		t.Layout.Columns = 0
 	}
 	b, err := json.Marshal(t)
 	if err != nil {
@@ -844,6 +1124,22 @@ func sanitizeHexColor(c string) string {
 		return ""
 	}
 	return c
+}
+
+func sanitizeAssetURL(u string) string {
+	u = strings.TrimSpace(u)
+	if !assetURLRe.MatchString(u) {
+		return ""
+	}
+	return u
+}
+
+func sanitizeIconName(n string) string {
+	n = strings.TrimSpace(n)
+	if !iconNameRe.MatchString(n) {
+		return ""
+	}
+	return n
 }
 
 // normalizeLocales trims/dedupes locale codes and guarantees the default locale is present and first.
@@ -883,9 +1179,19 @@ func resolveExcerpt(excerpt, htmlContent string) string {
 	return text
 }
 
+func truncateRunes(s string, limit int) string {
+	runes := []rune(s)
+	if len(runes) <= limit {
+		return s
+	}
+	return string(runes[:limit])
+}
+
 // buildArticleSanitizer returns the HTML sanitization policy for article content.
 func buildArticleSanitizer() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
+	// Links off the help center open in a new tab; bluemonday adds rel="noopener" with it.
+	p.AddTargetBlankToFullyQualifiedLinks(true)
 	p.AllowAttrs("class").OnElements("img", "pre", "code", "div", "span", "p")
 	p.AllowAttrs("class").Matching(articleButtonClassRe).OnElements("a")
 	// Collapsible sections render as native <details>/<summary>.

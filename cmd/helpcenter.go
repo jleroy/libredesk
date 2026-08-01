@@ -5,15 +5,19 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html/template"
+	"log"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/helpcenter"
 	hcmodels "github.com/abhinavxd/libredesk/internal/helpcenter/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
+	"github.com/knadh/stuffbin"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
 )
@@ -22,9 +26,42 @@ const (
 	publicSearchLimit     = 20
 	popularArticlesLimit  = 6
 	relatedArticlesLimit  = 5
-	sitemapArticlesLimit  = 5000
 	insightsTermLimit     = 20
 	markdownSlugExtension = ".md"
+
+	// sitemapURLLimit is the per-sitemap URL cap set by the sitemap protocol.
+	sitemapURLLimit = 50000
+
+	sitemapNamespace = "http://www.sitemaps.org/schemas/sitemap/0.9"
+	sitemapDate      = "2006-01-02"
+	schemaOrgContext = "https://schema.org"
+
+	helpCenterCacheControl = "public, max-age=300, stale-while-revalidate=3600"
+
+	noIndexHeader = "noindex"
+
+	lucideSpritePath = "/static/public/static/lucide-sprite.svg"
+)
+
+var (
+	// crawlerUARe matches search and preview bots, whose hits must not count as reader views.
+	crawlerUARe = regexp.MustCompile(`(?i)bot\b|bot/|crawler|spider|crawling|slurp|facebookexternalhit|preview|headlesschrome|lighthouse|feedfetcher|python-requests|curl/|wget/`)
+
+	lucideSymbolRe = regexp.MustCompile(`(?s)<symbol id="([a-z0-9-]+)"[^>]*>(.*?)</symbol>`)
+
+	// crawlerDisallowedPaths are the non-public parts of the app served on the same host as
+	// the help center. /uploads is deliberately absent: article images live there and have
+	// to stay crawlable for image search and social previews.
+	crawlerDisallowedPaths = []string{
+		"/api/",
+		"/assets/",
+		"/login",
+		"/logout",
+		"/reset-password",
+		"/set-password",
+		"/csat/",
+		"/hc/*/*/search",
+	}
 )
 
 type sitemapURL struct {
@@ -36,6 +73,22 @@ type urlset struct {
 	XMLName xml.Name     `xml:"urlset"`
 	Xmlns   string       `xml:"xmlns,attr"`
 	URLs    []sitemapURL `xml:"url"`
+}
+
+type sitemapRef struct {
+	Loc string `xml:"loc"`
+}
+
+type sitemapIndex struct {
+	XMLName  xml.Name     `xml:"sitemapindex"`
+	Xmlns    string       `xml:"xmlns,attr"`
+	Sitemaps []sitemapRef `xml:"sitemap"`
+}
+
+// localeLink is one entry in the language switcher or in the hreflang set.
+type localeLink struct {
+	Locale string
+	Path   string
 }
 
 // handleGetHelpCenters returns all help centers.
@@ -238,6 +291,25 @@ func handleUpdateCollection(r *fastglue.Request) error {
 	return r.SendEnvelope(collection)
 }
 
+// handleUpdateCollectionSortOrders reorders the collections of a help center.
+func handleUpdateCollectionSortOrders(r *fastglue.Request) error {
+	var (
+		app             = r.Context.(*App)
+		helpCenterID, _ = strconv.Atoi(r.RequestCtx.UserValue("hc_id").(string))
+		orders          = make(map[int]int)
+	)
+	if helpCenterID <= 0 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`help_center_id`"), nil, envelope.InputError)
+	}
+	if err := r.Decode(&orders, "json"); err != nil {
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+	}
+	if err := app.helpcenter.UpdateCollectionSortOrders(helpCenterID, orders); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(true)
+}
+
 // handleToggleCollection toggles the published status of a collection.
 func handleToggleCollection(r *fastglue.Request) error {
 	var (
@@ -350,6 +422,50 @@ func handleDeleteArticle(r *fastglue.Request) error {
 }
 
 // handleUpdateArticleStatus updates the status of an article.
+// handleMoveArticle moves an article to another collection.
+func handleMoveArticle(r *fastglue.Request) error {
+	var (
+		app = r.Context.(*App)
+		req = struct {
+			CollectionID int `json:"collection_id"`
+		}{}
+		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
+	)
+	if id <= 0 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+	}
+	if err := r.Decode(&req, "json"); err != nil {
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+	}
+	if req.CollectionID <= 0 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`collection_id`"), nil, envelope.InputError)
+	}
+	article, err := app.helpcenter.MoveArticle(id, req.CollectionID)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(article)
+}
+
+// handleUpdateArticleSortOrders reorders the articles of a collection.
+func handleUpdateArticleSortOrders(r *fastglue.Request) error {
+	var (
+		app             = r.Context.(*App)
+		collectionID, _ = strconv.Atoi(r.RequestCtx.UserValue("col_id").(string))
+		orders          = make(map[int]int)
+	)
+	if collectionID <= 0 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`collection_id`"), nil, envelope.InputError)
+	}
+	if err := r.Decode(&orders, "json"); err != nil {
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+	}
+	if err := app.helpcenter.UpdateArticleSortOrders(collectionID, orders); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(true)
+}
+
 func handleUpdateArticleStatus(r *fastglue.Request) error {
 	var (
 		app = r.Context.(*App)
@@ -384,7 +500,7 @@ func handleRedirectHelpCenterHome(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, nil)
 	}
-	r.RequestCtx.Redirect(fmt.Sprintf("/hc/%s/%s", slug, helpCenter.DefaultLocale), fasthttp.StatusFound)
+	r.RequestCtx.Redirect(helpCenterHomePath(slug, helpCenter.DefaultLocale), fasthttp.StatusMovedPermanently)
 	return nil
 }
 
@@ -410,13 +526,28 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 	if err != nil {
 		popular = nil
 	}
-	app.helpcenter.IncrementHelpCenterViewCount(tree.HelpCenter.ID)
+	if !isCrawler(r) {
+		app.helpcenter.IncrementHelpCenterViewCount(tree.HelpCenter.ID)
+	}
+	var (
+		root            = helpCenterRootURL(app)
+		locales         = helpCenterLocales(helpCenter)
+		pathFor         = func(l string) string { return helpCenterHomePath(helpCenter.Slug, l) }
+		metaDescription = firstNonEmpty(tree.HelpCenter.MetaDescription, tree.HelpCenter.HeaderText)
+	)
 	data := helpCenterTemplateData(tree.HelpCenter, locale)
-	return app.tmpl.RenderWebPage(r.RequestCtx, "help-center", map[string]interface{}{
+	return renderHelpCenterPage(r, "help-center", map[string]interface{}{
+		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
 			"Title":           tree.HelpCenter.PageTitle,
-			"MetaDescription": tree.HelpCenter.HeaderText,
-			"CanonicalPath":   fmt.Sprintf("/hc/%s/%s", tree.HelpCenter.Slug, locale),
+			"MetaDescription": metaDescription,
+			"CanonicalPath":   pathFor(locale),
+			"HeroIsHeading":   true,
+			"OGImage":         absoluteURL(root, tree.HelpCenter.LogoURL),
+			"Alternates":      helpCenterAlternates(helpCenter, locales, pathFor),
+			"XDefaultPath":    pathFor(helpCenter.DefaultLocale),
+			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, locales, pathFor),
+			"JSONLD":          homeJSONLD(root, tree.HelpCenter, locale),
 			"HelpCenter":      data,
 			"Tree":            tree.Tree,
 			"Popular":         popular,
@@ -447,13 +578,27 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 	if collection == nil {
 		return renderHelpCenterNotFound(r, &helpCenter)
 	}
+	translated, err := app.helpcenter.GetPublishedCollectionLocales(slug, collection.Slug)
+	if err != nil {
+		translated = []string{locale}
+	}
+	var (
+		root    = helpCenterRootURL(app)
+		pathFor = func(l string) string { return collectionPath(helpCenter.Slug, l, collection.Slug) }
+	)
 	data := helpCenterTemplateData(helpCenter, locale)
-	return app.tmpl.RenderWebPage(r.RequestCtx, "help-collection", map[string]interface{}{
+	return renderHelpCenterPage(r, "help-collection", map[string]interface{}{
+		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
 			"Title":           fmt.Sprintf("%s - %s", collection.Name, helpCenter.Name),
-			"MetaDescription": collection.Description,
-			"CanonicalPath":   fmt.Sprintf("/hc/%s/%s/collections/%s", helpCenter.Slug, locale, collection.Slug),
+			"MetaDescription": firstNonEmpty(collection.Description, helpCenter.MetaDescription),
+			"CanonicalPath":   pathFor(locale),
 			"CompactHero":     true,
+			"OGImage":         absoluteURL(root, helpCenter.LogoURL),
+			"Alternates":      helpCenterAlternates(helpCenter, translated, pathFor),
+			"XDefaultPath":    defaultLocalePath(helpCenter, translated, pathFor),
+			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, translated, pathFor),
+			"JSONLD":          collectionJSONLD(root, helpCenter, *collection, locale, pathFor(locale)),
 			"HelpCenter":      data,
 			"Collection":      collection,
 		},
@@ -483,9 +628,12 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, &helpCenter)
 	}
-	app.helpcenter.IncrementArticleViewCount(article.ID)
+	if !isCrawler(r) {
+		app.helpcenter.IncrementArticleViewCount(article.ID)
+	}
 
 	if markdown {
+		r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 		r.RequestCtx.SetContentType("text/markdown; charset=utf-8")
 		fmt.Fprintf(r.RequestCtx, "# %s\n\n%s\n", article.Title, stringutil.HTML2Text(article.Content))
 		return nil
@@ -494,32 +642,43 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		collection = hcmodels.Collection{}
 	}
-	related, err := app.helpcenter.GetPublishedArticlesByCollection(article.CollectionID, article.ID, relatedArticlesLimit)
+	related, err := app.helpcenter.GetPublishedArticlesByCollection(article.CollectionID, article.ID, article.Locale, relatedArticlesLimit)
 	if err != nil {
 		related = nil
 	}
-	metaDescription := article.MetaDescription
-	if metaDescription == "" {
-		metaDescription = article.Excerpt
+	translated, err := app.helpcenter.GetPublishedArticleLocales(slug, article.Slug)
+	if err != nil {
+		translated = []string{locale}
 	}
-	metaTitle := article.MetaTitle
-	if metaTitle == "" {
-		metaTitle = fmt.Sprintf("%s - %s", article.Title, helpCenter.Name)
-	}
+	var (
+		root            = helpCenterRootURL(app)
+		pathFor         = func(l string) string { return articlePath(helpCenter.Slug, l, article.Slug) }
+		metaDescription = firstNonEmpty(article.MetaDescription, article.Excerpt)
+		metaTitle       = firstNonEmpty(article.MetaTitle, fmt.Sprintf("%s - %s", article.Title, helpCenter.Name))
+		ogImage         = absoluteURL(root, firstNonEmpty(article.MetaImageURL, helpCenter.LogoURL))
+	)
 	data := helpCenterTemplateData(helpCenter, locale)
-	return app.tmpl.RenderWebPage(r.RequestCtx, "help-article", map[string]interface{}{
+	return renderHelpCenterPage(r, "help-article", map[string]interface{}{
+		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
 			"Title":           metaTitle,
 			"MetaDescription": metaDescription,
-			"OGImage":         article.MetaImageURL,
-			"CanonicalPath":   fmt.Sprintf("/hc/%s/%s/articles/%s", helpCenter.Slug, locale, article.Slug),
+			"OGImage":         ogImage,
+			"CanonicalPath":   pathFor(locale),
 			"OGType":          "article",
+			"PublishedTime":   article.CreatedAt.Format(time.RFC3339),
+			"ModifiedTime":    article.UpdatedAt.Format(time.RFC3339),
 			"CompactHero":     true,
+			"Alternates":      helpCenterAlternates(helpCenter, translated, pathFor),
+			"XDefaultPath":    defaultLocalePath(helpCenter, translated, pathFor),
+			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, translated, pathFor),
+			"JSONLD":          articleJSONLD(root, helpCenter, collection, article, locale, pathFor(locale), ogImage),
 			"HelpCenter":      data,
 			"Article":         article,
+			"AuthorInitial":   authorInitial(article),
 			"Collection":      collection,
 			"Related":         related,
-			"Content":         template.HTML(article.Content),
+			"Content":         template.HTML(stringutil.DeferOffscreenImages(article.Content)),
 		},
 	})
 }
@@ -547,19 +706,27 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 		}
 		app.helpcenter.LogSearch(helpCenter.ID, query, len(articles))
 	}
-	data := helpCenterTemplateData(helpCenter, locale)
+	var (
+		data    = helpCenterTemplateData(helpCenter, locale)
+		lcl     = localeI18n(app, locale)
+		pathFor = func(l string) string { return searchPath(helpCenter.Slug, l) }
+	)
+	r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 	return app.tmpl.RenderWebPage(r.RequestCtx, "help-search", map[string]interface{}{
+		"L": lcl,
 		"Data": map[string]interface{}{
-			"Title":      fmt.Sprintf("%s - %s", app.i18n.T("globals.terms.search"), helpCenter.Name),
-			"NoIndex":    true,
-			"HelpCenter": data,
-			"Query":      query,
-			"Results":    articles,
+			"Title":         fmt.Sprintf("%s - %s", lcl.T("globals.terms.search"), helpCenter.Name),
+			"NoIndex":       true,
+			"HeroIsHeading": true,
+			"LocaleLinks":   helpCenterLocaleLinks(helpCenter, helpCenterLocales(helpCenter), pathFor),
+			"HelpCenter":    data,
+			"Query":         query,
+			"Results":       articles,
 		},
 	})
 }
 
-// handleHelpCenterSitemap serves a sitemap of all published articles in a help center.
+// handleHelpCenterSitemap serves a sitemap of a help center's published pages in one locale.
 func handleHelpCenterSitemap(r *fastglue.Request) error {
 	var (
 		app  = r.Context.(*App)
@@ -573,27 +740,65 @@ func handleHelpCenterSitemap(r *fastglue.Request) error {
 	if !ok {
 		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.T("globals.messages.notFound"), nil, envelope.NotFoundError)
 	}
-	articles, err := app.helpcenter.GetPopularArticles(slug, locale, sitemapArticlesLimit)
+	articles, err := app.helpcenter.GetPopularArticles(slug, locale, sitemapURLLimit)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	if len(articles) == sitemapURLLimit {
+		app.lo.Warn("help center sitemap hit the URL limit, some articles are missing", "help_center_slug", slug, "locale", locale, "limit", sitemapURLLimit)
+	}
+	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
-	rootURL, _ := app.setting.GetAppRootURL()
-	set := urlset{Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9"}
-	set.URLs = append(set.URLs, sitemapURL{Loc: fmt.Sprintf("%s/hc/%s/%s", rootURL, helpCenter.Slug, locale)})
-	for _, a := range articles {
+	root := helpCenterRootURL(app)
+	set := urlset{Xmlns: sitemapNamespace}
+	set.URLs = append(set.URLs, sitemapURL{
+		Loc:     root + helpCenterHomePath(helpCenter.Slug, locale),
+		LastMod: helpCenter.UpdatedAt.Format(sitemapDate),
+	})
+	for _, c := range flattenCollections(tree.Tree, nil) {
 		set.URLs = append(set.URLs, sitemapURL{
-			Loc:     fmt.Sprintf("%s/hc/%s/%s/articles/%s", rootURL, helpCenter.Slug, locale, a.Slug),
-			LastMod: a.UpdatedAt.Format("2006-01-02"),
+			Loc:     root + collectionPath(helpCenter.Slug, locale, c.Slug),
+			LastMod: c.UpdatedAt.Format(sitemapDate),
 		})
 	}
-	out, err := xml.Marshal(set)
+	for _, a := range articles {
+		set.URLs = append(set.URLs, sitemapURL{
+			Loc:     root + articlePath(helpCenter.Slug, locale, a.Slug),
+			LastMod: a.UpdatedAt.Format(sitemapDate),
+		})
+	}
+	return sendXML(r, set)
+}
+
+// handleSitemapIndex lists the per-locale sitemaps of every live help center.
+func handleSitemapIndex(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	helpCenters, err := app.helpcenter.GetActiveHelpCenters()
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	r.RequestCtx.SetContentType("application/xml; charset=utf-8")
-	fmt.Fprint(r.RequestCtx, xml.Header)
-	r.RequestCtx.Write(out)
+	root := helpCenterRootURL(app)
+	index := sitemapIndex{Xmlns: sitemapNamespace}
+	for _, hc := range helpCenters {
+		for _, locale := range helpCenterLocales(hc) {
+			index.Sitemaps = append(index.Sitemaps, sitemapRef{Loc: fmt.Sprintf("%s%s/sitemap.xml", root, helpCenterHomePath(hc.Slug, locale))})
+		}
+	}
+	return sendXML(r, index)
+}
+
+// handleRobotsTxt keeps crawlers out of the agent app and points them at the sitemap index.
+func handleRobotsTxt(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	r.RequestCtx.SetContentType("text/plain; charset=utf-8")
+	fmt.Fprint(r.RequestCtx, "User-agent: *\n")
+	for _, path := range crawlerDisallowedPaths {
+		fmt.Fprintf(r.RequestCtx, "Disallow: %s\n", path)
+	}
+	fmt.Fprintf(r.RequestCtx, "\nSitemap: %s/sitemap.xml\n", helpCenterRootURL(app))
 	return nil
 }
 
@@ -607,7 +812,7 @@ func handleGetPublicHelpCenterTree(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	locale, _ := resolveLocale(r, helpCenter)
+	locale := resolveQueryLocale(r, helpCenter)
 	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
@@ -626,7 +831,7 @@ func handleGetPublicHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	locale, _ := resolveLocale(r, helpCenter)
+	locale := resolveQueryLocale(r, helpCenter)
 	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, locale)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
@@ -649,7 +854,7 @@ func handlePublicHelpCenterSearch(r *fastglue.Request) error {
 	if query == "" {
 		return r.SendEnvelope([]hcmodels.Article{})
 	}
-	locale, _ := resolveLocale(r, helpCenter)
+	locale := resolveQueryLocale(r, helpCenter)
 	articles, err := app.helpcenter.SearchPublishedArticles(slug, query, locale, publicSearchLimit)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
@@ -745,6 +950,245 @@ func handleUpdateArticle(r *fastglue.Request) error {
 	return r.SendEnvelope(article)
 }
 
+// renderHelpCenterPage renders a public help center page as cacheable, overriding the
+// no-store default that RenderWebPage applies for the app's authenticated pages.
+func renderHelpCenterPage(r *fastglue.Request, name string, data map[string]interface{}) error {
+	app := r.Context.(*App)
+	err := app.tmpl.RenderWebPage(r.RequestCtx, name, data)
+	r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterCacheControl)
+	r.RequestCtx.Response.Header.Del("Pragma")
+	r.RequestCtx.Response.Header.Del("Expires")
+	return err
+}
+
+// sendXML writes v as an XML document.
+func sendXML(r *fastglue.Request, v any) error {
+	out, err := xml.Marshal(v)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	r.RequestCtx.SetContentType("application/xml; charset=utf-8")
+	fmt.Fprint(r.RequestCtx, xml.Header)
+	r.RequestCtx.Write(out)
+	return nil
+}
+
+// isCrawler reports whether the request came from a bot rather than a reader.
+func isCrawler(r *fastglue.Request) bool {
+	return crawlerUARe.Match(r.RequestCtx.Request.Header.UserAgent())
+}
+
+// helpCenterRootURL returns the app root URL without its trailing slash. Canonical URLs,
+// sitemaps and robots.txt all read it from here so they can never disagree.
+func helpCenterRootURL(app *App) string {
+	return strings.TrimRight(app.consts.Load().(*constants).AppBaseURL, "/")
+}
+
+// absoluteURL resolves a root-relative URL against the app root URL, since social and
+// structured-data consumers reject relative image URLs.
+func absoluteURL(root, u string) string {
+	if u == "" || strings.Contains(u, "://") || strings.HasPrefix(u, "//") {
+		return u
+	}
+	return root + "/" + strings.TrimLeft(u, "/")
+}
+
+func helpCenterHomePath(slug, locale string) string {
+	return fmt.Sprintf("/hc/%s/%s", slug, locale)
+}
+
+func collectionPath(slug, locale, collectionSlug string) string {
+	return fmt.Sprintf("/hc/%s/%s/collections/%s", slug, locale, collectionSlug)
+}
+
+func articlePath(slug, locale, articleSlug string) string {
+	return fmt.Sprintf("/hc/%s/%s/articles/%s", slug, locale, articleSlug)
+}
+
+func searchPath(slug, locale string) string {
+	return fmt.Sprintf("/hc/%s/%s/search", slug, locale)
+}
+
+// helpCenterAlternates returns the hreflang set for a page: only the locales the page
+// actually exists in, so no alternate points at a 404. Empty for single-locale help centers.
+func helpCenterAlternates(hc hcmodels.HelpCenter, translated []string, pathFor func(string) string) []localeLink {
+	locales := helpCenterLocales(hc)
+	if len(locales) < 2 {
+		return nil
+	}
+	links := make([]localeLink, 0, len(locales))
+	for _, loc := range locales {
+		if slices.Contains(translated, loc) {
+			links = append(links, localeLink{Locale: loc, Path: pathFor(loc)})
+		}
+	}
+	return links
+}
+
+// helpCenterLocaleLinks returns where the language switcher sends the reader for each locale:
+// the same page when it exists there, the locale home otherwise.
+func helpCenterLocaleLinks(hc hcmodels.HelpCenter, translated []string, pathFor func(string) string) []localeLink {
+	locales := helpCenterLocales(hc)
+	links := make([]localeLink, 0, len(locales))
+	for _, loc := range locales {
+		path := helpCenterHomePath(hc.Slug, loc)
+		if slices.Contains(translated, loc) {
+			path = pathFor(loc)
+		}
+		links = append(links, localeLink{Locale: loc, Path: path})
+	}
+	return links
+}
+
+// defaultLocalePath returns the x-default hreflang target, empty when the page has no
+// default-locale version.
+func defaultLocalePath(hc hcmodels.HelpCenter, translated []string, pathFor func(string) string) string {
+	if len(helpCenterLocales(hc)) < 2 || !slices.Contains(translated, hc.DefaultLocale) {
+		return ""
+	}
+	return pathFor(hc.DefaultLocale)
+}
+
+// homeJSONLD returns the WebSite structured data for a help center home page, including the
+// sitelinks search box target.
+func homeJSONLD(root string, hc hcmodels.HelpCenter, locale string) template.JS {
+	home := root + helpCenterHomePath(hc.Slug, locale)
+	site := map[string]any{
+		"@context":   schemaOrgContext,
+		"@type":      "WebSite",
+		"name":       hc.Name,
+		"url":        home,
+		"inLanguage": locale,
+		"potentialAction": map[string]any{
+			"@type": "SearchAction",
+			"target": map[string]any{
+				"@type":       "EntryPoint",
+				"urlTemplate": root + searchPath(hc.Slug, locale) + "?q={search_term_string}",
+			},
+			"query-input": "required name=search_term_string",
+		},
+	}
+	if d := firstNonEmpty(hc.MetaDescription, hc.HeaderText); d != "" {
+		site["description"] = d
+	}
+	return jsonLD([]any{site})
+}
+
+// collectionJSONLD returns the CollectionPage and breadcrumb structured data for a collection page.
+func collectionJSONLD(root string, hc hcmodels.HelpCenter, collection hcmodels.TreeCollection, locale, canonicalPath string) template.JS {
+	page := map[string]any{
+		"@context":   schemaOrgContext,
+		"@type":      "CollectionPage",
+		"name":       collection.Name,
+		"url":        root + canonicalPath,
+		"inLanguage": locale,
+		"isPartOf":   map[string]any{"@type": "WebSite", "name": hc.Name, "url": root + helpCenterHomePath(hc.Slug, locale)},
+	}
+	if collection.Description != "" {
+		page["description"] = collection.Description
+	}
+	crumbs := breadcrumbJSONLD(root, hc, locale, []localeLink{{Locale: collection.Name, Path: canonicalPath}})
+	return jsonLD([]any{page, crumbs})
+}
+
+// articleJSONLD returns the Article and breadcrumb structured data for an article page.
+func articleJSONLD(root string, hc hcmodels.HelpCenter, collection hcmodels.Collection, article hcmodels.Article, locale, canonicalPath, image string) template.JS {
+	art := map[string]any{
+		"@context":         schemaOrgContext,
+		"@type":            "Article",
+		"headline":         article.Title,
+		"url":              root + canonicalPath,
+		"inLanguage":       locale,
+		"datePublished":    article.CreatedAt.Format(time.RFC3339),
+		"dateModified":     article.UpdatedAt.Format(time.RFC3339),
+		"mainEntityOfPage": map[string]any{"@type": "WebPage", "@id": root + canonicalPath},
+		"publisher":        map[string]any{"@type": "Organization", "name": hc.Name},
+	}
+	if d := firstNonEmpty(article.MetaDescription, article.Excerpt); d != "" {
+		art["description"] = d
+	}
+	if image != "" {
+		art["image"] = image
+	}
+	if article.AuthorName != nil && strings.TrimSpace(*article.AuthorName) != "" {
+		art["author"] = map[string]any{"@type": "Person", "name": strings.TrimSpace(*article.AuthorName)}
+	} else {
+		art["author"] = map[string]any{"@type": "Organization", "name": hc.Name}
+	}
+
+	trail := []localeLink{}
+	if collection.Name != "" {
+		trail = append(trail, localeLink{Locale: collection.Name, Path: collectionPath(hc.Slug, locale, collection.Slug)})
+	}
+	trail = append(trail, localeLink{Locale: article.Title, Path: canonicalPath})
+	return jsonLD([]any{art, breadcrumbJSONLD(root, hc, locale, trail)})
+}
+
+// breadcrumbJSONLD builds a BreadcrumbList rooted at the help center home, where each trail
+// entry carries its label in Locale and its path in Path.
+func breadcrumbJSONLD(root string, hc hcmodels.HelpCenter, locale string, trail []localeLink) map[string]any {
+	items := []any{map[string]any{
+		"@type":    "ListItem",
+		"position": 1,
+		"name":     hc.Name,
+		"item":     root + helpCenterHomePath(hc.Slug, locale),
+	}}
+	for i, t := range trail {
+		items = append(items, map[string]any{
+			"@type":    "ListItem",
+			"position": i + 2,
+			"name":     t.Locale,
+			"item":     root + t.Path,
+		})
+	}
+	return map[string]any{
+		"@context":        schemaOrgContext,
+		"@type":           "BreadcrumbList",
+		"itemListElement": items,
+	}
+}
+
+// jsonLD marshals structured data for a ld+json script tag. encoding/json escapes the HTML
+// delimiters, so a title can't close the tag.
+func jsonLD(v any) template.JS {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return template.JS("")
+	}
+	return template.JS(b)
+}
+
+// authorInitial returns the first letter of the article author's name for the avatar fallback.
+func authorInitial(article hcmodels.Article) string {
+	if article.AuthorName == nil {
+		return ""
+	}
+	runes := []rune(strings.TrimSpace(*article.AuthorName))
+	if len(runes) == 0 {
+		return ""
+	}
+	return string(runes[0])
+}
+
+// firstNonEmpty returns the first value that isn't blank.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// flattenCollections returns every collection in the tree, depth first.
+func flattenCollections(cols []hcmodels.TreeCollection, out []hcmodels.TreeCollection) []hcmodels.TreeCollection {
+	for _, c := range cols {
+		out = append(out, c)
+		out = flattenCollections(c.Children, out)
+	}
+	return out
+}
+
 // findCollectionNode returns the collection with the given slug from the tree, searching descendants.
 func findCollectionNode(cols []hcmodels.TreeCollection, slug string) *hcmodels.TreeCollection {
 	for i := range cols {
@@ -767,6 +1211,15 @@ func resolveLocale(r *fastglue.Request, hc hcmodels.HelpCenter) (string, bool) {
 		return hc.DefaultLocale, true
 	}
 	return loc, slices.Contains(helpCenterLocales(hc), loc)
+}
+
+// resolveQueryLocale returns the "locale" query arg when the help center serves it, else its default.
+func resolveQueryLocale(r *fastglue.Request, hc hcmodels.HelpCenter) string {
+	loc := strings.TrimSpace(string(r.RequestCtx.QueryArgs().Peek("locale")))
+	if loc == "" || !slices.Contains(helpCenterLocales(hc), loc) {
+		return hc.DefaultLocale
+	}
+	return loc
 }
 
 // helpCenterLocales returns the help center's configured locale codes.
@@ -815,10 +1268,23 @@ func helpCenterTemplateData(hc hcmodels.HelpCenter, locale string) map[string]in
 // buildThemeCSSVars emits the theme's CSS custom-property overrides.
 func buildThemeCSSVars(t hcmodels.Theme) template.CSS {
 	var b strings.Builder
-	if t.Header.BackgroundType == "gradient" && t.Header.GradientFrom != "" && t.Header.GradientTo != "" {
-		fmt.Fprintf(&b, "--hc-header-bg:linear-gradient(180deg,%s,%s);", t.Header.GradientFrom, t.Header.GradientTo)
-	} else if t.Header.BackgroundType == "solid" && t.Header.BackgroundColor != "" {
-		fmt.Fprintf(&b, "--hc-header-bg:%s;", t.Header.BackgroundColor)
+	switch t.Header.BackgroundType {
+	case "image":
+		if t.Header.BackgroundImage != "" {
+			fmt.Fprintf(&b, "--hc-header-img:url(%s);", t.Header.BackgroundImage)
+			b.WriteString("--hc-hero-text-shadow:0 1px 2px rgba(0,0,0,.35),0 2px 16px rgba(0,0,0,.25);")
+			if t.Header.TextColor == "" {
+				b.WriteString("--hc-header-text:#ffffff;--hc-header-scrim:linear-gradient(rgba(10,12,18,.45),rgba(10,12,18,.45));")
+			}
+		}
+	case "gradient":
+		if t.Header.GradientFrom != "" && t.Header.GradientTo != "" {
+			fmt.Fprintf(&b, "--hc-header-bg:linear-gradient(180deg,%s,%s);", t.Header.GradientFrom, t.Header.GradientTo)
+		}
+	case "solid":
+		if t.Header.BackgroundColor != "" {
+			fmt.Fprintf(&b, "--hc-header-bg:%s;", t.Header.BackgroundColor)
+		}
 	}
 	if t.Header.TextColor != "" {
 		fmt.Fprintf(&b, "--hc-header-text:%s;", t.Header.TextColor)
@@ -843,11 +1309,15 @@ func renderHelpCenterNotFound(r *fastglue.Request, hc *hcmodels.HelpCenter) erro
 			locale = helpCenter.DefaultLocale
 		}
 		data := helpCenterTemplateData(helpCenter, locale)
+		lcl := localeI18n(app, locale)
+		r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 		rerr := app.tmpl.RenderWebPage(r.RequestCtx, "help-notfound", map[string]interface{}{
+			"L": lcl,
 			"Data": map[string]interface{}{
-				"Title":       app.i18n.T("globals.messages.pageNotFound"),
+				"Title":       lcl.T("globals.messages.pageNotFound"),
 				"NoIndex":     true,
 				"CompactHero": true,
+				"LocaleLinks": helpCenterLocaleLinks(helpCenter, nil, func(l string) string { return helpCenterHomePath(helpCenter.Slug, l) }),
 				"HelpCenter":  data,
 			},
 		})
@@ -895,4 +1365,18 @@ func validateArticle(r *fastglue.Request, req *helpcenter.ArticleRequest) error 
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`content`"), nil, envelope.InputError)
 	}
 	return nil
+}
+
+// loadLucideIcons parses the vendored lucide sprite into ready-to-inline SVG elements keyed by icon name.
+func loadLucideIcons(fs stuffbin.FileSystem) map[string]template.HTML {
+	icons := map[string]template.HTML{}
+	b, err := fs.Read(lucideSpritePath)
+	if err != nil {
+		log.Printf("error reading lucide sprite: %v", err)
+		return icons
+	}
+	for _, m := range lucideSymbolRe.FindAllSubmatch(b, -1) {
+		icons[string(m[1])] = template.HTML(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` + string(m[2]) + `</svg>`)
+	}
+	return icons
 }

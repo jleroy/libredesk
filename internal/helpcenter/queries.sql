@@ -1,26 +1,32 @@
 -- name: get-all-help-centers
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
 FROM help_centers
 ORDER BY created_at DESC;
 
+-- name: get-active-help-centers
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+FROM help_centers
+WHERE is_active = true
+ORDER BY created_at DESC;
+
 -- name: get-help-center-by-id
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
 FROM help_centers
 WHERE id = $1;
 
 -- name: get-help-center-by-slug
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
 FROM help_centers
 WHERE slug = $1 AND is_active = true;
 
 -- name: insert-help-center
-INSERT INTO help_centers (name, slug, page_title, header_text, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, theme)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO help_centers (name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, theme)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 RETURNING *;
 
 -- name: update-help-center
 UPDATE help_centers
-SET name = $2, slug = $3, page_title = $4, header_text = $5, logo_url = $6, color = $7, nav_links = $8, custom_css = $9, custom_js = $10, default_locale = $11, allowed_locales = $12, theme = $13, updated_at = NOW()
+SET name = $2, slug = $3, page_title = $4, header_text = $5, meta_description = $6, logo_url = $7, color = $8, nav_links = $9, custom_css = $10, custom_js = $11, default_locale = $12, allowed_locales = $13, theme = $14, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -35,24 +41,51 @@ DELETE FROM help_centers
 WHERE id = $1;
 
 -- name: get-collections-by-help-center
-SELECT id, created_at, updated_at, help_center_id, slug, parent_id, locale, name, description, sort_order, is_published
+SELECT id, created_at, updated_at, help_center_id, slug, parent_id, locale, name, description, icon, sort_order, is_published
 FROM article_collections
 WHERE help_center_id = $1
 ORDER BY sort_order ASC, created_at DESC;
 
 -- name: get-collection-by-id
-SELECT id, created_at, updated_at, help_center_id, slug, parent_id, locale, name, description, sort_order, is_published
+SELECT id, created_at, updated_at, help_center_id, slug, parent_id, locale, name, description, icon, sort_order, is_published
 FROM article_collections
 WHERE id = $1;
 
+-- name: get-collection-subtree-depth
+WITH RECURSIVE subtree AS (
+    SELECT id, 1 AS depth FROM article_collections WHERE id = $1
+    UNION ALL
+    SELECT c.id, s.depth + 1 FROM article_collections c JOIN subtree s ON c.parent_id = s.id
+)
+SELECT COALESCE(MAX(depth), 1) FROM subtree;
+
+-- name: get-article-ids-in-collection-subtree
+WITH RECURSIVE subtree AS (
+    SELECT id FROM article_collections WHERE id = $1
+    UNION ALL
+    SELECT c.id FROM article_collections c JOIN subtree s ON c.parent_id = s.id
+)
+SELECT a.id FROM help_articles a WHERE a.collection_id IN (SELECT id FROM subtree);
+
+-- name: update-collection-sort-order
+UPDATE article_collections
+SET sort_order = $3, updated_at = NOW()
+WHERE id = $1 AND help_center_id = $2;
+
+-- name: get-collection-by-id-for-update
+SELECT id, created_at, updated_at, help_center_id, slug, parent_id, locale, name, description, icon, sort_order, is_published
+FROM article_collections
+WHERE id = $1
+FOR UPDATE;
+
 -- name: insert-collection
-INSERT INTO article_collections (help_center_id, slug, parent_id, locale, name, description, sort_order, is_published)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO article_collections (help_center_id, slug, parent_id, locale, name, description, icon, sort_order, is_published)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: update-collection
 UPDATE article_collections
-SET slug = $2, parent_id = $3, locale = $4, name = $5, description = $6, sort_order = $7, is_published = $8, updated_at = NOW()
+SET slug = $2, parent_id = $3, locale = $4, name = $5, description = $6, icon = $7, sort_order = $8, is_published = $9, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -108,6 +141,26 @@ SELECT EXISTS(
         AND a.slug = $2 AND a.locale = $3
 );
 
+-- name: other-article-slug-exists-in-help-center
+SELECT EXISTS(
+    SELECT 1
+    FROM help_articles a
+    JOIN article_collections c ON c.id = a.collection_id
+    WHERE c.help_center_id = (SELECT help_center_id FROM article_collections WHERE id = $1)
+        AND a.slug = $2 AND a.locale = $3 AND a.id <> $4
+);
+
+-- name: move-article-to-collection
+UPDATE help_articles
+SET collection_id = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: update-article-sort-order
+UPDATE help_articles
+SET sort_order = $3, updated_at = NOW()
+WHERE id = $1 AND collection_id = $2;
+
 -- name: update-article-status
 UPDATE help_articles
 SET status = $2, updated_at = NOW()
@@ -130,6 +183,7 @@ SELECT
     c.locale,
     c.name,
     c.description,
+    c.icon,
     c.sort_order,
     c.is_published,
     NULL::INTEGER AS collection_id,
@@ -137,7 +191,9 @@ SELECT
     NULL::TEXT AS content,
     NULL::TEXT AS status,
     NULL::INTEGER AS view_count,
-    NULL::BOOLEAN AS ai_enabled
+    NULL::BOOLEAN AS ai_enabled,
+    NULL::TEXT AS author_name,
+    NULL::TEXT AS author_avatar
 FROM article_collections c
 WHERE c.help_center_id = $1 AND ($2 = '' OR c.locale = $2)
 
@@ -154,6 +210,7 @@ SELECT
     a.locale,
     a.title AS name,
     NULL::TEXT AS description,
+    NULL::TEXT AS icon,
     a.sort_order,
     NULL::BOOLEAN AS is_published,
     a.collection_id,
@@ -161,7 +218,9 @@ SELECT
     '' AS content,
     a.status,
     a.view_count,
-    a.ai_enabled
+    a.ai_enabled,
+    NULL::TEXT AS author_name,
+    NULL::TEXT AS author_avatar
 FROM help_articles a
 JOIN article_collections c ON a.collection_id = c.id
 WHERE c.help_center_id = $1 AND ($2 = '' OR a.locale = $2)
@@ -188,6 +247,7 @@ SELECT
     c.locale,
     c.name,
     c.description,
+    c.icon,
     c.sort_order,
     c.is_published,
     NULL::INTEGER AS collection_id,
@@ -195,7 +255,9 @@ SELECT
     NULL::TEXT AS content,
     NULL::TEXT AS status,
     NULL::INTEGER AS view_count,
-    NULL::BOOLEAN AS ai_enabled
+    NULL::BOOLEAN AS ai_enabled,
+    NULL::TEXT AS author_name,
+    NULL::TEXT AS author_avatar
 FROM article_collections c
 WHERE c.id IN (SELECT id FROM published_collections)
 
@@ -212,6 +274,7 @@ SELECT
     a.locale,
     a.title AS name,
     NULL::TEXT AS description,
+    NULL::TEXT AS icon,
     a.sort_order,
     NULL::BOOLEAN AS is_published,
     a.collection_id,
@@ -219,9 +282,12 @@ SELECT
     '' AS content,
     a.status,
     a.view_count,
-    a.ai_enabled
+    a.ai_enabled,
+    TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS author_name,
+    u.avatar_url AS author_avatar
 FROM help_articles a
 JOIN article_collections c ON a.collection_id = c.id
+LEFT JOIN users u ON u.id = a.author_id
 WHERE c.id IN (SELECT id FROM published_collections) AND a.status = 'published'
     AND ($2 = '' OR a.locale = $2)
 
@@ -239,13 +305,43 @@ WITH RECURSIVE published_collections AS (
 )
 SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.author_id, a.slug, a.locale, a.title, a.content,
     a.excerpt, a.meta_title, a.meta_description, a.meta_image_url, a.sort_order, a.status, a.view_count, a.ai_enabled,
-    TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS author_name
+    TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS author_name,
+    u.avatar_url AS author_avatar
 FROM help_articles a
 JOIN article_collections c ON c.id = a.collection_id AND c.id IN (SELECT id FROM published_collections)
 LEFT JOIN users u ON u.id = a.author_id
-WHERE a.slug = $2 AND a.status = 'published'
-ORDER BY ($3 = '' OR a.locale = $3) DESC, c.sort_order, a.sort_order
+WHERE a.slug = $2 AND a.status = 'published' AND ($3 = '' OR a.locale = $3)
+ORDER BY c.sort_order, a.sort_order
 LIMIT 1;
+
+-- name: get-published-article-locales
+WITH RECURSIVE published_collections AS (
+    SELECT c.id FROM article_collections c
+    JOIN help_centers h ON h.id = c.help_center_id
+    WHERE h.slug = $1 AND c.parent_id IS NULL AND c.is_published = true
+    UNION
+    SELECT c.id FROM article_collections c
+    JOIN published_collections p ON c.parent_id = p.id
+    WHERE c.is_published = true
+)
+SELECT DISTINCT a.locale
+FROM help_articles a
+JOIN article_collections c ON c.id = a.collection_id AND c.id IN (SELECT id FROM published_collections)
+WHERE a.slug = $2 AND a.status = 'published';
+
+-- name: get-published-collection-locales
+WITH RECURSIVE published_collections AS (
+    SELECT c.id FROM article_collections c
+    JOIN help_centers h ON h.id = c.help_center_id
+    WHERE h.slug = $1 AND c.parent_id IS NULL AND c.is_published = true
+    UNION
+    SELECT c.id FROM article_collections c
+    JOIN published_collections p ON c.parent_id = p.id
+    WHERE c.is_published = true
+)
+SELECT DISTINCT c.locale
+FROM article_collections c
+WHERE c.slug = $2 AND c.id IN (SELECT id FROM published_collections);
 
 -- name: get-published-articles
 WITH RECURSIVE published_collections AS (
@@ -267,9 +363,9 @@ LIMIT $3;
 -- name: get-published-articles-by-collection
 SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.slug, a.locale, a.title, a.excerpt, '' AS content, a.sort_order, a.status, a.view_count, a.ai_enabled
 FROM help_articles a
-WHERE a.collection_id = $1 AND a.id != $2 AND a.status = 'published'
+WHERE a.collection_id = $1 AND a.id != $2 AND a.status = 'published' AND ($3 = '' OR a.locale = $3)
 ORDER BY a.sort_order ASC, a.created_at DESC
-LIMIT $3;
+LIMIT $4;
 
 -- name: search-published-articles
 WITH RECURSIVE published_collections AS (
@@ -315,7 +411,7 @@ SELECT LOWER(query) AS query, COUNT(*) AS count,
     COUNT(*) FILTER (WHERE results_count = 0) AS no_results,
     MAX(created_at)::text AS last_search
 FROM help_search_queries
-WHERE help_center_id = $1
+WHERE help_center_id = $1 AND created_at >= NOW() - INTERVAL '90 days'
 GROUP BY LOWER(query)
 ORDER BY count DESC, last_search DESC
 LIMIT $2;
@@ -325,7 +421,7 @@ SELECT LOWER(query) AS query, COUNT(*) AS count,
     COUNT(*) AS no_results,
     MAX(created_at)::text AS last_search
 FROM help_search_queries
-WHERE help_center_id = $1 AND results_count = 0
+WHERE help_center_id = $1 AND results_count = 0 AND created_at >= NOW() - INTERVAL '90 days'
 GROUP BY LOWER(query)
 ORDER BY count DESC, last_search DESC
 LIMIT $2;

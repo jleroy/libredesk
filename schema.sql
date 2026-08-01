@@ -641,6 +641,7 @@ CREATE TABLE help_centers (
 	slug TEXT NOT NULL UNIQUE,
 	page_title TEXT NOT NULL DEFAULT '',
 	header_text TEXT NOT NULL DEFAULT '',
+	meta_description TEXT NOT NULL DEFAULT '',
 	logo_url TEXT NOT NULL DEFAULT '',
 	color TEXT NOT NULL DEFAULT '#1f93ff',
 	nav_links JSONB NOT NULL DEFAULT '[]',
@@ -664,6 +665,7 @@ CREATE TABLE article_collections (
 	locale TEXT NOT NULL DEFAULT 'en',
 	name TEXT NOT NULL,
 	description TEXT NOT NULL DEFAULT '',
+	icon TEXT NOT NULL DEFAULT '',
 	sort_order INTEGER NOT NULL DEFAULT 0,
 	is_published BOOLEAN NOT NULL DEFAULT false
 );
@@ -696,6 +698,8 @@ CREATE TABLE help_articles (
 CREATE UNIQUE INDEX index_unique_help_articles_on_collection_slug_locale ON help_articles(collection_id, slug, locale);
 CREATE INDEX index_help_articles_on_collection_id ON help_articles(collection_id);
 CREATE INDEX index_help_articles_on_author_id ON help_articles(author_id);
+CREATE INDEX index_help_articles_on_title_trgm ON help_articles USING gin (title gin_trgm_ops);
+CREATE INDEX index_help_articles_on_content_trgm ON help_articles USING gin (content gin_trgm_ops);
 
 DROP TABLE IF EXISTS help_article_feedback CASCADE;
 CREATE TABLE help_article_feedback (

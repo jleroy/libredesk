@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/vue-3'
+import { TextSelection } from '@tiptap/pm/state'
 
 // Expandable section rendered as native <details>/<summary>. Editor CSS force-shows
 // the collapsed body to keep it editable.
@@ -47,6 +48,20 @@ export const DetailsSummary = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     return ['summary', mergeAttributes(HTMLAttributes, { class: 'hc-details-summary' }), 0]
+  },
+
+  // The summary is isolating, so a plain Enter would be swallowed; jump into the body instead.
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { state, view } = this.editor
+        const { $from, empty } = state.selection
+        if (!empty || $from.parent.type.name !== this.name) return false
+        const $body = state.doc.resolve($from.after() + 1)
+        view.dispatch(state.tr.setSelection(TextSelection.near($body, 1)).scrollIntoView())
+        return true
+      }
+    }
   }
 })
 

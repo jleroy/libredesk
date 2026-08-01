@@ -7,6 +7,7 @@
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent>
+      <DropdownMenuItem @click="visitSite">{{ $t('helpCenter.visitSite') }}</DropdownMenuItem>
       <DropdownMenuItem @click="emit('edit', props.helpCenter)">{{
         $t('globals.messages.edit')
       }}</DropdownMenuItem>
@@ -57,8 +58,10 @@ import {
   AlertDialogTitle
 } from '@shared-ui/components/ui/alert-dialog'
 import { Button } from '@shared-ui/components/ui/button'
+import { useAppSettingsStore } from '@/stores/appSettings'
 
 const alertOpen = ref(false)
+const appSettingsStore = useAppSettingsStore()
 
 const props = defineProps({
   helpCenter: {
@@ -68,6 +71,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['edit', 'delete', 'toggle'])
+
+function visitSite() {
+  const rootUrl = appSettingsStore.settings?.['app.root_url'] || window.location.origin
+  window.open(`${rootUrl.replace(/\/$/, '')}/hc/${props.helpCenter.slug}`, '_blank', 'noopener')
+}
 
 function handleDelete() {
   emit('delete', props.helpCenter)

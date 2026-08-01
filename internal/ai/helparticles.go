@@ -79,6 +79,8 @@ func helpArticleItem(row models.HelpArticleItem) embedItem {
 		Title:       row.Title,
 		Content:     row.Content,
 		Fingerprint: row.EmbeddedFingerprint,
-		Eligible:    row.Status == "published" && row.AIEnabled,
+		// An article inside an unpublished collection is 404 on the public site, so the
+		// assistant must not cite it.
+		Eligible: row.Status == "published" && row.AIEnabled && row.IsReachable,
 	}
 }

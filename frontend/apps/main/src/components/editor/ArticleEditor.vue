@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { EditorContent } from '@tiptap/vue-3'
 import EditorToolbar from './EditorToolbar.vue'
 import EditorLinkDialog from './EditorLinkDialog.vue'
@@ -65,12 +65,18 @@ const { editor, insertImages, focus } = useTextEditor({
   htmlContent,
   textContent,
   autoFocus: props.autoFocus,
+  editable: !props.disabled,
   insertContent: () => props.insertContent,
   isInlineEnabled: () => props.enableInlineImages,
   linkedModel: props.linkedModel,
   onSend: () => emit('send'),
   onOtherFiles: (files) => emit('filesDropped', files)
 })
+
+watch(
+  () => props.disabled,
+  (disabled) => editor.value?.setEditable(!disabled, false)
+)
 
 const onImageInputChange = (event) => {
   const files = Array.from(event.target.files || [])

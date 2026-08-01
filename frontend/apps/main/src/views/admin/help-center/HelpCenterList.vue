@@ -2,31 +2,13 @@
   <AdminSplitLayout>
     <template #content>
       <LoadingOverlay :loading="loading" reserve-height>
-        <div class="flex justify-end mb-5">
+        <div class="flex justify-end mb-4">
           <Button @click="openCreateModal">
             {{ $t('globals.messages.new') }}
           </Button>
         </div>
 
-        <div
-          v-if="helpCenters.length === 0 && !loading"
-          class="text-center py-12 text-muted-foreground"
-        >
-          <BookOpen class="mx-auto h-12 w-12 mb-4" />
-          <p>{{ $t('helpCenter.noHelpCenters') }}</p>
-        </div>
-
-        <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <HelpCenterCard
-            v-for="helpCenter in helpCenters"
-            :key="helpCenter.id"
-            :help-center="helpCenter"
-            @click="goToTree(helpCenter.id)"
-            @edit="openEditModal"
-            @delete="handleDelete"
-            @toggle="handleToggle"
-          />
-        </div>
+        <DataTable :columns="columns" :data="helpCenters" :loading="loading" />
       </LoadingOverlay>
     </template>
     <template #help>
@@ -59,10 +41,10 @@ import { useEmitter } from '@/composables/useEmitter.js'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { Button } from '@shared-ui/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@shared-ui/components/ui/sheet'
-import { BookOpen } from 'lucide-vue-next'
 import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import LoadingOverlay from '@main/components/layout/LoadingOverlay.vue'
-import HelpCenterCard from '@/features/admin/help-center/HelpCenterCard.vue'
+import DataTable from '@main/components/datatable/DataTable.vue'
+import { createHelpCenterColumns } from '@/features/admin/help-center/helpCenterColumns.js'
 import HelpCenterForm from '@/features/admin/help-center/HelpCenterForm.vue'
 import api from '@/api'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
@@ -167,4 +149,11 @@ const handleDelete = async (helpCenter) => {
     })
   }
 }
+
+const columns = createHelpCenterColumns(t, {
+  onOpen: (helpCenter) => goToTree(helpCenter.id),
+  onEdit: openEditModal,
+  onDelete: handleDelete,
+  onToggle: handleToggle
+})
 </script>

@@ -428,7 +428,7 @@ func getCustomStaticDir() string {
 func initTemplate(db *sqlx.DB, fs stuffbin.FileSystem, consts *constants, i18n *i18n.I18n) *tmpl.Manager {
 	var (
 		lo      = initLogger("template")
-		funcMap = getTmplFuncs(consts, i18n)
+		funcMap = getTmplFuncs(consts, i18n, fs)
 	)
 	tpls, err := stuffbin.ParseTemplatesGlob(funcMap, fs, "/static/email-templates/*.html")
 	if err != nil {
@@ -447,8 +447,12 @@ func initTemplate(db *sqlx.DB, fs stuffbin.FileSystem, consts *constants, i18n *
 }
 
 // getTmplFuncs returns the template functions.
-func getTmplFuncs(consts *constants, i18n *i18n.I18n) template.FuncMap {
+func getTmplFuncs(consts *constants, i18n *i18n.I18n, fs stuffbin.FileSystem) template.FuncMap {
+	lucideIcons := loadLucideIcons(fs)
 	return template.FuncMap{
+		"LucideIcon": func(name string) template.HTML {
+			return lucideIcons[name]
+		},
 		"RootURL": func() string {
 			return consts.AppBaseURL
 		},
@@ -515,7 +519,7 @@ func reloadSettings(app *App) error {
 // reloadTemplates reloads the templates from the filesystem.
 func reloadTemplates(app *App) error {
 	app.lo.Info("reloading templates")
-	funcMap := getTmplFuncs(app.consts.Load().(*constants), app.i18n)
+	funcMap := getTmplFuncs(app.consts.Load().(*constants), app.i18n, app.fs)
 	tpls, err := stuffbin.ParseTemplatesGlob(funcMap, app.fs, "/static/email-templates/*.html")
 	if err != nil {
 		app.lo.Error("error parsing email templates", "error", err)
