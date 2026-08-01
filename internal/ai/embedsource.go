@@ -82,7 +82,7 @@ func (m *Manager) reindexItemWith(ctx context.Context, src embedSource, item emb
 	if !m.canCommit(src, item.ID, gen) {
 		return
 	}
-	if err := m.commitEmbeddings(src.sourceType(), item.ID, indexed); err != nil {
+	if err := m.commitEmbeddings(src.sourceType(), []int{item.ID}, indexed); err != nil {
 		m.lo.Error("error indexing content", "error", err, "source_type", src.sourceType(), "id", item.ID)
 		return
 	}

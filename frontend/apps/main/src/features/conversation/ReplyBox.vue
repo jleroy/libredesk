@@ -141,7 +141,6 @@ import { Dialog, DialogContent } from '@shared-ui/components/ui/dialog'
 import { useEmitter } from '@main/composables/useEmitter'
 import { useFileUpload } from '@main/composables/useFileUpload'
 import { hasInlineImage, hasPendingInlineUpload } from '@main/composables/useInlineImageUpload'
-import { convertTextToHtml } from '@shared-ui/utils/string'
 import ReplyBoxContent from '@/features/conversation/ReplyBoxContent.vue'
 import { UserTypeAgent } from '@/constants/user'
 
@@ -221,7 +220,7 @@ const runAiGeneration = async (requestFn) => {
   try {
     const resp = await requestFn(uuid)
     if (uuid !== currentConversationUUID.value) return
-    htmlContent.value = convertTextToHtml(resp.data.data || '')
+    htmlContent.value = resp.data.data || ''
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
@@ -233,10 +232,12 @@ const runAiGeneration = async (requestFn) => {
 }
 
 const handleAiPromptSelected = (key) =>
-  runAiGeneration(() => api.aiCompletion({ prompt_key: key, content: textContent.value }))
+  runAiGeneration(() => api.aiCompletion({ prompt_key: key, content: htmlContent.value }))
 
 const handleGenerateReply = () =>
-  runAiGeneration((uuid) => api.aiGenerateReply({ conversation_uuid: uuid, instruction: textContent.value }))
+  runAiGeneration((uuid) =>
+    api.aiGenerateReply({ conversation_uuid: uuid, instruction: textContent.value })
+  )
 
 // Copilot's "Insert into reply" replaces the draft with its answer (already HTML from the panel),
 // forcing reply mode so a private note in progress does not silently receive customer-facing text.
