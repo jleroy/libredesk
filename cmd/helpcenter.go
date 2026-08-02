@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"math"
 	"regexp"
 	"slices"
 	"strconv"
@@ -52,6 +53,10 @@ var (
 	crawlerUARe = regexp.MustCompile(`(?i)bot\b|bot/|crawler|spider|crawling|slurp|facebookexternalhit|preview|headlesschrome|lighthouse|feedfetcher|python-requests|curl/|wget/`)
 
 	lucideSymbolRe = regexp.MustCompile(`(?s)<symbol id="([a-z0-9-]+)"[^>]*>(.*?)</symbol>`)
+
+	// rtlLanguages are the base languages written right-to-left. AllowedLocales is free-form
+	// operator input, so any of these can turn up.
+	rtlLanguages = []string{"ar", "he", "fa", "ur", "ps", "sd", "yi", "dv", "ckb"}
 
 	// crawlerDisallowedPaths are the non-public parts of the app served on the same host as
 	// the help center. /uploads is deliberately absent: article images live there and have
@@ -637,7 +642,7 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
 			"Title":           fmt.Sprintf("%s - %s", collection.Name, helpCenter.Name),
-			"MetaDescription": firstNonEmpty(collection.Description, helpCenter.MetaDescription),
+			"MetaDescription": collection.Description,
 			"CanonicalPath":   pathFor(locale),
 			"OGImage":         absoluteURL(root, helpCenter.LogoURL),
 			"Alternates":      helpCenterAlternates(helpCenter, translated, pathFor),
@@ -1310,6 +1315,7 @@ func helpCenterTemplateData(hc hcmodels.HelpCenter, locale string) map[string]in
 		"Color":            hc.Color,
 		"DefaultLocale":    hc.DefaultLocale,
 		"CurrentLocale":    locale,
+		"Dir":              localeDir(locale),
 		"AvailableLocales": helpCenterLocales(hc),
 		"NavLinks":         navLinks,
 		"Theme":            theme,
@@ -1334,10 +1340,16 @@ func buildThemeCSSVars(t hcmodels.Theme) template.CSS {
 	case "gradient":
 		if t.Header.GradientFrom != "" && t.Header.GradientTo != "" {
 			fmt.Fprintf(&b, "--hc-header-bg:linear-gradient(180deg,%s,%s);", t.Header.GradientFrom, t.Header.GradientTo)
+			if t.Header.TextColor == "" {
+				fmt.Fprintf(&b, "--hc-header-text:%s;", readableOn(t.Header.GradientFrom))
+			}
 		}
 	case "solid":
 		if t.Header.BackgroundColor != "" {
 			fmt.Fprintf(&b, "--hc-header-bg:%s;", t.Header.BackgroundColor)
+			if t.Header.TextColor == "" {
+				fmt.Fprintf(&b, "--hc-header-text:%s;", readableOn(t.Header.BackgroundColor))
+			}
 		}
 	}
 	if t.Header.TextColor != "" {
@@ -1432,4 +1444,41 @@ func loadLucideIcons(fs stuffbin.FileSystem) map[string]template.HTML {
 		icons[string(m[1])] = template.HTML(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` + string(m[2]) + `</svg>`)
 	}
 	return icons
+}
+
+// readableOn returns the text colour that stays legible on the given hex background,
+// using the WCAG relative-luminance threshold on gamma-corrected channels.
+func readableOn(hexColor string) string {
+	c := strings.TrimPrefix(strings.TrimSpace(hexColor), "#")
+	if len(c) == 3 {
+		c = string([]byte{c[0], c[0], c[1], c[1], c[2], c[2]})
+	}
+	if len(c) != 6 {
+		return "#16181d"
+	}
+	v, err := strconv.ParseUint(c, 16, 32)
+	if err != nil {
+		return "#16181d"
+	}
+	toLinear := func(ch float64) float64 {
+		ch /= 255
+		if ch <= 0.03928 {
+			return ch / 12.92
+		}
+		return math.Pow((ch+0.055)/1.055, 2.4)
+	}
+	r, g, b := float64((v>>16)&0xff), float64((v>>8)&0xff), float64(v&0xff)
+	if 0.2126*toLinear(r)+0.7152*toLinear(g)+0.0722*toLinear(b) > 0.179 {
+		return "#16181d"
+	}
+	return "#ffffff"
+}
+
+// localeDir returns the text direction for a locale tag such as "ar" or "ar-EG".
+func localeDir(locale string) string {
+	base, _, _ := strings.Cut(strings.ToLower(strings.TrimSpace(locale)), "-")
+	if slices.Contains(rtlLanguages, base) {
+		return "rtl"
+	}
+	return "ltr"
 }

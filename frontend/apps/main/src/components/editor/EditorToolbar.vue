@@ -34,11 +34,8 @@
         <DropdownMenuItem @select="setParagraph">
           <span class="font-normal">{{ $t('editor.paragraph') }}</span>
         </DropdownMenuItem>
-        <DropdownMenuItem @select="() => setHeading(1)">
-          <span class="text-xl font-bold">{{ $t('editor.heading', { level: 1 }) }}</span>
-        </DropdownMenuItem>
         <DropdownMenuItem @select="() => setHeading(2)">
-          <span class="text-lg font-bold">{{ $t('editor.heading', { level: 2 }) }}</span>
+          <span class="text-xl font-bold">{{ $t('editor.heading', { level: 2 }) }}</span>
         </DropdownMenuItem>
         <DropdownMenuItem @select="() => setHeading(3)">
           <span class="text-base font-semibold">{{ $t('editor.heading', { level: 3 }) }}</span>
@@ -335,7 +332,7 @@ const setParagraph = () => props.editor?.chain().focus().setParagraph().run()
 
 const getCurrentHeadingText = () => {
   if (!props.editor) return 'P'
-  for (let level = 1; level <= 4; level++) {
+  for (let level = 2; level <= 4; level++) {
     if (props.editor.isActive('heading', { level })) return `H${level}`
   }
   return 'P'

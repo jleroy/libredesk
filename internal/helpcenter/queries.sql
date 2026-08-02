@@ -394,7 +394,7 @@ WITH RECURSIVE published_collections AS (
     WHERE c.is_published = true
 )
 SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.slug, a.locale, a.title,
-    COALESCE(NULLIF(a.excerpt, ''), LEFT(regexp_replace(a.content, '<[^>]+>', ' ', 'g'), 240)) AS content,
+    a.excerpt AS content,
     a.sort_order, a.status, a.view_count, a.ai_enabled
 FROM help_articles a
 JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale AND c.id IN (SELECT id FROM published_collections)

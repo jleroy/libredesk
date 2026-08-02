@@ -4,13 +4,13 @@
       <div class="flex-1 flex flex-col min-h-0">
         <div class="flex items-center justify-between p-6 border-b bg-card/50">
           <div>
-            <h2 class="text-lg font-semibold">
+            <SheetTitle>
               {{ article ? t('helpCenter.editArticle') : t('helpCenter.newArticle') }}
-            </h2>
-            <p v-if="article" class="text-sm text-muted-foreground mt-1">
+            </SheetTitle>
+            <SheetDescription v-if="article" class="mt-1">
               {{ t('globals.terms.lastUpdated') }}:
               {{ format(new Date(article.updated_at), 'PPpp') }}
-            </p>
+            </SheetDescription>
           </div>
         </div>
 
@@ -18,7 +18,9 @@
 
         <div v-else class="flex-1 flex min-h-0">
           <div class="flex-1 flex flex-col p-6 space-y-6 min-h-0">
-            <form @submit="onSubmit" novalidate class="space-y-6 flex-1 flex flex-col min-h-0">
+            <form @submit="onSubmit" novalidate class="space-y-4 flex-1 flex flex-col min-h-0">
+              <div ref="toolbarSlot" />
+
               <FormField v-slot="{ componentField }" name="title">
                 <FormItem>
                   <FormControl>
@@ -44,6 +46,7 @@
                         :placeholder="t('helpCenter.articlePlaceholder')"
                         enableInlineImages
                         linkedModel="help_articles"
+                        :toolbarTarget="toolbarSlot"
                         class="min-h-[400px] border-0 px-0 shadow-none focus-visible:ring-0"
                       />
                     </div>
@@ -190,7 +193,7 @@
                     <FormControl>
                       <Textarea
                         :rows="3"
-                        :placeholder="derivedExcerpt || t('helpCenter.excerpt')"
+                        :placeholder="t('helpCenter.excerpt')"
                         v-bind="componentField"
                       />
                     </FormControl>
@@ -288,7 +291,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@shared-ui/components/ui/select'
-import { Sheet, SheetContent } from '@shared-ui/components/ui/sheet'
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@shared-ui/components/ui/sheet'
 import {
   FormControl,
   FormDescription,
@@ -354,6 +357,7 @@ const emitter = useEmitter()
 const isLoadingArticle = ref(false)
 const availableCollections = ref([])
 const editorText = ref('')
+const toolbarSlot = ref(null)
 // The tree omits article bodies, so the full row is loaded when the sheet opens.
 const loadedArticle = ref(null)
 
@@ -408,25 +412,13 @@ watch(localeCollections, (collections) => {
 })
 
 // Placeholders preview what the public page falls back to when these fields are left blank.
-const EXCERPT_LIMIT = 160
-
-const derivedExcerpt = computed(() => {
-  const text = editorText.value.replace(/\s+/g, ' ').trim()
-  if (text.length <= EXCERPT_LIMIT) return text
-  const cut = text.slice(0, EXCERPT_LIMIT)
-  const lastSpace = cut.lastIndexOf(' ')
-  return lastSpace > 0 ? cut.slice(0, lastSpace) : cut
-})
-
 const metaTitlePlaceholder = computed(() => {
   const title = (form.values.title || '').trim()
   if (!title) return ''
   return props.helpCenterName ? `${title} - ${props.helpCenterName}` : title
 })
 
-const metaDescriptionPlaceholder = computed(
-  () => (form.values.excerpt || '').trim() || derivedExcerpt.value
-)
+const metaDescriptionPlaceholder = computed(() => (form.values.excerpt || '').trim())
 
 // loadSeq drops stale fetches so a slow response for a previously opened article
 // can't fill the form after another article was opened.

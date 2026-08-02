@@ -278,7 +278,7 @@
 
     <!-- Footer -->
     <div class="border-t pt-6 space-y-4">
-      <h3 class="text-sm font-semibold">{{ t('helpCenter.styling.footer') }}</h3>
+      <h3 class="text-sm font-semibold">{{ t('globals.terms.footer') }}</h3>
 
       <div class="flex gap-4">
         <FormField v-slot="{ componentField }" name="theme.footer.background_color">

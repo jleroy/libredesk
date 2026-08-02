@@ -1,35 +1,41 @@
 {{ define "help-article" }}
 {{ template "hc-header" . }}
 
-<nav class="hc-breadcrumb" aria-label="Breadcrumb">
-    <a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a>
-    {{ if .Data.Collection.Name }}
-    <span class="hc-sep">/</span>
-    <a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}/collections/{{ .Data.Collection.Slug }}">{{ .Data.Collection.Name }}</a>
-    {{ end }}
-    <span class="hc-sep">/</span>
-    <span class="hc-current">{{ .Data.Article.Title }}</span>
+<nav class="hc-breadcrumb" aria-label="{{ .L.T "helpCenter.breadcrumb" }}">
+    <ol>
+        <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a></li>
+        {{ if .Data.Collection.Name }}
+        <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}/collections/{{ .Data.Collection.Slug }}">{{ .Data.Collection.Name }}</a></li>
+        {{ end }}
+        <li><span class="hc-current" aria-current="page">{{ .Data.Article.Title }}</span></li>
+    </ol>
 </nav>
 
 <article class="hc-article">
     <h1>{{ .Data.Article.Title }}</h1>
+    {{ if .Data.Article.Excerpt }}<p class="hc-article-excerpt">{{ .Data.Article.Excerpt }}</p>{{ end }}
     <div class="hc-meta{{ if and .Data.HelpCenter.Theme.Article.ShowAuthorAvatar .Data.Article.AuthorName }} hc-meta-byline{{ end }}">
         {{ if and .Data.HelpCenter.Theme.Article.ShowAuthorAvatar .Data.Article.AuthorName }}
         {{ if .Data.Article.AuthorAvatar }}<img class="hc-avatar hc-byline-avatar" src="{{ .Data.Article.AuthorAvatar }}" alt="" loading="lazy" />{{ else }}<span class="hc-avatar hc-avatar-initial hc-byline-avatar">{{ .Data.AuthorInitial }}</span>{{ end }}
         {{ end }}
         <span>{{ if .Data.Article.AuthorName }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ $.L.T "globals.terms.lastUpdated" }} <time datetime="{{ .Data.ModifiedTime }}">{{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}</time></span>
     </div>
-    {{ if not .Data.HelpCenter.Theme.Article.HideToc }}
-    <nav class="hc-toc" id="hc-toc" aria-label="{{ $.L.T "helpCenter.onThisPage" }}" hidden>
-        <p class="hc-toc-title">{{ $.L.T "helpCenter.onThisPage" }}</p>
-        <ul></ul>
-    </nav>
-    {{ end }}
-    <div class="hc-prose" id="hc-prose">{{ .Data.Content }}</div>
+    <div class="hc-article-body">
+        {{ if not .Data.HelpCenter.Theme.Article.HideToc }}
+        <nav class="hc-toc" id="hc-toc" aria-label="{{ $.L.T "helpCenter.onThisPage" }}" hidden>
+            <button class="hc-toc-title" type="button" id="hc-toc-toggle" aria-expanded="false" aria-controls="hc-toc-list">
+                {{ $.L.T "helpCenter.onThisPage" }}
+                <svg class="hc-toc-caret" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <ul id="hc-toc-list"></ul>
+        </nav>
+        {{ end }}
+        <div class="hc-prose" id="hc-prose">{{ .Data.Content }}</div>
+    </div>
 </article>
 
-<div class="hc-helpful" id="hc-helpful" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback?locale={{ .Data.Article.Locale }}">
-    <span class="hc-helpful-q">{{ $.L.T "helpCenter.wasHelpful" }}</span>
+<div class="hc-helpful" id="hc-helpful" role="group" aria-labelledby="hc-helpful-q" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback?locale={{ .Data.Article.Locale }}">
+    <span class="hc-helpful-q" id="hc-helpful-q">{{ $.L.T "helpCenter.wasHelpful" }}</span>
     <button type="button" data-helpful="true">{{ $.L.T "globals.messages.yes" }}</button>
     <button type="button" data-helpful="false">{{ $.L.T "globals.messages.no" }}</button>
     <span class="hc-helpful-thanks" hidden>{{ $.L.T "helpCenter.feedbackThanks" }}</span>
@@ -37,7 +43,7 @@
 
 {{ if and .Data.Related (not .Data.HelpCenter.Theme.Article.HideRelated) }}
 <aside class="hc-related">
-    <p class="hc-eyebrow">{{ $.L.T "helpCenter.moreInCollection" }}</p>
+    <h2 class="hc-eyebrow">{{ $.L.T "helpCenter.moreInCollection" }}</h2>
     <ul class="hc-article-list">
         {{ range .Data.Related }}
         <li><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}</a></li>
@@ -51,23 +57,69 @@
     var prose = document.getElementById('hc-prose');
     var toc = document.getElementById('hc-toc');
     if (prose && toc) {
-        var headings = prose.querySelectorAll('h2, h3');
+        var headings = prose.querySelectorAll('h2, h3, h4');
         var list = toc.querySelector('ul');
-        var n = 0;
+        var links = [];
+        var tracked = [];
         headings.forEach(function (h, i) {
             var text = h.textContent.trim();
             if (!text) return;
             if (!h.id) h.id = 'sec-' + i + '-' + text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
             var li = document.createElement('li');
             if (h.tagName === 'H3') li.className = 'hc-toc-h3';
+            if (h.tagName === 'H4') li.className = 'hc-toc-h4';
             var a = document.createElement('a');
             a.href = '#' + h.id;
             a.textContent = text;
             li.appendChild(a);
             list.appendChild(li);
-            n++;
+            links.push(a);
+            tracked.push(h);
         });
-        if (n >= 2) toc.hidden = false;
+        if (links.length >= 2) toc.hidden = false;
+
+        var toggle = document.getElementById('hc-toc-toggle');
+        if (toggle) {
+            // The rail is permanently open at desktop width, so it stops being a disclosure there.
+            var wide = window.matchMedia('(min-width: 1100px)');
+            var syncState = function () {
+                if (wide.matches) {
+                    toggle.setAttribute('aria-expanded', 'true');
+                    toggle.disabled = true;
+                } else {
+                    toggle.disabled = false;
+                    toggle.setAttribute('aria-expanded', toc.classList.contains('hc-toc-open') ? 'true' : 'false');
+                }
+            };
+            syncState();
+            wide.addEventListener('change', syncState);
+            toggle.addEventListener('click', function () {
+                toc.classList.toggle('hc-toc-open');
+                syncState();
+            });
+            list.addEventListener('click', function () {
+                toc.classList.remove('hc-toc-open');
+                syncState();
+            });
+        }
+
+        if (tracked.length && 'IntersectionObserver' in window) {
+            var visible = new Set();
+            var markActive = function () {
+                var current = null;
+                for (var i = 0; i < tracked.length; i++) {
+                    if (visible.has(tracked[i])) { current = links[i]; break; }
+                }
+                links.forEach(function (a) { a.classList.toggle('hc-toc-active', a === current); });
+            };
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (e) {
+                    if (e.isIntersecting) visible.add(e.target); else visible.delete(e.target);
+                });
+                markActive();
+            }, { rootMargin: '0px 0px -70% 0px' });
+            tracked.forEach(function (h) { observer.observe(h); });
+        }
     }
 
     var box = document.getElementById('hc-helpful');

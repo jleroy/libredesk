@@ -6,6 +6,7 @@
     var slug = form.getAttribute('data-hc-slug');
     var locale = form.getAttribute('data-hc-locale');
     var emptyText = form.getAttribute('data-hc-empty') || 'No results';
+    var resultsText = form.getAttribute('data-hc-results') || '{count} results';
     if (!input || !slug) return;
 
     var DEBOUNCE = 250;
@@ -15,9 +16,15 @@
 
     var panel = document.createElement('div');
     panel.className = 'hc-typeahead';
+    panel.id = 'hc-typeahead-panel';
     panel.setAttribute('role', 'listbox');
     panel.hidden = true;
     form.appendChild(panel);
+
+    var status = document.createElement('div');
+    status.className = 'hc-sr-only';
+    status.setAttribute('aria-live', 'polite');
+    form.appendChild(status);
 
     var timer = null;
     var seq = 0;
@@ -69,6 +76,7 @@
         panel.hidden = false;
         active = -1;
         input.setAttribute('aria-expanded', 'true');
+        status.textContent = list.length ? resultsText.replace('{count}', list.length) : emptyText;
         pending = q;
     }
 
@@ -77,10 +85,12 @@
         fetch(url(q, '0'), { headers: { Accept: 'application/json' } })
             .then(function (res) { return res.ok ? res.json() : null; })
             .then(function (body) {
-                if (!body || mine !== seq) return;
+                if (mine !== seq) return;
+                // A failed lookup must not leave the previous term's suggestions on screen.
+                if (!body) { close(); return; }
                 render(body.data || [], q);
             })
-            .catch(function () {});
+            .catch(function () { if (mine === seq) close(); });
     }
 
     // aria-activedescendant rather than moving focus: the caret stays in the input so typing keeps working.
@@ -96,6 +106,7 @@
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-expanded', 'false');
     input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-controls', panel.id);
 
     input.addEventListener('input', function () {
         var q = input.value.trim();

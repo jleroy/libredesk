@@ -1,8 +1,11 @@
 import { Node, mergeAttributes } from '@tiptap/vue-3'
-import { TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { exitOnEmptyTrailingLine } from './exitBlock'
 
-// Expandable section rendered as native <details>/<summary>. Editor CSS force-shows
-// the collapsed body to keep it editable.
+// Expandable section rendered as native <details>/<summary>. A closed <details> is
+// not hit-testable, so the body has to be open in the editor to be editable. The
+// decoration keeps that out of the stored HTML, so readers still get it collapsed.
 export const Details = Node.create({
   name: 'details',
   group: 'block',
@@ -10,12 +13,36 @@ export const Details = Node.create({
   defining: true,
   isolating: true,
 
+  addOptions() {
+    return { defaultSummary: 'Summary' }
+  },
+
   parseHTML() {
     return [{ tag: 'details' }]
   },
 
   renderHTML({ HTMLAttributes }) {
     return ['details', mergeAttributes(HTMLAttributes, { class: 'hc-details' }), 0]
+  },
+
+  addProseMirrorPlugins() {
+    const typeName = this.name
+    return [
+      new Plugin({
+        key: new PluginKey('detailsOpenInEditor'),
+        props: {
+          decorations: (state) => {
+            const decorations = []
+            state.doc.descendants((node, pos) => {
+              if (node.type.name === typeName) {
+                decorations.push(Decoration.node(pos, pos + node.nodeSize, { open: 'true' }))
+              }
+            })
+            return DecorationSet.create(state.doc, decorations)
+          }
+        }
+      })
+    ]
   },
 
   addCommands() {
@@ -27,7 +54,10 @@ export const Details = Node.create({
             .insertContent({
               type: this.name,
               content: [
-                { type: 'detailsSummary', content: [{ type: 'text', text: 'Summary' }] },
+                {
+                  type: 'detailsSummary',
+                  content: [{ type: 'text', text: this.options.defaultSummary }]
+                },
                 { type: 'detailsContent', content: [{ type: 'paragraph' }] }
               ]
             })
@@ -77,5 +107,11 @@ export const DetailsContent = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes(HTMLAttributes, { class: 'hc-details-content' }), 0]
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => exitOnEmptyTrailingLine(this.editor, 'details')
+    }
   }
 })

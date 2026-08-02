@@ -3,21 +3,23 @@
     class="editor-wrapper relative flex flex-col h-full min-h-0"
     :class="{ 'pointer-events-none': disabled }"
   >
-    <EditorContent :editor="editor" class="native-html flex-1 min-h-0 overflow-y-auto pb-20" />
+    <Teleport :to="toolbarTarget" :disabled="!toolbarTarget">
+      <div
+        v-if="editor"
+        class="editor-toolbar sticky top-0 z-10 rounded-xl border bg-background p-1 shadow-sm"
+      >
+        <EditorToolbar
+          :editor="editor"
+          show-article-tools
+          :enable-inline-images="enableInlineImages"
+          @open-link="linkDialog?.open()"
+          @open-youtube="youtubeDialog?.open()"
+          @open-image="imageInput?.click()"
+        />
+      </div>
+    </Teleport>
 
-    <div
-      v-if="editor"
-      class="editor-toolbar absolute bottom-4 left-1/2 z-10 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background p-1 shadow-lg"
-    >
-      <EditorToolbar
-        :editor="editor"
-        show-article-tools
-        :enable-inline-images="enableInlineImages"
-        @open-link="linkDialog?.open()"
-        @open-youtube="youtubeDialog?.open()"
-        @open-image="imageInput?.click()"
-      />
-    </div>
+    <EditorContent :editor="editor" class="hc-prose flex-1 min-h-0 overflow-y-auto" />
 
     <input
       ref="imageInput"
@@ -41,6 +43,9 @@ import EditorLinkDialog from './EditorLinkDialog.vue'
 import EditorYoutubeDialog from './EditorYoutubeDialog.vue'
 import { buildArticleExtensions } from './editorExtensions'
 import { useTextEditor } from './useTextEditor'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const textContent = defineModel('textContent', { default: '' })
 const htmlContent = defineModel('htmlContent', { default: '' })
@@ -51,7 +56,8 @@ const props = defineProps({
   autoFocus: { type: Boolean, default: true },
   disabled: { type: Boolean, default: false },
   enableInlineImages: { type: Boolean, default: false },
-  linkedModel: { type: String, default: 'messages' }
+  linkedModel: { type: String, default: 'messages' },
+  toolbarTarget: { type: null, default: null }
 })
 
 const emit = defineEmits(['send', 'filesDropped'])
@@ -61,7 +67,11 @@ const youtubeDialog = ref(null)
 const imageInput = ref(null)
 
 const { editor, insertImages, focus } = useTextEditor({
-  extensions: buildArticleExtensions({ getPlaceholder: () => props.placeholder }),
+  extensions: buildArticleExtensions({
+    getPlaceholder: () => props.placeholder,
+    embedTitle: t('editor.tooltip.youtube'),
+    defaultSummary: t('editor.collapsibleSummary')
+  }),
   htmlContent,
   textContent,
   autoFocus: props.autoFocus,
@@ -95,11 +105,22 @@ defineExpose({ focus })
 .tiptap {
   --hc-accent: hsl(var(--primary));
   --hc-border: hsl(var(--border));
+  --hc-accent-tint: hsl(var(--primary) / 0.08);
+  --hc-muted: hsl(var(--muted-foreground));
 
-  // Keep the body visible/editable regardless of the native open state.
   details.hc-details > .hc-details-content {
-    display: block !important;
     margin-top: 0.5rem;
+  }
+
+  // The iframe otherwise swallows every mouse event and takes focus, leaving the
+  // video as the only clickable thing on the page. It still plays once published.
+  [data-youtube-video] iframe {
+    pointer-events: none;
+  }
+
+  [data-youtube-video].ProseMirror-selectednode iframe {
+    outline: 2px solid hsl(var(--link));
+    outline-offset: 2px;
   }
 }
 </style>

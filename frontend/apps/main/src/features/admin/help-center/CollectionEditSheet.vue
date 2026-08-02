@@ -4,19 +4,19 @@
       <div class="flex-1 flex flex-col min-h-0">
         <div class="flex items-center justify-between p-6 border-b bg-card/50">
           <div>
-            <h2 class="text-lg font-semibold">
+            <SheetTitle>
               {{ collection ? t('helpCenter.editCollection') : t('helpCenter.newCollection') }}
-            </h2>
-            <p v-if="collection" class="text-sm text-muted-foreground mt-1">
+            </SheetTitle>
+            <SheetDescription v-if="collection" class="mt-1">
               {{ t('globals.terms.lastUpdated') }}:
               {{ format(new Date(collection.updated_at), 'PPpp') }}
-            </p>
+            </SheetDescription>
           </div>
         </div>
 
         <div class="flex-1 flex min-h-0">
-          <div class="flex-1 flex flex-col p-6 space-y-6 overflow-y-auto">
-            <form @submit="onSubmit" novalidate class="space-y-6 flex-1 flex flex-col">
+          <div class="flex-1 flex flex-col p-6 space-y-6 min-h-0 overflow-y-auto">
+            <form @submit="onSubmit" novalidate class="space-y-4 flex-1 flex flex-col min-h-0">
               <FormField v-slot="{ componentField }" name="name">
                 <FormItem>
                   <FormControl>
@@ -32,13 +32,12 @@
               </FormField>
 
               <FormField v-slot="{ componentField }" name="description">
-                <FormItem class="flex-1">
-                  <FormControl>
+                <FormItem class="flex-1 flex flex-col min-h-0">
+                  <FormControl class="flex-1 min-h-0">
                     <Textarea
                       :placeholder="t('globals.terms.description')"
-                      rows="6"
                       v-bind="componentField"
-                      class="border-0 px-0 py-2 shadow-none focus-visible:ring-0 resize-none placeholder:text-muted-foreground/60"
+                      class="h-full border-0 px-0 py-2 shadow-none focus-visible:ring-0 resize-none placeholder:text-muted-foreground/60"
                     />
                   </FormControl>
                   <FormMessage />
@@ -190,7 +189,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@shared-ui/components/ui/select'
-import { Sheet, SheetContent } from '@shared-ui/components/ui/sheet'
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@shared-ui/components/ui/sheet'
 import {
   FormControl,
   FormField,

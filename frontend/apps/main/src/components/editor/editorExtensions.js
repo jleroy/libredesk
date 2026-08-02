@@ -12,6 +12,7 @@ import TableHeader from '@tiptap/extension-table-header'
 import ResizableImage from './extensions/ResizableImage'
 import { Callout } from './extensions/Callout'
 import { Details, DetailsSummary, DetailsContent } from './extensions/Collapsible'
+import { TrailingNode } from './extensions/TrailingNode'
 import mentionSuggestion from './mentionSuggestion'
 
 // Inline table styling so it survives email clients that strip <style>.
@@ -71,6 +72,25 @@ const CustomLink = Link.extend({
   }
 })
 
+// The stock extension hangs every attribute off the <iframe>, where text-align does
+// nothing. Mirror it onto the wrapper so the align buttons move the video; the copy
+// on the iframe is what parseHTML reads back, since the node parses from the iframe.
+const CustomYoutube = Youtube.extend({
+  addOptions() {
+    return { ...this.parent?.(), embedTitle: 'YouTube video' }
+  },
+
+  renderHTML(props) {
+    const rendered = this.parent?.(props)
+    const align = props.node.attrs.textAlign
+    if (align) rendered[1] = { ...rendered[1], style: `text-align: ${align}` }
+    // Without a title the embed is announced as an unnamed frame.
+    const iframe = rendered[2]
+    if (iframe) iframe[1] = { title: this.options.embedTitle, ...iframe[1] }
+    return rendered
+  }
+})
+
 // Carry a 'type' attribute to distinguish agent from team mentions.
 const CustomMention = Mention.extend({
   addAttributes() {
@@ -88,8 +108,8 @@ const CustomMention = Mention.extend({
   }
 })
 
-const sharedExtensions = ({ getPlaceholder, imageInline = false }) => [
-  StarterKit.configure(),
+const sharedExtensions = ({ getPlaceholder, imageInline = false, headingLevels }) => [
+  StarterKit.configure(headingLevels ? { heading: { levels: headingLevels } } : {}),
   Underline,
   ResizableImage.configure({
     inline: imageInline,
@@ -110,24 +130,28 @@ export function buildConversationExtensions({ getPlaceholder }) {
     CustomTable.configure({ resizable: false }),
     TableRow,
     CustomTableCell,
-    CustomTableHeader
+    CustomTableHeader,
+    TrailingNode
   ]
 }
 
 // Articles render inside their own themed CSS, so plain tables are fine here.
 // Images are inline there so the paragraph text-align buttons can position them.
-export function buildArticleExtensions({ getPlaceholder }) {
+export function buildArticleExtensions({ getPlaceholder, embedTitle, defaultSummary }) {
   return [
-    ...sharedExtensions({ getPlaceholder, imageInline: true }),
+    // The article title is the page's h1, so the body starts at h2. Pasted or
+    // markdown-triggered h1s land outside the schema and come in as h2.
+    ...sharedExtensions({ getPlaceholder, imageInline: true, headingLevels: [2, 3, 4] }),
     Table.configure({ resizable: false }),
     TableRow,
     TableCell,
     TableHeader,
-    Youtube.configure({ nocookie: true, width: 640, height: 360 }),
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    CustomYoutube.configure({ nocookie: true, width: 640, height: 360, embedTitle }),
+    TextAlign.configure({ types: ['heading', 'paragraph', 'youtube'] }),
     Callout,
-    Details,
+    Details.configure({ defaultSummary }),
     DetailsSummary,
-    DetailsContent
+    DetailsContent,
+    TrailingNode
   ]
 }

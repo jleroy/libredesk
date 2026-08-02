@@ -15,7 +15,6 @@ import (
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/helpcenter/models"
-	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-i18n"
 	"github.com/microcosm-cc/bluemonday"
@@ -26,7 +25,6 @@ const (
 	maxCollectionDepth = 3
 	defaultLocale      = "en"
 	defaultAccentColor = "#1f93ff"
-	excerptLimit       = 160
 	maxCardAuthors     = 3
 	maxSearchQueryLen  = 200
 
@@ -584,7 +582,7 @@ func (m *Manager) CreateArticle(collectionID int, req ArticleRequest) (models.Ar
 	}
 	req.Slug = slug
 	req.Content = articleSanitizer.Sanitize(req.Content)
-	req.Excerpt = resolveExcerpt(req.Excerpt, req.Content)
+	req.Excerpt = strings.TrimSpace(req.Excerpt)
 	if err := tx.Stmtx(m.q.InsertArticle).Get(&article, collectionID, req.AuthorID, req.Slug, req.Locale, req.Title, req.Content, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.SortOrder, req.Status, req.AIEnabled); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
@@ -632,7 +630,7 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 		return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 	}
 	req.Content = articleSanitizer.Sanitize(req.Content)
-	req.Excerpt = resolveExcerpt(req.Excerpt, req.Content)
+	req.Excerpt = strings.TrimSpace(req.Excerpt)
 	if err := m.q.UpdateArticle.Get(&article, id, req.Slug, req.Locale, req.Title, req.Content, req.SortOrder, req.Status, req.AIEnabled, req.CollectionID, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
@@ -1354,23 +1352,6 @@ func isValidArticleStatus(status string) bool {
 	return status == models.ArticleStatusDraft || status == models.ArticleStatusPublished || status == models.ArticleStatusArchived
 }
 
-// resolveExcerpt returns the given excerpt, or a plain-text excerpt derived from content when empty.
-func resolveExcerpt(excerpt, htmlContent string) string {
-	if strings.TrimSpace(excerpt) != "" {
-		return strings.TrimSpace(excerpt)
-	}
-	text := strings.Join(strings.Fields(stringutil.HTML2Text(htmlContent)), " ")
-	runes := []rune(text)
-	if len(runes) <= excerptLimit {
-		return text
-	}
-	text = string(runes[:excerptLimit])
-	if i := strings.LastIndex(text, " "); i > 0 {
-		text = text[:i]
-	}
-	return text
-}
-
 func truncateRunes(s string, limit int) string {
 	runes := []rune(s)
 	if len(runes) <= limit {
@@ -1384,12 +1365,13 @@ func buildArticleSanitizer() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 	// Links off the help center open in a new tab; bluemonday adds rel="noopener" with it.
 	p.AddTargetBlankToFullyQualifiedLinks(true)
+	p.RequireNoFollowOnFullyQualifiedLinks(true)
 	p.AllowAttrs("class").OnElements("img", "pre", "code", "div", "span", "p")
 	p.AllowAttrs("class").Matching(articleButtonClassRe).OnElements("a")
 	// Collapsible sections render as native <details>/<summary>.
 	p.AllowElements("details", "summary")
 	p.AllowAttrs("class").OnElements("details", "summary")
-	p.AllowStyles("text-align").Matching(textAlignRe).OnElements("p", "h1", "h2", "h3", "h4")
+	p.AllowStyles("text-align").Matching(textAlignRe).OnElements("p", "h1", "h2", "h3", "h4", "div")
 	p.AllowAttrs("width", "height").OnElements("img")
 	p.AllowStyles("width", "height", "max-width").OnElements("img")
 	p.AllowStyles("border", "width", "margin", "table-layout", "border-collapse", "border-radius",
@@ -1398,6 +1380,10 @@ func buildArticleSanitizer() *bluemonday.Policy {
 	// YouTube embeds as rendered by the tiptap Youtube extension.
 	p.AllowAttrs("data-youtube-video").OnElements("div")
 	p.AllowAttrs("src").Matching(youtubeEmbedRe).OnElements("iframe")
-	p.AllowAttrs("width", "height", "allowfullscreen", "frameborder", "allow", "referrerpolicy", "start").OnElements("iframe")
+	p.AllowAttrs("width", "height", "allowfullscreen", "frameborder", "allow", "referrerpolicy", "start", "title").OnElements("iframe")
+	p.AllowStyles("text-align").Matching(textAlignRe).OnElements("iframe")
+	// UGCPolicy binds alt to a charset that excludes ? : ; " & % # +, silently dropping the
+	// whole attribute. A later unrestricted policy wins, since any matching policy passes.
+	p.AllowAttrs("alt").OnElements("img")
 	return p
 }

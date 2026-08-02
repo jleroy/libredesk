@@ -9,10 +9,11 @@
 {{ define "help-collection" }}
 {{ template "hc-header" . }}
 
-<nav class="hc-breadcrumb" aria-label="Breadcrumb">
-    <a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a>
-    <span class="hc-sep">/</span>
-    <span class="hc-current">{{ .Data.Collection.Name }}</span>
+<nav class="hc-breadcrumb" aria-label="{{ .L.T "helpCenter.breadcrumb" }}">
+    <ol>
+        <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a></li>
+        <li><span class="hc-current" aria-current="page">{{ .Data.Collection.Name }}</span></li>
+    </ol>
 </nav>
 
 <header class="hc-collection-head">
@@ -30,13 +31,13 @@
 {{ end }}
 
 {{ range .Data.Collection.Children }}
-<section class="hc-collection-block">
-    <a class="hc-block-head" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a>
+<section class="hc-collection-block" aria-labelledby="hc-col-{{ .Slug }}">
+    <h2 id="hc-col-{{ .Slug }}"><a class="hc-block-head" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a></h2>
     {{ if .Description }}<p class="hc-block-desc">{{ .Description }}</p>{{ end }}
     {{ if .Articles }}{{ template "hc-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
     {{ range .Children }}
     <div class="hc-block-sub">
-        <a class="hc-block-subhead" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a>
+        <h3><a class="hc-block-subhead" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a></h3>
         {{ if .Description }}<p class="hc-block-desc">{{ .Description }}</p>{{ end }}
         {{ if .Articles }}{{ template "hc-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
     </div>
