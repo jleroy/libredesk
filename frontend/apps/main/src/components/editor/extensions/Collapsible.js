@@ -3,9 +3,8 @@ import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { exitOnEmptyTrailingLine } from './exitBlock'
 
-// Expandable section rendered as native <details>/<summary>. A closed <details> is
-// not hit-testable, so the body has to be open in the editor to be editable. The
-// decoration keeps that out of the stored HTML, so readers still get it collapsed.
+// Expandable section using native <details>. A closed one is not clickable, so a decoration
+// marks it open in the editor without storing that in the saved HTML.
 export const Details = Node.create({
   name: 'details',
   group: 'block',

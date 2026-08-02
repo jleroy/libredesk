@@ -86,6 +86,8 @@ func ChunkHTMLContent(title, htmlContent string, config ...ChunkConfig) ([]strin
 		return []string{buildEmbeddingText(title, "", "")}, nil
 	}
 
+	htmlContent = prepareHTMLForEmbedding(htmlContent)
+
 	boundaries, err := parseHTMLBoundaries(htmlContent, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)

@@ -1,7 +1,6 @@
 import { TextSelection } from '@tiptap/pm/state'
 
 // Enter on the empty last line of a container escapes it, the way a list does.
-// Without this the only way out of a callout or collapsible is the mouse.
 export function exitOnEmptyTrailingLine(editor, ancestorName) {
   const { state, view } = editor
   const { $from, empty } = state.selection

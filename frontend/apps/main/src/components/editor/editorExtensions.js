@@ -72,9 +72,7 @@ const CustomLink = Link.extend({
   }
 })
 
-// The stock extension hangs every attribute off the <iframe>, where text-align does
-// nothing. Mirror it onto the wrapper so the align buttons move the video; the copy
-// on the iframe is what parseHTML reads back, since the node parses from the iframe.
+// text-align does nothing on the iframe, so it is mirrored onto the wrapper. parseHTML still reads the iframe copy.
 const CustomYoutube = Youtube.extend({
   addOptions() {
     return { ...this.parent?.(), embedTitle: 'YouTube video' }
@@ -139,8 +137,7 @@ export function buildConversationExtensions({ getPlaceholder }) {
 // Images are inline there so the paragraph text-align buttons can position them.
 export function buildArticleExtensions({ getPlaceholder, embedTitle, defaultSummary }) {
   return [
-    // The article title is the page's h1, so the body starts at h2. Pasted or
-    // markdown-triggered h1s land outside the schema and come in as h2.
+    // The article title is the page's h1, so the body starts at h2.
     ...sharedExtensions({ getPlaceholder, imageInline: true, headingLevels: [2, 3, 4] }),
     Table.configure({ resizable: false }),
     TableRow,

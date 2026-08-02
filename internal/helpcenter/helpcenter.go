@@ -1382,8 +1382,8 @@ func buildArticleSanitizer() *bluemonday.Policy {
 	p.AllowAttrs("src").Matching(youtubeEmbedRe).OnElements("iframe")
 	p.AllowAttrs("width", "height", "allowfullscreen", "frameborder", "allow", "referrerpolicy", "start", "title").OnElements("iframe")
 	p.AllowStyles("text-align").Matching(textAlignRe).OnElements("iframe")
-	// UGCPolicy binds alt to a charset that excludes ? : ; " & % # +, silently dropping the
-	// whole attribute. A later unrestricted policy wins, since any matching policy passes.
+	// UGCPolicy binds alt to a charset that drops the whole attribute on a ? or :. A later
+	// unrestricted policy wins, since any matching policy passes.
 	p.AllowAttrs("alt").OnElements("img")
 	return p
 }

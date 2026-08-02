@@ -112,8 +112,7 @@ defineExpose({ focus })
     margin-top: 0.5rem;
   }
 
-  // The iframe otherwise swallows every mouse event and takes focus, leaving the
-  // video as the only clickable thing on the page. It still plays once published.
+  // An interactive iframe steals every click in the editor. It still plays once published.
   [data-youtube-video] iframe {
     pointer-events: none;
   }

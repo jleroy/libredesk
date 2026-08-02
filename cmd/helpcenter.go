@@ -54,8 +54,7 @@ var (
 
 	lucideSymbolRe = regexp.MustCompile(`(?s)<symbol id="([a-z0-9-]+)"[^>]*>(.*?)</symbol>`)
 
-	// rtlLanguages are the base languages written right-to-left. AllowedLocales is free-form
-	// operator input, so any of these can turn up.
+	// rtlLanguages covers the right-to-left base languages an operator can put in AllowedLocales.
 	rtlLanguages = []string{"ar", "he", "fa", "ur", "ps", "sd", "yi", "dv", "ckb"}
 
 	// crawlerDisallowedPaths are the non-public parts of the app served on the same host as
@@ -1446,8 +1445,7 @@ func loadLucideIcons(fs stuffbin.FileSystem) map[string]template.HTML {
 	return icons
 }
 
-// readableOn returns the text colour that stays legible on the given hex background,
-// using the WCAG relative-luminance threshold on gamma-corrected channels.
+// readableOn returns black or white, whichever stays legible on the given hex background.
 func readableOn(hexColor string) string {
 	c := strings.TrimPrefix(strings.TrimSpace(hexColor), "#")
 	if len(c) == 3 {

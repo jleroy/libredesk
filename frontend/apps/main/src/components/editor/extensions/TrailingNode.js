@@ -1,8 +1,7 @@
 import { Extension } from '@tiptap/vue-3'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
-// A callout, collapsible, table or video at the very end of the doc leaves nowhere
-// to put the cursor, so the article can never be continued past it.
+// A block at the very end of the doc leaves nowhere to put the cursor.
 export const TrailingNode = Extension.create({
   name: 'trailingNode',
 

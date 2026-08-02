@@ -131,8 +131,8 @@ a:hover { text-decoration: underline; }
 .hc-typeahead a:hover, .hc-typeahead a:focus, .hc-typeahead a[aria-selected="true"] {
     background: var(--hc-accent-tint); color: var(--hc-accent-ink); text-decoration: none;
 }
-/* Arrow-key selection is driven by aria-activedescendant, so only that state drops the
-   outline; a link reached by Tab keeps the global focus ring. */
+/* Arrow-key selection uses aria-activedescendant, so only that state drops the outline.
+   A link reached by Tab keeps the focus ring. */
 .hc-typeahead a[aria-selected="true"] { outline: none; }
 .hc-typeahead-empty { margin: 0; padding: .85rem 1rem; color: var(--hc-muted); font-size: .92rem; }
 /* Off the landing page the hero holds only the search box. */
@@ -382,7 +382,7 @@ article.hc-article .hc-meta-byline { display: flex; align-items: center; gap: .6
 .hc-toc a:hover { color: var(--hc-accent-ink); }
 .hc-toc.hc-toc-open .hc-toc-caret { transform: rotate(180deg); }
 
-/* Desktop: the TOC becomes a sticky rail beside the article, always expanded. */
+/* At desktop width the TOC is a sticky rail beside the article, always expanded. */
 @media (min-width: 1100px) {
     main:has(> article.hc-article) {
         max-width: calc(var(--hc-article-width) + var(--hc-toc-gap) + var(--hc-toc-width));
