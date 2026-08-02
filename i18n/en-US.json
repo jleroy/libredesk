@@ -469,6 +469,7 @@
   "admin.role.customAttributes.manage": "Manage custom attributes",
   "admin.role.generalSettings.manage": "Manage general settings",
   "admin.role.help": "Manage roles and their permissions for fine-grained control over your support desk.",
+  "admin.role.helpCenter.manage": "Manage help centers",
   "admin.role.inboxes.manage": "Manage inboxes",
   "admin.role.macros.manage": "Manage macros",
   "admin.role.messages.read": "View conversation messages",
