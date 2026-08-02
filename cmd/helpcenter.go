@@ -163,6 +163,48 @@ func handleUpdateHelpCenter(r *fastglue.Request) error {
 	return r.SendEnvelope(helpCenter)
 }
 
+// handleHelpCenterPreview renders the home page from unsaved settings so the admin can preview edits.
+func handleHelpCenterPreview(r *fastglue.Request) error {
+	var (
+		app   = r.Context.(*App)
+		req   = helpcenter.HelpCenterRequest{}
+		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
+	)
+	if id <= 0 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+	}
+	if err := r.Decode(&req, "json"); err != nil {
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+	}
+	helpCenter, err := app.helpcenter.DraftHelpCenter(id, req)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	locale := helpCenter.DefaultLocale
+	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	popular, err := app.helpcenter.GetPopularArticles(helpCenter.Slug, locale, popularArticlesLimit)
+	if err != nil {
+		popular = nil
+	}
+	if err := app.tmpl.RenderWebPage(r.RequestCtx, "help-center", map[string]interface{}{
+		"L": localeI18n(app, locale),
+		"Data": map[string]interface{}{
+			"Title":         helpCenter.PageTitle,
+			"HeroIsHeading": true,
+			"HelpCenter":    helpCenterTemplateData(helpCenter, locale),
+			"Tree":          tree.Tree,
+			"Popular":       popular,
+		},
+	}); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	r.RequestCtx.Response.Header.Set("Cache-Control", "no-store")
+	return nil
+}
+
 // handleToggleHelpCenterActive toggles whether a help center is live or paused.
 func handleToggleHelpCenterActive(r *fastglue.Request) error {
 	var (
@@ -425,7 +467,6 @@ func handleDeleteArticle(r *fastglue.Request) error {
 	return r.SendEnvelope(true)
 }
 
-// handleUpdateArticleStatus updates the status of an article.
 // handleMoveArticle moves an article to another collection.
 func handleMoveArticle(r *fastglue.Request) error {
 	var (
@@ -470,6 +511,7 @@ func handleUpdateArticleSortOrders(r *fastglue.Request) error {
 	return r.SendEnvelope(true)
 }
 
+// handleUpdateArticleStatus updates the status of an article.
 func handleUpdateArticleStatus(r *fastglue.Request) error {
 	var (
 		app = r.Context.(*App)
@@ -549,7 +591,7 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 			"HeroIsHeading":   true,
 			"OGImage":         absoluteURL(root, tree.HelpCenter.LogoURL),
 			"Alternates":      helpCenterAlternates(helpCenter, locales, pathFor),
-			"XDefaultPath":    pathFor(helpCenter.DefaultLocale),
+			"XDefaultPath":    defaultLocalePath(helpCenter, locales, pathFor),
 			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, locales, pathFor),
 			"JSONLD":          homeJSONLD(root, tree.HelpCenter, locale),
 			"HelpCenter":      data,

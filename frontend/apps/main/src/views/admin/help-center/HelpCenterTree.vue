@@ -144,21 +144,6 @@
     @cancel="closeEditSheet"
   />
 
-  <Sheet :open="showHelpCenterEditSheet" @update:open="showHelpCenterEditSheet = false">
-    <SheetContent class="sm:max-w-lg overflow-y-auto">
-      <SheetHeader>
-        <SheetTitle>{{ t('globals.messages.edit') }}</SheetTitle>
-      </SheetHeader>
-
-      <HelpCenterForm
-        :help-center="editingHelpCenter"
-        :submit-form="handleHelpCenterSave"
-        :is-loading="isSubmittingHelpCenter"
-        @cancel="closeHelpCenterEditSheet"
-      />
-    </SheetContent>
-  </Sheet>
-
   <Sheet :open="showInsights" @update:open="showInsights = $event">
     <SheetContent class="sm:max-w-lg overflow-y-auto">
       <SheetHeader>
@@ -229,7 +214,7 @@
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>{{ t('globals.messages.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction @click="confirmDelete">{{
+        <AlertDialogAction variant="destructive" @click="confirmDelete">{{
           t('globals.messages.delete')
         }}</AlertDialogAction>
       </AlertDialogFooter>
@@ -290,7 +275,6 @@ import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import TreeView from '@/features/admin/help-center/TreeView.vue'
 import ArticleEditSheet from '@/features/admin/help-center/ArticleEditSheet.vue'
 import CollectionEditSheet from '@/features/admin/help-center/CollectionEditSheet.vue'
-import HelpCenterForm from '@/features/admin/help-center/HelpCenterForm.vue'
 import api from '@/api'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useI18n } from 'vue-i18n'
@@ -313,7 +297,6 @@ const { t } = useI18n()
 const loading = ref(true)
 const isSubmittingCollection = ref(false)
 const isSubmittingArticle = ref(false)
-const isSubmittingHelpCenter = ref(false)
 const helpCenter = ref(null)
 const treeData = ref([])
 const selectedItem = ref(null)
@@ -327,10 +310,8 @@ const showInsights = ref(false)
 const insights = ref({ top_searches: [], no_result_searches: [] })
 const showArticleEditSheet = ref(false)
 const showCollectionEditSheet = ref(false)
-const showHelpCenterEditSheet = ref(false)
 const editingArticle = ref(null)
 const editingCollection = ref(null)
-const editingHelpCenter = ref(null)
 const createCollectionParentId = ref(null)
 const createArticleCollectionId = ref(null)
 const deletingItem = ref(null)
@@ -354,7 +335,8 @@ const deleteConfirmationText = computed(() => {
 onMounted(async () => {
   await fetchHelpCenter()
   const fallback = helpCenter.value?.default_locale || allowedLocales.value[0] || ''
-  if (!props.locale && fallback) {
+  const unsupported = props.locale && !allowedLocales.value.includes(props.locale)
+  if ((!props.locale || unsupported) && fallback) {
     router.replace({ name: 'help-center-tree', params: { id: props.id, locale: fallback } })
     return
   }
@@ -370,6 +352,13 @@ watch(
 
 const changeLocale = (locale) => {
   router.push({ name: 'help-center-tree', params: { id: props.id, locale } })
+}
+
+// The tree renders one language at a time; a row saved in another one lands off screen.
+const followSavedLocale = (locale) => {
+  if (!locale || locale === props.locale) return false
+  changeLocale(locale)
+  return true
 }
 
 const fetchHelpCenter = async () => {
@@ -428,19 +417,17 @@ const closeEditSheet = () => {
   createArticleCollectionId.value = null
 }
 
-const closeHelpCenterEditSheet = () => {
-  showHelpCenterEditSheet.value = false
-  editingHelpCenter.value = null
-}
-
 const visitSite = () => {
   const rootUrl = appSettingsStore.settings?.['app.root_url'] || window.location.origin
-  window.open(`${rootUrl.replace(/\/$/, '')}/hc/${helpCenter.value?.slug}`, '_blank', 'noopener')
+  const locale = props.locale || helpCenter.value?.default_locale || ''
+  const path = locale
+    ? `/hc/${helpCenter.value?.slug}/${locale}`
+    : `/hc/${helpCenter.value?.slug}`
+  window.open(`${rootUrl.replace(/\/$/, '')}${path}`, '_blank', 'noopener')
 }
 
 const editHelpCenter = () => {
-  editingHelpCenter.value = helpCenter.value
-  showHelpCenterEditSheet.value = true
+  router.push({ name: 'help-center-customize', params: { id: props.id } })
 }
 
 const deleteHelpCenter = () => {
@@ -460,25 +447,6 @@ const toggleActive = async () => {
       variant: 'destructive',
       description: handleHTTPError(error).message
     })
-  }
-}
-
-const handleHelpCenterSave = async (formData) => {
-  isSubmittingHelpCenter.value = true
-  try {
-    await api.updateHelpCenter(props.id, formData)
-    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      description: t('globals.messages.savedSuccessfully')
-    })
-    closeHelpCenterEditSheet()
-    await fetchTree()
-  } catch (error) {
-    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-      variant: 'destructive',
-      description: handleHTTPError(error).message
-    })
-  } finally {
-    isSubmittingHelpCenter.value = false
   }
 }
 
@@ -503,7 +471,7 @@ const handleCollectionSave = async (formData) => {
       description: t('globals.messages.savedSuccessfully')
     })
     closeEditSheet()
-    fetchTree()
+    if (!followSavedLocale(formData.locale)) fetchTree()
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
@@ -545,7 +513,7 @@ const handleArticleSave = async (formData) => {
       description: t('globals.messages.savedSuccessfully')
     })
     closeEditSheet()
-    fetchTree()
+    if (!followSavedLocale(formData.locale)) fetchTree()
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',

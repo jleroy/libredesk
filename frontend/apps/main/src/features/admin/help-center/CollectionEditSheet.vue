@@ -133,7 +133,7 @@
                     <FormControl>
                       <Select v-bind="componentField">
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue>{{ parentLabel }}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="0">{{ t('globals.terms.none') }}</SelectItem>
@@ -193,7 +193,6 @@ import {
 import { Sheet, SheetContent } from '@shared-ui/components/ui/sheet'
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormMessage
@@ -247,6 +246,9 @@ const props = defineProps({
 defineEmits(['update:open', 'cancel'])
 const emitter = useEmitter()
 
+// Mirrors maxCollectionDepth on the backend.
+const MAX_DEPTH = 3
+
 const availableParents = ref([])
 
 const submitLabel = computed(() =>
@@ -273,6 +275,14 @@ const form = useForm({
 const localeParents = computed(() =>
   availableParents.value.filter((parent) => parent.locale === form.values.locale)
 )
+
+// The select only learns an option's text when that option mounts, and the parent list
+// arrives after the value is set, so the label is resolved here instead.
+const parentLabel = computed(() => {
+  const id = String(form.values.parent_id ?? '0')
+  if (id === '0') return t('globals.terms.none')
+  return localeParents.value.find((parent) => String(parent.id) === id)?.name || ''
+})
 
 watch(localeParents, (parents) => {
   const current = Number(form.values.parent_id)
@@ -315,7 +325,27 @@ const fetchAvailableParents = async () => {
         }
       }
     }
-    availableParents.value = collections.filter((collection) => !excluded.has(collection.id))
+    // Nesting is capped at MAX_DEPTH levels, so a parent is only offered when it can still
+    // hold this collection's whole subtree beneath it.
+    const byId = new Map(collections.map((collection) => [collection.id, collection]))
+    const depthOf = (collection) => {
+      let depth = 1
+      let current = collection
+      while (current?.parent_id && byId.has(current.parent_id)) {
+        current = byId.get(current.parent_id)
+        depth++
+      }
+      return depth
+    }
+    const heightOf = (id) => {
+      const children = collections.filter((collection) => collection.parent_id === id)
+      return children.length ? 1 + Math.max(...children.map((child) => heightOf(child.id))) : 1
+    }
+    const subtreeHeight = props.collection ? heightOf(props.collection.id) : 1
+    availableParents.value = collections.filter(
+      (collection) =>
+        !excluded.has(collection.id) && depthOf(collection) + subtreeHeight <= MAX_DEPTH
+    )
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',

@@ -53,6 +53,9 @@ var (
 	// slugRe matches the charset stringutil.GenerateSlug emits; anything else breaks /hc/ URLs.
 	slugRe = regexp.MustCompile(`^[a-z0-9_-]{1,200}$`)
 
+	// localeRe matches BCP-47 style codes, e.g. "en", "en-US"; the code becomes a /hc/ path segment.
+	localeRe = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$`)
+
 	ilikeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 	youtubeEmbedRe = regexp.MustCompile(`^https://(www\.)?(youtube\.com|youtube-nocookie\.com)/embed/[\w-]+`)
@@ -254,6 +257,9 @@ func (m *Manager) CreateHelpCenter(req HelpCenterRequest) (models.HelpCenter, er
 	if err := m.validateHelpCenterSlug(req.Slug); err != nil {
 		return hc, err
 	}
+	if err := m.validateLocales(req.DefaultLocale, req.AllowedLocales); err != nil {
+		return hc, err
+	}
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
@@ -267,11 +273,39 @@ func (m *Manager) CreateHelpCenter(req HelpCenterRequest) (models.HelpCenter, er
 	return hc, nil
 }
 
+// DraftHelpCenter overlays an unsaved request onto the stored help center and returns it without writing.
+func (m *Manager) DraftHelpCenter(id int, req HelpCenterRequest) (models.HelpCenter, error) {
+	hc, err := m.GetHelpCenterByID(id)
+	if err != nil {
+		return hc, err
+	}
+	req = normalizeHelpCenterRequest(req)
+	hc.Name = req.Name
+	hc.PageTitle = req.PageTitle
+	hc.HeaderText = req.HeaderText
+	hc.MetaDescription = req.MetaDescription
+	hc.LogoURL = req.LogoURL
+	hc.Color = req.Color
+	hc.NavLinks = req.NavLinks
+	hc.CustomCSS = req.CustomCSS
+	hc.CustomJS = req.CustomJS
+	hc.DefaultLocale = req.DefaultLocale
+	hc.AllowedLocales = req.AllowedLocales
+	hc.Theme = req.Theme
+	if err := m.validateColor(hc.Color); err != nil {
+		return hc, err
+	}
+	return hc, nil
+}
+
 // UpdateHelpCenter updates a help center.
 func (m *Manager) UpdateHelpCenter(id int, req HelpCenterRequest) (models.HelpCenter, error) {
 	var hc models.HelpCenter
 	req = normalizeHelpCenterRequest(req)
 	if err := m.validateHelpCenterSlug(req.Slug); err != nil {
+		return hc, err
+	}
+	if err := m.validateLocales(req.DefaultLocale, req.AllowedLocales); err != nil {
 		return hc, err
 	}
 	if err := m.validateColor(req.Color); err != nil {
@@ -359,6 +393,9 @@ func (m *Manager) CreateCollection(helpCenterID int, req CollectionRequest) (mod
 	if req.Locale == "" {
 		req.Locale = defaultLocale
 	}
+	if err := m.validateHelpCenterServesLocale(helpCenterID, req.Locale); err != nil {
+		return collection, err
+	}
 	req.Icon = sanitizeIconName(req.Icon)
 	if err := m.q.InsertCollection.Get(&collection, helpCenterID, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.Icon, req.SortOrder, req.IsPublished); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
@@ -394,6 +431,9 @@ func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collec
 	if err != nil {
 		return collection, err
 	}
+	if err := m.validateHelpCenterServesLocale(existing.HelpCenterID, req.Locale); err != nil {
+		return collection, err
+	}
 	if req.Locale != existing.Locale {
 		var hasContent bool
 		if err := tx.Stmtx(m.q.CollectionHasContent).Get(&hasContent, id); err != nil {
@@ -425,11 +465,21 @@ func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collec
 
 // UpdateCollectionSortOrders sets the sort order of the given collections in a help center.
 func (m *Manager) UpdateCollectionSortOrders(helpCenterID int, orders map[int]int) error {
+	tx, err := m.db.Beginx()
+	if err != nil {
+		m.lo.Error("error starting transaction", "error", err)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
 	for id, order := range orders {
-		if _, err := m.q.UpdateCollectionSortOrder.Exec(id, helpCenterID, order); err != nil {
+		if _, err := tx.Stmtx(m.q.UpdateCollectionSortOrder).Exec(id, helpCenterID, order); err != nil {
 			m.lo.Error("error updating collection sort order", "error", err, "id", id)
 			return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		m.lo.Error("error committing collection sort orders", "error", err, "help_center_id", helpCenterID)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return nil
 }
@@ -628,11 +678,21 @@ func (m *Manager) MoveArticle(id, collectionID int) (models.Article, error) {
 
 // UpdateArticleSortOrders sets the sort order of the given articles in a collection.
 func (m *Manager) UpdateArticleSortOrders(collectionID int, orders map[int]int) error {
+	tx, err := m.db.Beginx()
+	if err != nil {
+		m.lo.Error("error starting transaction", "error", err)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
 	for id, order := range orders {
-		if _, err := m.q.UpdateArticleSortOrder.Exec(id, collectionID, order); err != nil {
+		if _, err := tx.Stmtx(m.q.UpdateArticleSortOrder).Exec(id, collectionID, order); err != nil {
 			m.lo.Error("error updating article sort order", "error", err, "id", id)
 			return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		m.lo.Error("error committing article sort orders", "error", err, "collection_id", collectionID)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return nil
 }
@@ -1105,10 +1165,39 @@ func (m *Manager) validateHelpCenterSlug(slug string) error {
 	return nil
 }
 
-// validateColor rejects accent colors that are not hex color codes.
+// validateLocales rejects language codes that aren't valid BCP-47 style codes.
+func (m *Manager) validateLocales(defaultLocale string, allowed json.RawMessage) error {
+	locales := []string{}
+	if len(allowed) > 0 {
+		_ = json.Unmarshal(allowed, &locales)
+	}
+	for _, l := range append(locales, defaultLocale) {
+		if !localeRe.MatchString(strings.TrimSpace(l)) {
+			return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidLocale"), nil)
+		}
+	}
+	return nil
+}
+
 func (m *Manager) validateColor(color string) error {
 	if !hexColorRe.MatchString(color) {
 		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidColor"), nil)
+	}
+	return nil
+}
+
+// validateHelpCenterServesLocale rejects a locale the help center doesn't list.
+func (m *Manager) validateHelpCenterServesLocale(helpCenterID int, locale string) error {
+	hc, err := m.GetHelpCenterByID(helpCenterID)
+	if err != nil {
+		return err
+	}
+	locales := []string{}
+	if len(hc.AllowedLocales) > 0 {
+		_ = json.Unmarshal(hc.AllowedLocales, &locales)
+	}
+	if !slices.Contains(locales, locale) {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.localeNotSupported"), nil)
 	}
 	return nil
 }
@@ -1120,9 +1209,8 @@ func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	if req.Color == "" {
 		req.Color = defaultAccentColor
 	}
-	if len(req.NavLinks) == 0 {
-		req.NavLinks = json.RawMessage("[]")
-	}
+	req.LogoURL = sanitizeAssetURL(req.LogoURL)
+	req.NavLinks = normalizeNavLinks(req.NavLinks)
 
 	locales := []string{}
 	if len(req.AllowedLocales) > 0 {
@@ -1134,6 +1222,23 @@ func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	}
 	req.Theme = normalizeTheme(req.Theme)
 	return req
+}
+
+// normalizeNavLinks drops header links that aren't absolute or root-relative. Invalid JSON collapses to '[]'.
+func normalizeNavLinks(raw json.RawMessage) json.RawMessage {
+	empty := json.RawMessage("[]")
+	if len(raw) == 0 {
+		return empty
+	}
+	var links []models.NavLink
+	if err := json.Unmarshal(raw, &links); err != nil {
+		return empty
+	}
+	b, err := json.Marshal(sanitizeNavLinks(links))
+	if err != nil {
+		return empty
+	}
+	return b
 }
 
 // normalizeTheme drops any theme color that isn't a valid hex code before it can reach
@@ -1153,6 +1258,9 @@ func normalizeTheme(raw json.RawMessage) json.RawMessage {
 	t.Header.TextColor = sanitizeHexColor(t.Header.TextColor)
 	t.Footer.BackgroundColor = sanitizeHexColor(t.Footer.BackgroundColor)
 	t.Footer.TextColor = sanitizeHexColor(t.Footer.TextColor)
+	t.Favicon = sanitizeAssetURL(t.Favicon)
+	t.FooterLinks = sanitizeNavLinks(t.FooterLinks)
+	t.SocialLinks = sanitizeSocialLinks(t.SocialLinks)
 	if !slices.Contains(headerBackgroundTypes, t.Header.BackgroundType) {
 		t.Header.BackgroundType = ""
 	}
@@ -1182,6 +1290,31 @@ func sanitizeAssetURL(u string) string {
 		return ""
 	}
 	return u
+}
+
+// sanitizeNavLinks drops link URLs that aren't absolute or root-relative; a bare host resolves inside the help center.
+func sanitizeNavLinks(links []models.NavLink) []models.NavLink {
+	out := make([]models.NavLink, 0, len(links))
+	for _, l := range links {
+		l.URL = sanitizeAssetURL(l.URL)
+		if l.URL == "" {
+			continue
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+func sanitizeSocialLinks(links []models.SocialLink) []models.SocialLink {
+	out := make([]models.SocialLink, 0, len(links))
+	for _, l := range links {
+		l.URL = sanitizeAssetURL(l.URL)
+		if l.URL == "" {
+			continue
+		}
+		out = append(out, l)
+	}
+	return out
 }
 
 func sanitizeIconName(n string) string {

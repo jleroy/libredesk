@@ -1,11 +1,24 @@
 import * as z from 'zod'
 
+const localeRe = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/
+
+// Mirrors assetURLRe on the backend.
+const urlRe = /^(?:https?:\/\/|\/)[^"'()\s\\<>;{}]+$/
+
 export const createHelpCenterFormSchema = (t) => {
+  const optionalURL = z
+    .string()
+    .refine((v) => !v || urlRe.test(v), t('helpCenter.invalidURL'))
+    .optional()
+
   const linkArray = z
     .array(
       z.object({
         label: z.string().min(1, t('globals.messages.required')),
-        url: z.string().min(1, t('globals.messages.required'))
+        url: z
+          .string()
+          .min(1, t('globals.messages.required'))
+          .regex(urlRe, t('helpCenter.invalidURL'))
       })
     )
     .optional()
@@ -15,23 +28,28 @@ export const createHelpCenterFormSchema = (t) => {
     slug: z
       .string()
       .min(1, t('globals.messages.required'))
-      .regex(/^[a-z0-9-]+$/, t('helpCenter.invalidSlug')),
+      .max(200, t('helpCenter.invalidSlug'))
+      .regex(/^[a-z0-9_-]+$/, t('helpCenter.invalidSlug')),
     page_title: z.string().min(1, t('globals.messages.required')),
     header_text: z.string().optional(),
     meta_description: z.string().optional(),
-    logo_url: z.string().optional(),
+    logo_url: optionalURL,
     color: z.string().optional(),
     nav_links: linkArray,
     custom_css: z.string().optional(),
     custom_js: z.string().optional(),
-    default_locale: z.string().min(1, t('globals.messages.required')).default('en'),
+    default_locale: z
+      .string()
+      .min(1, t('globals.messages.required'))
+      .regex(localeRe, t('helpCenter.invalidLocale'))
+      .default('en'),
     allowed_locales: z
-      .array(z.string().min(1, t('globals.messages.required')))
+      .array(z.string().min(1, t('globals.messages.required')).regex(localeRe, t('helpCenter.invalidLocale')))
       .min(1, t('globals.messages.required'))
       .default(['en']),
     theme: z
       .object({
-        favicon: z.string().optional(),
+        favicon: optionalURL,
         tagline: z.string().optional(),
         header: z
           .object({
@@ -39,7 +57,7 @@ export const createHelpCenterFormSchema = (t) => {
             background_color: z.string().optional(),
             gradient_from: z.string().optional(),
             gradient_to: z.string().optional(),
-            background_image: z.string().optional(),
+            background_image: optionalURL,
             text_color: z.string().optional()
           })
           .optional(),
@@ -68,7 +86,10 @@ export const createHelpCenterFormSchema = (t) => {
           .array(
             z.object({
               platform: z.string().min(1, t('globals.messages.required')),
-              url: z.string().min(1, t('globals.messages.required'))
+              url: z
+                .string()
+                .min(1, t('globals.messages.required'))
+                .regex(urlRe, t('helpCenter.invalidURL'))
             })
           )
           .optional(),

@@ -47,7 +47,11 @@
         <template v-else>
           <Eye v-if="item.status === 'draft'" class="mr-2 h-4 w-4" />
           <EyeOff v-else class="mr-2 h-4 w-4" />
-          {{ item.status === 'published' ? t('globals.messages.unpublish') : t('globals.messages.publish') }}
+          {{
+            item.status === 'published'
+              ? t('globals.messages.unpublish')
+              : t('globals.messages.publish')
+          }}
         </template>
       </DropdownMenuItem>
 

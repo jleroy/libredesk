@@ -49,7 +49,7 @@ a:hover { text-decoration: underline; }
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    padding: 1.2rem 1.5rem;
+    padding: 1.25rem 1.5rem;
 }
 .hc-brand { display: inline-flex; align-items: center; gap: .6rem; color: var(--hc-header-text, var(--hc-ink)); }
 .hc-brand:hover { text-decoration: none; }
@@ -60,7 +60,7 @@ a:hover { text-decoration: underline; }
 .hc-nav-links a:hover { opacity: 1; text-decoration: none; }
 
 /* Hero: the search box straddles the band's bottom edge. */
-.hc-hero { max-width: 42rem; margin: 0 auto; text-align: center; padding: 3.25rem 1.5rem 0; }
+.hc-hero { max-width: 42rem; margin: 0 auto; text-align: center; padding: 6.25rem 1.5rem 0; }
 .hc-hero h1, .hc-hero .hc-hero-title {
     margin: 0 0 1.75rem;
     font-size: clamp(1.9rem, 4.5vw, 2.6rem);
@@ -182,8 +182,10 @@ main:has(> article.hc-article), main:has(> .hc-collection-head), main:has(> .hc-
 .hc-subcollection h2 { font-size: .96rem; }
 
 /* Collection cards (whole card is a link) */
-a.hc-collection-card { display: block; text-decoration: none; color: inherit; }
+/* Column layout keeps headings and meta aligned across a row when a card lacks an icon or description. */
+a.hc-collection-card { display: flex; flex-direction: column; text-decoration: none; color: inherit; }
 a.hc-collection-card:hover { text-decoration: none; }
+.hc-collection-card .hc-collection-body { display: flex; flex-direction: column; flex: 1; }
 .hc-collection-card h2 { color: var(--hc-ink); transition: color .15s; }
 .hc-collection-card:hover h2 { color: var(--hc-accent-ink); }
 .hc-collection-card .hc-count {
@@ -212,14 +214,14 @@ a.hc-collection-card:hover { text-decoration: none; }
     font-size: .72rem; font-weight: 700; text-transform: uppercase;
 }
 .hc-card-meta {
-    margin-top: .8rem; display: flex; align-items: center; gap: .55rem;
+    margin-top: auto; padding-top: .8rem; display: flex; align-items: center; gap: .55rem;
     font-size: .78rem; font-weight: 600; color: var(--hc-faint);
 }
 
 /* Landing layout variants */
 .hc-collections.hc-cols-3 { grid-template-columns: repeat(3, 1fr); }
 .hc-collections.hc-layout-list { grid-template-columns: 1fr; }
-.hc-layout-list a.hc-collection-card { display: flex; gap: 1.1rem; align-items: flex-start; }
+.hc-layout-list a.hc-collection-card { display: flex; flex-direction: row; gap: 1.1rem; align-items: flex-start; }
 .hc-layout-list .hc-collection-icon { margin-bottom: 0; }
 .hc-layout-list .hc-collection-body { flex: 1; min-width: 0; }
 
@@ -384,6 +386,8 @@ article.hc-article .hc-meta-byline { display: flex; align-items: center; gap: .6
     .hc-collections.hc-cols-3 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 640px) {
+    .hc-nav { padding: 1.5rem 1.25rem; gap: .85rem; flex-wrap: wrap; }
+    .hc-nav-links { gap: 1rem; }
     .hc-hero { padding: 2.5rem 1.25rem 0; }
     .hc-hero h1, .hc-hero .hc-hero-title { margin-bottom: 1.4rem; }
     .hc-search { margin-bottom: -1.6rem; }

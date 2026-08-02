@@ -16,7 +16,7 @@
 </nav>
 
 <header class="hc-collection-head">
-    {{ with LucideIcon .Data.Collection.Icon }}<div class="hc-collection-icon">{{ . }}</div>{{ end }}
+    <div class="hc-collection-icon">{{ with LucideIcon .Data.Collection.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</div>
     <div class="hc-collection-headings">
         <h1>{{ .Data.Collection.Name }}</h1>
         {{ if .Data.Collection.Description }}<p class="hc-desc">{{ .Data.Collection.Description }}</p>{{ end }}
@@ -37,6 +37,7 @@
     {{ range .Children }}
     <div class="hc-block-sub">
         <a class="hc-block-subhead" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a>
+        {{ if .Description }}<p class="hc-block-desc">{{ .Description }}</p>{{ end }}
         {{ if .Articles }}{{ template "hc-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
     </div>
     {{ end }}

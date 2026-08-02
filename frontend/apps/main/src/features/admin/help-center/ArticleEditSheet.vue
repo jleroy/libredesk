@@ -97,8 +97,12 @@
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="draft">{{ t('globals.terms.draft') }}</SelectItem>
-                          <SelectItem value="published">{{ t('globals.terms.published') }}</SelectItem>
-                          <SelectItem value="archived">{{ t('globals.terms.archived') }}</SelectItem>
+                          <SelectItem value="published">{{
+                            t('globals.terms.published')
+                          }}</SelectItem>
+                          <SelectItem value="archived">{{
+                            t('globals.terms.archived')
+                          }}</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -107,17 +111,25 @@
                 </FormField>
               </div>
 
-              <div v-if="localeCollections.length > 0" class="space-y-3">
+              <div class="space-y-3">
                 <h3 class="font-medium text-sm text-muted-foreground">
                   {{ t('globals.terms.collection') }}
                 </h3>
 
-                <FormField v-slot="{ componentField }" name="collection_id">
+                <p v-if="localeCollections.length === 0" class="text-sm text-muted-foreground">
+                  {{ t('helpCenter.noCollectionsInLanguage') }}
+                </p>
+
+                <FormField
+                  v-if="localeCollections.length > 0"
+                  v-slot="{ componentField }"
+                  name="collection_id"
+                >
                   <FormItem>
                     <FormControl>
                       <Select v-bind="componentField">
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue>{{ collectionLabel }}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem
@@ -377,10 +389,21 @@ const localeCollections = computed(() =>
   availableCollections.value.filter((collection) => collection.locale === form.values.locale)
 )
 
+// The select only learns an option's text when that option mounts, and the collection list
+// arrives after the value is set, so the label is resolved here instead.
+const collectionLabel = computed(
+  () =>
+    localeCollections.value.find(
+      (collection) => String(collection.id) === String(form.values.collection_id)
+    )?.name || ''
+)
+
+// A collection from another language is not a valid home for this article, so the choice is
+// cleared rather than silently swapped for one the author never picked.
 watch(localeCollections, (collections) => {
   const current = Number(form.values.collection_id)
   if (current && !collections.some((collection) => collection.id === current)) {
-    form.setFieldValue('collection_id', String(collections[0]?.id || ''), false)
+    form.setFieldValue('collection_id', '', false)
   }
 })
 

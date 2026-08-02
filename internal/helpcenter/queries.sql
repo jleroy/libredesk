@@ -301,7 +301,7 @@ SELECT
     TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS author_name,
     u.avatar_url AS author_avatar
 FROM help_articles a
-JOIN article_collections c ON a.collection_id = c.id
+JOIN article_collections c ON a.collection_id = c.id AND c.locale = a.locale
 LEFT JOIN users u ON u.id = a.author_id
 WHERE c.id IN (SELECT id FROM published_collections) AND a.status = 'published'
     AND ($2 = '' OR a.locale = $2)
@@ -323,7 +323,7 @@ SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.author_id, a.slug, a
     TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS author_name,
     u.avatar_url AS author_avatar
 FROM help_articles a
-JOIN article_collections c ON c.id = a.collection_id AND c.id IN (SELECT id FROM published_collections)
+JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale AND c.id IN (SELECT id FROM published_collections)
 LEFT JOIN users u ON u.id = a.author_id
 WHERE a.slug = $2 AND a.status = 'published' AND ($3 = '' OR a.locale = $3)
 ORDER BY c.sort_order, a.sort_order
@@ -341,7 +341,7 @@ WITH RECURSIVE published_collections AS (
 )
 SELECT DISTINCT a.locale
 FROM help_articles a
-JOIN article_collections c ON c.id = a.collection_id AND c.id IN (SELECT id FROM published_collections)
+JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale AND c.id IN (SELECT id FROM published_collections)
 WHERE a.slug = $2 AND a.status = 'published';
 
 -- name: get-published-collection-locales
@@ -370,7 +370,7 @@ WITH RECURSIVE published_collections AS (
 )
 SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.slug, a.locale, a.title, a.excerpt, '' AS content, a.sort_order, a.status, a.view_count, a.ai_enabled
 FROM help_articles a
-JOIN article_collections c ON c.id = a.collection_id AND c.id IN (SELECT id FROM published_collections)
+JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale AND c.id IN (SELECT id FROM published_collections)
 WHERE a.status = 'published' AND ($2 = '' OR a.locale = $2)
 ORDER BY a.view_count DESC, a.created_at DESC
 LIMIT $3;
@@ -378,6 +378,7 @@ LIMIT $3;
 -- name: get-published-articles-by-collection
 SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.slug, a.locale, a.title, a.excerpt, '' AS content, a.sort_order, a.status, a.view_count, a.ai_enabled
 FROM help_articles a
+JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale
 WHERE a.collection_id = $1 AND a.id != $2 AND a.status = 'published' AND ($3 = '' OR a.locale = $3)
 ORDER BY a.sort_order ASC, a.created_at DESC
 LIMIT $4;
@@ -396,7 +397,7 @@ SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.slug, a.locale, a.ti
     COALESCE(NULLIF(a.excerpt, ''), LEFT(regexp_replace(a.content, '<[^>]+>', ' ', 'g'), 240)) AS content,
     a.sort_order, a.status, a.view_count, a.ai_enabled
 FROM help_articles a
-JOIN article_collections c ON c.id = a.collection_id AND c.id IN (SELECT id FROM published_collections)
+JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale AND c.id IN (SELECT id FROM published_collections)
 WHERE a.status = 'published' AND ($4 = '' OR a.locale = $4)
     AND (a.title ILIKE '%' || $2 || '%' OR a.content ILIKE '%' || $2 || '%')
 ORDER BY a.view_count DESC, a.created_at DESC

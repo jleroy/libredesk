@@ -209,6 +209,13 @@ const routes = [
                 component: () => import('@main/views/admin/help-center/HelpCenterList.vue')
               },
               {
+                path: ':id/customize',
+                name: 'help-center-customize',
+                props: true,
+                component: () => import('@main/views/admin/help-center/HelpCenterCustomize.vue'),
+                meta: { titleKey: 'globals.terms.helpCenter' }
+              },
+              {
                 path: ':id/tree/:locale?',
                 name: 'help-center-tree',
                 props: true,

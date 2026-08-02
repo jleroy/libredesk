@@ -23,7 +23,13 @@
 
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
-            <span class="truncate text-sm font-medium text-foreground">{{ item.name }}</span>
+            <button
+              type="button"
+              class="tree-node-title truncate text-sm font-medium text-foreground"
+              @click.stop="selectItem"
+            >
+              {{ item.name }}
+            </button>
             <Badge v-if="!item.is_published" variant="secondary" class="flex-shrink-0 font-normal">
               {{ $t('globals.terms.draft') }}
             </Badge>
@@ -137,7 +143,13 @@
 
     <FileText class="h-4 w-4 flex-shrink-0 text-muted-foreground" />
 
-    <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ item.title }}</span>
+    <button
+      type="button"
+      class="tree-node-title min-w-0 flex-1 truncate text-sm text-foreground"
+      @click.stop="selectItem"
+    >
+      {{ item.title }}
+    </button>
 
     <Badge v-if="item.status !== 'published'" variant="secondary" class="flex-shrink-0 font-normal">
       {{ getArticleStatusLabel(item.status) }}
@@ -290,6 +302,14 @@ const getArticleStatusLabel = (status) =>
 <style scoped>
 .tree-node {
   @apply flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-muted/50;
+}
+
+.tree-node-title {
+  @apply cursor-pointer text-left hover:underline;
+}
+
+.tree-node-title:focus-visible {
+  @apply rounded-sm outline-none ring-1 ring-ring;
 }
 
 .tree-node--collection {

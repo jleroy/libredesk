@@ -496,7 +496,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['cancel'])
+const emit = defineEmits(['cancel', 'change'])
 
 const { t } = useI18n()
 
@@ -589,6 +589,14 @@ const cleanLocales = (locales) => (locales || []).map((l) => (l || '').trim()).f
 
 const localeOptions = computed(() => cleanLocales(form.values.allowed_locales))
 
+// The backend forces the default language back into the supported list, so the select is
+// moved to a language that is actually still listed instead of showing a stale one.
+watch(localeOptions, (locales) => {
+  if (locales.length && !locales.includes(form.values.default_locale)) {
+    form.setFieldValue('default_locale', locales[0], false)
+  }
+})
+
 // Mirrors stringutil.GenerateSlug on the backend so the suggestion matches what gets saved.
 const generateSlug = () => {
   if (!props.helpCenter && form.values.name) {
@@ -606,13 +614,19 @@ const generateSlug = () => {
   }
 }
 
+const toPayload = (values) => {
+  const payload = JSON.parse(JSON.stringify(values))
+  const allowed = cleanLocales(payload.allowed_locales)
+  payload.nav_links = payload.nav_links || []
+  payload.allowed_locales = allowed.length ? allowed : ['en']
+  if (payload.theme?.layout) {
+    payload.theme.layout.columns = Number(payload.theme.layout.columns) || 2
+  }
+  return payload
+}
+
 const onSubmit = form.handleSubmit(async (values) => {
-  const allowed = cleanLocales(values.allowed_locales)
-  props.submitForm({
-    ...values,
-    nav_links: values.nav_links || [],
-    allowed_locales: allowed.length ? allowed : ['en']
-  })
+  props.submitForm(toPayload(values))
 })
 
 watch(
@@ -623,5 +637,12 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// The select yields a string; the stored theme needs columns as a number.
+watch(
+  () => form.values,
+  (values) => emit('change', toPayload(values)),
+  { deep: true, immediate: true }
 )
 </script>

@@ -19,13 +19,10 @@
   <Sheet :open="showCreateModal" @update:open="closeCreateModal">
     <SheetContent class="sm:max-w-lg overflow-y-auto">
       <SheetHeader>
-        <SheetTitle>
-          {{ editingHelpCenter ? $t('globals.messages.edit') : $t('globals.messages.new') }}
-        </SheetTitle>
+        <SheetTitle>{{ $t('globals.messages.new') }}</SheetTitle>
       </SheetHeader>
 
       <HelpCenterForm
-        :help-center="editingHelpCenter"
         :submit-form="handleSave"
         :is-loading="isSubmitting"
         @cancel="closeCreateModal"
@@ -57,7 +54,6 @@ const loading = ref(false)
 const isSubmitting = ref(false)
 const helpCenters = ref([])
 const showCreateModal = ref(false)
-const editingHelpCenter = ref(null)
 
 onMounted(() => {
   fetchHelpCenters()
@@ -83,28 +79,21 @@ const goToTree = (helpCenterId) => {
 }
 
 const openCreateModal = () => {
-  editingHelpCenter.value = null
   showCreateModal.value = true
 }
 
 const openEditModal = (helpCenter) => {
-  editingHelpCenter.value = helpCenter
-  showCreateModal.value = true
+  router.push({ name: 'help-center-customize', params: { id: helpCenter.id } })
 }
 
 const closeCreateModal = () => {
   showCreateModal.value = false
-  editingHelpCenter.value = null
 }
 
 const handleSave = async (formData) => {
   try {
     isSubmitting.value = true
-    if (editingHelpCenter.value) {
-      await api.updateHelpCenter(editingHelpCenter.value.id, formData)
-    } else {
-      await api.createHelpCenter(formData)
-    }
+    await api.createHelpCenter(formData)
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.savedSuccessfully')
     })
