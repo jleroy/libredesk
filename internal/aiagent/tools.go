@@ -248,7 +248,7 @@ func (t *sendEmailVerificationTool) Execute(ctx context.Context, args string) (s
 	if err != nil {
 		return "", err
 	}
-	if err := t.m.storePendingOTP(t.conv.UUID, code); err != nil {
+	if err := t.m.storePendingOTP(t.conv.UUID, code, email); err != nil {
 		return "", err
 	}
 	body := t.m.i18n.Ts("ai.agent.verificationEmailBody", "code", code)
