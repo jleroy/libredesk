@@ -39,11 +39,13 @@ if not ok or type(p) ~= 'table' then
 	redis.call('DEL', KEYS[1])
 	return -1
 end
+if type(p.email) ~= 'string' or p.email == '' then
+	redis.call('DEL', KEYS[1])
+	return 0
+end
 if p.code == ARGV[1] then
 	redis.call('DEL', KEYS[1])
-	if type(p.email) == 'string' and p.email ~= '' then
-		redis.call('SET', KEYS[2], p.email, 'EX', ARGV[3])
-	end
+	redis.call('SET', KEYS[2], p.email, 'EX', ARGV[3])
 	return 1
 end
 p.attempts = (p.attempts or 0) + 1
