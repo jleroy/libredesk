@@ -184,7 +184,6 @@ type queries struct {
 	GetPublishedArticlesByCollection *sqlx.Stmt `query:"get-published-articles-by-collection"`
 	SearchPublishedArticles          *sqlx.Stmt `query:"search-published-articles"`
 	IncrementArticleViewCount        *sqlx.Stmt `query:"increment-article-view-count"`
-	IncrementHelpCenterViewCount     *sqlx.Stmt `query:"increment-help-center-view-count"`
 
 	InsertArticleFeedback    *sqlx.Stmt `query:"insert-article-feedback"`
 	InsertSearchQuery        *sqlx.Stmt `query:"insert-search-query"`
@@ -464,6 +463,9 @@ func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collec
 		m.lo.Error("error committing collection update", "error", err, "id", id)
 		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	// A hidden or re-parented collection can take its articles out of reach, and the AI only
+	// cites reachable ones.
+	m.reindexSubtreeArticles(id)
 	return collection, nil
 }
 
@@ -833,13 +835,6 @@ func (m *Manager) SearchPublishedArticles(helpCenterSlug, query, locale string, 
 func (m *Manager) IncrementArticleViewCount(id int) {
 	if _, err := m.q.IncrementArticleViewCount.Exec(id); err != nil {
 		m.lo.Error("error incrementing article view count", "error", err, "id", id)
-	}
-}
-
-// IncrementHelpCenterViewCount increments the view count of a help center.
-func (m *Manager) IncrementHelpCenterViewCount(id int) {
-	if _, err := m.q.IncrementHelpCenterViewCount.Exec(id); err != nil {
-		m.lo.Error("error incrementing help center view count", "error", err, "id", id)
 	}
 }
 

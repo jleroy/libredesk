@@ -61,6 +61,15 @@ func (s helpArticleSource) deleteOrphans() ([]int, error) {
 	return ids, nil
 }
 
+// GetHelpArticleTitle returns a help article's title, for attributing a search hit to its source.
+func (m *Manager) GetHelpArticleTitle(id int) (string, error) {
+	var row models.HelpArticleItem
+	if err := m.q.GetEmbeddableHelpArticle.Get(&row, id); err != nil {
+		return "", err
+	}
+	return row.Title, nil
+}
+
 // ReindexHelpArticle re-syncs a help article's embeddings in the background, indexing or removing
 // based on its current status and AI flag.
 func (m *Manager) ReindexHelpArticle(id int) {

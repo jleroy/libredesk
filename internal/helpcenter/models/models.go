@@ -25,7 +25,6 @@ type HelpCenter struct {
 	NavLinks        json.RawMessage `db:"nav_links" json:"nav_links"`
 	CustomCSS       string          `db:"custom_css" json:"custom_css"`
 	CustomJS        string          `db:"custom_js" json:"custom_js"`
-	ViewCount       int             `db:"view_count" json:"view_count"`
 	DefaultLocale   string          `db:"default_locale" json:"default_locale"`
 	AllowedLocales  json.RawMessage `db:"allowed_locales" json:"allowed_locales"`
 	IsActive        bool            `db:"is_active" json:"is_active"`

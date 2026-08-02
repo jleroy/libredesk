@@ -9,7 +9,7 @@
 {{ define "help-collection" }}
 {{ template "hc-header" . }}
 
-<nav class="hc-breadcrumb" aria-label="{{ .L.T "helpCenter.breadcrumb" }}">
+<nav class="hc-breadcrumb" aria-label="{{ .L.T "globals.terms.breadcrumb" }}">
     <ol>
         <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a></li>
         <li><span class="hc-current" aria-current="page">{{ .Data.Collection.Name }}</span></li>

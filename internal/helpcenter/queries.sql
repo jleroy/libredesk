@@ -1,21 +1,21 @@
 -- name: get-all-help-centers
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
 FROM help_centers
 ORDER BY created_at DESC;
 
 -- name: get-active-help-centers
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
 FROM help_centers
 WHERE is_active = true
 ORDER BY created_at DESC;
 
 -- name: get-help-center-by-id
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
 FROM help_centers
 WHERE id = $1;
 
 -- name: get-help-center-by-slug
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, view_count, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
 FROM help_centers
 WHERE slug = $1 AND is_active = true;
 
@@ -405,11 +405,6 @@ LIMIT $3;
 
 -- name: increment-article-view-count
 UPDATE help_articles
-SET view_count = view_count + 1
-WHERE id = $1;
-
--- name: increment-help-center-view-count
-UPDATE help_centers
 SET view_count = view_count + 1
 WHERE id = $1;
 

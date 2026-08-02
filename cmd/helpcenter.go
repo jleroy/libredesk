@@ -576,9 +576,6 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 	if err != nil {
 		popular = nil
 	}
-	if !isCrawler(r) {
-		app.helpcenter.IncrementHelpCenterViewCount(tree.HelpCenter.ID)
-	}
 	var (
 		root            = helpCenterRootURL(app)
 		locales         = helpCenterLocales(helpCenter)

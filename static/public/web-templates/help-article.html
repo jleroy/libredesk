@@ -1,7 +1,7 @@
 {{ define "help-article" }}
 {{ template "hc-header" . }}
 
-<nav class="hc-breadcrumb" aria-label="{{ .L.T "helpCenter.breadcrumb" }}">
+<nav class="hc-breadcrumb" aria-label="{{ .L.T "globals.terms.breadcrumb" }}">
     <ol>
         <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a></li>
         {{ if .Data.Collection.Name }}

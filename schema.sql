@@ -647,7 +647,6 @@ CREATE TABLE help_centers (
 	nav_links JSONB NOT NULL DEFAULT '[]',
 	custom_css TEXT NOT NULL DEFAULT '',
 	custom_js TEXT NOT NULL DEFAULT '',
-	view_count INTEGER NOT NULL DEFAULT 0,
 	default_locale TEXT NOT NULL DEFAULT 'en',
 	allowed_locales JSONB NOT NULL DEFAULT '["en"]',
 	is_active BOOLEAN NOT NULL DEFAULT true,

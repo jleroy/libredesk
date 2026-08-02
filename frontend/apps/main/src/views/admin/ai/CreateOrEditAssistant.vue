@@ -77,7 +77,16 @@
                       :key="source.id"
                       class="flex items-center justify-between text-sm"
                     >
-                      <span class="text-foreground">{{ source.title }}</span>
+                      <span class="text-foreground">
+                        {{ source.title }}
+                        <span class="ml-2 text-xs text-muted-foreground">
+                          {{
+                            source.type === 'help_article'
+                              ? t('globals.terms.article')
+                              : t('admin.ai.snippets')
+                          }}
+                        </span>
+                      </span>
                       <span class="text-xs text-muted-foreground">
                         {{ Math.round(source.score * 100) }}%
                       </span>
