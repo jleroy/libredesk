@@ -13,11 +13,11 @@ import (
 	"time"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
-	realip "github.com/ferluci/fast-realip"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/helpcenter"
 	hcmodels "github.com/abhinavxd/libredesk/internal/helpcenter/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
+	realip "github.com/ferluci/fast-realip"
 	"github.com/knadh/stuffbin"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
@@ -192,11 +192,11 @@ func handleHelpCenterPreview(r *fastglue.Request) error {
 	if err := app.tmpl.RenderWebPage(r.RequestCtx, "help-center", map[string]interface{}{
 		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
-			"Title":         helpCenter.PageTitle,
-			"HeroIsHeading": true,
-			"HelpCenter":    helpCenterTemplateData(helpCenter, locale),
-			"Tree":          tree.Tree,
-			"Popular":       popular,
+			"Title":       helpCenter.PageTitle,
+			"LandingHero": true,
+			"HelpCenter":  helpCenterTemplateData(helpCenter, locale),
+			"Tree":        tree.Tree,
+			"Popular":     popular,
 		},
 	}); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -588,7 +588,7 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 			"Title":           tree.HelpCenter.PageTitle,
 			"MetaDescription": metaDescription,
 			"CanonicalPath":   pathFor(locale),
-			"HeroIsHeading":   true,
+			"LandingHero":     true,
 			"OGImage":         absoluteURL(root, tree.HelpCenter.LogoURL),
 			"Alternates":      helpCenterAlternates(helpCenter, locales, pathFor),
 			"XDefaultPath":    defaultLocalePath(helpCenter, locales, pathFor),
@@ -639,7 +639,6 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 			"Title":           fmt.Sprintf("%s - %s", collection.Name, helpCenter.Name),
 			"MetaDescription": firstNonEmpty(collection.Description, helpCenter.MetaDescription),
 			"CanonicalPath":   pathFor(locale),
-			"CompactHero":     true,
 			"OGImage":         absoluteURL(root, helpCenter.LogoURL),
 			"Alternates":      helpCenterAlternates(helpCenter, translated, pathFor),
 			"XDefaultPath":    defaultLocalePath(helpCenter, translated, pathFor),
@@ -714,7 +713,6 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 			"OGType":          "article",
 			"PublishedTime":   article.CreatedAt.Format(time.RFC3339),
 			"ModifiedTime":    article.UpdatedAt.Format(time.RFC3339),
-			"CompactHero":     true,
 			"Alternates":      helpCenterAlternates(helpCenter, translated, pathFor),
 			"XDefaultPath":    defaultLocalePath(helpCenter, translated, pathFor),
 			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, translated, pathFor),
@@ -762,13 +760,12 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 	return app.tmpl.RenderWebPage(r.RequestCtx, "help-search", map[string]interface{}{
 		"L": lcl,
 		"Data": map[string]interface{}{
-			"Title":         fmt.Sprintf("%s - %s", lcl.T("globals.terms.search"), helpCenter.Name),
-			"NoIndex":       true,
-			"HeroIsHeading": true,
-			"LocaleLinks":   helpCenterLocaleLinks(helpCenter, helpCenterLocales(helpCenter), pathFor),
-			"HelpCenter":    data,
-			"Query":         query,
-			"Results":       articles,
+			"Title":       fmt.Sprintf("%s - %s", lcl.T("globals.terms.search"), helpCenter.Name),
+			"NoIndex":     true,
+			"LocaleLinks": helpCenterLocaleLinks(helpCenter, helpCenterLocales(helpCenter), pathFor),
+			"HelpCenter":  data,
+			"Query":       query,
+			"Results":     articles,
 		},
 	})
 }
@@ -908,7 +905,10 @@ func handlePublicHelpCenterSearch(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	app.helpcenter.LogSearch(helpCenter.ID, query, len(articles))
+	// The typeahead passes log=0 per keystroke and logs the settled term with a later log=1 call.
+	if string(r.RequestCtx.QueryArgs().Peek("log")) != "0" {
+		app.helpcenter.LogSearch(helpCenter.ID, query, len(articles))
+	}
 	return r.SendEnvelope(articles)
 }
 
@@ -1370,7 +1370,6 @@ func renderHelpCenterNotFound(r *fastglue.Request, hc *hcmodels.HelpCenter) erro
 			"Data": map[string]interface{}{
 				"Title":       lcl.T("globals.messages.pageNotFound"),
 				"NoIndex":     true,
-				"CompactHero": true,
 				"LocaleLinks": helpCenterLocaleLinks(helpCenter, nil, func(l string) string { return helpCenterHomePath(helpCenter.Slug, l) }),
 				"HelpCenter":  data,
 			},

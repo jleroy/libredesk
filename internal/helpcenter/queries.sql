@@ -427,7 +427,7 @@ SELECT LOWER(query) AS query, COUNT(*) AS count,
     COUNT(*) FILTER (WHERE results_count = 0) AS no_results,
     MAX(created_at)::text AS last_search
 FROM help_search_queries
-WHERE help_center_id = $1 AND created_at >= NOW() - INTERVAL '90 days'
+WHERE help_center_id = $1 AND created_at >= NOW() - ($3 * INTERVAL '1 day')
 GROUP BY LOWER(query)
 ORDER BY count DESC, last_search DESC
 LIMIT $2;
@@ -437,7 +437,11 @@ SELECT LOWER(query) AS query, COUNT(*) AS count,
     COUNT(*) AS no_results,
     MAX(created_at)::text AS last_search
 FROM help_search_queries
-WHERE help_center_id = $1 AND results_count = 0 AND created_at >= NOW() - INTERVAL '90 days'
+WHERE help_center_id = $1 AND results_count = 0 AND created_at >= NOW() - ($3 * INTERVAL '1 day')
 GROUP BY LOWER(query)
 ORDER BY count DESC, last_search DESC
 LIMIT $2;
+
+-- name: delete-stale-search-queries
+DELETE FROM help_search_queries
+WHERE created_at < NOW() - ($1 * INTERVAL '1 day');

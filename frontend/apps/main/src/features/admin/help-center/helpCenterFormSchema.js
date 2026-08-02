@@ -5,6 +5,9 @@ const localeRe = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/
 // Mirrors assetURLRe on the backend.
 const urlRe = /^(?:https?:\/\/|\/)[^"'()\s\\<>;{}]+$/
 
+export const createHelpCenterBasicsSchema = (t) =>
+  createHelpCenterFormSchema(t).pick({ name: true, slug: true, page_title: true })
+
 export const createHelpCenterFormSchema = (t) => {
   const optionalURL = z
     .string()
@@ -71,7 +74,8 @@ export const createHelpCenterFormSchema = (t) => {
           .object({
             hide_description: z.boolean().optional(),
             hide_count: z.boolean().optional(),
-            show_authors: z.boolean().optional()
+            show_authors: z.boolean().optional(),
+            icon_position: z.enum(['inline', 'top', 'center']).optional()
           })
           .optional(),
         footer: z

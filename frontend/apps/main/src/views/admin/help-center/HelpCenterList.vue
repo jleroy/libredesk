@@ -22,7 +22,7 @@
         <SheetTitle>{{ $t('globals.messages.new') }}</SheetTitle>
       </SheetHeader>
 
-      <HelpCenterForm
+      <HelpCenterBasicsForm
         :submit-form="handleSave"
         :is-loading="isSubmitting"
         @cancel="closeCreateModal"
@@ -42,7 +42,7 @@ import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import LoadingOverlay from '@main/components/layout/LoadingOverlay.vue'
 import DataTable from '@main/components/datatable/DataTable.vue'
 import { createHelpCenterColumns } from '@/features/admin/help-center/helpCenterColumns.js'
-import HelpCenterForm from '@/features/admin/help-center/HelpCenterForm.vue'
+import HelpCenterBasicsForm from '@/features/admin/help-center/HelpCenterBasicsForm.vue'
 import api from '@/api'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useI18n } from 'vue-i18n'
@@ -93,12 +93,12 @@ const closeCreateModal = () => {
 const handleSave = async (formData) => {
   try {
     isSubmitting.value = true
-    await api.createHelpCenter(formData)
+    const { data } = await api.createHelpCenter(formData)
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.savedSuccessfully')
     })
     closeCreateModal()
-    fetchHelpCenters()
+    router.push({ name: 'help-center-customize', params: { id: data.data.id } })
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',

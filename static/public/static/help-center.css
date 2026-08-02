@@ -61,7 +61,7 @@ a:hover { text-decoration: underline; }
 
 /* Hero: the search box straddles the band's bottom edge. */
 .hc-hero { max-width: 42rem; margin: 0 auto; text-align: center; padding: 6.25rem 1.5rem 0; }
-.hc-hero h1, .hc-hero .hc-hero-title {
+.hc-hero h1 {
     margin: 0 0 1.75rem;
     font-size: clamp(1.9rem, 4.5vw, 2.6rem);
     font-weight: 800;
@@ -111,8 +111,25 @@ a:hover { text-decoration: underline; }
     transition: background .15s;
 }
 .hc-search button:hover { background: var(--hc-accent-line); }
-.hc-hero.hc-compact { padding-top: 2rem; }
-.hc-hero.hc-compact h1, .hc-hero.hc-compact .hc-hero-title { font-size: 1.3rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 1.15rem; }
+
+/* Typeahead panel, hangs off the search box which is already position:relative. */
+.hc-typeahead {
+    position: absolute; top: calc(100% + .5rem); left: 0; right: 0; z-index: 20;
+    background: var(--hc-bg); border: 1px solid var(--hc-border); border-radius: 12px;
+    box-shadow: var(--hc-shadow-lift); overflow: hidden; text-align: left;
+    max-height: 22rem; overflow-y: auto;
+}
+.hc-typeahead a {
+    display: block; padding: .7rem 1rem; color: var(--hc-ink); font-size: .95rem;
+    border-bottom: 1px solid var(--hc-border);
+}
+.hc-typeahead a:last-child { border-bottom: none; }
+.hc-typeahead a:hover, .hc-typeahead a:focus, .hc-typeahead a[aria-selected="true"] {
+    background: var(--hc-accent-tint); color: var(--hc-accent-ink); text-decoration: none; outline: none;
+}
+.hc-typeahead-empty { margin: 0; padding: .85rem 1rem; color: var(--hc-muted); font-size: .92rem; }
+/* Off the landing page the hero holds only the search box. */
+.hc-hero.hc-slim { padding-top: 2.5rem; }
 
 /* ---- Main ---- */
 main { flex: 1; width: 100%; max-width: var(--hc-wrap); margin: 0 auto; padding: 4.5rem 1.5rem 4rem; }
@@ -182,10 +199,30 @@ main:has(> article.hc-article), main:has(> .hc-collection-head), main:has(> .hc-
 .hc-subcollection h2 { font-size: .96rem; }
 
 /* Collection cards (whole card is a link) */
-/* Column layout keeps headings and meta aligned across a row when a card lacks an icon or description. */
-a.hc-collection-card { display: flex; flex-direction: column; text-decoration: none; color: inherit; }
+a.hc-collection-card { display: flex; text-decoration: none; color: inherit; }
 a.hc-collection-card:hover { text-decoration: none; }
-.hc-collection-card .hc-collection-body { display: flex; flex-direction: column; flex: 1; }
+/* A grid row is as tall as its tallest card, so one long description stretches the whole row. */
+.hc-collection-card .hc-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+/* Column body keeps headings and meta aligned across a row when a card lacks a description. */
+.hc-collection-card .hc-collection-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+
+/* Icon placement, set per help center and applied to every card. */
+a.hc-collection-card.hc-icon-inline { flex-direction: row; gap: 1rem; align-items: flex-start; }
+.hc-icon-inline .hc-collection-icon { margin-bottom: 0; }
+.hc-icon-inline .hc-collection-body { align-self: stretch; }
+
+a.hc-collection-card.hc-icon-top { flex-direction: column; }
+
+a.hc-collection-card.hc-icon-center { flex-direction: column; align-items: center; text-align: center; }
+.hc-icon-center .hc-collection-body { align-items: center; }
+a.hc-collection-card.hc-icon-center .hc-count { position: static; margin-top: .5rem; }
+.hc-icon-center .hc-card-meta { justify-content: center; }
 .hc-collection-card h2 { color: var(--hc-ink); transition: color .15s; }
 .hc-collection-card:hover h2 { color: var(--hc-accent-ink); }
 .hc-collection-card .hc-count {
@@ -221,9 +258,11 @@ a.hc-collection-card:hover { text-decoration: none; }
 /* Landing layout variants */
 .hc-collections.hc-cols-3 { grid-template-columns: repeat(3, 1fr); }
 .hc-collections.hc-layout-list { grid-template-columns: 1fr; }
-.hc-layout-list a.hc-collection-card { display: flex; flex-direction: row; gap: 1.1rem; align-items: flex-start; }
+.hc-collections.hc-layout-list a.hc-collection-card { display: flex; flex-direction: row; gap: 1.1rem; align-items: flex-start; text-align: left; }
 .hc-layout-list .hc-collection-icon { margin-bottom: 0; }
-.hc-layout-list .hc-collection-body { flex: 1; min-width: 0; }
+.hc-collections.hc-layout-list .hc-collection-body { flex: 1; min-width: 0; align-items: flex-start; }
+.hc-collections.hc-layout-list a.hc-collection-card .hc-count { position: absolute; margin-top: 0; }
+.hc-collections.hc-layout-list .hc-card-meta { justify-content: flex-start; }
 
 /* Collection page */
 .hc-collection-head { max-width: 44rem; margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: .9rem; }
@@ -389,7 +428,7 @@ article.hc-article .hc-meta-byline { display: flex; align-items: center; gap: .6
     .hc-nav { padding: 1.5rem 1.25rem; gap: .85rem; flex-wrap: wrap; }
     .hc-nav-links { gap: 1rem; }
     .hc-hero { padding: 2.5rem 1.25rem 0; }
-    .hc-hero h1, .hc-hero .hc-hero-title { margin-bottom: 1.4rem; }
+    .hc-hero h1 { margin-bottom: 1.4rem; }
     .hc-search { margin-bottom: -1.6rem; }
     .hc-search input { padding: .95rem 5.75rem .95rem 2.9rem; }
     main { padding-top: 3.75rem; }

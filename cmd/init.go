@@ -459,6 +459,9 @@ func getTmplFuncs(consts *constants, i18n *i18n.I18n, fs stuffbin.FileSystem) te
 		"FaviconURL": func() string {
 			return consts.FaviconURL
 		},
+		"AssetVer": func() string {
+			return assetVersion
+		},
 		"Date": func(layout string) string {
 			if layout == "" {
 				layout = time.ANSIC

@@ -4,9 +4,11 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -37,8 +39,8 @@ import (
 	"github.com/abhinavxd/libredesk/internal/conversation"
 	"github.com/abhinavxd/libredesk/internal/conversation/priority"
 	"github.com/abhinavxd/libredesk/internal/conversation/status"
-	"github.com/abhinavxd/libredesk/internal/importer"
 	"github.com/abhinavxd/libredesk/internal/helpcenter"
+	"github.com/abhinavxd/libredesk/internal/importer"
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/media"
 	"github.com/abhinavxd/libredesk/internal/oidc"
@@ -69,6 +71,17 @@ var (
 	// Injected at build time.
 	buildString   string
 	versionString string
+
+	// assetVersion is hashed from buildString so public cache-bust URLs don't leak the version.
+	assetVersion = func() string {
+		src := buildString
+		if src == "" {
+			src = strconv.FormatInt(time.Now().Unix(), 36)
+		}
+		h := fnv.New32a()
+		h.Write([]byte(src))
+		return strconv.FormatUint(uint64(h.Sum32()), 36)
+	}()
 )
 
 const (
@@ -259,6 +272,7 @@ func main() {
 	go user.MonitorUserAvailability(ctx, onUsersOffline(conversation))
 	go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
 	go userNotification.RunNotificationCleaner(ctx)
+	go helpCenter.RunSearchLogCleaner(ctx)
 	go aiAgent.Run(ctx, cmp.Or(ko.Int("ai_agent.worker_count"), 10))
 	go ai.Run(ctx)
 

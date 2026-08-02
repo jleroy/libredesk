@@ -1,5 +1,8 @@
 <template>
   <Spinner v-if="loading" />
+  <p v-else-if="loadFailed" class="text-sm text-muted-foreground">
+    {{ t('globals.messages.somethingWentWrong') }}
+  </p>
   <div v-else class="flex flex-col">
     <CustomBreadcrumb :links="breadcrumbLinks" class="mb-5" />
 
@@ -24,6 +27,7 @@
             class="w-full h-full border-0 bg-background"
             :title="t('globals.terms.helpCenter')"
             sandbox="allow-same-origin"
+            @load="lockPreview"
           />
         </div>
       </div>
@@ -55,6 +59,7 @@ const router = useRouter()
 const emitter = useEmitter()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const isSubmitting = ref(false)
 const helpCenter = ref(null)
 const previewFrame = ref(null)
@@ -67,6 +72,12 @@ const breadcrumbLinks = computed(() => [
 ])
 
 const goBack = () => router.push({ name: 'help-center-list' })
+
+// Links resolve against the admin origin; following one would replace the preview.
+const lockPreview = () => {
+  const body = previewFrame.value?.contentDocument?.body
+  if (body) body.inert = true
+}
 
 const renderPreview = async (values) => {
   try {
@@ -104,6 +115,7 @@ onMounted(async () => {
     const { data } = await api.getHelpCenter(props.id)
     helpCenter.value = data.data
   } catch (error) {
+    loadFailed.value = true
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
       description: handleHTTPError(error).message

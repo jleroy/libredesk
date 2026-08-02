@@ -62,9 +62,10 @@ type LayoutTheme struct {
 // CardTheme uses hide-flags for what renders today and show-flags for opt-ins, so an
 // empty theme keeps the current look.
 type CardTheme struct {
-	HideDescription bool `json:"hide_description"`
-	HideCount       bool `json:"hide_count"`
-	ShowAuthors     bool `json:"show_authors"`
+	HideDescription bool   `json:"hide_description"`
+	HideCount       bool   `json:"hide_count"`
+	ShowAuthors     bool   `json:"show_authors"`
+	IconPosition    string `json:"icon_position"` // "inline" (default) | "top" | "center"
 }
 
 type FooterTheme struct {

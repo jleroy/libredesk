@@ -7,16 +7,19 @@
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent>
-      <DropdownMenuItem @click="visitSite">{{ $t('helpCenter.visitSite') }}</DropdownMenuItem>
       <DropdownMenuItem @click="emit('edit', props.helpCenter)">{{
         $t('globals.messages.edit')
       }}</DropdownMenuItem>
+      <DropdownMenuItem @click="visitSite">{{ $t('helpCenter.visitSite') }}</DropdownMenuItem>
       <DropdownMenuItem @click="emit('toggle', props.helpCenter)">{{
         props.helpCenter.is_active ? $t('helpCenter.pause') : $t('helpCenter.resume')
       }}</DropdownMenuItem>
-      <DropdownMenuItem @click="() => (alertOpen = true)">{{
-        $t('globals.messages.delete')
-      }}</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        @click="() => (alertOpen = true)"
+        class="text-destructive focus:text-destructive"
+        >{{ $t('globals.messages.delete') }}</DropdownMenuItem
+      >
     </DropdownMenuContent>
   </DropdownMenu>
 
@@ -45,6 +48,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@shared-ui/components/ui/dropdown-menu'
 import {

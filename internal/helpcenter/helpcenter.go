@@ -29,6 +29,9 @@ const (
 	excerptLimit       = 160
 	maxCardAuthors     = 3
 	maxSearchQueryLen  = 200
+
+	// searchLogRetentionDays bounds both what insights read and what the cleaner keeps.
+	searchLogRetentionDays = 90
 )
 
 var (
@@ -39,6 +42,8 @@ var (
 	reservedSlugs = []string{"articles", "search", "api", "sitemap.xml"}
 
 	headerBackgroundTypes = []string{"solid", "gradient", "image"}
+
+	cardIconPositions = []string{"inline", "top", "center"}
 
 	hexColorRe = regexp.MustCompile(`^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$`)
 
@@ -183,10 +188,11 @@ type queries struct {
 	IncrementArticleViewCount        *sqlx.Stmt `query:"increment-article-view-count"`
 	IncrementHelpCenterViewCount     *sqlx.Stmt `query:"increment-help-center-view-count"`
 
-	InsertArticleFeedback  *sqlx.Stmt `query:"insert-article-feedback"`
-	InsertSearchQuery      *sqlx.Stmt `query:"insert-search-query"`
-	GetTopSearchTerms      *sqlx.Stmt `query:"get-top-search-terms"`
-	GetNoResultSearchTerms *sqlx.Stmt `query:"get-no-result-search-terms"`
+	InsertArticleFeedback    *sqlx.Stmt `query:"insert-article-feedback"`
+	InsertSearchQuery        *sqlx.Stmt `query:"insert-search-query"`
+	GetTopSearchTerms        *sqlx.Stmt `query:"get-top-search-terms"`
+	DeleteStaleSearchQueries *sqlx.Stmt `query:"delete-stale-search-queries"`
+	GetNoResultSearchTerms   *sqlx.Stmt `query:"get-no-result-search-terms"`
 }
 
 // New creates and returns a new instance of the Manager.
@@ -864,11 +870,11 @@ func (m *Manager) GetInsights(helpCenterID, limit int) (models.Insights, error) 
 	var insights models.Insights
 	insights.TopSearches = make([]models.SearchTermStat, 0)
 	insights.NoResultSearch = make([]models.SearchTermStat, 0)
-	if err := m.q.GetTopSearchTerms.Select(&insights.TopSearches, helpCenterID, limit); err != nil {
+	if err := m.q.GetTopSearchTerms.Select(&insights.TopSearches, helpCenterID, limit, searchLogRetentionDays); err != nil {
 		m.lo.Error("error fetching top search terms", "error", err, "help_center_id", helpCenterID)
 		return insights, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	if err := m.q.GetNoResultSearchTerms.Select(&insights.NoResultSearch, helpCenterID, limit); err != nil {
+	if err := m.q.GetNoResultSearchTerms.Select(&insights.NoResultSearch, helpCenterID, limit, searchLogRetentionDays); err != nil {
 		m.lo.Error("error fetching no-result search terms", "error", err, "help_center_id", helpCenterID)
 		return insights, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -1269,6 +1275,9 @@ func normalizeTheme(raw json.RawMessage) json.RawMessage {
 	}
 	if t.Layout.Columns != 2 && t.Layout.Columns != 3 {
 		t.Layout.Columns = 0
+	}
+	if !slices.Contains(cardIconPositions, t.Cards.IconPosition) {
+		t.Cards.IconPosition = cardIconPositions[0]
 	}
 	b, err := json.Marshal(t)
 	if err != nil {

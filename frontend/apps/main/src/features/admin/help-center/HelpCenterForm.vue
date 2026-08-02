@@ -1,10 +1,10 @@
 <template>
-  <form @submit="onSubmit" novalidate class="space-y-6 w-full">
+  <form ref="formEl" @submit="onSubmit" novalidate class="space-y-6 w-full">
     <FormField v-slot="{ componentField }" name="name">
       <FormItem>
         <FormLabel>{{ t('globals.terms.name') }}</FormLabel>
         <FormControl>
-          <Input type="text" v-bind="componentField" @input="generateSlug" />
+          <Input type="text" v-bind="componentField" />
         </FormControl>
         <FormMessage />
       </FormItem>
@@ -218,6 +218,26 @@
               <SelectContent>
                 <SelectItem value="2">2</SelectItem>
                 <SelectItem value="3">3</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      </FormField>
+
+      <FormField v-slot="{ componentField }" name="theme.cards.icon_position">
+        <FormItem>
+          <FormLabel>{{ t('helpCenter.styling.cardIconPosition') }}</FormLabel>
+          <FormControl>
+            <Select v-bind="componentField">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inline">{{
+                  t('helpCenter.styling.iconBesideTitle')
+                }}</SelectItem>
+                <SelectItem value="top">{{ t('helpCenter.styling.iconAboveTitle') }}</SelectItem>
+                <SelectItem value="center">{{ t('helpCenter.styling.iconCentered') }}</SelectItem>
               </SelectContent>
             </Select>
           </FormControl>
@@ -452,7 +472,7 @@
 </template>
 
 <script setup>
-import { watch, computed, ref, onMounted } from 'vue'
+import { watch, computed, ref, onMounted, nextTick } from 'vue'
 import { useForm, useFieldArray } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@shared-ui/components/ui/button'
@@ -546,7 +566,8 @@ const toFormValues = (hc) => ({
     cards: {
       hide_description: !!hc?.theme?.cards?.hide_description,
       hide_count: !!hc?.theme?.cards?.hide_count,
-      show_authors: !!hc?.theme?.cards?.show_authors
+      show_authors: !!hc?.theme?.cards?.show_authors,
+      icon_position: hc?.theme?.cards?.icon_position || 'inline'
     },
     footer: {
       background_color: hc?.theme?.footer?.background_color || '',
@@ -562,6 +583,8 @@ const toFormValues = (hc) => ({
     }
   }
 })
+
+const formEl = ref(null)
 
 const form = useForm({
   validationSchema: toTypedSchema(createHelpCenterFormSchema(t)),
@@ -597,23 +620,6 @@ watch(localeOptions, (locales) => {
   }
 })
 
-// Mirrors stringutil.GenerateSlug on the backend so the suggestion matches what gets saved.
-const generateSlug = () => {
-  if (!props.helpCenter && form.values.name) {
-    form.setFieldValue(
-      'slug',
-      form.values.name
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9\-_]+/g, '')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, ''),
-      false
-    )
-  }
-}
-
 const toPayload = (values) => {
   const payload = JSON.parse(JSON.stringify(values))
   const allowed = cleanLocales(payload.allowed_locales)
@@ -625,9 +631,15 @@ const toPayload = (values) => {
   return payload
 }
 
-const onSubmit = form.handleSubmit(async (values) => {
-  props.submitForm(toPayload(values))
-})
+const onSubmit = form.handleSubmit(
+  async (values) => {
+    props.submitForm(toPayload(values))
+  },
+  async () => {
+    await nextTick()
+    formEl.value?.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
+  }
+)
 
 watch(
   () => props.helpCenter,
