@@ -159,6 +159,7 @@ type mediaStore interface {
 	SetContentID(id int, contentID string) error
 	GetByModel(id int, model string) ([]mmodels.Media, error)
 	GetByContentIDs(contentIDs []string, conversationUUID string) ([]mmodels.Media, error)
+	GetDraftInlineMedia(uuid string, conversationID int) (mmodels.Media, error)
 	ContentIDExists(contentID, conversationUUID string) (bool, string, error)
 	Upload(fileName, contentType string, content io.ReadSeeker) (string, string, error)
 	UploadAndInsert(fileName, contentType, contentID string, modelType null.String, modelID null.Int, content io.ReadSeeker, fileSize int, disposition null.String, meta []byte) (mmodels.Media, error)

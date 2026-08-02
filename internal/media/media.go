@@ -90,6 +90,7 @@ type queries struct {
 	GetUnlinkedMessageMedia *sqlx.Stmt `query:"get-unlinked-message-media"`
 	ContentIDExists         *sqlx.Stmt `query:"content-id-exists"`
 	GetByContentIDs         *sqlx.Stmt `query:"get-media-by-content-ids"`
+	GetDraftInlineMedia     *sqlx.Stmt `query:"get-draft-inline-media"`
 	SetContentID            *sqlx.Stmt `query:"set-media-content-id"`
 }
 
@@ -207,6 +208,19 @@ func (m *Manager) GetByContentIDs(contentIDs []string, conversationUUID string) 
 		return nil, fmt.Errorf("fetching media by content_ids: %w", err)
 	}
 	return out, nil
+}
+
+// GetDraftInlineMedia returns media by UUID only if it's unattached or linked to a message in the given conversation.
+func (m *Manager) GetDraftInlineMedia(uuid string, conversationID int) (models.Media, error) {
+	var media models.Media
+	if err := m.queries.GetDraftInlineMedia.Get(&media, uuid, conversationID); err != nil {
+		if err == sql.ErrNoRows {
+			return media, envelope.NewError(envelope.NotFoundError, m.i18n.T("validation.notFoundMedia"), nil)
+		}
+		m.lo.Error("error fetching draft inline media", "uuid", uuid, "error", err)
+		return media, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return media, nil
 }
 
 // GetBlob retrieves the raw binary content of a media file by its name.
