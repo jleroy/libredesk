@@ -126,26 +126,34 @@ WHERE a.collection_id = $1
 ORDER BY a.sort_order ASC, a.created_at DESC;
 
 -- name: get-article-by-id
-SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.author_id, a.slug, a.locale, a.title, a.content,
+SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.author_id, a.created_by, a.slug, a.locale, a.title, a.content,
     a.excerpt, a.meta_title, a.meta_description, a.meta_image_url, a.sort_order, a.status, a.view_count, a.ai_enabled,
     TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS author_name,
+    TRIM(cu.first_name || ' ' || COALESCE(cu.last_name, '')) AS created_by_name,
     (SELECT COUNT(*) FROM help_article_feedback f WHERE f.article_id = a.id AND f.is_helpful) AS helpful_count,
     (SELECT COUNT(*) FROM help_article_feedback f WHERE f.article_id = a.id AND NOT f.is_helpful) AS not_helpful_count
 FROM help_articles a
 LEFT JOIN users u ON u.id = a.author_id
+LEFT JOIN users cu ON cu.id = a.created_by
 WHERE a.id = $1;
 
 -- name: insert-article
-INSERT INTO help_articles (collection_id, author_id, slug, locale, title, content, excerpt, meta_title, meta_description, meta_image_url, sort_order, status, ai_enabled)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO help_articles (collection_id, author_id, created_by, slug, locale, title, content, excerpt, meta_title, meta_description, meta_image_url, sort_order, status, ai_enabled)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 RETURNING *;
 
 -- name: update-article
 UPDATE help_articles
 SET collection_id = COALESCE($9, collection_id), slug = $2, locale = $3, title = $4, content = $5, sort_order = $6, status = $7, ai_enabled = $8,
-    excerpt = $10, meta_title = $11, meta_description = $12, meta_image_url = $13, updated_at = NOW()
+    excerpt = $10, meta_title = $11, meta_description = $12, meta_image_url = $13, author_id = COALESCE($14, author_id), updated_at = NOW()
 WHERE id = $1
 RETURNING *;
+
+-- name: user-is-author-assignable
+SELECT EXISTS(
+    SELECT 1 FROM users
+    WHERE id = $1 AND type IN ('agent', 'ai_assistant') AND deleted_at IS NULL
+);
 
 -- name: article-slug-exists-in-help-center
 SELECT EXISTS(

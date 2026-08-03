@@ -150,6 +150,43 @@
                 </FormField>
               </div>
 
+              <div class="space-y-3">
+                <h3 class="font-medium text-sm text-muted-foreground">
+                  {{ t('helpCenter.writtenBy') }}
+                </h3>
+                <FormField v-slot="{ componentField }" name="author_id">
+                  <FormItem>
+                    <FormControl>
+                      <Select v-bind="componentField">
+                        <SelectTrigger>
+                          <SelectValue>{{ authorLabel }}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup v-if="agentOptions.length">
+                            <SelectLabel>{{ t('globals.terms.agent', 2) }}</SelectLabel>
+                            <SelectItem v-for="o in agentOptions" :key="o.value" :value="o.value">
+                              {{ o.label }}
+                            </SelectItem>
+                          </SelectGroup>
+                          <SelectGroup v-if="assistantOptions.length">
+                            <SelectLabel>{{ t('admin.ai.assistants') }}</SelectLabel>
+                            <SelectItem
+                              v-for="o in assistantOptions"
+                              :key="o.value"
+                              :value="o.value"
+                            >
+                              {{ o.label }}
+                            </SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormDescription>{{ t('helpCenter.writtenByHint') }}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                </FormField>
+              </div>
+
               <FormField v-slot="{ componentField, handleChange }" name="ai_enabled">
                 <FormItem>
                   <SwitchField
@@ -247,9 +284,9 @@
               </div>
 
               <div v-if="article" class="space-y-3 text-sm border-t pt-4">
-                <div v-if="article.author_name" class="flex justify-between py-1">
-                  <span class="text-muted-foreground">{{ t('globals.terms.author') }}</span>
-                  <span>{{ article.author_name }}</span>
+                <div v-if="loadedArticle?.created_by_name" class="flex justify-between py-1">
+                  <span class="text-muted-foreground">{{ t('helpCenter.createdBy') }}</span>
+                  <span>{{ loadedArticle.created_by_name }}</span>
                 </div>
                 <div v-if="article.helpful_count !== undefined" class="flex justify-between py-1">
                   <span class="text-muted-foreground">{{ t('globals.terms.feedback') }}</span>
@@ -287,7 +324,9 @@ import SwitchField from '@shared-ui/components/SwitchField.vue'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue
 } from '@shared-ui/components/ui/select'
@@ -308,6 +347,8 @@ import api from '@/api'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useEmitter } from '@/composables/useEmitter.js'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
+import { useUsersStore } from '@/stores/users'
+import { useUserStore } from '@/stores/user'
 import { format } from 'date-fns'
 
 const { t } = useI18n()
@@ -353,6 +394,11 @@ const props = defineProps({
 
 defineEmits(['update:open', 'cancel'])
 const emitter = useEmitter()
+const usersStore = useUsersStore()
+const userStore = useUserStore()
+
+const agentOptions = computed(() => usersStore.options.filter((o) => o.type === 'agent'))
+const assistantOptions = computed(() => usersStore.options.filter((o) => o.type === 'ai_assistant'))
 
 const isLoadingArticle = ref(false)
 const availableCollections = ref([])
@@ -374,6 +420,7 @@ const toFormValues = () => {
     collection_id: String(article?.collection_id || props.collectionId || ''),
     sort_order: article?.sort_order || 0,
     ai_enabled: article?.ai_enabled || false,
+    author_id: String(article?.author_id || (props.article ? '' : userStore.userID) || ''),
     locale: article?.locale || props.defaultLocale || props.helpCenterLocales?.[0] || 'en',
     excerpt: article?.excerpt || '',
     meta_title: article?.meta_title || '',
@@ -400,6 +447,10 @@ const collectionLabel = computed(
     localeCollections.value.find(
       (collection) => String(collection.id) === String(form.values.collection_id)
     )?.name || ''
+)
+
+const authorLabel = computed(
+  () => usersStore.options.find((o) => o.value === String(form.values.author_id))?.label || ''
 )
 
 // A collection from another language is not a valid home for this article, so the choice is
@@ -430,7 +481,11 @@ watch(
     const seq = ++loadSeq
     loadedArticle.value = null
     isLoadingArticle.value = Boolean(props.article)
-    const [, article] = await Promise.all([fetchAvailableCollections(), fetchArticle()])
+    const [, , article] = await Promise.all([
+      usersStore.fetchUsers(),
+      fetchAvailableCollections(),
+      fetchArticle()
+    ])
     if (seq !== loadSeq) return
     loadedArticle.value = article
     isLoadingArticle.value = false
@@ -466,6 +521,6 @@ const fetchArticle = async () => {
 }
 
 const onSubmit = form.handleSubmit(async (values) => {
-  props.submitForm(values)
+  props.submitForm({ ...values, author_id: values.author_id ? Number(values.author_id) : null })
 })
 </script>

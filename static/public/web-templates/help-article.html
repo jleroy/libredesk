@@ -14,26 +14,28 @@
 <article class="hc-article">
     <h1>{{ .Data.Article.Title }}</h1>
     {{ if .Data.Article.Excerpt }}<p class="hc-article-excerpt">{{ .Data.Article.Excerpt }}</p>{{ end }}
-    <div class="hc-meta{{ if and .Data.HelpCenter.Theme.Article.ShowAuthorAvatar .Data.Article.AuthorName }} hc-meta-byline{{ end }}">
-        {{ if and .Data.HelpCenter.Theme.Article.ShowAuthorAvatar .Data.Article.AuthorName }}
+    {{ $showAuthor := and .Data.HelpCenter.Theme.Article.ShowAuthor .Data.Article.AuthorName }}
+    <div class="hc-meta{{ if $showAuthor }} hc-meta-byline{{ end }}">
+        {{ if $showAuthor }}
         {{ if .Data.Article.AuthorAvatar }}<img class="hc-avatar hc-byline-avatar" src="{{ .Data.Article.AuthorAvatar }}" alt="" loading="lazy" />{{ else }}<span class="hc-avatar hc-avatar-initial hc-byline-avatar">{{ .Data.AuthorInitial }}</span>{{ end }}
         {{ end }}
-        <span>{{ if .Data.Article.AuthorName }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ $.L.T "globals.terms.lastUpdated" }} <time datetime="{{ .Data.ModifiedTime }}">{{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}</time></span>
+        <span>{{ if $showAuthor }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ $.L.T "globals.terms.lastUpdated" }} <time datetime="{{ .Data.ModifiedTime }}">{{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}</time></span>
     </div>
     <div class="hc-article-body">
         {{ if not .Data.HelpCenter.Theme.Article.HideToc }}
-        <nav class="hc-toc" id="hc-toc" aria-label="{{ $.L.T "helpCenter.onThisPage" }}" hidden>
-            <button class="hc-toc-title" type="button" id="hc-toc-toggle" aria-expanded="false" aria-controls="hc-toc-list">
+        <nav class="hc-toc{{ if .Data.TOC }} hc-toc-open{{ end }}" id="hc-toc" aria-label="{{ $.L.T "helpCenter.onThisPage" }}"{{ if not .Data.TOC }} hidden{{ end }}>
+            <button class="hc-toc-title" type="button" id="hc-toc-toggle" aria-expanded="{{ if .Data.TOC }}true{{ else }}false{{ end }}" aria-controls="hc-toc-list">
                 {{ $.L.T "helpCenter.onThisPage" }}
                 <svg class="hc-toc-caret" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <ul id="hc-toc-list"></ul>
+            <ul id="hc-toc-list">{{ range .Data.TOC }}<li><a href="#{{ .ID }}">{{ .Title }}</a></li>{{ end }}</ul>
         </nav>
         {{ end }}
         <div class="hc-prose" id="hc-prose">{{ .Data.Content }}</div>
     </div>
 </article>
 
+<div class="hc-article-foot">
 <div class="hc-helpful" id="hc-helpful" role="group" aria-labelledby="hc-helpful-q" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback?locale={{ .Data.Article.Locale }}">
     <span class="hc-helpful-q" id="hc-helpful-q">{{ $.L.T "helpCenter.wasHelpful" }}</span>
     <button type="button" data-helpful="true">{{ $.L.T "globals.messages.yes" }}</button>
@@ -43,7 +45,7 @@
 
 {{ if and .Data.Related (not .Data.HelpCenter.Theme.Article.HideRelated) }}
 <aside class="hc-related">
-    <h2 class="hc-eyebrow">{{ $.L.T "helpCenter.moreInCollection" }}</h2>
+    <h2>{{ $.L.T "helpCenter.relatedArticles" }}</h2>
     <ul class="hc-article-list">
         {{ range .Data.Related }}
         <li><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}</a></li>
@@ -51,6 +53,7 @@
     </ul>
 </aside>
 {{ end }}
+</div>
 
 <script>
 (function () {

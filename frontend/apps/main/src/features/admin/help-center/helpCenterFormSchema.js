@@ -67,7 +67,9 @@ export const createHelpCenterFormSchema = (t) => {
         layout: z
           .object({
             collections: z.string().optional(),
-            columns: z.coerce.number().optional()
+            columns: z.coerce.number().optional(),
+            show_popular_articles: z.boolean().optional(),
+            popular_articles_label: z.string().optional()
           })
           .optional(),
         cards: z
@@ -75,7 +77,15 @@ export const createHelpCenterFormSchema = (t) => {
             hide_description: z.boolean().optional(),
             hide_count: z.boolean().optional(),
             show_authors: z.boolean().optional(),
+            show_icon_tile: z.boolean().optional(),
             icon_position: z.enum(['inline', 'top', 'center']).optional()
+          })
+          .optional(),
+        announcement: z
+          .object({
+            text: z.string().optional(),
+            link_label: z.string().optional(),
+            link_url: optionalURL
           })
           .optional(),
         footer: z
@@ -101,7 +111,7 @@ export const createHelpCenterFormSchema = (t) => {
           .object({
             hide_toc: z.boolean().optional(),
             hide_related: z.boolean().optional(),
-            show_author_avatar: z.boolean().optional()
+            show_author: z.boolean().optional()
           })
           .optional()
       })

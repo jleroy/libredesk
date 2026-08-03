@@ -109,6 +109,7 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	// Idempotent upgrades for installs that ran an earlier build of this migration.
 	for _, stmt := range []string{
 		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS author_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL`,
+		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS created_by BIGINT NULL REFERENCES users(id) ON DELETE SET NULL`,
 		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS excerpt TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS meta_title TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS meta_description TEXT NOT NULL DEFAULT ''`,

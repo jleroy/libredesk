@@ -17,7 +17,7 @@
 </nav>
 
 <header class="hc-collection-head">
-    <div class="hc-collection-icon">{{ with LucideIcon .Data.Collection.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</div>
+    <div class="hc-collection-icon{{ if .Data.HelpCenter.Theme.Cards.ShowIconTile }} hc-icon-tile{{ end }}">{{ with LucideIcon .Data.Collection.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</div>
     <div class="hc-collection-headings">
         <h1>{{ .Data.Collection.Name }}</h1>
         {{ if .Data.Collection.Description }}<p class="hc-desc">{{ .Data.Collection.Description }}</p>{{ end }}

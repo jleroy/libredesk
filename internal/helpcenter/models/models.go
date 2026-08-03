@@ -33,15 +33,23 @@ type HelpCenter struct {
 
 // Theme holds the customizable branding for a help center's public pages.
 type Theme struct {
-	Favicon     string       `json:"favicon"`
-	Tagline     string       `json:"tagline"`
-	Header      HeaderTheme  `json:"header"`
-	Footer      FooterTheme  `json:"footer"`
-	FooterLinks []NavLink    `json:"footer_links"`
-	SocialLinks []SocialLink `json:"social_links"`
-	Article     ArticleTheme `json:"article"`
-	Layout      LayoutTheme  `json:"layout"`
-	Cards       CardTheme    `json:"cards"`
+	Favicon      string            `json:"favicon"`
+	Tagline      string            `json:"tagline"`
+	Header       HeaderTheme       `json:"header"`
+	Footer       FooterTheme       `json:"footer"`
+	FooterLinks  []NavLink         `json:"footer_links"`
+	SocialLinks  []SocialLink      `json:"social_links"`
+	Article      ArticleTheme      `json:"article"`
+	Layout       LayoutTheme       `json:"layout"`
+	Cards        CardTheme         `json:"cards"`
+	Announcement AnnouncementTheme `json:"announcement"`
+}
+
+// AnnouncementTheme is the dismissible banner shown above the header on every public page.
+type AnnouncementTheme struct {
+	Text      string `json:"text"`
+	LinkLabel string `json:"link_label"`
+	LinkURL   string `json:"link_url"`
 }
 
 type HeaderTheme struct {
@@ -54,8 +62,10 @@ type HeaderTheme struct {
 }
 
 type LayoutTheme struct {
-	Collections string `json:"collections"` // "grid" (default) | "list"
-	Columns     int    `json:"columns"`     // grid columns: 2 (default) | 3
+	Collections          string `json:"collections"` // "grid" (default) | "list"
+	Columns              int    `json:"columns"`     // grid columns: 2 (default) | 3
+	ShowPopularArticles  bool   `json:"show_popular_articles"`
+	PopularArticlesLabel string `json:"popular_articles_label"`
 }
 
 // CardTheme uses hide-flags for what renders today and show-flags for opt-ins, so an
@@ -64,6 +74,7 @@ type CardTheme struct {
 	HideDescription bool   `json:"hide_description"`
 	HideCount       bool   `json:"hide_count"`
 	ShowAuthors     bool   `json:"show_authors"`
+	ShowIconTile    bool   `json:"show_icon_tile"`
 	IconPosition    string `json:"icon_position"` // "inline" (default) | "top" | "center"
 }
 
@@ -80,9 +91,9 @@ type SocialLink struct {
 
 // ArticleTheme uses hide-flags so an empty theme shows everything by default.
 type ArticleTheme struct {
-	HideToc          bool `json:"hide_toc"`
-	HideRelated      bool `json:"hide_related"`
-	ShowAuthorAvatar bool `json:"show_author_avatar"`
+	HideToc     bool `json:"hide_toc"`
+	HideRelated bool `json:"hide_related"`
+	ShowAuthor  bool `json:"show_author"`
 }
 
 type Collection struct {
@@ -108,6 +119,8 @@ type Article struct {
 	AuthorID        *int64    `db:"author_id" json:"author_id"`
 	AuthorName      *string   `db:"author_name" json:"author_name"`
 	AuthorAvatar    *string   `db:"author_avatar" json:"author_avatar"`
+	CreatedBy       *int64    `db:"created_by" json:"created_by"`
+	CreatedByName   *string   `db:"created_by_name" json:"created_by_name"`
 	Slug            string    `db:"slug" json:"slug"`
 	Locale          string    `db:"locale" json:"locale"`
 	Title           string    `db:"title" json:"title"`
@@ -165,4 +178,13 @@ type SearchTermStat struct {
 type Insights struct {
 	TopSearches    []SearchTermStat `json:"top_searches"`
 	NoResultSearch []SearchTermStat `json:"no_result_searches"`
+}
+
+// DefaultTheme enables the show-flags for elements that must keep rendering when a stored theme predates the flag.
+func DefaultTheme() Theme {
+	return Theme{
+		Layout:  LayoutTheme{ShowPopularArticles: true},
+		Cards:   CardTheme{ShowIconTile: true},
+		Article: ArticleTheme{ShowAuthor: true},
+	}
 }

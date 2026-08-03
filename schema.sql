@@ -679,6 +679,7 @@ CREATE TABLE help_articles (
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	collection_id INTEGER NOT NULL REFERENCES article_collections(id) ON DELETE CASCADE,
 	author_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
+	created_by BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
 	slug TEXT NOT NULL,
 	locale TEXT NOT NULL DEFAULT 'en',
 	title TEXT NOT NULL,

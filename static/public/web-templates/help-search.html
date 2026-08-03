@@ -2,7 +2,7 @@
 {{ template "hc-header" . }}
 
 {{ if .Data.Query }}
-<h1 class="hc-eyebrow">{{ $.L.T "helpCenter.searchResults" }} &ldquo;{{ .Data.Query }}&rdquo;</h1>
+<h1 class="hc-page-title">{{ $.L.T "helpCenter.searchResults" }} &ldquo;{{ .Data.Query }}&rdquo;</h1>
 {{ if .Data.Results }}
 <ul class="hc-results">
     {{ range .Data.Results }}
@@ -16,7 +16,7 @@
 <p class="hc-empty">{{ $.L.T "helpCenter.noResults" }}</p>
 {{ end }}
 {{ else }}
-<h1 class="hc-eyebrow">{{ $.L.T "globals.terms.search" }}</h1>
+<h1 class="hc-page-title">{{ $.L.T "globals.terms.search" }}</h1>
 <p class="hc-empty">{{ $.L.T "globals.messages.startTypingToSearch" }}</p>
 {{ end }}
 

@@ -120,7 +120,8 @@ type ArticleRequest struct {
 	Status          string `json:"status"`
 	AIEnabled       bool   `json:"ai_enabled"`
 	CollectionID    *int   `json:"collection_id,omitempty"`
-	AuthorID        *int64 `json:"-"`
+	AuthorID        *int64 `json:"author_id"`
+	CreatedBy       *int64 `json:"-"`
 }
 
 type Manager struct {
@@ -174,6 +175,7 @@ type queries struct {
 	UpdateArticleSortOrder        *sqlx.Stmt `query:"update-article-sort-order"`
 	UpdateArticleStatus           *sqlx.Stmt `query:"update-article-status"`
 	DeleteArticle                 *sqlx.Stmt `query:"delete-article"`
+	UserIsAuthorAssignable        *sqlx.Stmt `query:"user-is-author-assignable"`
 
 	GetHelpCenterTreeData            *sqlx.Stmt `query:"get-help-center-tree-data"`
 	GetPublicTreeData                *sqlx.Stmt `query:"get-public-tree-data"`
@@ -564,6 +566,9 @@ func (m *Manager) CreateArticle(collectionID int, req ArticleRequest) (models.Ar
 	if err := m.validateArticleCollectionLocale(collectionID, req.Locale); err != nil {
 		return article, err
 	}
+	if err := m.validateArticleAuthor(req.AuthorID); err != nil {
+		return article, err
+	}
 
 	// Slug uniqueness is per help center but the DB index is per collection, so the
 	// check and insert lock the help center row to serialize concurrent creates.
@@ -585,7 +590,7 @@ func (m *Manager) CreateArticle(collectionID int, req ArticleRequest) (models.Ar
 	req.Slug = slug
 	req.Content = articleSanitizer.Sanitize(req.Content)
 	req.Excerpt = strings.TrimSpace(req.Excerpt)
-	if err := tx.Stmtx(m.q.InsertArticle).Get(&article, collectionID, req.AuthorID, req.Slug, req.Locale, req.Title, req.Content, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.SortOrder, req.Status, req.AIEnabled); err != nil {
+	if err := tx.Stmtx(m.q.InsertArticle).Get(&article, collectionID, req.AuthorID, req.CreatedBy, req.Slug, req.Locale, req.Title, req.Content, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.SortOrder, req.Status, req.AIEnabled); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -631,9 +636,15 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 	if slugTaken {
 		return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 	}
+	// A soft-deleted author must not block saving an article that already has them.
+	if req.AuthorID == nil || existing.AuthorID == nil || *existing.AuthorID != *req.AuthorID {
+		if err := m.validateArticleAuthor(req.AuthorID); err != nil {
+			return article, err
+		}
+	}
 	req.Content = articleSanitizer.Sanitize(req.Content)
 	req.Excerpt = strings.TrimSpace(req.Excerpt)
-	if err := m.q.UpdateArticle.Get(&article, id, req.Slug, req.Locale, req.Title, req.Content, req.SortOrder, req.Status, req.AIEnabled, req.CollectionID, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL); err != nil {
+	if err := m.q.UpdateArticle.Get(&article, id, req.Slug, req.Locale, req.Title, req.Content, req.SortOrder, req.Status, req.AIEnabled, req.CollectionID, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.AuthorID); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -1132,6 +1143,22 @@ func (m *Manager) validateArticleCollectionLocale(collectionID int, locale strin
 	return nil
 }
 
+// validateArticleAuthor rejects an author that isn't an agent or AI assistant.
+func (m *Manager) validateArticleAuthor(authorID *int64) error {
+	if authorID == nil {
+		return nil
+	}
+	var ok bool
+	if err := m.q.UserIsAuthorAssignable.Get(&ok, *authorID); err != nil {
+		m.lo.Error("error checking article author", "error", err, "author_id", *authorID)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if !ok {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidAuthor"), nil)
+	}
+	return nil
+}
+
 // uniqueArticleSlug appends a numeric suffix until the slug is unique within the collection's help center.
 func (m *Manager) uniqueArticleSlug(tx *sqlx.Tx, collectionID int, slug, locale string) (string, error) {
 	candidate := slug
@@ -1246,7 +1273,7 @@ func normalizeTheme(raw json.RawMessage) json.RawMessage {
 	if len(raw) == 0 {
 		return json.RawMessage("{}")
 	}
-	var t models.Theme
+	t := models.DefaultTheme()
 	if err := json.Unmarshal(raw, &t); err != nil {
 		return json.RawMessage("{}")
 	}
@@ -1260,6 +1287,11 @@ func normalizeTheme(raw json.RawMessage) json.RawMessage {
 	t.Favicon = sanitizeAssetURL(t.Favicon)
 	t.FooterLinks = sanitizeNavLinks(t.FooterLinks)
 	t.SocialLinks = sanitizeSocialLinks(t.SocialLinks)
+	t.Announcement.Text = strings.TrimSpace(t.Announcement.Text)
+	t.Announcement.LinkURL = sanitizeAssetURL(t.Announcement.LinkURL)
+	if t.Announcement.Text == "" {
+		t.Announcement = models.AnnouncementTheme{}
+	}
 	if !slices.Contains(headerBackgroundTypes, t.Header.BackgroundType) {
 		t.Header.BackgroundType = ""
 	}

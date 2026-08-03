@@ -505,8 +505,11 @@ const createHelpCenter = (data) => http.post('/api/v1/help-centers', data)
 const updateHelpCenter = (id, data) => http.put(`/api/v1/help-centers/${id}`, data)
 const deleteHelpCenter = (id) => http.delete(`/api/v1/help-centers/${id}`)
 const toggleHelpCenter = (id) => http.put(`/api/v1/help-centers/${id}/toggle`)
-const previewHelpCenter = (id, data) =>
-  http.post(`/api/v1/help-centers/${id}/preview`, data, { responseType: 'text' })
+const previewHelpCenter = (id, data, page) =>
+  http.post(`/api/v1/help-centers/${id}/preview`, data, {
+    responseType: 'text',
+    params: page ? { page } : {}
+  })
 const getHelpCenterTree = (id, locale) =>
   http.get(`/api/v1/help-centers/${id}/tree`, { params: locale ? { locale } : {} })
 const getCollections = (helpCenterId) => http.get(`/api/v1/help-centers/${helpCenterId}/collections`)

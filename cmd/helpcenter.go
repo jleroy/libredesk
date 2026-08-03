@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"hash/fnv"
 	"html/template"
 	"log"
 	"math"
@@ -30,6 +31,7 @@ const (
 	relatedArticlesLimit  = 5
 	insightsTermLimit     = 20
 	markdownSlugExtension = ".md"
+	previewPageArticle    = "article"
 
 	// sitemapURLLimit is the per-sitemap URL cap set by the sitemap protocol.
 	sitemapURLLimit = 50000
@@ -97,6 +99,11 @@ type sitemapIndex struct {
 type localeLink struct {
 	Locale string
 	Path   string
+}
+
+type previewTOCItem struct {
+	ID    string
+	Title string
 }
 
 // handleGetHelpCenters returns all help centers.
@@ -185,13 +192,16 @@ func handleHelpCenterPreview(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	locale := helpCenter.DefaultLocale
-	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
-	if err != nil {
-		return sendErrorEnvelope(r, err)
+	if string(r.RequestCtx.QueryArgs().Peek("page")) == previewPageArticle {
+		return renderHelpCenterArticlePreview(r, helpCenter, locale)
 	}
 	popular, err := app.helpcenter.GetPopularArticles(helpCenter.Slug, locale, popularArticlesLimit)
 	if err != nil {
 		popular = nil
+	}
+	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	if err := app.tmpl.RenderWebPage(r.RequestCtx, "help-center", map[string]interface{}{
 		"L": localeI18n(app, locale),
@@ -445,8 +455,11 @@ func handleCreateArticle(r *fastglue.Request) error {
 		req.Status = hcmodels.ArticleStatusDraft
 	}
 	if auser, ok := r.RequestCtx.UserValue("user").(amodels.User); ok && auser.ID > 0 {
-		authorID := int64(auser.ID)
-		req.AuthorID = &authorID
+		userID := int64(auser.ID)
+		req.CreatedBy = &userID
+		if req.AuthorID == nil {
+			req.AuthorID = &userID
+		}
 	}
 	article, err := app.helpcenter.CreateArticle(collectionID, req)
 	if err != nil {
@@ -1296,10 +1309,10 @@ func helpCenterTemplateData(hc hcmodels.HelpCenter, locale string) map[string]in
 			navLinks = nil
 		}
 	}
-	theme := hcmodels.Theme{}
+	theme := hcmodels.DefaultTheme()
 	if len(hc.Theme) > 0 {
 		if err := json.Unmarshal(hc.Theme, &theme); err != nil {
-			theme = hcmodels.Theme{}
+			theme = hcmodels.DefaultTheme()
 		}
 	}
 	return map[string]interface{}{
@@ -1316,9 +1329,20 @@ func helpCenterTemplateData(hc hcmodels.HelpCenter, locale string) map[string]in
 		"NavLinks":         navLinks,
 		"Theme":            theme,
 		"ThemeCSS":         buildThemeCSSVars(theme),
+		"AnnouncementKey":  announcementKey(hc.Slug, theme.Announcement),
 		"CustomCSS":        template.CSS(hc.CustomCSS),
 		"CustomJS":         template.JS(hc.CustomJS),
 	}
+}
+
+// announcementKey keys the dismissal on help center and content, so an edited announcement reappears for visitors who dismissed the old one.
+func announcementKey(hcSlug string, a hcmodels.AnnouncementTheme) string {
+	if a.Text == "" {
+		return ""
+	}
+	h := fnv.New32a()
+	h.Write([]byte(hcSlug + "|" + a.Text + "|" + a.LinkLabel + "|" + a.LinkURL))
+	return fmt.Sprintf("%x", h.Sum32())
 }
 
 // buildThemeCSSVars emits the theme's CSS custom-property overrides.
@@ -1476,4 +1500,60 @@ func localeDir(locale string) string {
 		return "rtl"
 	}
 	return "ltr"
+}
+
+// renderHelpCenterArticlePreview renders a sample article page from unsaved settings; TOC and related list are built server-side because the preview iframe is sandboxed without scripts.
+func renderHelpCenterArticlePreview(r *fastglue.Request, helpCenter hcmodels.HelpCenter, locale string) error {
+	var (
+		app  = r.Context.(*App)
+		i18n = localeI18n(app, locale)
+		body = template.HTMLEscapeString(i18n.T("helpCenter.preview.sampleArticleBody"))
+		item = template.HTMLEscapeString(i18n.T("helpCenter.preview.sampleArticleListItem"))
+		toc  = []previewTOCItem{
+			{ID: "sample-1", Title: i18n.T("helpCenter.preview.sampleArticleHeading1")},
+			{ID: "sample-2", Title: i18n.T("helpCenter.preview.sampleArticleHeading2")},
+			{ID: "sample-3", Title: i18n.T("helpCenter.preview.sampleArticleHeading3")},
+		}
+		author  = i18n.T("helpCenter.preview.sampleAuthor")
+		article = hcmodels.Article{
+			Slug:       "sample-article",
+			Locale:     locale,
+			AuthorName: &author,
+			Title:      i18n.T("helpCenter.preview.sampleArticleTitle"),
+			Excerpt:    i18n.T("helpCenter.preview.sampleArticleExcerpt"),
+			UpdatedAt:  time.Now(),
+			Content: fmt.Sprintf(
+				`<h2 id="%s">%s</h2><p>%s</p><h2 id="%s">%s</h2><p>%s</p><ul><li>%s</li><li>%s</li></ul><h2 id="%s">%s</h2><p>%s</p>`,
+				toc[0].ID, template.HTMLEscapeString(toc[0].Title), body,
+				toc[1].ID, template.HTMLEscapeString(toc[1].Title), body, item, item,
+				toc[2].ID, template.HTMLEscapeString(toc[2].Title), body),
+		}
+		collection = hcmodels.Collection{
+			Slug: "sample-collection",
+			Name: i18n.T("helpCenter.preview.sampleCollection"),
+		}
+		related = []hcmodels.Article{
+			{Slug: "sample-1", Title: toc[0].Title},
+			{Slug: "sample-2", Title: toc[1].Title},
+			{Slug: "sample-3", Title: toc[2].Title},
+		}
+	)
+	if err := app.tmpl.RenderWebPage(r.RequestCtx, "help-article", map[string]interface{}{
+		"L": i18n,
+		"Data": map[string]interface{}{
+			"Title":         article.Title,
+			"ModifiedTime":  article.UpdatedAt.Format(time.RFC3339),
+			"HelpCenter":    helpCenterTemplateData(helpCenter, locale),
+			"Article":       article,
+			"AuthorInitial": authorInitial(article),
+			"Collection":    collection,
+			"Related":       related,
+			"TOC":           toc,
+			"Content":       template.HTML(article.Content),
+		},
+	}); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	r.RequestCtx.Response.Header.Set("Cache-Control", "no-store")
+	return nil
 }

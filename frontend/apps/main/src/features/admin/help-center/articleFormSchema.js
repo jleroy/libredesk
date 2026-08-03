@@ -9,6 +9,7 @@ export const createArticleFormSchema = (t) =>
     sort_order: z.number().default(0),
     ai_enabled: z.boolean().default(false),
     locale: z.string().default('en'),
+    author_id: z.string().optional(),
     excerpt: z.string().default(''),
     meta_title: z.string().default(''),
     meta_description: z.string().default(''),
