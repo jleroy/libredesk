@@ -279,7 +279,7 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 		if conv.InboxChannel != channelEmail && conv.Contact.Type == umodels.UserTypeContact {
 			return true
 		}
-		return m.isConversationVerified(conv.UUID)
+		return m.isConversationVerified(conv.UUID, conv.Contact.Email.String)
 	}
 	// Snapshot for the run-start registration decisions (one Redis read); tctx still gets the live
 	// closure so mid-turn verification is picked up per tool call.
