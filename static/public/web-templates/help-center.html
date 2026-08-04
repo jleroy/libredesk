@@ -33,7 +33,7 @@
 </head>
 <body>
     <a class="hc-skip-link" href="#hc-main">{{ .L.T "helpCenter.skipToContent" }}</a>
-    {{ if .Data.HelpCenter.Theme.Announcement.Text }}
+    {{ if .Data.HelpCenter.AnnouncementHTML }}
     <div class="hc-announcement" role="region" aria-label="{{ .L.T "globals.terms.announcement" }}" data-hc-announcement="{{ .Data.HelpCenter.AnnouncementKey }}">
         <p>{{ .Data.HelpCenter.AnnouncementHTML }}{{ if .Data.HelpCenter.Theme.Announcement.LinkURL }} <a href="{{ .Data.HelpCenter.Theme.Announcement.LinkURL }}">{{ if .Data.HelpCenter.Theme.Announcement.LinkLabel }}{{ .Data.HelpCenter.Theme.Announcement.LinkLabel }}{{ else }}{{ .Data.HelpCenter.Theme.Announcement.LinkURL }}{{ end }}</a>{{ end }}</p>
         <button type="button" data-hc-announcement-close aria-label="{{ .L.T "globals.messages.close" }}">
