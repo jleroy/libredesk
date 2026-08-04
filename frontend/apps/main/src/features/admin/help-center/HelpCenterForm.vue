@@ -79,6 +79,7 @@
                 type="button"
                 variant="ghost"
                 size="icon"
+                :aria-label="t('globals.terms.remove')"
                 :disabled="localeFields.length <= 1"
                 @click="removeLocale(index)"
               >

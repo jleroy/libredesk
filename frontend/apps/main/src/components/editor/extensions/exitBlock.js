@@ -14,10 +14,16 @@ export function exitOnEmptyTrailingLine(editor, ancestorName) {
   // Only the last line escapes; anywhere else Enter still adds a line inside.
   if ($from.after(depth) - $from.after() !== $from.depth - depth) return false
 
+  // The container's body requires at least one block, so a lone empty line stays behind.
+  const keepEmptyLine = $from.node($from.depth - 1).childCount === 1
   const emptyLineSize = $from.after() - $from.before()
-  const insertAt = $from.after(depth) - emptyLineSize
-  const tr = state.tr.delete($from.before(), $from.after())
-  tr.insert(insertAt, state.schema.nodes.paragraph.create())
+  const insertAt = $from.after(depth) - (keepEmptyLine ? 0 : emptyLineSize)
+  const tr = state.tr
+  if (!keepEmptyLine) tr.delete($from.before(), $from.after())
+  const next = tr.doc.nodeAt(insertAt)
+  if (next?.type !== state.schema.nodes.paragraph || next.content.size !== 0) {
+    tr.insert(insertAt, state.schema.nodes.paragraph.create())
+  }
   tr.setSelection(TextSelection.near(tr.doc.resolve(insertAt + 1)))
   view.dispatch(tr.scrollIntoView())
   return true

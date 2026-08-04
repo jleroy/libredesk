@@ -1,9 +1,14 @@
 import * as z from 'zod'
 
+// An untouched editor serializes to '<p></p>', which passes a length check.
+const hasArticleContent = (html) =>
+  html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0 ||
+  /<(img|table|iframe|video|hr|blockquote|details)\b/i.test(html)
+
 export const createArticleFormSchema = (t) =>
   z.object({
     title: z.string().min(1, t('globals.messages.required')),
-    content: z.string().min(1, t('globals.messages.required')),
+    content: z.string().refine(hasArticleContent, t('globals.messages.required')),
     status: z.enum(['draft', 'published', 'archived']).default('draft'),
     collection_id: z.coerce.number().min(1, t('globals.messages.required')),
     sort_order: z.number().default(0),

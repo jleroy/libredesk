@@ -19,7 +19,7 @@
         {{ if $showAuthor }}
         {{ if .Data.Article.AuthorAvatar }}<img class="hc-avatar hc-byline-avatar" src="{{ .Data.Article.AuthorAvatar }}" alt="" loading="lazy" />{{ else }}<span class="hc-avatar hc-avatar-initial hc-byline-avatar">{{ .Data.AuthorInitial }}</span>{{ end }}
         {{ end }}
-        <span>{{ if $showAuthor }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ $.L.T "globals.terms.lastUpdated" }} <time datetime="{{ .Data.ModifiedTime }}">{{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}</time></span>
+        <span>{{ if $showAuthor }}<span class="hc-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ $.L.T "globals.terms.lastUpdated" }} <time class="hc-date" datetime="{{ .Data.ModifiedTime }}">{{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}</time></span>
     </div>
     <div class="hc-article-body">
         {{ if not .Data.HelpCenter.Theme.Article.HideToc }}
@@ -57,6 +57,16 @@
 
 <script>
 (function () {
+    // The server can only render one fixed English format, so the reader's locale is applied here.
+    var lang = document.documentElement.lang || undefined;
+    document.querySelectorAll('time.hc-date[datetime]').forEach(function (el) {
+        var d = new Date(el.getAttribute('datetime'));
+        if (isNaN(d)) return;
+        try {
+            el.textContent = d.toLocaleDateString(lang, { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch (e) {}
+    });
+
     var prose = document.getElementById('hc-prose');
     var toc = document.getElementById('hc-toc');
     if (prose && toc) {
@@ -133,15 +143,18 @@
             box.querySelector('.hc-helpful-q').hidden = true;
             box.querySelector('.hc-helpful-thanks').hidden = false;
         };
-        if (localStorage.getItem(key)) { done(); }
+        try { if (localStorage.getItem(key)) done(); } catch (e) {}
         box.querySelectorAll('button').forEach(function (b) {
             b.addEventListener('click', function () {
-                try { localStorage.setItem(key, b.dataset.helpful); } catch (e) {}
                 done();
                 fetch(box.dataset.endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ helpful: b.dataset.helpful === 'true' })
+                }).then(function (res) {
+                    // Only a stored vote suppresses the form on reload, so a failed one can be retried.
+                    if (!res.ok) return;
+                    try { localStorage.setItem(key, b.dataset.helpful); } catch (e) {}
                 }).catch(function () {});
             });
         });

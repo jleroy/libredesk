@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { EditorContent, BubbleMenu } from '@tiptap/vue-3'
 import { useTypingIndicator } from '@shared-ui/composables'
 import { useConversationStore } from '@main/stores/conversation'
@@ -79,6 +79,7 @@ const { editor, extractMentions, focus } = useTextEditor({
   htmlContent,
   textContent,
   autoFocus: props.autoFocus,
+  editable: !props.disabled,
   insertContent: () => props.insertContent,
   isInlineEnabled: () => props.enableInlineImages,
   linkedModel: props.linkedModel,
@@ -94,6 +95,12 @@ const { editor, extractMentions, focus } = useTextEditor({
   onBlur: stopTyping,
   onOtherFiles: (files) => emit('filesDropped', files)
 })
+
+// Pointer-events alone still lets an already-focused editor take keystrokes.
+watch(
+  () => props.disabled,
+  (disabled) => editor.value?.setEditable(!disabled, false)
+)
 
 defineExpose({ focus, extractMentions })
 </script>

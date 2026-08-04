@@ -48,6 +48,9 @@ const (
 	noIndexHeader = "noindex"
 
 	lucideSpritePath = "/static/public/static/lucide-sprite.svg"
+
+	headerTextDark  = "#16181d"
+	headerTextLight = "#ffffff"
 )
 
 var (
@@ -1324,6 +1327,7 @@ func helpCenterTemplateData(hc hcmodels.HelpCenter, locale string) map[string]in
 		"Color":             hc.Color,
 		"DefaultLocale":     hc.DefaultLocale,
 		"CurrentLocale":     locale,
+		"OGLocale":          strings.ReplaceAll(locale, "-", "_"),
 		"Dir":               localeDir(locale),
 		"AvailableLocales":  helpCenterLocales(hc),
 		"NavLinks":          navLinks,
@@ -1364,7 +1368,7 @@ func buildThemeCSSVars(t hcmodels.Theme) template.CSS {
 		if t.Header.GradientFrom != "" && t.Header.GradientTo != "" {
 			fmt.Fprintf(&b, "--hc-header-bg:linear-gradient(180deg,%s,%s);", t.Header.GradientFrom, t.Header.GradientTo)
 			if t.Header.TextColor == "" {
-				fmt.Fprintf(&b, "--hc-header-text:%s;", readableOn(t.Header.GradientFrom))
+				fmt.Fprintf(&b, "--hc-header-text:%s;", readableOn(t.Header.GradientFrom, t.Header.GradientTo))
 			}
 		}
 	case "solid":
@@ -1469,18 +1473,37 @@ func loadLucideIcons(fs stuffbin.FileSystem) map[string]template.HTML {
 	return icons
 }
 
-// readableOn returns black or white, whichever stays legible on the given hex background.
-func readableOn(hexColor string) string {
+// readableOn returns the dark or light header text color, whichever holds the higher worst-case
+// contrast across the given hex backgrounds. A gradient passes both of its endpoints.
+func readableOn(hexColors ...string) string {
+	darkL, _ := relativeLuminance(headerTextDark)
+	darkWorst, lightWorst := math.Inf(1), math.Inf(1)
+	for _, hexColor := range hexColors {
+		bg, ok := relativeLuminance(hexColor)
+		if !ok {
+			return headerTextDark
+		}
+		darkWorst = min(darkWorst, contrastRatio(bg, darkL))
+		lightWorst = min(lightWorst, contrastRatio(bg, 1))
+	}
+	if lightWorst > darkWorst {
+		return headerTextLight
+	}
+	return headerTextDark
+}
+
+// relativeLuminance returns the WCAG relative luminance of a #rgb or #rrggbb color.
+func relativeLuminance(hexColor string) (float64, bool) {
 	c := strings.TrimPrefix(strings.TrimSpace(hexColor), "#")
 	if len(c) == 3 {
 		c = string([]byte{c[0], c[0], c[1], c[1], c[2], c[2]})
 	}
 	if len(c) != 6 {
-		return "#16181d"
+		return 0, false
 	}
 	v, err := strconv.ParseUint(c, 16, 32)
 	if err != nil {
-		return "#16181d"
+		return 0, false
 	}
 	toLinear := func(ch float64) float64 {
 		ch /= 255
@@ -1490,10 +1513,11 @@ func readableOn(hexColor string) string {
 		return math.Pow((ch+0.055)/1.055, 2.4)
 	}
 	r, g, b := float64((v>>16)&0xff), float64((v>>8)&0xff), float64(v&0xff)
-	if 0.2126*toLinear(r)+0.7152*toLinear(g)+0.0722*toLinear(b) > 0.179 {
-		return "#16181d"
-	}
-	return "#ffffff"
+	return 0.2126*toLinear(r) + 0.7152*toLinear(g) + 0.0722*toLinear(b), true
+}
+
+func contrastRatio(a, b float64) float64 {
+	return (max(a, b) + 0.05) / (min(a, b) + 0.05)
 }
 
 // localeDir returns the text direction for a locale tag such as "ar" or "ar-EG".

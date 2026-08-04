@@ -126,6 +126,11 @@ func (m *Manager) reconcileSource(ctx context.Context, src embedSource, baseURL,
 // sweepOrphans drops in-memory vectors for rows deleted outside the source's own delete path,
 // e.g. by a cascade from a parent collection or help center.
 func (m *Manager) sweepOrphans(src embedSource) {
+	// Held across the sweep so an in-flight job can't pass canCommit before the sweep and
+	// insert its vectors after it.
+	m.reindexMu.Lock()
+	defer m.reindexMu.Unlock()
+
 	ids, err := src.deleteOrphans()
 	if err != nil {
 		m.lo.Error("error sweeping orphan embeddings", "error", err, "source_type", src.sourceType())
@@ -137,6 +142,7 @@ func (m *Manager) sweepOrphans(src embedSource) {
 			continue
 		}
 		seen[id] = struct{}{}
+		m.dropGen(src.sourceType(), id)
 		m.index.removeSource(src.sourceType(), id)
 	}
 	if len(seen) > 0 {

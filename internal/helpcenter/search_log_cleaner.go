@@ -7,7 +7,13 @@ import (
 
 // RunSearchLogCleaner deletes stale search log rows on start and then once a day.
 func (m *Manager) RunSearchLogCleaner(ctx context.Context) {
-	time.Sleep(10 * time.Second)
+	startDelay := time.NewTimer(10 * time.Second)
+	defer startDelay.Stop()
+	select {
+	case <-ctx.Done():
+		return
+	case <-startDelay.C:
+	}
 	if err := m.DeleteStaleSearchQueries(); err != nil {
 		m.lo.Error("error cleaning stale search queries", "error", err)
 	}

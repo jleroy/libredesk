@@ -74,7 +74,7 @@
                   <div class="rounded-md border border-border p-3 space-y-1">
                     <div
                       v-for="source in previewSources"
-                      :key="source.id"
+                      :key="`${source.type}-${source.id}`"
                       class="flex items-center justify-between text-sm"
                     >
                       <span class="text-foreground">

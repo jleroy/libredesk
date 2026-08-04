@@ -184,10 +184,14 @@ const lockPreview = () => {
   if (body) body.inert = true
 }
 
+// A slower earlier render can land after a newer one, so only the latest request may paint.
+let previewRequest = 0
+
 const renderPreview = async (values) => {
+  const request = ++previewRequest
   try {
     const { data } = await api.previewHelpCenter(props.id, values, previewPage.value)
-    if (previewFrame.value) previewFrame.value.srcdoc = data
+    if (request === previewRequest && previewFrame.value) previewFrame.value.srcdoc = data
   } catch {
     // A half-filled form can fail validation while typing; the last good preview stays up.
   }
@@ -206,7 +210,8 @@ watch(previewPage, () => {
 const handleSave = async (formData) => {
   isSubmitting.value = true
   try {
-    await api.updateHelpCenter(props.id, formData)
+    const { data } = await api.updateHelpCenter(props.id, formData)
+    helpCenter.value = data.data
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.savedSuccessfully')
     })
