@@ -29,6 +29,17 @@
             </FormItem>
           </FormField>
 
+          <FormField v-slot="{ componentField }" name="public_url">
+            <FormItem>
+              <FormLabel>{{ t('helpCenter.publicURL') }}</FormLabel>
+              <FormControl>
+                <Input type="text" placeholder="https://help.example.com" v-bind="componentField" />
+              </FormControl>
+              <FormDescription>{{ t('helpCenter.publicURLHint') }}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+
           <FormField v-slot="{ componentField }" name="page_title">
             <FormItem>
               <FormLabel>{{ t('helpCenter.pageTitle') }}</FormLabel>
@@ -209,21 +220,19 @@
               </FormItem>
             </FormField>
 
-            <FormField
-              v-if="form.values.theme?.header?.background_type === 'solid'"
-              v-slot="{ componentField }"
-              name="theme.header.background_color"
-            >
-              <FormItem>
-                <FormLabel>{{ t('globals.messages.backgroundColor') }}</FormLabel>
-                <FormControl>
-                  <Input type="color" v-bind="componentField" />
-                </FormControl>
-              </FormItem>
-            </FormField>
+            <div v-show="form.values.theme?.header?.background_type === 'solid'">
+              <FormField v-slot="{ componentField }" name="theme.header.background_color">
+                <FormItem>
+                  <FormLabel>{{ t('globals.messages.backgroundColor') }}</FormLabel>
+                  <FormControl>
+                    <Input type="color" v-bind="componentField" />
+                  </FormControl>
+                </FormItem>
+              </FormField>
+            </div>
 
             <div
-              v-if="form.values.theme?.header?.background_type === 'gradient'"
+              v-show="form.values.theme?.header?.background_type === 'gradient'"
               class="flex gap-4"
             >
               <FormField v-slot="{ componentField }" name="theme.header.gradient_from">
@@ -244,24 +253,22 @@
               </FormField>
             </div>
 
-            <FormField
-              v-if="form.values.theme?.header?.background_type === 'image'"
-              v-slot="{ componentField }"
-              name="theme.header.background_image"
-            >
-              <FormItem>
-                <FormLabel>{{ t('helpCenter.styling.headerImage') }}</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="https://example.com/header.jpg"
-                    v-bind="componentField"
-                  />
-                </FormControl>
-                <FormDescription>{{ t('helpCenter.styling.headerImageHint') }}</FormDescription>
-                <FormMessage />
-              </FormItem>
-            </FormField>
+            <div v-show="form.values.theme?.header?.background_type === 'image'">
+              <FormField v-slot="{ componentField }" name="theme.header.background_image">
+                <FormItem>
+                  <FormLabel>{{ t('helpCenter.styling.headerImage') }}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      placeholder="https://example.com/header.jpg"
+                      v-bind="componentField"
+                    />
+                  </FormControl>
+                  <FormDescription>{{ t('helpCenter.styling.headerImageHint') }}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+            </div>
 
             <FormField v-slot="{ componentField }" name="theme.header.text_color">
               <FormItem>
@@ -338,26 +345,24 @@
               </FormItem>
             </FormField>
 
-            <FormField
-              v-if="form.values.theme?.layout?.collections !== 'list'"
-              v-slot="{ componentField }"
-              name="theme.layout.columns"
-            >
-              <FormItem>
-                <FormLabel>{{ t('helpCenter.styling.cardsPerRow') }}</FormLabel>
-                <FormControl>
-                  <Select v-bind="componentField">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-              </FormItem>
-            </FormField>
+            <div v-show="form.values.theme?.layout?.collections !== 'list'">
+              <FormField v-slot="{ componentField }" name="theme.layout.columns">
+                <FormItem>
+                  <FormLabel>{{ t('helpCenter.styling.cardsPerRow') }}</FormLabel>
+                  <FormControl>
+                    <Select v-bind="componentField">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2">2</SelectItem>
+                        <SelectItem value="3">3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              </FormField>
+            </div>
 
             <FormField v-slot="{ componentField }" name="theme.cards.icon_position">
               <FormItem>
@@ -393,23 +398,21 @@
                 }}</FormLabel>
               </FormItem>
             </FormField>
-            <FormField
-              v-if="form.values.theme?.layout?.show_popular_articles"
-              v-slot="{ componentField }"
-              name="theme.layout.popular_articles_label"
-            >
-              <FormItem>
-                <FormLabel>{{ t('helpCenter.styling.popularArticlesLabel') }}</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    :placeholder="t('helpCenter.popularArticles')"
-                    v-bind="componentField"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            </FormField>
+            <div v-show="form.values.theme?.layout?.show_popular_articles">
+              <FormField v-slot="{ componentField }" name="theme.layout.popular_articles_label">
+                <FormItem>
+                  <FormLabel>{{ t('helpCenter.styling.popularArticlesLabel') }}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      :placeholder="t('helpCenter.popularArticles')"
+                      v-bind="componentField"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+            </div>
             <FormField v-slot="{ value, handleChange }" name="theme.cards.hide_description">
               <FormItem class="flex items-center gap-2 space-y-0">
                 <FormControl>
@@ -698,6 +701,7 @@ const socialPlatforms = [
 const toFormValues = (hc) => ({
   name: hc?.name || '',
   slug: hc?.slug || '',
+  public_url: hc?.public_url || '',
   page_title: hc?.page_title || '',
   header_text: hc?.header_text || '',
   meta_description: hc?.meta_description || '',

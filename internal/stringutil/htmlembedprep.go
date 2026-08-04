@@ -138,10 +138,17 @@ func captionText(table *html.Node) string {
 }
 
 func isHeaderRow(row *html.Node) bool {
+	seen := false
 	for c := row.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.ElementNode && c.Data == "th" {
-			return true
+		if c.Type != html.ElementNode {
+			continue
+		}
+		switch c.Data {
+		case "th":
+			seen = true
+		case "td":
+			return false
 		}
 	}
-	return false
+	return seen
 }

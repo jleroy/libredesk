@@ -29,6 +29,7 @@ type HelpCenter struct {
 	AllowedLocales  json.RawMessage `db:"allowed_locales" json:"allowed_locales"`
 	IsActive        bool            `db:"is_active" json:"is_active"`
 	Theme           json.RawMessage `db:"theme" json:"theme"`
+	PublicURL       string          `db:"public_url" json:"public_url"`
 }
 
 // Theme holds the customizable branding for a help center's public pages.

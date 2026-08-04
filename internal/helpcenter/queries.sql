@@ -1,32 +1,32 @@
 -- name: get-all-help-centers
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme, public_url
 FROM help_centers
 ORDER BY created_at DESC;
 
 -- name: get-active-help-centers
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme, public_url
 FROM help_centers
 WHERE is_active = true
 ORDER BY created_at DESC;
 
 -- name: get-help-center-by-id
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme, public_url
 FROM help_centers
 WHERE id = $1;
 
 -- name: get-help-center-by-slug
-SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme
+SELECT id, created_at, updated_at, name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, is_active, theme, public_url
 FROM help_centers
 WHERE slug = $1 AND is_active = true;
 
 -- name: insert-help-center
-INSERT INTO help_centers (name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, theme)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO help_centers (name, slug, page_title, header_text, meta_description, logo_url, color, nav_links, custom_css, custom_js, default_locale, allowed_locales, theme, public_url)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 RETURNING *;
 
 -- name: update-help-center
 UPDATE help_centers
-SET name = $2, slug = $3, page_title = $4, header_text = $5, meta_description = $6, logo_url = $7, color = $8, nav_links = $9, custom_css = $10, custom_js = $11, default_locale = $12, allowed_locales = $13, theme = $14, updated_at = NOW()
+SET name = $2, slug = $3, page_title = $4, header_text = $5, meta_description = $6, logo_url = $7, color = $8, nav_links = $9, custom_css = $10, custom_js = $11, default_locale = $12, allowed_locales = $13, theme = $14, public_url = $15, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 

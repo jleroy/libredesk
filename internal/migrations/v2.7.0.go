@@ -25,7 +25,8 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			default_locale TEXT NOT NULL DEFAULT 'en',
 			allowed_locales JSONB NOT NULL DEFAULT '["en"]',
 			is_active BOOLEAN NOT NULL DEFAULT true,
-			theme JSONB NOT NULL DEFAULT '{}'
+			theme JSONB NOT NULL DEFAULT '{}',
+			public_url TEXT NOT NULL DEFAULT ''
 		);
 	`); err != nil {
 		return err
@@ -40,6 +41,9 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		return err
 	}
 	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS meta_description TEXT NOT NULL DEFAULT '';`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS public_url TEXT NOT NULL DEFAULT '';`); err != nil {
 		return err
 	}
 

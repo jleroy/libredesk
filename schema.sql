@@ -650,7 +650,8 @@ CREATE TABLE help_centers (
 	default_locale TEXT NOT NULL DEFAULT 'en',
 	allowed_locales JSONB NOT NULL DEFAULT '["en"]',
 	is_active BOOLEAN NOT NULL DEFAULT true,
-	theme JSONB NOT NULL DEFAULT '{}'
+	theme JSONB NOT NULL DEFAULT '{}',
+	public_url TEXT NOT NULL DEFAULT ''
 );
 
 DROP TABLE IF EXISTS article_collections CASCADE;

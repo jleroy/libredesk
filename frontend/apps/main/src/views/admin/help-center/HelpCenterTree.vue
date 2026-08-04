@@ -119,7 +119,7 @@
 
   <ArticleEditSheet
     :is-open="showArticleEditSheet"
-    @update:open="showArticleEditSheet = $event"
+    @update:open="$event ? (showArticleEditSheet = true) : closeEditSheet()"
     :article="editingArticle"
     :collection-id="editingArticle?.collection_id || createArticleCollectionId"
     :help-center-id="parseInt(id)"
@@ -133,7 +133,7 @@
 
   <CollectionEditSheet
     :is-open="showCollectionEditSheet"
-    @update:open="showCollectionEditSheet = $event"
+    @update:open="$event ? (showCollectionEditSheet = true) : closeEditSheet()"
     :collection="editingCollection"
     :help-center-id="parseInt(id)"
     :parent-id="createCollectionParentId"
@@ -420,9 +420,7 @@ const closeEditSheet = () => {
 const visitSite = () => {
   const rootUrl = appSettingsStore.settings?.['app.root_url'] || window.location.origin
   const locale = props.locale || helpCenter.value?.default_locale || ''
-  const path = locale
-    ? `/hc/${helpCenter.value?.slug}/${locale}`
-    : `/hc/${helpCenter.value?.slug}`
+  const path = locale ? `/hc/${helpCenter.value?.slug}/${locale}` : `/hc/${helpCenter.value?.slug}`
   window.open(`${rootUrl.replace(/\/$/, '')}${path}`, '_blank', 'noopener')
 }
 
@@ -507,7 +505,7 @@ const handleArticleSave = async (formData) => {
     if (editingArticle.value) {
       await api.updateArticle(editingArticle.value.id, formData)
     } else {
-      await api.createArticle(createArticleCollectionId.value, formData)
+      await api.createArticle(formData.collection_id || createArticleCollectionId.value, formData)
     }
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.savedSuccessfully')

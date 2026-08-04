@@ -123,13 +123,9 @@
                   {{ t('helpCenter.noCollectionsInLanguage') }}
                 </p>
 
-                <FormField
-                  v-if="localeCollections.length > 0"
-                  v-slot="{ componentField }"
-                  name="collection_id"
-                >
+                <FormField v-slot="{ componentField }" name="collection_id">
                   <FormItem>
-                    <FormControl>
+                    <FormControl v-if="localeCollections.length > 0">
                       <Select v-bind="componentField">
                         <SelectTrigger>
                           <SelectValue>{{ collectionLabel }}</SelectValue>

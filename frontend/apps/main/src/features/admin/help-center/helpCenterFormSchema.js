@@ -39,6 +39,10 @@ export const createHelpCenterFormSchema = (t) => {
     logo_url: optionalURL,
     color: z.string().optional(),
     nav_links: linkArray,
+    public_url: z
+      .string()
+      .refine((v) => !v || /^https?:\/\/[^"'()\s\\<>;{}]+$/.test(v), t('helpCenter.invalidPublicURL'))
+      .optional(),
     custom_css: z.string().optional(),
     custom_js: z.string().optional(),
     default_locale: z

@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	imgTagRe = regexp.MustCompile(`(?i)<img\b[^>]*>`)
+	imgTagRe = regexp.MustCompile(`(?is)<img\b(?:"[^"]*"|'[^']*'|[^>"'])*>`)
 
 	imgLoadingAttrRe = regexp.MustCompile(`(?i)\bloading\s*=`)
 
