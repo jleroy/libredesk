@@ -21,6 +21,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "ENCRYPTION_KEY is required")
 		os.Exit(2)
 	}
+	if len(key) != 32 {
+		fmt.Fprintln(os.Stderr, "ENCRYPTION_KEY must be exactly 32 bytes")
+		os.Exit(2)
+	}
 
 	plaintext, err := crypto.Decrypt(os.Args[1], key)
 	if err != nil {
