@@ -69,6 +69,9 @@ var (
 
 	// articleSanitizer strips unsafe HTML from article content since it renders raw on public pages.
 	articleSanitizer = buildArticleSanitizer()
+
+	// inlineTextSanitizer strips unsafe HTML from theme text fields that render raw on public pages.
+	inlineTextSanitizer = buildInlineTextSanitizer()
 )
 
 // ArticleIndexer syncs article content into the AI embedding index.
@@ -1228,6 +1231,11 @@ func (m *Manager) validateHelpCenterServesLocale(helpCenterID int, locale string
 	return nil
 }
 
+// SanitizeInlineHTML strips unsafe HTML from theme text fields that render raw on public pages.
+func SanitizeInlineHTML(s string) string {
+	return inlineTextSanitizer.Sanitize(s)
+}
+
 func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	if req.DefaultLocale == "" {
 		req.DefaultLocale = defaultLocale
@@ -1287,6 +1295,8 @@ func normalizeTheme(raw json.RawMessage) json.RawMessage {
 	t.Favicon = sanitizeAssetURL(t.Favicon)
 	t.FooterLinks = sanitizeNavLinks(t.FooterLinks)
 	t.SocialLinks = sanitizeSocialLinks(t.SocialLinks)
+	t.Tagline = strings.TrimSpace(t.Tagline)
+	t.Footer.Tagline = strings.TrimSpace(t.Footer.Tagline)
 	t.Announcement.Text = strings.TrimSpace(t.Announcement.Text)
 	t.Announcement.LinkURL = sanitizeAssetURL(t.Announcement.LinkURL)
 	if t.Announcement.Text == "" {
@@ -1412,5 +1422,16 @@ func buildArticleSanitizer() *bluemonday.Policy {
 	// UGCPolicy binds alt to a charset that drops the whole attribute on a ? or :. A later
 	// unrestricted policy wins, since any matching policy passes.
 	p.AllowAttrs("alt").OnElements("img")
+	return p
+}
+
+// buildInlineTextSanitizer returns the HTML sanitization policy for short theme text fields.
+func buildInlineTextSanitizer() *bluemonday.Policy {
+	p := bluemonday.NewPolicy()
+	p.AllowStandardURLs()
+	p.AllowAttrs("href").OnElements("a")
+	p.AddTargetBlankToFullyQualifiedLinks(true)
+	p.RequireNoFollowOnFullyQualifiedLinks(true)
+	p.AllowElements("b", "strong", "i", "em", "u", "s", "br", "span", "code")
 	return p
 }

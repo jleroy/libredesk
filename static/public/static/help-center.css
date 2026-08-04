@@ -193,10 +193,9 @@ main:has(> article.hc-article), main:has(> .hc-collection-head), main:has(> .hc-
 .hc-popular li { margin: 0; }
 .hc-popular a {
     display: flex; align-items: center; gap: .65rem; height: 100%;
-    padding: .7rem 0;
     color: var(--hc-ink); font-weight: 500;
 }
-.hc-popular a:hover { text-decoration: none; color: var(--hc-accent-ink); }
+.hc-popular a:hover { text-decoration: underline; color: var(--hc-accent-ink); }
 .hc-popular a .hc-arrow { flex: none; margin-left: auto; width: .9rem; height: .9rem; color: var(--hc-faint); transition: transform .15s, color .15s; }
 .hc-popular a:hover .hc-arrow { color: var(--hc-accent-ink); transform: translateX(2px); }
 

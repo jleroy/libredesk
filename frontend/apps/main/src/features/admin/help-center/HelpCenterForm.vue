@@ -182,6 +182,7 @@
                     v-bind="componentField"
                   />
                 </FormControl>
+                <FormDescription>{{ t('helpCenter.styling.inlineHtmlHint') }}</FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
@@ -284,7 +285,10 @@
                 <FormControl>
                   <Textarea :rows="2" v-bind="componentField" />
                 </FormControl>
-                <FormDescription>{{ t('helpCenter.styling.announcementHint') }}</FormDescription>
+                <FormDescription
+                  >{{ t('helpCenter.styling.announcementHint') }}
+                  {{ t('helpCenter.styling.inlineHtmlHint') }}</FormDescription
+                >
                 <FormMessage />
               </FormItem>
             </FormField>
@@ -520,6 +524,7 @@
                     v-bind="componentField"
                   />
                 </FormControl>
+                <FormDescription>{{ t('helpCenter.styling.inlineHtmlHint') }}</FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
@@ -583,7 +588,7 @@
                   <Textarea
                     rows="4"
                     class="font-mono"
-                    placeholder="document.title += &quot; | Support&quot;;"
+                    placeholder='document.title += " | Support";'
                     v-bind="componentField"
                   />
                 </FormControl>

@@ -63,11 +63,15 @@
               </span>
             </div>
             <div class="flex items-center border-b bg-background px-3 py-2">
-              <span
-                class="min-w-0 flex-1 truncate rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground"
+              <a
+                :href="previewLiveURL"
+                target="_blank"
+                rel="noopener"
+                class="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
-                {{ previewURL }}
-              </span>
+                <span class="min-w-0 truncate">{{ previewURL }}</span>
+                <ExternalLink class="size-3 shrink-0" />
+              </a>
             </div>
             <div ref="previewBox" class="h-[calc(100dvh-13rem)] overflow-hidden bg-muted">
               <iframe
@@ -90,7 +94,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Globe, X } from 'lucide-vue-next'
+import { ExternalLink, Globe, X } from 'lucide-vue-next'
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import {
   Select,
@@ -136,14 +140,16 @@ const previewFavicon = computed(
   () => (lastFormValues.value || helpCenter.value || {})?.theme?.favicon || ''
 )
 
+const helpCenterPath = (values) => `/hc/${values.slug || ''}/${values.default_locale || 'en'}`
+
 const previewURL = computed(() => {
-  const values = lastFormValues.value || helpCenter.value || {}
-  const locale = values.default_locale || 'en'
-  const path = `/hc/${values.slug || ''}/${locale}`
+  const path = helpCenterPath(lastFormValues.value || helpCenter.value || {})
   return previewPage.value === 'article'
     ? `${origin}${path}/articles/sample-article`
     : `${origin}${path}`
 })
+// Uses the saved slug, not the form: an unsaved slug has no live page yet.
+const previewLiveURL = computed(() => `${origin}${helpCenterPath(helpCenter.value || {})}`)
 const boxSize = ref({ width: 0, height: 0 })
 
 // The preview pane is narrower than a real desktop viewport, so the frame is rendered at the
