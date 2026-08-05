@@ -1169,7 +1169,6 @@
   "helpCenter.invalidURL": "Enter a full URL starting with https:// or a path starting with /.",
   "helpCenter.invalidAuthor": "The selected author is not an agent or AI assistant. Pick a different author.",
   "helpCenter.writtenBy": "Written by",
-  "helpCenter.writtenByHint": "Shown as the author on the public help center.",
   "helpCenter.createdBy": "Created by",
   "helpCenter.collectionLocaleMismatch": "The collection is in a different language than the article. Pick a collection in the article's language.",
   "helpCenter.excerpt": "Excerpt",

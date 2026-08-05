@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"math"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -835,7 +836,7 @@ func handleHelpCenterSitemap(r *fastglue.Request) error {
 	return sendXML(r, set)
 }
 
-// handleSitemapIndex lists the per-locale sitemaps of every live help center.
+// handleSitemapIndex lists the per-locale sitemaps of the help centers served on this host.
 func handleSitemapIndex(r *fastglue.Request) error {
 	app := r.Context.(*App)
 	helpCenters, err := app.helpcenter.GetActiveHelpCenters()
@@ -843,7 +844,7 @@ func handleSitemapIndex(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	index := sitemapIndex{Xmlns: sitemapNamespace}
-	for _, hc := range helpCenters {
+	for _, hc := range helpCentersForHost(r, helpCenters) {
 		root := helpCenterBaseURL(app, hc)
 		for _, locale := range helpCenterLocales(hc) {
 			index.Sitemaps = append(index.Sitemaps, sitemapRef{Loc: fmt.Sprintf("%s%s/sitemap.xml", root, helpCenterHomePath(hc.Slug, locale))})
@@ -852,7 +853,7 @@ func handleSitemapIndex(r *fastglue.Request) error {
 	return sendXML(r, index)
 }
 
-// handleRobotsTxt keeps crawlers out of the agent app and points them at the sitemap index.
+// handleRobotsTxt keeps crawlers out of the agent app and points them at this host's sitemap index.
 func handleRobotsTxt(r *fastglue.Request) error {
 	app := r.Context.(*App)
 	r.RequestCtx.SetContentType("text/plain; charset=utf-8")
@@ -860,19 +861,13 @@ func handleRobotsTxt(r *fastglue.Request) error {
 	for _, path := range crawlerDisallowedPaths {
 		fmt.Fprintf(r.RequestCtx, "Disallow: %s\n", path)
 	}
-	fmt.Fprintf(r.RequestCtx, "\nSitemap: %s/sitemap.xml\n", helpCenterRootURL(app))
-	// A help center on its own host can't be crawled through the app root's sitemap index.
 	helpCenters, err := app.helpcenter.GetActiveHelpCenters()
 	if err != nil {
 		return nil
 	}
-	for _, hc := range helpCenters {
-		if hc.PublicURL == "" {
-			continue
-		}
-		for _, locale := range helpCenterLocales(hc) {
-			fmt.Fprintf(r.RequestCtx, "Sitemap: %s%s/sitemap.xml\n", hc.PublicURL, helpCenterHomePath(hc.Slug, locale))
-		}
+	// Crawlers ignore a Sitemap directive on another host, and listing one publishes the other hosts.
+	if hosted := helpCentersForHost(r, helpCenters); len(hosted) > 0 {
+		fmt.Fprintf(r.RequestCtx, "\nSitemap: %s/sitemap.xml\n", helpCenterHostRootURL(app, hosted))
 	}
 	return nil
 }
@@ -1076,6 +1071,54 @@ func helpCenterBaseURL(app *App, hc hcmodels.HelpCenter) string {
 		return hc.PublicURL
 	}
 	return helpCenterRootURL(app)
+}
+
+// helpCentersForHost returns the help centers whose public URL is this request's host, else the app-root ones.
+func helpCentersForHost(r *fastglue.Request, helpCenters []hcmodels.HelpCenter) []hcmodels.HelpCenter {
+	var (
+		host       = string(r.RequestCtx.Host())
+		matched    []hcmodels.HelpCenter
+		rootHosted []hcmodels.HelpCenter
+	)
+	for _, hc := range helpCenters {
+		if hc.PublicURL == "" {
+			rootHosted = append(rootHosted, hc)
+			continue
+		}
+		if strings.EqualFold(urlHost(hc.PublicURL), host) {
+			matched = append(matched, hc)
+		}
+	}
+	if len(matched) > 0 {
+		return matched
+	}
+	return rootHosted
+}
+
+// helpCenterHostRootURL returns the origin these help centers are served on.
+func helpCenterHostRootURL(app *App, helpCenters []hcmodels.HelpCenter) string {
+	for _, hc := range helpCenters {
+		if hc.PublicURL != "" {
+			return urlOrigin(hc.PublicURL)
+		}
+	}
+	return helpCenterRootURL(app)
+}
+
+func urlHost(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return u.Host
+}
+
+func urlOrigin(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
 }
 
 // publicAssetPaths rewrites stored absolute media URLs to root-relative ones so uploads resolve

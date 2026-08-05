@@ -177,7 +177,6 @@
                         </SelectContent>
                       </Select>
                     </FormControl>
-                    <FormDescription>{{ t('helpCenter.writtenByHint') }}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 </FormField>
