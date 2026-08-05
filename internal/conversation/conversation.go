@@ -736,10 +736,6 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	if err != nil {
 		return err
 	}
-	previousUserID := ""
-	if previousConversation.AssignedUserID.Valid {
-		previousUserID = strconv.Itoa(previousConversation.AssignedUserID.Int)
-	}
 
 	// Return early on a no-op write, else automation rules acting on the user assigned event re-trigger themselves.
 	if previousConversation.AssignedUserID.Valid && previousConversation.AssignedUserID.Int == assigneeID {
@@ -750,9 +746,7 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	if err := c.updateAssignee(uuid, assigneeID, models.AssigneeTypeUser); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	return c.afterUserAssignedHooks(uuid, assigneeID, actor, map[string]string{
-		amodels.ConversationPreviousAssignedUser: previousUserID,
-	})
+	return c.afterUserAssignedHooks(uuid, assigneeID, actor, previousValuesFor(previousConversation))
 }
 
 // ClaimUnassignedConversation atomically assigns a conversation only if still unassigned and still in expectedTeamID, else returns ErrConversationAlreadyAssigned.
@@ -840,6 +834,7 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 		return err
 	}
 	previousAssignedTeamID := conversation.AssignedTeamID.Int
+	previousValues := previousValuesFor(conversation)
 
 	if err := c.updateAssignee(uuid, teamID, models.AssigneeTypeTeam); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
@@ -875,13 +870,7 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 			}
 		}
 
-		previousTeamID := ""
-		if previousAssignedTeamID > 0 {
-			previousTeamID = strconv.Itoa(previousAssignedTeamID)
-		}
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, map[string]string{
-			amodels.ConversationPreviousAssignedTeam: previousTeamID,
-		})
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, previousValues)
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -912,10 +901,6 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 	if err != nil {
 		return err
 	}
-	previousPriorityID := ""
-	if previousConversation.PriorityID.Valid {
-		previousPriorityID = strconv.Itoa(previousConversation.PriorityID.Int)
-	}
 
 	if priorityID > 0 {
 		p, err := c.priorityStore.Get(priorityID)
@@ -938,9 +923,7 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err == nil {
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange, map[string]string{
-			amodels.ConversationPreviousPriority: previousPriorityID,
-		})
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange, previousValuesFor(previousConversation))
 	}
 
 	// Record activity.
@@ -970,8 +953,8 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	snoozeUntil := time.Time{}
 	if status == models.StatusSnoozed {
 		duration, err := time.ParseDuration(snoozeDur)
-		if err != nil {
-			c.lo.Error("error parsing snooze duration", "error", err)
+		if err != nil || duration <= 0 {
+			c.lo.Error("error parsing snooze duration", "duration", snoozeDur, "error", err)
 			return envelope.NewError(envelope.InputError, c.i18n.T("validation.invalidSnoozeDuration"), nil)
 		}
 		snoozeUntil = time.Now().Add(duration)
@@ -1057,13 +1040,7 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	c.BroadcastConversationUpdate(uuid, agentData)
 
 	if conversation.ID != 0 {
-		previousStatusID := ""
-		if conversationBeforeChange.StatusID.Valid {
-			previousStatusID = strconv.Itoa(conversationBeforeChange.StatusID.Int)
-		}
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange, map[string]string{
-			amodels.ConversationPreviousStatus: previousStatusID,
-		})
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange, previousValuesFor(conversationBeforeChange))
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -1600,16 +1577,6 @@ func (m *Manager) resolveNotifyRecipients(entries []string, conv models.Conversa
 		}
 	}
 	return ids
-}
-
-func parseNotifyRecipient(entry string) (string, int) {
-	parts := strings.SplitN(strings.TrimSpace(entry), ":", 2)
-	kind := strings.ToLower(strings.TrimSpace(parts[0]))
-	if len(parts) == 1 {
-		return kind, 0
-	}
-	id, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
-	return kind, id
 }
 
 // RemoveConversationAssignee removes assigned user from a conversation.
@@ -2165,6 +2132,39 @@ func (c *Manager) filterLocation() string {
 		return ""
 	}
 	return tz
+}
+
+func parseNotifyRecipient(entry string) (string, int) {
+	parts := strings.SplitN(strings.TrimSpace(entry), ":", 2)
+	kind := strings.ToLower(strings.TrimSpace(parts[0]))
+	if len(parts) == 1 {
+		return kind, 0
+	}
+	id, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
+	return kind, id
+}
+
+// previousValuesFor returns the pre-change field values consumed by previous_* automation filters.
+func previousValuesFor(conv models.Conversation) map[string]string {
+	values := map[string]string{
+		amodels.ConversationPreviousStatus:       "",
+		amodels.ConversationPreviousPriority:     "",
+		amodels.ConversationPreviousAssignedUser: "",
+		amodels.ConversationPreviousAssignedTeam: "",
+	}
+	if conv.StatusID.Valid {
+		values[amodels.ConversationPreviousStatus] = strconv.Itoa(conv.StatusID.Int)
+	}
+	if conv.PriorityID.Valid {
+		values[amodels.ConversationPreviousPriority] = strconv.Itoa(conv.PriorityID.Int)
+	}
+	if conv.AssignedUserID.Valid {
+		values[amodels.ConversationPreviousAssignedUser] = strconv.Itoa(conv.AssignedUserID.Int)
+	}
+	if conv.AssignedTeamID.Valid {
+		values[amodels.ConversationPreviousAssignedTeam] = strconv.Itoa(conv.AssignedTeamID.Int)
+	}
+	return values
 }
 
 func nullTimeOrNil(t null.Time) any {

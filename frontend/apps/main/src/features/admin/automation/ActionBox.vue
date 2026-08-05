@@ -102,6 +102,9 @@
                     :modelValue="action.value[1] || ''"
                     @update:modelValue="(value) => handleWebhookEventChange(value, index)"
                   />
+                  <p class="text-xs text-muted-foreground mt-1">
+                    {{ $t('admin.automation.webhookEventNameHint') }}
+                  </p>
                 </div>
               </div>
 
@@ -144,7 +147,7 @@
 </template>
 
 <script setup>
-import { toRefs, onMounted } from 'vue'
+import { toRefs } from 'vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { Input } from '@shared-ui/components/ui/input'
 import CloseButton from '@main/components/button/CloseButton.vue'
@@ -186,9 +189,7 @@ const tagsStore = useTagStore()
 const webhookStore = useWebhookStore()
 const { conversationActions } = useConversationFilters()
 
-onMounted(() => {
-  webhookStore.fetchWebhooks()
-})
+webhookStore.fetchWebhooks()
 
 const handleNotifyChange = (value, index) => {
   actions.value[index].value = value || []

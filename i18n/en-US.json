@@ -73,6 +73,7 @@
   "admin.automation.newConversation.description": "Rules that run when a new conversation is created by a contact. Conversations initiated by agents do not trigger these rules. Drag and drop to reorder.",
   "admin.automation.noRulesFound": "No rules found",
   "admin.automation.notifyRecipientHint": "Enter recipients as assignee, assigned_team, team:<id>, or user:<id>. Press Enter after each.",
+  "admin.automation.webhookEventNameHint": "Event name sent in the webhook payload.",
   "admin.automation.or": "OR",
   "admin.automation.performTheseActions": "Perform these actions",
   "admin.automation.previousAssignedTeam": "Previous assigned team",

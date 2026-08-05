@@ -14,10 +14,9 @@ export const useWebhookStore = defineStore('webhook', () => {
         value: String(w.id)
     })))
 
-    const fetchWebhooks = async (force = false) => {
-        if (webhooks.value.length && !force) return
+    const fetchWebhooks = async () => {
         try {
-            const response = await api.getWebhooks()
+            const response = await api.getWebhooksCompact()
             webhooks.value = response?.data?.data || []
         } catch (error) {
             emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {

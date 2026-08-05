@@ -72,6 +72,7 @@ type DeliveryTask struct {
 
 // queries contains prepared SQL queries.
 type queries struct {
+	GetWebhooksCompact *sqlx.Stmt `query:"get-webhooks-compact"`
 	GetAllWebhooks     *sqlx.Stmt `query:"get-all-webhooks"`
 	GetWebhook         *sqlx.Stmt `query:"get-webhook"`
 	GetWebhookSecret   *sqlx.Stmt `query:"get-webhook-secret"`
@@ -108,6 +109,16 @@ func New(opts Opts) (*Manager, error) {
 		workers:       opts.Workers,
 		encryptionKey: opts.EncryptionKey,
 	}, nil
+}
+
+// GetAllCompact retrieves all webhooks with only id and name.
+func (m *Manager) GetAllCompact() ([]models.WebhookCompact, error) {
+	var webhooks = make([]models.WebhookCompact, 0)
+	if err := m.q.GetWebhooksCompact.Select(&webhooks); err != nil {
+		m.lo.Error("error fetching webhooks", "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return webhooks, nil
 }
 
 // GetAll retrieves all webhooks.

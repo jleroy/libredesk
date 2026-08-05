@@ -58,7 +58,6 @@ type Engine struct {
 	closedMu          sync.RWMutex
 	wg                sync.WaitGroup
 
-	// Refcounted per conversation as multiple workers can apply actions on the same conversation concurrently.
 	suppressed   map[string]int
 	suppressedMu sync.Mutex
 }
