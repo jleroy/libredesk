@@ -5,11 +5,10 @@ The open-source customer support platform you actually own. One inbox for email,
 > Items are listed in priority order.
 
 ## Near Term
-- AI copilot and AI agent with handoff to humans - WIP
-- Help articles and help center- WIP
+- Help center - WIP
+- GDPR - WIP
 - WhatsApp channel - WIP
 
 ## Mid Term
 - Contact merging - TODO
 - 2FA for password login - TODO
-- GDPR compliance - TODO
