@@ -1514,6 +1514,9 @@ func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversatio
 		if err != nil {
 			return fmt.Errorf("invalid webhook ID %q: %w", action.Value[0], err)
 		}
+		if webhookID <= 0 {
+			return fmt.Errorf("invalid webhook ID %q", action.Value[0])
+		}
 		eventName := strings.TrimSpace(action.Value[1])
 		if eventName == "" {
 			return fmt.Errorf("trigger webhook action requires an event name")
