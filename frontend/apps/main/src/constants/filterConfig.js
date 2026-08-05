@@ -16,6 +16,7 @@ export const FIELD_TYPE = {
     BOOLEAN: 'boolean',
     DATE: 'date',
     WEBHOOK: 'webhook',
+    RECIPIENTS: 'recipients',
 }
 
 export const OPERATOR = {
@@ -46,6 +47,15 @@ export const FIELD_OPERATORS = {
     SELECT: [OPERATOR.EQUALS, OPERATOR.NOT_EQUALS, OPERATOR.SET, OPERATOR.NOT_SET],
     BOOLEAN: [OPERATOR.EQUALS, OPERATOR.NOT_EQUALS],
     TEXT: [
+        OPERATOR.EQUALS,
+        OPERATOR.NOT_EQUALS,
+        OPERATOR.SET,
+        OPERATOR.NOT_SET,
+        OPERATOR.CONTAINS,
+        OPERATOR.NOT_CONTAINS
+    ],
+    // "starts with" is only implemented by the automation evaluator, not the SQL filter builder.
+    TEXT_AUTOMATION: [
         OPERATOR.EQUALS,
         OPERATOR.NOT_EQUALS,
         OPERATOR.SET,

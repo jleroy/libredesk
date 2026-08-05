@@ -1163,7 +1163,7 @@
   "placeholders.selectType": "Select type",
   "placeholders.selectValue": "Select value",
   "placeholders.selectWebhook": "Select webhook",
-  "placeholders.snoozeDuration": "e.g. 3h, 2h30m, 1d",
+  "placeholders.snoozeDuration": "e.g. 30m, 3h, 2h30m",
   "placeholders.startConversation": "Start conversation",
   "placeholders.tellUsAboutYourself": "Tell us about yourself",
   "placeholders.webhookEventName": "e.g. priority.escalated",

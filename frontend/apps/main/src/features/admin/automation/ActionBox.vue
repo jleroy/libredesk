@@ -34,11 +34,7 @@
 
               <!-- Value -->
               <div
-                v-if="
-                  action.type &&
-                  conversationActions[action.type]?.type === 'tag' &&
-                  action.type !== 'notify'
-                "
+                v-if="action.type && conversationActions[action.type]?.type === 'tag'"
                 class="w-full"
               >
                 <SelectTag
@@ -48,7 +44,10 @@
                 />
               </div>
 
-              <div v-if="action.type === 'notify'" class="w-full">
+              <div
+                v-if="action.type && conversationActions[action.type]?.type === 'recipients'"
+                class="w-full"
+              >
                 <TagsInput
                   :modelValue="action.value || []"
                   @update:modelValue="(value) => handleNotifyChange(value, index)"

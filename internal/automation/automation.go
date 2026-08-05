@@ -47,17 +47,20 @@ type ConversationTask struct {
 }
 
 type Engine struct {
-	rules              []models.Rule
-	rulesMu            sync.RWMutex
-	q                  queries
-	lo                 *logf.Logger
-	i18n               *i18n.I18n
-	conversationStore  conversationStore
-	taskQueue          chan ConversationTask
-	closed             bool
-	closedMu           sync.RWMutex
-	wg                 sync.WaitGroup
-	suppressAutomation sync.Map
+	rules             []models.Rule
+	rulesMu           sync.RWMutex
+	q                 queries
+	lo                *logf.Logger
+	i18n              *i18n.I18n
+	conversationStore conversationStore
+	taskQueue         chan ConversationTask
+	closed            bool
+	closedMu          sync.RWMutex
+	wg                sync.WaitGroup
+
+	// Refcounted per conversation as multiple workers can apply actions on the same conversation concurrently.
+	suppressed   map[string]int
+	suppressedMu sync.Mutex
 }
 
 type Opts struct {
@@ -300,7 +303,7 @@ func (e *Engine) EvaluateConversationUpdateRules(conversation cmodels.Conversati
 		e.lo.Error("error evaluating conversation update rules: eventType is empty")
 		return
 	}
-	if _, suppressed := e.suppressAutomation.Load(conversation.UUID); suppressed {
+	if e.isSuppressed(conversation.UUID) {
 		e.lo.Debug("automation suppressed for conversation, skipping update rule evaluation", "uuid", conversation.UUID, "event_type", eventType)
 		return
 	}
@@ -377,6 +380,33 @@ func (e *Engine) handleTimeTrigger() {
 		}
 		e.evalConversationRules(rules, conversation, nil)
 	}
+}
+
+// suppress marks a conversation as having automation actions in flight.
+func (e *Engine) suppress(conversationUUID string) {
+	e.suppressedMu.Lock()
+	defer e.suppressedMu.Unlock()
+	if e.suppressed == nil {
+		e.suppressed = map[string]int{}
+	}
+	e.suppressed[conversationUUID]++
+}
+
+// unsuppress releases one in-flight claim on a conversation.
+func (e *Engine) unsuppress(conversationUUID string) {
+	e.suppressedMu.Lock()
+	defer e.suppressedMu.Unlock()
+	if e.suppressed[conversationUUID] <= 1 {
+		delete(e.suppressed, conversationUUID)
+		return
+	}
+	e.suppressed[conversationUUID]--
+}
+
+func (e *Engine) isSuppressed(conversationUUID string) bool {
+	e.suppressedMu.Lock()
+	defer e.suppressedMu.Unlock()
+	return e.suppressed[conversationUUID] > 0
 }
 
 // queryRules fetches automation rules from the database.

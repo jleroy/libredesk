@@ -732,10 +732,19 @@ func (c *Manager) UpdateConversationWaitingSince(conversationUUID string, at *ti
 
 // UpdateConversationUserAssignee sets the assignee of a conversation to a specifc user.
 func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, actor umodels.User) error {
-	previousConversation, _ := c.GetConversation(0, uuid, "")
+	previousConversation, err := c.GetConversation(0, uuid, "")
+	if err != nil {
+		return err
+	}
 	previousUserID := ""
 	if previousConversation.AssignedUserID.Valid {
 		previousUserID = strconv.Itoa(previousConversation.AssignedUserID.Int)
+	}
+
+	// Return early on a no-op write, else automation rules acting on the user assigned event re-trigger themselves.
+	if previousConversation.AssignedUserID.Valid && previousConversation.AssignedUserID.Int == assigneeID {
+		c.lo.Debug("no assignee update: conversation assignee unchanged", "uuid", uuid, "assignee_id", assigneeID)
+		return nil
 	}
 
 	if err := c.updateAssignee(uuid, assigneeID, models.AssigneeTypeUser); err != nil {
@@ -765,7 +774,9 @@ func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedT
 	}
 
 	c.broadcastReassignment(uuid, prev, prevErr)
-	return c.afterUserAssignedHooks(uuid, assigneeID, actor, nil)
+	return c.afterUserAssignedHooks(uuid, assigneeID, actor, map[string]string{
+		amodels.ConversationPreviousAssignedUser: "",
+	})
 }
 
 // afterUserAssignedHooks runs the side-effects shared by every user-assignment path.
@@ -864,8 +875,12 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 			}
 		}
 
+		previousTeamID := ""
+		if previousAssignedTeamID > 0 {
+			previousTeamID = strconv.Itoa(previousAssignedTeamID)
+		}
 		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, map[string]string{
-			amodels.ConversationPreviousAssignedTeam: strconv.Itoa(previousAssignedTeamID),
+			amodels.ConversationPreviousAssignedTeam: previousTeamID,
 		})
 	}
 
@@ -893,7 +908,10 @@ func (c *Manager) broadcastReassignment(uuid string, prev models.ConversationLis
 
 // UpdateConversationPriority updates the priority of a conversation.
 func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priority string, actor umodels.User) error {
-	previousConversation, _ := c.GetConversation(0, uuid, "")
+	previousConversation, err := c.GetConversation(0, uuid, "")
+	if err != nil {
+		return err
+	}
 	previousPriorityID := ""
 	if previousConversation.PriorityID.Valid {
 		previousPriorityID = strconv.Itoa(previousConversation.PriorityID.Int)
@@ -906,6 +924,13 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 		}
 		priority = p.Name
 	}
+
+	// Return early on a no-op write, else automation rules acting on the priority change event re-trigger themselves.
+	if previousConversation.Priority.String == priority {
+		c.lo.Debug("no priority update: conversation priority unchanged", "uuid", uuid, "priority", priority)
+		return nil
+	}
+
 	if _, err := c.q.UpdateConversationPriority.Exec(uuid, priority); err != nil {
 		c.lo.Error("error updating conversation priority", "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
@@ -1477,7 +1502,10 @@ func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversatio
 	case amodels.ActionSendCSAT:
 		return m.SendCSATReply(user.ID, conv)
 	case amodels.ActionSnooze:
-		return m.UpdateConversationStatus(conv.UUID, 0, models.StatusSnoozed, action.Value[0], user)
+		if len(action.Value) == 0 || strings.TrimSpace(action.Value[0]) == "" {
+			return fmt.Errorf("snooze action requires a duration")
+		}
+		return m.UpdateConversationStatus(conv.UUID, 0, models.StatusSnoozed, strings.TrimSpace(action.Value[0]), user)
 	case amodels.ActionTriggerWebhook:
 		if len(action.Value) < 2 {
 			return fmt.Errorf("trigger webhook action requires a webhook and an event name")
@@ -1572,12 +1600,13 @@ func (m *Manager) resolveNotifyRecipients(entries []string, conv models.Conversa
 }
 
 func parseNotifyRecipient(entry string) (string, int) {
-	parts := strings.SplitN(entry, ":", 2)
+	parts := strings.SplitN(strings.TrimSpace(entry), ":", 2)
+	kind := strings.ToLower(strings.TrimSpace(parts[0]))
 	if len(parts) == 1 {
-		return parts[0], 0
+		return kind, 0
 	}
-	id, _ := strconv.Atoi(parts[1])
-	return parts[0], id
+	id, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
+	return kind, id
 }
 
 // RemoveConversationAssignee removes assigned user from a conversation.

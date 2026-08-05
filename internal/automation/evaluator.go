@@ -35,13 +35,13 @@ func (e *Engine) evalConversationRules(rules []models.Rule, conversation cmodels
 
 		if evaluateFinalResult(groupEvalResults, rule.GroupOperator) {
 			e.lo.Debug("all rules within groups evaluated successfully, executing actions", "conversation_uuid", conversation.UUID)
-			e.suppressAutomation.Store(conversation.UUID, struct{}{})
+			e.suppress(conversation.UUID)
 			for _, action := range rule.Actions {
 				if err := e.conversationStore.ApplyAction(action, conversation, umodels.User{}); err != nil {
 					e.lo.Error("error applying action on conversation", "action", action, "conversation_uuid", conversation.UUID, "error", err)
 				}
 			}
-			e.suppressAutomation.Delete(conversation.UUID)
+			e.unsuppress(conversation.UUID)
 			if rule.ExecutionMode == models.ExecutionModeFirstMatch {
 				e.lo.Debug("automation is first match rule execution mode, breaking out of rule evaluation", "conversation_uuid", conversation.UUID)
 				break
@@ -153,7 +153,13 @@ func (e *Engine) evaluateRule(rule models.RuleDetail, conversation cmodels.Conve
 			valueToCompare = strconv.Itoa(conversation.InboxID)
 		case models.ConversationPreviousStatus, models.ConversationPreviousPriority,
 			models.ConversationPreviousAssignedUser, models.ConversationPreviousAssignedTeam:
-			valueToCompare = previousValues[rule.Field]
+			// An absent key is not the same as an empty previous value.
+			previous, ok := previousValues[rule.Field]
+			if !ok {
+				e.lo.Debug("no previous value available for field, skipping rule", "field", rule.Field, "conversation_uuid", conversation.UUID)
+				return false
+			}
+			valueToCompare = previous
 		default:
 			e.lo.Error("error unrecognized conversation field", "field", rule.Field, "field_type", rule.FieldType, "conversation_uuid", conversation.UUID)
 			return false
@@ -230,7 +236,7 @@ func (e *Engine) evaluateRule(rule models.RuleDetail, conversation cmodels.Conve
 		for _, ruleValue := range ruleValues {
 			// Normalize rule value by collapsing multiple spaces
 			normalizedRuleValue := strings.Join(strings.Fields(ruleValue), " ")
-			
+
 			// Respect CaseSensitiveMatch flag
 			if rule.CaseSensitiveMatch {
 				if strings.Contains(normalizedInputText, normalizedRuleValue) {
@@ -256,7 +262,7 @@ func (e *Engine) evaluateRule(rule models.RuleDetail, conversation cmodels.Conve
 		for _, ruleValue := range ruleValues {
 			// Normalize rule value by collapsing multiple spaces
 			normalizedRuleValue := strings.Join(strings.Fields(ruleValue), " ")
-			
+
 			// Respect CaseSensitiveMatch flag
 			if rule.CaseSensitiveMatch {
 				if strings.Contains(normalizedInputText, normalizedRuleValue) {

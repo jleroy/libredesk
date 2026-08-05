@@ -66,7 +66,7 @@ type Opts struct {
 type DeliveryTask struct {
 	Event   models.WebhookEvent
 	Payload any
-	// WebhookID targets a single webhook instead of fanning out to event subscribers.
+	// Zero means fan out to all subscribers of Event.
 	WebhookID int
 }
 

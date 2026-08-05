@@ -29,11 +29,11 @@ export function useConversationFilters () {
     }
 
     const customAttributeDataTypeToFieldOperators = {
-        'text': FIELD_OPERATORS.TEXT,
+        'text': FIELD_OPERATORS.TEXT_AUTOMATION,
         'number': FIELD_OPERATORS.NUMBER,
         'checkbox': FIELD_OPERATORS.BOOLEAN,
         'date': FIELD_OPERATORS.DATE,
-        'link': FIELD_OPERATORS.TEXT,
+        'link': FIELD_OPERATORS.TEXT_AUTOMATION,
         'list': FIELD_OPERATORS.SELECT,
     }
 
@@ -164,17 +164,17 @@ export function useConversationFilters () {
         contact_email: {
             label: t('globals.terms.email'),
             type: FIELD_TYPE.TEXT,
-            operators: FIELD_OPERATORS.TEXT
+            operators: FIELD_OPERATORS.TEXT_AUTOMATION
         },
         content: {
             label: t('globals.terms.content'),
             type: FIELD_TYPE.TEXT,
-            operators: FIELD_OPERATORS.TEXT
+            operators: FIELD_OPERATORS.TEXT_AUTOMATION
         },
         subject: {
             label: t('globals.terms.subject'),
             type: FIELD_TYPE.TEXT,
-            operators: FIELD_OPERATORS.TEXT
+            operators: FIELD_OPERATORS.TEXT_AUTOMATION
         },
         status: {
             label: t('globals.terms.status'),
@@ -336,7 +336,7 @@ export function useConversationFilters () {
         },
         notify: {
             label: t('actions.notify'),
-            type: FIELD_TYPE.TAG
+            type: FIELD_TYPE.RECIPIENTS
         },
         snooze: {
             label: t('actions.snooze'),
