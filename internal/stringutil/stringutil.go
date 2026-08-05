@@ -10,7 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/k3a/html2text"
+	"github.com/jaytaylor/html2text"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/renderer/html"
 )
 
 const (
@@ -23,11 +26,35 @@ var (
 	uuidV4Regex     = regexp.MustCompile(`[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[89abAB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}`)
 	regexpRefNumber = regexp.MustCompile(`#(\d+)`)
 	regexpConvUUID  = regexp.MustCompile(`(?i)\+conv-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}@`)
+
+	// markdownRenderer escapes raw HTML in the input; single newlines render as <br>.
+	markdownRenderer = goldmark.New(
+		goldmark.WithExtensions(extension.GFM),
+		goldmark.WithRendererOptions(html.WithHardWraps()),
+	)
 )
 
-// HTML2Text converts HTML to text.
+// SanitizeUTF8 removes NUL bytes and replaces invalid UTF-8 byte sequences with the Unicode replacement character.
+func SanitizeUTF8(s string) string {
+	if s == "" {
+		return s
+	}
+	s = strings.ReplaceAll(s, "\x00", "")
+	return strings.ToValidUTF8(s, "�")
+}
+
+// HTML2Text converts HTML to plain text, dropping link URLs.
 func HTML2Text(html string) string {
-	return strings.TrimSpace(html2text.HTML2Text(html))
+	return htmlToText(html, html2text.Options{TextOnly: true})
+}
+
+// Markdown2HTML converts markdown to HTML, falling back to the input on error.
+func Markdown2HTML(md string) string {
+	var b strings.Builder
+	if err := markdownRenderer.Convert([]byte(md), &b); err != nil {
+		return md
+	}
+	return b.String()
 }
 
 // SanitizeFilename sanitizes the provided filename.
@@ -223,4 +250,24 @@ func ExtractReferenceNumber(subject string) string {
 		}
 	}
 	return ""
+}
+
+// SplitName splits a full name; the first word is the first name, the rest is the last name.
+func SplitName(name string) (string, string) {
+	fields := strings.Fields(name)
+	if len(fields) == 0 {
+		return "", ""
+	}
+	if len(fields) == 1 {
+		return fields[0], ""
+	}
+	return fields[0], strings.Join(fields[1:], " ")
+}
+
+func htmlToText(html string, opts html2text.Options) string {
+	out, err := html2text.FromString(html, opts)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
 }

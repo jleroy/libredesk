@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/abhinavxd/libredesk/internal/authz"
+	authzmodels "github.com/abhinavxd/libredesk/internal/authz/models"
 	"github.com/abhinavxd/libredesk/internal/automation"
 	amodels "github.com/abhinavxd/libredesk/internal/automation/models"
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
@@ -48,14 +50,29 @@ var (
 	//go:embed queries.sql
 	efs                             embed.FS
 	errConversationNotFound         = errors.New("conversation not found")
-	conversationsAllowedFields      = []string{"status_id", "priority_id", "assigned_team_id", "assigned_user_id", "inbox_id", "last_message_at", "last_interaction_at", "created_at", "waiting_since", "next_sla_deadline_at", "priority_id"}
+	ErrConversationAlreadyAssigned  = errors.New("conversation already assigned")
+	conversationsAllowedFields      = []string{"status_id", "priority_id", "assigned_team_id", "assigned_user_id", "inbox_id", "last_message_at", "last_interaction_at", "last_interaction_sender", "created_at", "waiting_since", "next_sla_deadline_at", "snoozed_until", "sla_policy_id"}
 	conversationStatusAllowedFields = []string{"id", "name"}
-	usersAllowedFields              = []string{"email"}
+	usersAllowedFields              = []string{"email", "external_user_id"}
+	inboxesAllowedFields            = []string{"channel"}
 )
 
 const (
 	conversationsListMaxPageSize = 500
 )
+
+var conversationFilterRenderers = dbutil.FieldRenderers{
+	"conversations": {
+		"tags": renderTagFilter,
+	},
+}
+
+var conversationListAllowedFields = dbutil.AllowedFields{
+	"conversations":         conversationsAllowedFields,
+	"conversation_statuses": conversationStatusAllowedFields,
+	"users":                 usersAllowedFields,
+	"inboxes":               inboxesAllowedFields,
+}
 
 // Manager handles the operations related to conversations
 type Manager struct {
@@ -85,6 +102,19 @@ type Manager struct {
 	wg                         sync.WaitGroup
 	continuityConfig           ContinuityConfig
 	subjectRefFormat           string
+	aiAgent                    AIAgentEngine
+}
+
+// AIAgentEngine is notified when a conversation assigned to an AI assistant may need a response.
+type AIAgentEngine interface {
+	HandleConversationEvent(conversationID, assigneeUserID int)
+	HandleConversationResolved(conversationID int)
+	AssistantExpectation(userID int) string
+}
+
+// SetAIAgent wires the AI agent engine after construction to avoid an import cycle.
+func (c *Manager) SetAIAgent(e AIAgentEngine) {
+	c.aiAgent = e
 }
 
 // WidgetConversationView represents the conversation data for widget clients
@@ -127,6 +157,7 @@ type teamStore interface {
 type userStore interface {
 	Get(int, string, []string) (umodels.User, error)
 	GetAgent(int, string) (umodels.User, error)
+	GetAgentCachedOrLoad(int) (umodels.User, error)
 	GetSystemUser() (umodels.User, error)
 	CreateContact(user *umodels.User) error
 	UpgradeVisitorToContact(visitorID int) error
@@ -137,10 +168,11 @@ type mediaStore interface {
 	GetBlob(name string) ([]byte, error)
 	GetURL(uuid, contentType, fileName string) string
 	GetSignedURL(name string) string
-	Attach(id int, model string, modelID int) error
-	SetContentID(id int, contentID string) error
+	GetThumbnailURL(uuid string) string
+	LinkMessageMediaTx(tx *sqlx.Tx, messageID int, media []mmodels.Media, inlineUUIDs []string) error
 	GetByModel(id int, model string) ([]mmodels.Media, error)
 	GetByContentIDs(contentIDs []string, conversationUUID string) ([]mmodels.Media, error)
+	GetDraftInlineMedia(uuid string, conversationID int) (mmodels.Media, error)
 	ContentIDExists(contentID, conversationUUID string) (bool, string, error)
 	Upload(fileName, contentType string, content io.ReadSeeker) (string, string, error)
 	UploadAndInsert(fileName, contentType, contentID string, modelType null.String, modelID null.Int, content io.ReadSeeker, fileSize int, disposition null.String, meta []byte) (mmodels.Media, error)
@@ -258,38 +290,42 @@ func New(
 
 type queries struct {
 	// Conversation queries.
-	GetConversationUUID                *sqlx.Stmt `query:"get-conversation-uuid"`
-	GetConversation                    *sqlx.Stmt `query:"get-conversation"`
-	GetConversationsCreatedAfter       *sqlx.Stmt `query:"get-conversations-created-after"`
-	GetUnassignedConversations         *sqlx.Stmt `query:"get-unassigned-conversations"`
-	GetConversations                   string     `query:"get-conversations"`
-	GetContactChatConversations        *sqlx.Stmt `query:"get-contact-chat-conversations"`
-	GetChatConversation                *sqlx.Stmt `query:"get-chat-conversation"`
-	GetContactPreviousConversations    *sqlx.Stmt `query:"get-contact-previous-conversations"`
-	GetConversationParticipants        *sqlx.Stmt `query:"get-conversation-participants"`
-	GetUserActiveConversationsCount    *sqlx.Stmt `query:"get-user-active-conversations-count"`
-	UpdateConversationWaitingSince     *sqlx.Stmt `query:"update-conversation-waiting-since"`
-	UpdateConversationReplyTimestamps  *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
-	UpdateConversationContactLastSeen  *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
-	UpsertUserLastSeen                 *sqlx.Stmt `query:"upsert-user-last-seen"`
-	MarkConversationUnread             *sqlx.Stmt `query:"mark-conversation-unread"`
-	UpdateConversationAssignedUser     *sqlx.Stmt `query:"update-conversation-assigned-user"`
-	UpdateConversationAssignedTeam     *sqlx.Stmt `query:"update-conversation-assigned-team"`
-	UpdateConversationCustomAttributes *sqlx.Stmt `query:"update-conversation-custom-attributes"`
-	UpdateConversationPriority         *sqlx.Stmt `query:"update-conversation-priority"`
-	UpdateConversationStatus           *sqlx.Stmt `query:"update-conversation-status"`
-	UpdateConversationLastMessage      *sqlx.Stmt `query:"update-conversation-last-message"`
-	InsertConversationParticipant      *sqlx.Stmt `query:"insert-conversation-participant"`
-	InsertConversation                 *sqlx.Stmt `query:"insert-conversation"`
-	AddConversationTags                *sqlx.Stmt `query:"add-conversation-tags"`
-	SetConversationTags                *sqlx.Stmt `query:"set-conversation-tags"`
-	RemoveConversationTags             *sqlx.Stmt `query:"remove-conversation-tags"`
-	GetConversationTags                *sqlx.Stmt `query:"get-conversation-tags"`
-	UnassignOpenConversations          *sqlx.Stmt `query:"unassign-open-conversations"`
-	ReOpenConversation                 *sqlx.Stmt `query:"re-open-conversation"`
-	UnsnoozeAll                        *sqlx.Stmt `query:"unsnooze-all"`
-	DeleteConversation                 *sqlx.Stmt `query:"delete-conversation"`
-	RemoveConversationAssignee         *sqlx.Stmt `query:"remove-conversation-assignee"`
+	GetConversationUUID                 *sqlx.Stmt `query:"get-conversation-uuid"`
+	GetConversation                     *sqlx.Stmt `query:"get-conversation"`
+	GetConversationListItem             *sqlx.Stmt `query:"get-conversation-list-item"`
+	GetConversationsCreatedAfter        *sqlx.Stmt `query:"get-conversations-created-after"`
+	GetUnassignedConversations          *sqlx.Stmt `query:"get-unassigned-conversations"`
+	GetConversations                    string     `query:"get-conversations"`
+	GetContactChatConversations         *sqlx.Stmt `query:"get-contact-chat-conversations"`
+	GetChatConversation                 *sqlx.Stmt `query:"get-chat-conversation"`
+	GetContactPreviousConversations     *sqlx.Stmt `query:"get-contact-previous-conversations"`
+	GetContactConversationsForAI        *sqlx.Stmt `query:"get-contact-conversations-for-ai"`
+	GetConversationsByContactEmailForAI *sqlx.Stmt `query:"get-conversations-by-contact-email-for-ai"`
+	GetConversationParticipants         *sqlx.Stmt `query:"get-conversation-participants"`
+	GetUserActiveConversationsCount     *sqlx.Stmt `query:"get-user-active-conversations-count"`
+	UpdateConversationWaitingSince      *sqlx.Stmt `query:"update-conversation-waiting-since"`
+	UpdateConversationReplyTimestamps   *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
+	UpdateConversationContactLastSeen   *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
+	UpsertUserLastSeen                  *sqlx.Stmt `query:"upsert-user-last-seen"`
+	MarkConversationUnread              *sqlx.Stmt `query:"mark-conversation-unread"`
+	UpdateConversationAssignedUser      *sqlx.Stmt `query:"update-conversation-assigned-user"`
+	ClaimUnassignedConversation         *sqlx.Stmt `query:"claim-unassigned-conversation"`
+	UpdateConversationAssignedTeam      *sqlx.Stmt `query:"update-conversation-assigned-team"`
+	UpdateConversationCustomAttributes  *sqlx.Stmt `query:"update-conversation-custom-attributes"`
+	UpdateConversationPriority          *sqlx.Stmt `query:"update-conversation-priority"`
+	UpdateConversationStatus            *sqlx.Stmt `query:"update-conversation-status"`
+	UpdateConversationLastMessage       *sqlx.Stmt `query:"update-conversation-last-message"`
+	InsertConversationParticipant       *sqlx.Stmt `query:"insert-conversation-participant"`
+	InsertConversation                  *sqlx.Stmt `query:"insert-conversation"`
+	AddConversationTags                 *sqlx.Stmt `query:"add-conversation-tags"`
+	SetConversationTags                 *sqlx.Stmt `query:"set-conversation-tags"`
+	RemoveConversationTags              *sqlx.Stmt `query:"remove-conversation-tags"`
+	GetConversationTags                 *sqlx.Stmt `query:"get-conversation-tags"`
+	UnassignOpenConversations           *sqlx.Stmt `query:"unassign-open-conversations"`
+	ReOpenConversation                  *sqlx.Stmt `query:"re-open-conversation"`
+	UnsnoozeAll                         *sqlx.Stmt `query:"unsnooze-all"`
+	DeleteConversation                  *sqlx.Stmt `query:"delete-conversation"`
+	RemoveConversationAssignee          *sqlx.Stmt `query:"remove-conversation-assignee"`
 
 	// Draft queries.
 	UpsertConversationDraft *sqlx.Stmt `query:"upsert-conversation-draft"`
@@ -309,6 +345,7 @@ type queries struct {
 	UpdateMessageStatus                *sqlx.Stmt `query:"update-message-status"`
 	UpdateMessageSourceID              *sqlx.Stmt `query:"update-message-source-id"`
 	DeleteMessage                      *sqlx.Stmt `query:"delete-message"`
+	DeletePrivateMessage               *sqlx.Stmt `query:"delete-private-message"`
 
 	// Conversation continuity queries.
 	GetOfflineLiveChatConversations *sqlx.Stmt `query:"get-offline-livechat-conversations"`
@@ -321,6 +358,10 @@ type queries struct {
 
 	// Broadcast queries.
 	GetActiveLivechatConversationsByAgent *sqlx.Stmt `query:"get-active-livechat-conversations-by-agent"`
+
+	// WS list-subscribe authz.
+	FilterAuthorizedListUUIDs     *sqlx.Stmt `query:"filter-authorized-list-uuids"`
+	GetConversationUUIDsByContact *sqlx.Stmt `query:"get-conversation-uuids-by-contact"`
 }
 
 // CreateConversation creates a new conversation. If maxConversations > 0, the insert is
@@ -362,6 +403,11 @@ func (c *Manager) CreateConversation(contactID, inboxID int, lastMessage string,
 		c.lo.Error("error inserting new conversation into the DB", "error", err)
 		return 0, "", err
 	}
+	if item, err := c.GetConversationListItem(uuid); err == nil {
+		c.BroadcastNewConversation(&item)
+	} else {
+		c.lo.Error("error fetching conversation list item for broadcast", "uuid", uuid, "error", err)
+	}
 	return id, uuid, nil
 }
 
@@ -399,6 +445,26 @@ func (c *Manager) GetContactPreviousConversations(contactID int, limit int) ([]m
 	var conversations = make([]models.PreviousConversation, 0)
 	if err := c.q.GetContactPreviousConversations.Select(&conversations, contactID, limit); err != nil {
 		c.lo.Error("error fetching previous conversations", "error", err)
+		return conversations, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return conversations, nil
+}
+
+// GetContactConversationsForAI returns recent conversations of a contact, excluding excludeID.
+func (c *Manager) GetContactConversationsForAI(contactID, excludeID int) ([]models.AIConversationSummary, error) {
+	conversations := make([]models.AIConversationSummary, 0)
+	if err := c.q.GetContactConversationsForAI.Select(&conversations, contactID, excludeID); err != nil {
+		c.lo.Error("error fetching contact conversations for ai", "error", err)
+		return conversations, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return conversations, nil
+}
+
+// GetConversationsByContactEmailForAI returns recent conversations of the contact matching email exactly.
+func (c *Manager) GetConversationsByContactEmailForAI(email string) ([]models.AIConversationSummary, error) {
+	conversations := make([]models.AIConversationSummary, 0)
+	if err := c.q.GetConversationsByContactEmailForAI.Select(&conversations, email); err != nil {
+		c.lo.Error("error fetching conversations by contact email for ai", "error", err)
 		return conversations, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return conversations, nil
@@ -672,10 +738,38 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 		previousUserID = strconv.Itoa(previousConversation.AssignedUserID.Int)
 	}
 
-	if err := c.UpdateAssignee(uuid, assigneeID, models.AssigneeTypeUser); err != nil {
+	if err := c.updateAssignee(uuid, assigneeID, models.AssigneeTypeUser); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	return c.afterUserAssignedHooks(uuid, assigneeID, actor, map[string]string{
+		amodels.ConversationPreviousAssignedUser: previousUserID,
+	})
+}
 
+// ClaimUnassignedConversation atomically assigns a conversation only if still unassigned and still in expectedTeamID, else returns ErrConversationAlreadyAssigned.
+func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedTeamID int, actor umodels.User) error {
+	prev, prevErr := c.GetConversationListItem(uuid)
+
+	res, err := c.q.ClaimUnassignedConversation.Exec(uuid, assigneeID, expectedTeamID)
+	if err != nil {
+		c.lo.Error("error claiming unassigned conversation", "uuid", uuid, "error", err)
+		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		c.lo.Error("error reading rows affected for conversation claim", "uuid", uuid, "error", err)
+		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if rows == 0 {
+		return ErrConversationAlreadyAssigned
+	}
+
+	c.broadcastReassignment(uuid, prev, prevErr)
+	return c.afterUserAssignedHooks(uuid, assigneeID, actor, nil)
+}
+
+// afterUserAssignedHooks runs the side-effects shared by every user-assignment path.
+func (c *Manager) afterUserAssignedHooks(uuid string, assigneeID int, actor umodels.User, previousValues map[string]string) error {
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		return err
@@ -688,11 +782,8 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 		"conversation":      conversation,
 	})
 
-	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned, map[string]string{
-		amodels.ConversationPreviousAssignedUser: previousUserID,
-	})
+	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned, previousValues)
 
-	// Send notifications to assignee (skip if self-assigning).
 	if assigneeID != actor.ID {
 		if err := c.NotifyAssignment([]int{assigneeID}, conversation); err != nil {
 			c.lo.Error("error sending assignment notification", "error", err)
@@ -703,10 +794,14 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Broadcast conversation update to widget clients with assignee info.
 	agent, err := c.userStore.GetAgent(assigneeID, "")
 	if err == nil {
 		c.SignAvatarURL(&agent.AvatarURL)
+		// Always send expectation (empty for humans) so it clears when the AI hands off to an agent.
+		expectation := ""
+		if c.aiAgent != nil {
+			expectation = c.aiAgent.AssistantExpectation(assigneeID)
+		}
 		c.BroadcastConversationToWidget(uuid, conversation.ContactID, conversation.InboxID, map[string]any{
 			"assignee": map[string]any{
 				"id":                  agent.ID,
@@ -714,8 +809,13 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 				"last_name":           agent.LastName,
 				"avatar_url":          agent.AvatarURL,
 				"availability_status": agent.AvailabilityStatus,
+				"expectation":         expectation,
 			},
 		})
+	}
+
+	if c.aiAgent != nil {
+		c.aiAgent.HandleConversationEvent(conversation.ID, assigneeID)
 	}
 
 	return nil
@@ -730,7 +830,7 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 	}
 	previousAssignedTeamID := conversation.AssignedTeamID.Int
 
-	if err := c.UpdateAssignee(uuid, teamID, models.AssigneeTypeTeam); err != nil {
+	if err := c.updateAssignee(uuid, teamID, models.AssigneeTypeTeam); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
@@ -777,28 +877,18 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 	return nil
 }
 
-// UpdateAssignee updates the assignee of a conversation.
-func (c *Manager) UpdateAssignee(uuid string, assigneeID int, assigneeType string) error {
-	var prop string
-	switch assigneeType {
-	case models.AssigneeTypeUser:
-		prop = "assigned_user_id"
-		if _, err := c.q.UpdateConversationAssignedUser.Exec(uuid, assigneeID); err != nil {
-			c.lo.Error("error updating conversation assignee", "error", err)
-			return fmt.Errorf("updating assignee: %w", err)
-		}
-	case models.AssigneeTypeTeam:
-		prop = "assigned_team_id"
-		if _, err := c.q.UpdateConversationAssignedTeam.Exec(uuid, assigneeID); err != nil {
-			c.lo.Error("error updating conversation assignee", "error", err)
-			return fmt.Errorf("updating assignee: %w", err)
-		}
-	default:
-		return fmt.Errorf("invalid assignee type: %s", assigneeType)
+// broadcastReassignment broadcasts a reassignment to agents, given the conversation's prior list item.
+func (c *Manager) broadcastReassignment(uuid string, prev models.ConversationListItem, prevErr error) {
+	next, nextErr := c.GetConversationListItem(uuid)
+	if nextErr != nil {
+		c.lo.Error("error fetching conversation list item for assignee broadcast", "uuid", uuid, "error", nextErr)
+		return
 	}
-	// Broadcast update to all subscribers.
-	c.BroadcastConversationUpdate(uuid, map[string]any{prop: assigneeID})
-	return nil
+	var prevPtr *models.ConversationListItem
+	if prevErr == nil {
+		prevPtr = &prev
+	}
+	c.BroadcastConvReassignment(prevPtr, &next)
 }
 
 // UpdateConversationPriority updates the priority of a conversation.
@@ -906,7 +996,6 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Broadcast updates using websocket.
 	agentData := map[string]any{"status": status}
 	if oldStatus != models.StatusResolved && status == models.StatusResolved {
 		resolvedAt := conversationBeforeChange.ResolvedAt.Time
@@ -914,6 +1003,31 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 			resolvedAt = time.Now()
 		}
 		agentData["resolved_at"] = resolvedAt.Format(time.RFC3339)
+		if c.aiAgent != nil {
+			c.aiAgent.HandleConversationResolved(conversationBeforeChange.ID)
+		}
+		// Send the CSAT survey here so every resolve path (agent UI, AI assistant, automation) triggers
+		// it - a caller that resolves without going through the HTTP handler would otherwise skip it.
+		// SendCSATReply is idempotent and no-ops when the contact has no email.
+		if inb, err := c.inboxStore.GetDBRecord(conversationBeforeChange.InboxID); err != nil {
+			c.lo.Error("error fetching inbox for CSAT on resolve", "conversation_uuid", uuid, "error", err)
+		} else if inb.CSATEnabled {
+			if err := c.SendCSATReply(actor.ID, conversationBeforeChange); err != nil {
+				c.lo.Error("error sending CSAT on resolve", "conversation_uuid", uuid, "error", err)
+			}
+		}
+	}
+	if status == models.StatusClosed {
+		closedAt := time.Now()
+		if conversation.ID != 0 && !conversation.ClosedAt.Time.IsZero() {
+			closedAt = conversation.ClosedAt.Time
+		}
+		agentData["closed_at"] = closedAt.Format(time.RFC3339)
+	}
+	if status == models.StatusSnoozed {
+		agentData["snoozed_until"] = snoozeUntil.Format(time.RFC3339)
+	} else if oldStatus == models.StatusSnoozed {
+		agentData["snoozed_until"] = nil
 	}
 	c.BroadcastConversationUpdate(uuid, agentData)
 
@@ -1016,6 +1130,8 @@ func (c *Manager) SetConversationTags(uuid string, action string, tagNames []str
 		}
 	}
 
+	c.BroadcastConversationUpdate(uuid, map[string]any{"tags": newTags})
+
 	return nil
 }
 
@@ -1044,6 +1160,27 @@ func (m *Manager) BuildEmailThreadingHeaders(conversationID int, selfSourceID st
 		inReplyTo = references[len(references)-1]
 	}
 	return references, inReplyTo
+}
+
+// SendTransientEmail sends a one-off email through the conversation's inbox, threaded like a reply, without recording it as a conversation message.
+func (m *Manager) SendTransientEmail(inboxID, conversationID int, conversationUUID string, to []string, subject, htmlContent string) error {
+	inb, err := m.inboxStore.Get(inboxID)
+	if err != nil {
+		return fmt.Errorf("fetching inbox: %w", err)
+	}
+	if inb.Channel() != inbox.ChannelEmail {
+		return fmt.Errorf("cannot send email through non-email inbox %d", inboxID)
+	}
+	references, inReplyTo := m.BuildEmailThreadingHeaders(conversationID, "")
+	return inb.Send(models.OutboundMessage{
+		From:             inb.FromAddress(),
+		To:               to,
+		Subject:          subject,
+		Content:          htmlContent,
+		ConversationUUID: conversationUUID,
+		References:       references,
+		InReplyTo:        inReplyTo,
+	})
 }
 
 // NotifyAssignment sends notifications (in-app, WebSocket, email) for an assigned conversation.
@@ -1243,11 +1380,16 @@ func (m *Manager) ApplySLA(conversation models.Conversation, policyID int, actor
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Record the SLA application as an activity.
-	if err := m.RecordSLASet(conversation.UUID, policy.Name, actor); err != nil {
-		return err
+	if updated, ferr := m.GetConversation(0, conversation.UUID, ""); ferr == nil {
+		m.BroadcastConversationUpdate(conversation.UUID, map[string]any{
+			"sla_policy_id":              updated.SLAPolicyID.Int,
+			"applied_sla_id":             updated.AppliedSLAID.Int,
+			"first_response_deadline_at": nullTimeOrNil(updated.FirstResponseDueAt),
+			"resolution_deadline_at":     nullTimeOrNil(updated.ResolutionDueAt),
+		})
 	}
-	return nil
+
+	return m.RecordSLASet(conversation.UUID, policy.Name, actor)
 }
 
 // ApplyAction applies an action to a conversation, this can be called from multiple packages across the app to perform actions on conversations.
@@ -1440,6 +1582,7 @@ func parseNotifyRecipient(entry string) (string, int) {
 
 // RemoveConversationAssignee removes assigned user from a conversation.
 func (m *Manager) RemoveConversationAssignee(uuid, typ string, actor umodels.User) error {
+	prev, prevErr := m.GetConversationListItem(uuid)
 	if _, err := m.q.RemoveConversationAssignee.Exec(uuid, typ); err != nil {
 		m.lo.Error("error removing conversation assignee", "error", err)
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.errorUpdatingConversation"), nil)
@@ -1465,13 +1608,16 @@ func (m *Manager) RemoveConversationAssignee(uuid, typ string, actor umodels.Use
 		}
 	}
 
-	// Broadcast ws update.
-	switch typ {
-	case models.AssigneeTypeUser:
-		m.BroadcastConversationUpdate(uuid, map[string]any{"assigned_user_id": nil})
-	case models.AssigneeTypeTeam:
-		m.BroadcastConversationUpdate(uuid, map[string]any{"assigned_team_id": nil})
+	next, nextErr := m.GetConversationListItem(uuid)
+	if nextErr != nil {
+		m.lo.Error("error fetching conversation list item for unassign broadcast", "uuid", uuid, "error", nextErr)
+		return nil
 	}
+	var prevPtr *models.ConversationListItem
+	if prevErr == nil {
+		prevPtr = &prev
+	}
+	m.BroadcastConvReassignment(prevPtr, &next)
 
 	return nil
 }
@@ -1526,11 +1672,13 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 
 // DeleteConversation deletes a conversation.
 func (m *Manager) DeleteConversation(uuid string) error {
-	m.lo.Info("deleting conversation", "uuid", uuid)
-	if _, err := m.q.DeleteConversation.Exec(uuid); err != nil {
-		m.lo.Error("error deleting conversation", "error", err)
+	res, err := m.q.DeleteConversation.Exec(uuid)
+	if err != nil {
+		m.lo.Error("error deleting conversation", "uuid", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	rows, _ := res.RowsAffected()
+	m.lo.Info("deleted conversation", "uuid", uuid, "rows_affected", rows)
 	return nil
 }
 
@@ -1621,35 +1769,6 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 		return "", nil, fmt.Errorf("no conversation list types specified")
 	}
 
-	// Parse filters to extract tag filters
-	var (
-		filters          []dbutil.Filter
-		tagFilters       []dbutil.Filter
-		remainingFilters []dbutil.Filter
-	)
-	if filtersJSON != "" && filtersJSON != "[]" {
-		if err := json.Unmarshal([]byte(filtersJSON), &filters); err != nil {
-			return "", nil, fmt.Errorf("invalid filters JSON: %w", err)
-		}
-
-		// Separate tag filters from other filters
-		for _, f := range filters {
-			if f.Field == "tags" && (f.Operator == "contains" || f.Operator == "not contains" || f.Operator == "set" || f.Operator == "not set") {
-				tagFilters = append(tagFilters, f)
-			} else {
-				remainingFilters = append(remainingFilters, f)
-			}
-		}
-
-		// Update filtersJSON with remaining filters for the generic builder
-		if len(remainingFilters) > 0 {
-			b, _ := json.Marshal(remainingFilters)
-			filtersJSON = string(b)
-		} else {
-			filtersJSON = "[]"
-		}
-	}
-
 	// Prepare the conditions based on the list types.
 	conditions := []string{}
 	for _, lt := range listTypes {
@@ -1701,52 +1820,6 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 		whereClause = "AND (" + strings.Join(conditions, " OR ") + ")"
 	}
 
-	// Add tag filter conditions
-	// TODO: Evaluate - https://github.com/Masterminds/squirrel when required.
-	for _, tf := range tagFilters {
-		switch tf.Operator {
-		case "contains", "not contains":
-			var tagIDs []int
-			if err := json.Unmarshal([]byte(tf.Value), &tagIDs); err != nil {
-				return "", nil, fmt.Errorf("invalid tag IDs in filter: %w", err)
-			}
-			if len(tagIDs) > 0 {
-				paramIdx := len(qArgs) + 1
-				switch tf.Operator {
-				case "contains":
-					// Has any of the tags
-					tagCondition := fmt.Sprintf(` AND conversations.id IN (
-						SELECT DISTINCT conversation_id 
-						FROM conversation_tags 
-						WHERE tag_id = ANY($%d::int[])
-					)`, paramIdx)
-					whereClause += tagCondition
-				case "not contains":
-					// Doesn't have any of the tags
-					tagCondition := fmt.Sprintf(` AND conversations.id NOT IN (
-						SELECT DISTINCT conversation_id 
-						FROM conversation_tags 
-						WHERE tag_id = ANY($%d::int[])
-					)`, paramIdx)
-					whereClause += tagCondition
-				}
-				qArgs = append(qArgs, pq.Array(tagIDs))
-			}
-		case "set":
-			// Has any tags at all
-			whereClause += ` AND EXISTS (
-				SELECT 1 FROM conversation_tags 
-				WHERE conversation_id = conversations.id
-			)`
-		case "not set":
-			// Has no tags at all
-			whereClause += ` AND NOT EXISTS (
-				SELECT 1 FROM conversation_tags 
-				WHERE conversation_id = conversations.id
-			)`
-		}
-	}
-
 	baseQuery = fmt.Sprintf(baseQuery, whereClause)
 
 	return dbutil.BuildPaginatedQuery(baseQuery, qArgs, dbutil.PaginationOptions{
@@ -1754,11 +1827,21 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 		OrderBy:  orderBy,
 		Page:     page,
 		PageSize: pageSize,
-	}, filtersJSON, dbutil.AllowedFields{
-		"conversations":         conversationsAllowedFields,
-		"conversation_statuses": conversationStatusAllowedFields,
-		"users":                 usersAllowedFields,
-	})
+		Location: c.filterLocation(),
+	}, filtersJSON, conversationListAllowedFields, conversationFilterRenderers)
+}
+
+// ValidateListFilters structurally validates a conversation view's filters payload.
+func (c *Manager) ValidateListFilters(filtersJSON string) error {
+	err := dbutil.ValidateFilters(filtersJSON, conversationListAllowedFields, conversationFilterRenderers)
+	if err == nil {
+		return nil
+	}
+	c.lo.Error("error validating view filters", "error", err)
+	if errors.Is(err, dbutil.ErrTooManyGroups) {
+		return envelope.NewError(envelope.InputError, c.i18n.Ts("conversation.filters.tooManyGroups", "max", fmt.Sprintf("%d", dbutil.MaxFilterGroups)), nil)
+	}
+	return envelope.NewError(envelope.InputError, c.i18n.T("globals.messages.invalidFilters"), nil)
 }
 
 // ProcessCSATStatus processes messages and adds CSAT submission status for CSAT messages.
@@ -1810,6 +1893,10 @@ func (m *Manager) BuildWidgetConversationView(conversation models.Conversation) 
 				}
 			}
 
+			expectation := ""
+			if m.aiAgent != nil {
+				expectation = m.aiAgent.AssistantExpectation(assignee.ID)
+			}
 			view.Assignee = map[string]any{
 				"id":                  assignee.ID,
 				"first_name":          assignee.FirstName,
@@ -1818,6 +1905,7 @@ func (m *Manager) BuildWidgetConversationView(conversation models.Conversation) 
 				"availability_status": assignee.AvailabilityStatus,
 				"type":                assignee.Type,
 				"active_at":           assignee.LastActiveAt,
+				"expectation":         expectation,
 			}
 		}
 	}
@@ -1861,9 +1949,7 @@ func (m *Manager) BuildWidgetConversationResponse(conversation models.Conversati
 		for _, msg := range messages {
 			m.SignAvatarURL(&msg.Author.AvatarURL)
 			attachments := msg.Attachments
-			for j := range attachments {
-				attachments[j].URL = m.mediaStore.GetSignedURL(attachments[j].UUID)
-			}
+			m.SignAttachmentURLs(attachments)
 
 			// Strip agent email from widget responses.
 			author := msg.Author
@@ -1953,4 +2039,130 @@ func (m *Manager) calculateBusinessHoursInfo(conversation models.Conversation) (
 
 func (c *Manager) formatRefMarker(ref string) string {
 	return strings.ReplaceAll(c.subjectRefFormat, "{ref}", ref)
+}
+
+func (c *Manager) GetConversationListItem(uuid string) (models.ConversationListItem, error) {
+	var item models.ConversationListItem
+	if err := c.q.GetConversationListItem.Get(&item, uuid); err != nil {
+		return item, err
+	}
+	return item, nil
+}
+
+func (c *Manager) AuthorizedConnectedAgentIDs(assignedUserID, assignedTeamID null.Int) []int {
+	connected := c.wsHub.ConnectedUserIDs()
+	if len(connected) == 0 {
+		return nil
+	}
+	out := make([]int, 0, len(connected))
+	for _, id := range connected {
+		agent, err := c.userStore.GetAgentCachedOrLoad(id)
+		if err != nil {
+			continue
+		}
+		if !agent.Enabled {
+			continue
+		}
+		if authz.CanReadAssignment(agent, assignedUserID, assignedTeamID) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// FilterAuthorizedListUUIDs returns the subset of UUIDs the agent can read, mirroring the conversation read-permission chain.
+func (c *Manager) FilterAuthorizedListUUIDs(agentID int, uuids []string) ([]string, error) {
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+	user, err := c.userStore.GetAgentCachedOrLoad(agentID)
+	if err != nil {
+		return nil, err
+	}
+	if !user.Enabled {
+		return nil, nil
+	}
+	var authorized []string
+	err = c.q.FilterAuthorizedListUUIDs.Select(&authorized,
+		pq.Array(uuids),
+		user.ID,
+		pq.Array(user.Teams.IDs()),
+		slices.Contains(user.Permissions, authzmodels.PermConversationsRead),
+		slices.Contains(user.Permissions, authzmodels.PermConversationsReadAll),
+		slices.Contains(user.Permissions, authzmodels.PermConversationsReadAssigned),
+		slices.Contains(user.Permissions, authzmodels.PermConversationsReadTeamAll),
+		slices.Contains(user.Permissions, authzmodels.PermConversationsReadTeamInbox),
+		slices.Contains(user.Permissions, authzmodels.PermConversationsReadUnassigned),
+	)
+	if err != nil {
+		c.lo.Error("error filtering authorized list uuids", "agent_id", agentID, "error", err)
+		return nil, err
+	}
+	return authorized, nil
+}
+
+// updateAssignee updates the team / user assignee of a conversation and broadcasts the reassignment to connected clients.
+func (c *Manager) updateAssignee(uuid string, assigneeID int, assigneeType string) error {
+	prev, prevErr := c.GetConversationListItem(uuid)
+	switch assigneeType {
+	case models.AssigneeTypeUser:
+		if _, err := c.q.UpdateConversationAssignedUser.Exec(uuid, assigneeID); err != nil {
+			c.lo.Error("error updating conversation assignee", "error", err)
+			return fmt.Errorf("updating assignee: %w", err)
+		}
+	case models.AssigneeTypeTeam:
+		if _, err := c.q.UpdateConversationAssignedTeam.Exec(uuid, assigneeID); err != nil {
+			c.lo.Error("error updating conversation assignee", "error", err)
+			return fmt.Errorf("updating assignee: %w", err)
+		}
+	default:
+		return fmt.Errorf("invalid assignee type: %s", assigneeType)
+	}
+	c.broadcastReassignment(uuid, prev, prevErr)
+	return nil
+}
+
+// filterLocation returns the configured app timezone for resolving date filters. The builder normalizes invalid/empty values to UTC.
+func (c *Manager) filterLocation() string {
+	b, err := c.settingsStore.Get("app.timezone")
+	if err != nil {
+		return ""
+	}
+	var tz string
+	if err := json.Unmarshal(b, &tz); err != nil {
+		return ""
+	}
+	return tz
+}
+
+func nullTimeOrNil(t null.Time) any {
+	if !t.Valid || t.Time.IsZero() {
+		return nil
+	}
+	return t.Time.Format(time.RFC3339)
+}
+
+func renderTagFilter(operator, value string, paramIndex int) (string, []any, error) {
+	switch operator {
+	case "contains", "not contains":
+		var tagIDs []int
+		if err := json.Unmarshal([]byte(value), &tagIDs); err != nil {
+			return "", nil, fmt.Errorf("invalid tag IDs in filter: %w", err)
+		}
+		if len(tagIDs) == 0 {
+			return "", nil, nil
+		}
+		op := "IN"
+		if operator == "not contains" {
+			op = "NOT IN"
+		}
+		sql := fmt.Sprintf("conversations.id %s (SELECT DISTINCT conversation_id FROM conversation_tags WHERE tag_id = ANY($%d::int[]))", op, paramIndex)
+		return sql, []any{pq.Array(tagIDs)}, nil
+	case "set":
+		return "EXISTS (SELECT 1 FROM conversation_tags WHERE conversation_id = conversations.id)", nil, nil
+	case "not set":
+		return "NOT EXISTS (SELECT 1 FROM conversation_tags WHERE conversation_id = conversations.id)", nil, nil
+	default:
+		return "", nil, fmt.Errorf("invalid operator for tags: %s", operator)
+	}
 }

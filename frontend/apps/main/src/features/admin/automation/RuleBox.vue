@@ -25,9 +25,9 @@
       </RadioGroup>
     </div>
 
-    <div class="space-y-5 rounded" :class="{ 'box p-5': ruleGroup.rules?.length > 0 }">
-      <div class="space-y-5">
-        <div v-for="(rule, index) in ruleGroup.rules" :key="rule" class="space-y-5">
+    <div class="space-y-6" :class="{ 'box p-5': ruleGroup.rules?.length > 0 }">
+      <div class="space-y-6">
+        <div v-for="(rule, index) in ruleGroup.rules" :key="rule" class="space-y-6">
           <div v-if="index > 0">
             <hr class="border-t-2 border-dotted border-border" />
           </div>
@@ -76,7 +76,7 @@
                     :key="key"
                     :value="op"
                   >
-                    {{ op }}
+                    {{ operatorLabel(op, t) }}
                   </SelectItem>
                 </SelectGroup>
               </SelectContent>
@@ -184,7 +184,7 @@
         </div>
       </div>
       <div>
-        <Button variant="outline" size="sm" @click.prevent="addCondition">
+        <Button type="button" variant="outline" size="sm" @click.prevent="addCondition">
           {{
             $t('actions.addCondition')
           }}
@@ -221,6 +221,7 @@ import { Input } from '@shared-ui/components/ui/input'
 import { useI18n } from 'vue-i18n'
 import { useConversationFilters } from '../../../composables/useConversationFilters'
 import SelectComboBox from '@main/components/combobox/SelectCombobox.vue'
+import { operatorLabel } from '@/constants/filterConfig'
 
 const props = defineProps({
   ruleGroup: {

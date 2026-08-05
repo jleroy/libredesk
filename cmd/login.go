@@ -61,6 +61,8 @@ func handleLogin(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
+	app.user.InvalidateAgentCache(user.ID)
+
 	// Insert activity log.
 	if err := app.activityLog.Login(user.ID, user.Email.String, ip); err != nil {
 		app.lo.Error("error creating login activity log", "error", err)

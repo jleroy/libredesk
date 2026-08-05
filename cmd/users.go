@@ -101,7 +101,7 @@ func handleUpdateAgentAvailability(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 
-	agent, err := app.user.GetAgent(auser.ID, "")
+	agent, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -119,8 +119,9 @@ func handleUpdateAgentAvailability(r *fastglue.Request) error {
 	if err := app.user.UpdateAvailability(auser.ID, availReq.Status); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	app.user.InvalidateAgentCache(auser.ID)
 
-	go app.conversation.BroadcastAgentStatusToWidget(auser.ID, availReq.Status)
+	go app.conversation.BroadcastAgentAvailability(auser.ID, availReq.Status)
 
 	// Skip activity log when returning online from idle-away to avoid log spam.
 	if !(agent.AvailabilityStatus == models.Away && availReq.Status == models.Online) {
@@ -129,7 +130,7 @@ func handleUpdateAgentAvailability(r *fastglue.Request) error {
 		}
 	}
 
-	agent, err = app.user.GetAgent(auser.ID, "")
+	agent, err = app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -166,7 +167,7 @@ func handleUpdateCurrentAgent(r *fastglue.Request) error {
 
 	// Upload avatar?
 	if ok && len(files) > 0 {
-		agent, err := app.user.GetAgent(auser.ID, "")
+		agent, err := app.user.GetAgentCachedOrLoad(auser.ID)
 		if err != nil {
 			return sendErrorEnvelope(r, err)
 		}
@@ -176,7 +177,7 @@ func handleUpdateCurrentAgent(r *fastglue.Request) error {
 	}
 
 	// Fetch updated agent and return.
-	agent, err := app.user.GetAgent(auser.ID, "")
+	agent, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -271,6 +272,10 @@ func handleUpdateAgent(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	// AI assistant identity users are managed via the AI assistant endpoints only.
+	if agent.Type != models.UserTypeAgent {
+		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.Ts("globals.messages.notFound", "name", app.i18n.T("globals.terms.agent")), nil, envelope.NotFoundError)
+	}
 	oldAvailabilityStatus := agent.AvailabilityStatus
 
 	// Update agent with individual fields
@@ -278,8 +283,8 @@ func handleUpdateAgent(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	// Invalidate authz cache.
-	defer app.authz.InvalidateUserCache(id)
+	app.user.InvalidateAgentCache(id)
+	app.wsHub.KickUser(id)
 
 	// Create activity log if user availability status changed.
 	if oldAvailabilityStatus != req.AvailabilityStatus {
@@ -330,6 +335,9 @@ func handleDeleteAgent(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
+	defer app.wsHub.KickUser(id)
+	defer app.user.InvalidateAgentCache(id)
+
 	// Unassign all open conversations assigned to the user.
 	if err := app.conversation.UnassignOpen(id); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -344,7 +352,7 @@ func handleGetCurrentAgent(r *fastglue.Request) error {
 		app   = r.Context.(*App)
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
-	u, err := app.user.GetAgent(auser.ID, "")
+	u, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -359,7 +367,7 @@ func handleDeleteCurrentAgentAvatar(r *fastglue.Request) error {
 	)
 
 	// Get user
-	agent, err := app.user.GetAgent(auser.ID, "")
+	agent, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -379,6 +387,7 @@ func handleDeleteCurrentAgentAvatar(r *fastglue.Request) error {
 	if err = app.user.UpdateAvatar(agent.ID, ""); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	app.user.InvalidateAgentCache(agent.ID)
 	return r.SendEnvelope(true)
 }
 
@@ -455,16 +464,45 @@ func handleSetPassword(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "{globals.terms.password}"), nil, envelope.InputError)
 	}
 
-	if err := app.user.ResetPassword(req.Token, req.Password); err != nil {
+	id, err := app.user.ResetPassword(req.Token, req.Password)
+	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	app.user.InvalidateAgentCache(id)
+	app.wsHub.KickUser(id)
 
 	return r.SendEnvelope(true)
+}
+
+// validateAvatarFile checks avatar type and size without side effects.
+func validateAvatarFile(r *fastglue.Request, files []*multipart.FileHeader) error {
+	var app = r.Context.(*App)
+
+	if len(files) == 0 {
+		return nil
+	}
+	fileHeader := files[0]
+	srcExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(stringutil.SanitizeFilename(fileHeader.Filename))), ".")
+	if !slices.Contains(image.Exts, srcExt) {
+		return envelope.NewError(envelope.InputError, app.i18n.T("globals.messages.fileTypeisNotAnImage"), nil)
+	}
+	if bytesToMegabytes(fileHeader.Size) > maxAvatarSizeMB {
+		return envelope.NewError(
+			envelope.InputError,
+			app.i18n.Ts("media.fileSizeTooLarge", "size", fmt.Sprintf("%dMB", maxAvatarSizeMB)),
+			nil,
+		)
+	}
+	return nil
 }
 
 // uploadUserAvatar uploads the user avatar.
 func uploadUserAvatar(r *fastglue.Request, user models.User, files []*multipart.FileHeader) error {
 	var app = r.Context.(*App)
+
+	if err := validateAvatarFile(r, files); err != nil {
+		return err
+	}
 
 	fileHeader := files[0]
 	file, err := fileHeader.Open()
@@ -474,25 +512,9 @@ func uploadUserAvatar(r *fastglue.Request, user models.User, files []*multipart.
 	}
 	defer file.Close()
 
-	// Sanitize filename.
 	srcFileName := stringutil.SanitizeFilename(fileHeader.Filename)
 	srcContentType := fileHeader.Header.Get("Content-Type")
 	srcFileSize := fileHeader.Size
-	srcExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(srcFileName)), ".")
-
-	if !slices.Contains(image.Exts, srcExt) {
-		return envelope.NewError(envelope.InputError, app.i18n.T("globals.messages.fileTypeisNotAnImage"), nil)
-	}
-
-	// Check file size
-	if bytesToMegabytes(srcFileSize) > maxAvatarSizeMB {
-		app.lo.Error("error uploaded file size is larger than max allowed", "user_id", user.ID, "size", bytesToMegabytes(srcFileSize), "max_allowed", maxAvatarSizeMB)
-		return envelope.NewError(
-			envelope.InputError,
-			app.i18n.Ts("media.fileSizeTooLarge", "size", fmt.Sprintf("%dMB", maxAvatarSizeMB)),
-			nil,
-		)
-	}
 
 	// Reset ptr.
 	file.Seek(0, 0)
@@ -518,6 +540,7 @@ func uploadUserAvatar(r *fastglue.Request, user models.User, files []*multipart.
 	if err := app.user.UpdateAvatar(user.ID, "/uploads/"+media.UUID); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	app.user.InvalidateAgentCache(user.ID)
 	return nil
 }
 
@@ -536,12 +559,16 @@ func handleGenerateAPIKey(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	if user.Type != models.UserTypeAgent {
+		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.Ts("globals.messages.notFound", "name", app.i18n.T("globals.terms.agent")), nil, envelope.NotFoundError)
+	}
 
 	// Generate API key and secret
 	apiKey, apiSecret, err := app.user.GenerateAPIKey(user.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	app.user.InvalidateAgentCache(user.ID)
 
 	// Return the API key and secret (only shown once)
 	response := struct {
@@ -566,15 +593,19 @@ func handleRevokeAPIKey(r *fastglue.Request) error {
 	}
 
 	// Check if user exists
-	_, err := app.user.GetAgent(id, "")
+	user, err := app.user.GetAgent(id, "")
 	if err != nil {
 		return sendErrorEnvelope(r, err)
+	}
+	if user.Type != models.UserTypeAgent {
+		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.Ts("globals.messages.notFound", "name", app.i18n.T("globals.terms.agent")), nil, envelope.NotFoundError)
 	}
 
 	// Revoke API key
 	if err := app.user.RevokeAPIKey(id); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	app.user.InvalidateAgentCache(id)
 
 	return r.SendEnvelope(true)
 }

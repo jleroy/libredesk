@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
@@ -194,7 +196,7 @@ func handleGetViewConversations(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -313,7 +315,7 @@ func handleGetConversation(r *fastglue.Request) error {
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
 
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -328,6 +330,40 @@ func handleGetConversation(r *fastglue.Request) error {
 	return r.SendEnvelope(conv)
 }
 
+// handleDownloadConversationTranscript sends the conversation transcript as a text file download.
+func handleDownloadConversationTranscript(r *fastglue.Request) error {
+	var (
+		app   = r.Context.(*App)
+		uuid  = r.RequestCtx.UserValue("uuid").(string)
+		auser = r.RequestCtx.UserValue("user").(amodels.User)
+	)
+
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	conversation, err := enforceConversationAccess(app, uuid, user)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	private := false
+	messages, err := app.conversation.GetAllConversationMessages(uuid, &private, []string{cmodels.MessageIncoming, cmodels.MessageOutgoing}, 0)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	transcript := app.conversation.BuildTranscript(*conversation, messages, time.Now())
+	safeRef := stringutil.SanitizeFilename(conversation.ReferenceNumber)
+	filename := fmt.Sprintf("transcript-%s.txt", safeRef)
+	r.RequestCtx.Response.Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
+	r.RequestCtx.SetContentType("text/plain; charset=utf-8")
+	r.RequestCtx.SetBody(transcript)
+	return nil
+}
+
 // handleGetContactPageVisits returns the recent page visits for the contact of a conversation.
 func handleGetContactPageVisits(r *fastglue.Request) error {
 	var (
@@ -336,7 +372,7 @@ func handleGetContactPageVisits(r *fastglue.Request) error {
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
 
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -357,7 +393,7 @@ func handleUpdateConversationAssigneeLastSeen(r *fastglue.Request) error {
 		uuid  = r.RequestCtx.UserValue("uuid").(string)
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -379,7 +415,7 @@ func handleMarkConversationAsUnread(r *fastglue.Request) error {
 		uuid  = r.RequestCtx.UserValue("uuid").(string)
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -401,7 +437,7 @@ func handleGetConversationParticipants(r *fastglue.Request) error {
 		uuid  = r.RequestCtx.UserValue("uuid").(string)
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -430,7 +466,7 @@ func handleUpdateUserAssignee(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -468,7 +504,7 @@ func handleUpdateTeamAssignee(r *fastglue.Request) error {
 
 	assigneeID := req.AssigneeID
 
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -513,7 +549,7 @@ func handleUpdateConversationPriority(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`priority`"), nil, envelope.InputError)
 	}
 
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -560,7 +596,7 @@ func handleUpdateConversationStatus(r *fastglue.Request) error {
 	}
 
 	// Enforce conversation access.
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -573,20 +609,7 @@ func handleUpdateConversationStatus(r *fastglue.Request) error {
 	if err := app.conversation.UpdateConversationStatus(uuid, 0 /**status_id**/, status, snoozedUntil, user); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-
-	// If status is `Resolved`, send CSAT survey if enabled on inbox.
-	if status == cmodels.StatusResolved {
-		// Check if CSAT is enabled on the inbox and send CSAT survey message.
-		inbox, err := app.inbox.GetDBRecord(conversation.InboxID)
-		if err != nil {
-			return sendErrorEnvelope(r, err)
-		}
-		if inbox.CSATEnabled {
-			if err := app.conversation.SendCSATReply(user.ID, *conversation); err != nil {
-				return sendErrorEnvelope(r, err)
-			}
-		}
-	}
+	markAssignmentNotificationRead(app, conversation, user)
 	return r.SendEnvelope(true)
 }
 
@@ -616,7 +639,7 @@ func handleUpdateConversationtags(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -645,7 +668,7 @@ func handleUpdateConversationCustomAttributes(r *fastglue.Request) error {
 	}
 
 	// Enforce conversation access.
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -675,7 +698,7 @@ func handleUpdateContactCustomAttributes(r *fastglue.Request) error {
 	}
 
 	// Enforce conversation access.
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -714,7 +737,7 @@ func handleRemoveUserAssignee(r *fastglue.Request) error {
 		uuid  = r.RequestCtx.UserValue("uuid").(string)
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -735,7 +758,7 @@ func handleRemoveTeamAssignee(r *fastglue.Request) error {
 		uuid  = r.RequestCtx.UserValue("uuid").(string)
 		auser = r.RequestCtx.UserValue("user").(amodels.User)
 	)
-	user, err := app.user.GetAgent(auser.ID, "")
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -772,27 +795,38 @@ func handleCreateConversation(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+
 	// Validate the request
 	if err := validateCreateConversationRequest(req, app); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
-	to := []string{req.Email}
-	user, err := app.user.GetAgent(auser.ID, "")
+	email := req.Email
+	to := []string{email}
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
-	// Find or create contact.
 	contact := umodels.User{
-		Email:            null.StringFrom(req.Email),
+		Email:            null.StringFrom(email),
 		FirstName:        req.FirstName,
 		LastName:         req.LastName,
 		ExternalUserID:   null.NewString(req.ExternalUserID, req.ExternalUserID != ""),
 		CustomAttributes: json.RawMessage(`{}`),
 	}
-	if err := app.user.CreateContact(&contact); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+	// Reuse an existing contact as-is; this endpoint is gated only on conversations:write and must never rename a contact.
+	existing, err := app.user.GetContactByEmail(email)
+	if err != nil {
+		if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
+			return sendErrorEnvelope(r, err)
+		}
+		if err := app.user.CreateContact(&contact); err != nil {
+			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+		}
+	} else {
+		contact.ID = existing.ID
 	}
 
 	// Create conversation first.
@@ -816,6 +850,14 @@ func handleCreateConversation(r *fastglue.Request) error {
 	media, err := getUnassociatedMedia(app, req.Attachments)
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
+	// Assign team first, it clears any assigned agent.
+	if req.AssignedTeamID > 0 {
+		app.conversation.UpdateConversationTeamAssignee(conversationUUID, req.AssignedTeamID, user)
+	}
+	if req.AssignedAgentID > 0 {
+		app.conversation.UpdateConversationUserAssignee(conversationUUID, req.AssignedAgentID, user)
 	}
 
 	// Send initial message based on the initiator of conversation.
@@ -845,14 +887,6 @@ func handleCreateConversation(r *fastglue.Request) error {
 	default:
 		// Guard anyway.
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.InputError)
-	}
-
-	// Assign the conversation to team/agent if provided, always assign team first as it clears assigned agent.
-	if req.AssignedTeamID > 0 {
-		app.conversation.UpdateConversationTeamAssignee(conversationUUID, req.AssignedTeamID, user)
-	}
-	if req.AssignedAgentID > 0 {
-		app.conversation.UpdateConversationUserAssignee(conversationUUID, req.AssignedAgentID, user)
 	}
 
 	conversation, _ := app.conversation.GetConversation(conversationID, "", "")

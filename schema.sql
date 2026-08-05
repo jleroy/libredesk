@@ -8,7 +8,7 @@ DROP TYPE IF EXISTS "content_type" CASCADE; CREATE TYPE "content_type" AS ENUM (
 DROP TYPE IF EXISTS "conversation_assignment_type" CASCADE; CREATE TYPE "conversation_assignment_type" AS ENUM ('Round robin','Manual');
 DROP TYPE IF EXISTS "template_type" CASCADE; CREATE TYPE "template_type" AS ENUM ('email_outgoing', 'email_notification');
 -- Visitors are unauthenticated contacts.
-DROP TYPE IF EXISTS "user_type" CASCADE; CREATE TYPE "user_type" AS ENUM ('agent', 'contact', 'visitor');
+DROP TYPE IF EXISTS "user_type" CASCADE; CREATE TYPE "user_type" AS ENUM ('agent', 'contact', 'visitor', 'ai_assistant');
 DROP TYPE IF EXISTS "ai_provider" CASCADE; CREATE TYPE "ai_provider" AS ENUM ('openai');
 DROP TYPE IF EXISTS "automation_execution_mode" CASCADE; CREATE TYPE "automation_execution_mode" AS ENUM ('all', 'first_match');
 DROP TYPE IF EXISTS "macro_visibility" CASCADE; CREATE TYPE "macro_visibility" AS ENUM ('all', 'team', 'user');
@@ -24,6 +24,7 @@ DROP TYPE IF EXISTS "activity_log_type" CASCADE; CREATE TYPE "activity_log_type"
 DROP TYPE IF EXISTS "macro_visible_when" CASCADE; CREATE TYPE "macro_visible_when" AS ENUM ('replying', 'starting_conversation', 'adding_private_note');
 DROP TYPE IF EXISTS "user_notification_type" CASCADE; CREATE TYPE "user_notification_type" AS ENUM ('mention', 'assignment', 'sla_warning', 'sla_breach');
 DROP TYPE IF EXISTS "conversation_status_category" CASCADE; CREATE TYPE "conversation_status_category" AS ENUM ('open', 'waiting', 'resolved');
+DROP TYPE IF EXISTS "ai_knowledge_type" CASCADE; CREATE TYPE "ai_knowledge_type" AS ENUM ('snippet');
 DROP TYPE IF EXISTS "webhook_event" CASCADE; CREATE TYPE webhook_event AS ENUM (
 	'conversation.created',
 	'conversation.status_changed',
@@ -88,6 +89,7 @@ CREATE TABLE inboxes (
 	prompt_tags_on_reply bool DEFAULT false NOT NULL,
 	config jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"from" TEXT NULL,
+	from_name_template TEXT NOT NULL DEFAULT '',
 	secret TEXT NULL,
 	linked_email_inbox_id INT REFERENCES inboxes(id) ON DELETE SET NULL,
 	CONSTRAINT constraint_inboxes_on_name CHECK (length("name") <= 140)
@@ -315,10 +317,12 @@ CREATE TABLE conversation_drafts (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+    type TEXT NOT NULL DEFAULT 'reply',
     content TEXT NOT NULL,
-	meta JSONB DEFAULT '{}'::jsonb NOT NULL
+	meta JSONB DEFAULT '{}'::jsonb NOT NULL,
+	CONSTRAINT constraint_conversation_drafts_on_type CHECK (type IN ('reply', 'private_note'))
 );
-CREATE UNIQUE INDEX index_uniq_conversation_drafts_on_conversation_id_and_user_id ON conversation_drafts (conversation_id, user_id);
+CREATE UNIQUE INDEX index_uniq_conversation_drafts_on_conversation_id_and_user_id_and_type ON conversation_drafts (conversation_id, user_id, type);
 
 DROP TABLE IF EXISTS macros CASCADE;
 CREATE TABLE macros (
@@ -534,6 +538,7 @@ CREATE TABLE applied_slas (
 );
 CREATE INDEX index_applied_slas_on_conversation_id ON applied_slas(conversation_id);
 CREATE INDEX index_applied_slas_on_status ON applied_slas(status);
+CREATE UNIQUE INDEX index_applied_slas_unique_pending_per_conv ON applied_slas(conversation_id) WHERE status = 'pending';
 
 DROP TABLE IF EXISTS sla_events CASCADE;
 CREATE TABLE sla_events (
@@ -574,12 +579,15 @@ CREATE TABLE ai_providers (
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	name TEXT NOT NULL UNIQUE,
 	provider ai_provider NOT NULL,
+	type TEXT NOT NULL DEFAULT 'completion',
 	config JSONB NOT NULL DEFAULT '{}',
 	is_default BOOLEAN NOT NULL DEFAULT FALSE,
-	CONSTRAINT constraint_ai_providers_on_name CHECK (length(name) <= 140)
+	CONSTRAINT constraint_ai_providers_on_name CHECK (length(name) <= 140),
+	CONSTRAINT constraint_ai_providers_on_type CHECK (type IN ('completion', 'embedding'))
 );
 CREATE UNIQUE INDEX index_unique_ai_providers_on_is_default_when_is_default_is_true ON ai_providers USING btree (is_default)
 WHERE (is_default = true);
+CREATE UNIQUE INDEX index_unique_ai_providers_on_type ON ai_providers(type);
 
 DROP TABLE IF EXISTS ai_prompts CASCADE;
 CREATE TABLE ai_prompts (
@@ -593,6 +601,124 @@ CREATE TABLE ai_prompts (
     CONSTRAINT constraint_prompts_on_key CHECK (length(key) <= 140)
 );
 CREATE INDEX index_ai_prompts_on_key ON ai_prompts USING btree (key);
+
+DROP TABLE IF EXISTS ai_knowledge_base CASCADE;
+CREATE TABLE ai_knowledge_base (
+	id SERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	type ai_knowledge_type NOT NULL DEFAULT 'snippet',
+	title TEXT NOT NULL DEFAULT '',
+	content TEXT NOT NULL,
+	enabled BOOLEAN NOT NULL DEFAULT true,
+	source TEXT NOT NULL DEFAULT 'manual',
+	source_url TEXT NOT NULL DEFAULT '',
+	embedded_fingerprint TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX index_ai_knowledge_base_on_type_enabled ON ai_knowledge_base(type, enabled);
+
+DROP TABLE IF EXISTS embeddings CASCADE;
+CREATE TABLE embeddings (
+	id BIGSERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	source_type TEXT NOT NULL,
+	source_id BIGINT NOT NULL,
+	chunk_text TEXT NOT NULL,
+	embedding BYTEA,
+	dimensions INTEGER NOT NULL DEFAULT 0,
+	meta JSONB NOT NULL DEFAULT '{}'
+);
+CREATE INDEX index_embeddings_on_source_type_source_id ON embeddings(source_type, source_id);
+
+DROP TABLE IF EXISTS ai_tools CASCADE;
+CREATE TABLE ai_tools (
+	id SERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	name TEXT NOT NULL UNIQUE,
+	description TEXT NOT NULL DEFAULT '',
+	url TEXT NOT NULL,
+	method TEXT NOT NULL DEFAULT 'POST',
+	auth JSONB NOT NULL DEFAULT '{}',
+	parameters JSONB NOT NULL DEFAULT '{}',
+	enabled BOOLEAN NOT NULL DEFAULT true,
+	requires_verification BOOLEAN NOT NULL DEFAULT true,
+	CONSTRAINT constraint_ai_tools_on_name CHECK (name ~ '^[a-zA-Z0-9_-]+$' AND length(name) <= 64)
+);
+
+DROP TABLE IF EXISTS ai_assistants CASCADE;
+CREATE TABLE ai_assistants (
+	id SERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+	description TEXT NOT NULL DEFAULT '',
+	instructions TEXT NOT NULL DEFAULT '',
+	guardrails TEXT NOT NULL DEFAULT '',
+	expectation TEXT NOT NULL DEFAULT '',
+	tone TEXT NOT NULL DEFAULT 'professional',
+	response_length TEXT NOT NULL DEFAULT 'balanced',
+	max_turns INTEGER NOT NULL DEFAULT 6,
+	fallback_team_id INTEGER NULL REFERENCES teams(id) ON DELETE SET NULL,
+	handoff_enabled BOOLEAN NOT NULL DEFAULT true,
+	languages TEXT[] NOT NULL DEFAULT '{}',
+	enabled BOOLEAN NOT NULL DEFAULT true,
+	CONSTRAINT constraint_ai_assistants_on_tone CHECK (tone IN ('friendly', 'professional', 'neutral', 'casual')),
+	CONSTRAINT constraint_ai_assistants_on_response_length CHECK (response_length IN ('concise', 'balanced', 'detailed')),
+	CONSTRAINT constraint_ai_assistants_on_max_turns CHECK (max_turns > 0 AND max_turns <= 20)
+);
+CREATE INDEX index_ai_assistants_on_user_id ON ai_assistants(user_id);
+
+DROP TABLE IF EXISTS ai_assistant_tools CASCADE;
+CREATE TABLE ai_assistant_tools (
+	id SERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	assistant_id INTEGER NOT NULL REFERENCES ai_assistants(id) ON DELETE CASCADE,
+	tool_id INTEGER NOT NULL REFERENCES ai_tools(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX index_unique_ai_assistant_tools ON ai_assistant_tools(assistant_id, tool_id);
+CREATE INDEX index_ai_assistant_tools_on_assistant_id ON ai_assistant_tools(assistant_id);
+
+DROP TABLE IF EXISTS ai_agent_events CASCADE;
+CREATE TABLE ai_agent_events (
+	id BIGSERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	assistant_id INTEGER NOT NULL REFERENCES ai_assistants(id) ON DELETE CASCADE,
+	conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+	type TEXT NOT NULL,
+	CONSTRAINT constraint_ai_agent_events_on_type CHECK (type IN ('handoff', 'resolve'))
+);
+CREATE INDEX index_ai_agent_events_on_assistant_type_created ON ai_agent_events(assistant_id, type, created_at);
+CREATE INDEX index_ai_agent_events_on_conversation_id ON ai_agent_events(conversation_id);
+
+DROP TABLE IF EXISTS copilot_messages CASCADE;
+CREATE TABLE copilot_messages (
+	id BIGSERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+	user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	"role" TEXT NOT NULL,
+	content TEXT NOT NULL,
+	CONSTRAINT constraint_copilot_messages_on_role CHECK ("role" IN ('user', 'assistant'))
+);
+CREATE INDEX index_copilot_messages_on_conversation_user ON copilot_messages(conversation_id, user_id, id);
+
+DROP TABLE IF EXISTS ai_faq_suggestions CASCADE;
+CREATE TABLE ai_faq_suggestions (
+	id BIGSERIAL PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+	question TEXT NOT NULL,
+	answer TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'pending',
+	reviewed_by_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
+	reviewed_at TIMESTAMPTZ NULL,
+	CONSTRAINT constraint_ai_faq_suggestions_on_status CHECK (status IN ('pending', 'approved', 'rejected'))
+);
+CREATE INDEX index_ai_faq_suggestions_on_status_created ON ai_faq_suggestions(status, created_at);
+CREATE INDEX index_ai_faq_suggestions_on_conversation_id ON ai_faq_suggestions(conversation_id);
 
 DROP TABLE IF EXISTS custom_attribute_definitions CASCADE;
 CREATE TABLE custom_attribute_definitions (
@@ -698,8 +824,10 @@ CREATE INDEX index_user_notifications_on_created_at ON user_notifications(create
 CREATE INDEX index_user_notifications_on_conversation_id ON user_notifications(conversation_id);
 
 INSERT INTO ai_providers
-("name", provider, config, is_default)
-VALUES('openai', 'openai', '{"api_key": ""}'::jsonb, true);
+("name", provider, type, config, is_default)
+VALUES
+('openai', 'openai', 'completion', '{"api_key": ""}'::jsonb, true),
+('embedding', 'openai', 'embedding', '{"api_key": ""}'::jsonb, false);
 
 -- Default AI prompts
 INSERT INTO ai_prompts ("key", "content", title)
@@ -708,7 +836,8 @@ VALUES
 ('make_concise', 'Simplify the text to make it more concise and to the point.', 'Make Concise'),
 ('add_empathy', 'Add empathy to the text while retaining the original meaning.', 'Add Empathy'),
 ('adjust_positive_tone', 'Adjust the tone of the text to make it sound more positive and reassuring.', 'Adjust Positive Tone'),
-('make_professional', 'Rephrase the text to make it sound more formal and professional and to the point.', 'Make Professional');
+('make_professional', 'Rephrase the text to make it sound more formal and professional and to the point.', 'Make Professional'),
+('fix_grammar_spelling', 'Fix any spelling and grammar mistakes in the text while retaining the original meaning and tone.', 'Fix Grammar & Spelling');
 
 -- Default settings
 INSERT INTO settings ("key", value)
@@ -722,6 +851,8 @@ VALUES
     ('app.allowed_file_upload_extensions', '["*"]'::jsonb),
 	('app.timezone', '"Asia/Kolkata"'::jsonb),
 	('app.business_hours_id', '""'::jsonb),
+	('app.show_conversation_subject', 'true'::jsonb),
+	('ai_agent.faq_learning_enabled', 'false'::jsonb),
     ('notification.email.username', '"admin@yourcompany.com"'::jsonb),
     ('notification.email.host', '""'::jsonb),
     ('notification.email.port', '587'::jsonb),
@@ -934,3 +1065,11 @@ VALUES (
   '',
   true
 );
+
+-- Default business hours
+INSERT INTO business_hours ("name", description, is_always_open, hours, holidays) VALUES
+('Default', 'Default business hours, Monday to Friday, 09:00 to 17:00.', false, '{"Monday": {"open": "09:00", "close": "17:00"}, "Tuesday": {"open": "09:00", "close": "17:00"}, "Wednesday": {"open": "09:00", "close": "17:00"}, "Thursday": {"open": "09:00", "close": "17:00"}, "Friday": {"open": "09:00", "close": "17:00"}}'::jsonb, '[]'::jsonb);
+
+-- Default SLA policy
+INSERT INTO sla_policies ("name", description, first_response_time, resolution_time, next_response_time, notifications) VALUES
+('Default', 'Default SLA policy, first response within 1 hour and resolution within 24 hours.', '1h', '24h', NULL, '[]'::jsonb);

@@ -18,22 +18,31 @@ function getCSRFToken () {
   return ''
 }
 
-// Request interceptor.
+// Route-scoped abort, opt-in via { abortOnRoute: true }. Default no-abort protects in-flight saves.
+let routeAbort = new AbortController()
+export function abortRouteScope () {
+  routeAbort.abort()
+  routeAbort = new AbortController()
+}
+
 http.interceptors.request.use((request) => {
   const token = getCSRFToken()
   if (token) {
     request.headers['X-CSRFTOKEN'] = token
   }
 
-  // Set content type for POST/PUT requests if the content type is not set.
   if ((request.method === 'post' || request.method === 'put') && !request.headers['Content-Type']) {
     request.headers['Content-Type'] = 'application/json'
   }
-  
+
   if (request.headers['Content-Type'] === 'application/x-www-form-urlencoded') {
     request.data = qs.stringify(request.data)
   }
-  
+
+  if (request.abortOnRoute && request.signal === undefined) {
+    request.signal = routeAbort.signal
+  }
+
   return request
 })
 
@@ -321,16 +330,20 @@ const getConversationMessage = (cuuid, uuid) =>
   http.get(`/api/v1/conversations/${cuuid}/messages/${uuid}`)
 const retryMessage = (cuuid, uuid) =>
   http.put(`/api/v1/conversations/${cuuid}/messages/${uuid}/retry`)
+const deleteMessage = (cuuid, uuid) =>
+  http.delete(`/api/v1/conversations/${cuuid}/messages/${uuid}`)
 const getConversationMessages = (uuid, params) =>
-  http.get(`/api/v1/conversations/${uuid}/messages`, { params })
+  http.get(`/api/v1/conversations/${uuid}/messages`, { params, abortOnRoute: true })
 const sendMessage = (uuid, data) =>
   http.post(`/api/v1/conversations/${uuid}/messages`, data, {
     headers: {
       'Content-Type': 'application/json'
     }
   })
-const getConversation = (uuid) => http.get(`/api/v1/conversations/${uuid}`)
-const getContactPageVisits = (uuid) => http.get(`/api/v1/conversations/${uuid}/page-visits`)
+const getConversation = (uuid) => http.get(`/api/v1/conversations/${uuid}`, { abortOnRoute: true })
+const getConversationTranscript = (uuid) =>
+  http.get(`/api/v1/conversations/${uuid}/transcript`, { responseType: 'blob' })
+const getContactPageVisits = (uuid) => http.get(`/api/v1/conversations/${uuid}/page-visits`, { abortOnRoute: true })
 const getAllMacros = () => http.get('/api/v1/macros')
 const getMacro = (id) => http.get(`/api/v1/macros/${id}`)
 const createMacro = (data) =>
@@ -353,15 +366,17 @@ const applyMacro = (uuid, id, data) =>
     }
   })
 const getTeamUnassignedConversations = (teamID, params) =>
-  http.get(`/api/v1/teams/${teamID}/conversations/unassigned`, { params })
-const getAssignedConversations = (params) => http.get('/api/v1/conversations/assigned', { params })
+  http.get(`/api/v1/teams/${teamID}/conversations/unassigned`, { params, abortOnRoute: true })
+const getAssignedConversations = (params) =>
+  http.get('/api/v1/conversations/assigned', { params, abortOnRoute: true })
 const getUnassignedConversations = (params) =>
-  http.get('/api/v1/conversations/unassigned', { params })
-const getAllConversations = (params) => http.get('/api/v1/conversations/all', { params })
+  http.get('/api/v1/conversations/unassigned', { params, abortOnRoute: true })
+const getAllConversations = (params) =>
+  http.get('/api/v1/conversations/all', { params, abortOnRoute: true })
 const getMentionedConversations = (params) =>
-  http.get('/api/v1/conversations/mentioned', { params })
+  http.get('/api/v1/conversations/mentioned', { params, abortOnRoute: true })
 const getViewConversations = (id, params) =>
-  http.get(`/api/v1/views/${id}/conversations`, { params })
+  http.get(`/api/v1/views/${id}/conversations`, { params, abortOnRoute: true })
 const uploadMedia = (data) =>
   http.post('/api/v1/media', data, {
     headers: {
@@ -392,8 +407,8 @@ const updateInbox = (id, data) =>
     }
   })
 const deleteInbox = (id) => http.delete(`/api/v1/inboxes/${id}`)
-const saveDraft = (uuid, data) =>
-  http.post(`/api/v1/conversations/${uuid}/draft`, data, {
+const saveDraft = (uuid, type, data) =>
+  http.post(`/api/v1/conversations/${uuid}/draft`, { ...data, type }, {
     headers: {
       'Content-Type': 'application/json'
     }
@@ -401,7 +416,8 @@ const saveDraft = (uuid, data) =>
 
 const getAllDrafts = () => http.get('/api/v1/drafts')
 
-const deleteDraft = (uuid) => http.delete(`/api/v1/conversations/${uuid}/draft`)
+const deleteDraft = (uuid, type) =>
+  http.delete(`/api/v1/conversations/${uuid}/draft`, { params: { type } })
 const getCurrentUserViews = () => http.get('/api/v1/views/me')
 const createView = (data) =>
   http.post('/api/v1/views/me', data, {
@@ -440,11 +456,49 @@ const aiCompletion = (data) => http.post('/api/v1/ai/completion', data, {
     'Content-Type': 'application/json'
   }
 })
-const updateAIProvider = (data) => http.put('/api/v1/ai/provider', data, {
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+const getAIConfig = (type) => http.get(`/api/v1/ai/config/${type}`)
+const updateAIConfig = (type, data) => http.put(`/api/v1/ai/config/${type}`, data)
+const testAIConfig = (type, data) => http.post(`/api/v1/ai/config/${type}/test`, data)
+const getAITools = () => http.get('/api/v1/ai/tools')
+const getAITool = (id) => http.get(`/api/v1/ai/tools/${id}`)
+const createAITool = (data) => http.post('/api/v1/ai/tools', data)
+const updateAITool = (id, data) => http.put(`/api/v1/ai/tools/${id}`, data)
+const deleteAITool = (id) => http.delete(`/api/v1/ai/tools/${id}`)
+const getAIAssistants = () => http.get('/api/v1/ai/assistants')
+const getAIAssistantsCompact = () => http.get('/api/v1/ai/assistants/compact')
+const getAIAssistant = (id) => http.get(`/api/v1/ai/assistants/${id}`)
+const createAIAssistant = (data) =>
+  http.post('/api/v1/ai/assistants', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+const updateAIAssistant = (id, data) =>
+  http.put(`/api/v1/ai/assistants/${id}`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+const deleteAIAssistant = (id) => http.delete(`/api/v1/ai/assistants/${id}`)
+const previewAIAssistant = (id, data) => http.post(`/api/v1/ai/assistants/${id}/preview`, data)
+const getAIAssistantStats = (id, range) =>
+  http.get(`/api/v1/ai/assistants/${id}/stats`, { params: range ? { range } : {} })
+const getAISnippets = () => http.get('/api/v1/ai/snippets')
+const createAISnippet = (data) => http.post('/api/v1/ai/snippets', data)
+const importAISnippetFromURL = (data) => http.post('/api/v1/ai/snippets/import-url', data)
+const updateAISnippet = (id, data) => http.put(`/api/v1/ai/snippets/${id}`, data)
+const deleteAISnippet = (id) => http.delete(`/api/v1/ai/snippets/${id}`)
+const getAIFaqSuggestions = (status) =>
+  http.get('/api/v1/ai/faq-suggestions', { params: status ? { status } : {} })
+const approveAIFaqSuggestion = (id, data) =>
+  http.post(`/api/v1/ai/faq-suggestions/${id}/approve`, data)
+const rejectAIFaqSuggestion = (id) => http.post(`/api/v1/ai/faq-suggestions/${id}/reject`)
+const getAIFaqLearning = () => http.get('/api/v1/ai/faq-learning')
+const updateAIFaqLearning = (data) => http.put('/api/v1/ai/faq-learning', data)
+const aiGenerateReply = (data) => http.post('/api/v1/ai/generate-reply', data)
+const aiSummarizeConversation = (data) => http.post('/api/v1/ai/summarize', data)
+const aiSuggestTags = (data) => http.post('/api/v1/ai/suggest-tags', data)
+const aiCopilot = (data) => http.post('/api/v1/ai/copilot', data)
+const getCopilotMessages = (conversationUUID) =>
+  http.get('/api/v1/ai/copilot/messages', { params: { conversation_uuid: conversationUUID } })
+const clearCopilotMessages = (conversationUUID) =>
+  http.delete('/api/v1/ai/copilot/messages', { params: { conversation_uuid: conversationUUID } })
 const getContactNotes = (id) => http.get(`/api/v1/contacts/${id}/notes`)
 const createContactNote = (id, data) => http.post(`/api/v1/contacts/${id}/notes`, data, {
   headers: {
@@ -562,6 +616,7 @@ export default {
   getOverviewTagDistribution,
   getConversationMessage,
   getConversationMessages,
+  getConversationTranscript,
   getCurrentUser,
   getCurrentUserTeams,
   getAllMacros,
@@ -585,13 +640,13 @@ export default {
   updateAutomationRule,
   updateAutomationRuleWeights,
   updateAutomationRulesExecutionMode,
-  updateAIProvider,
   createAutomationRule,
   toggleAutomationRule,
   deleteAutomationRule,
   createConversation,
   sendMessage,
   retryMessage,
+  deleteMessage,
   createUser,
   createInbox,
   updateInbox,
@@ -640,6 +695,38 @@ export default {
   deleteSharedView,
   getAiPrompts,
   aiCompletion,
+  getAIConfig,
+  updateAIConfig,
+  testAIConfig,
+  getAITools,
+  getAITool,
+  createAITool,
+  updateAITool,
+  deleteAITool,
+  getAIAssistants,
+  getAIAssistantsCompact,
+  getAIAssistant,
+  createAIAssistant,
+  updateAIAssistant,
+  deleteAIAssistant,
+  previewAIAssistant,
+  getAIAssistantStats,
+  getAISnippets,
+  createAISnippet,
+  importAISnippetFromURL,
+  updateAISnippet,
+  deleteAISnippet,
+  getAIFaqSuggestions,
+  approveAIFaqSuggestion,
+  rejectAIFaqSuggestion,
+  getAIFaqLearning,
+  updateAIFaqLearning,
+  aiGenerateReply,
+  aiSummarizeConversation,
+  aiSuggestTags,
+  aiCopilot,
+  getCopilotMessages,
+  clearCopilotMessages,
   searchConversations,
   searchMessages,
   searchContacts,

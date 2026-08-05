@@ -12,7 +12,9 @@ export const useUsersStore = defineStore('users', () => {
     const options = computed(() => users.value.map(user => ({
         label: user.first_name + ' ' + user.last_name,
         value: String(user.id),
+        type: user.type,
         avatar_url: user.avatar_url,
+        availability_status: user.availability_status,
     })))
     const fetchUsers = async (force = false) => {
         if (!force && users.value.length) return
@@ -26,9 +28,14 @@ export const useUsersStore = defineStore('users', () => {
             })
         }
     }
+    const setAvailability = (agentID, status) => {
+        const u = users.value.find(x => x.id === agentID)
+        if (u) u.availability_status = status
+    }
     return {
         users,
         options,
         fetchUsers,
+        setAvailability,
     }
 })

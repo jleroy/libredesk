@@ -6,6 +6,7 @@ import AccountLayout from '@main/layouts/account/AccountLayout.vue'
 import AdminLayout from '@main/layouts/admin/AdminLayout.vue'
 import { useAppSettingsStore } from '../stores/appSettings'
 import { getI18n } from '../i18n'
+import { abortRouteScope } from '../api'
 
 const routes = [
   {
@@ -192,6 +193,66 @@ const routes = [
             name: 'general',
             component: () => import('@main/views/admin/general/General.vue'),
             meta: { titleKey: 'globals.terms.general' }
+          },
+          {
+            path: 'ai',
+            redirect: { name: 'ai-providers' }
+          },
+          {
+            path: 'ai/providers',
+            name: 'ai-providers',
+            component: () => import('@main/views/admin/ai/AIProviders.vue'),
+            meta: { titleKey: 'globals.terms.provider', titleCount: 2 }
+          },
+          {
+            path: 'ai/snippets',
+            name: 'ai-snippets',
+            component: () => import('@main/views/admin/ai/AISnippets.vue'),
+            meta: { titleKey: 'admin.ai.snippets' }
+          },
+          {
+            path: 'ai/suggestions',
+            name: 'ai-suggestions',
+            component: () => import('@main/views/admin/ai/AISuggestions.vue'),
+            meta: { titleKey: 'admin.ai.suggestions' }
+          },
+          {
+            path: 'ai/tools',
+            name: 'ai-tools',
+            component: () => import('@main/views/admin/ai/AITools.vue'),
+            meta: { titleKey: 'admin.ai.tools' }
+          },
+          {
+            path: 'ai/assistants',
+            name: 'ai-assistants',
+            component: () => import('@main/views/admin/ai/AIAssistants.vue'),
+            meta: { titleKey: 'admin.ai.assistants' }
+          },
+          {
+            path: 'ai/tools/new',
+            name: 'new-ai-tool',
+            component: () => import('@main/views/admin/ai/CreateOrEditTool.vue'),
+            meta: { titleKey: 'admin.ai.tool.new' }
+          },
+          {
+            path: 'ai/tools/:id/edit',
+            name: 'edit-ai-tool',
+            props: true,
+            component: () => import('@main/views/admin/ai/CreateOrEditTool.vue'),
+            meta: { titleKey: 'admin.ai.tool.edit' }
+          },
+          {
+            path: 'ai/assistants/new',
+            name: 'new-ai-assistant',
+            component: () => import('@main/views/admin/ai/CreateOrEditAssistant.vue'),
+            meta: { titleKey: 'admin.ai.assistant.new' }
+          },
+          {
+            path: 'ai/assistants/:id/edit',
+            name: 'edit-ai-assistant',
+            props: true,
+            component: () => import('@main/views/admin/ai/CreateOrEditAssistant.vue'),
+            meta: { titleKey: 'admin.ai.assistant.edit' }
           },
           {
             path: 'business-hours',
@@ -578,6 +639,11 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
+  // Cancel in-flight requests.
+  if (to.fullPath !== from.fullPath) {
+    abortRouteScope()
+  }
+
   const appSettingsStore = useAppSettingsStore()
   const siteName = appSettingsStore.settings?.['app.site_name'] || 'libredesk'
   const i18n = getI18n()

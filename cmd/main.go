@@ -16,6 +16,7 @@ import (
 
 	activitylog "github.com/abhinavxd/libredesk/internal/activity_log"
 	"github.com/abhinavxd/libredesk/internal/ai"
+	"github.com/abhinavxd/libredesk/internal/aiagent"
 	auth_ "github.com/abhinavxd/libredesk/internal/auth"
 	"github.com/abhinavxd/libredesk/internal/authz"
 	businesshours "github.com/abhinavxd/libredesk/internal/business_hours"
@@ -48,6 +49,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/template"
 	"github.com/abhinavxd/libredesk/internal/user"
 	"github.com/abhinavxd/libredesk/internal/webhook"
+	"github.com/abhinavxd/libredesk/internal/ws"
 	"github.com/knadh/go-i18n"
 	"github.com/knadh/koanf/v2"
 	"github.com/knadh/stuffbin"
@@ -100,6 +102,7 @@ type App struct {
 	csat             *csat.Manager
 	view             *view.Manager
 	ai               *ai.Manager
+	aiAgent          *aiagent.Manager
 	search           *search.Manager
 	activityLog      *activitylog.Manager
 	notifier         *notifier.Service
@@ -111,6 +114,7 @@ type App struct {
 	rateLimit        *ratelimit.Limiter
 	redis            *redis.Client
 	importer         *importer.Importer
+	wsHub            *ws.Hub
 
 	// Global state that stores data on an available app update.
 	update *AppUpdate
@@ -211,29 +215,32 @@ func main() {
 		oidc                        = initOIDC(db, settings, i18n)
 		status                      = initStatus(db, i18n)
 		priority                    = initPriority(db, i18n)
-		auth                        = initAuth(oidc, rdb, i18n)
+		ssrfControl                 = initSSRFControl()
+		auth                        = initAuth(oidc, rdb, i18n, ssrfControl)
 		template                    = initTemplate(db, fs, constants, i18n)
 		media                       = initMedia(db, i18n, settings)
 		inbox                       = initInbox(db, i18n)
 		team                        = initTeam(db, i18n)
 		businessHours               = initBusinessHours(db, i18n)
-		webhook                     = initWebhook(db, i18n)
+		webhook                     = initWebhook(db, i18n, ssrfControl)
 		user                        = initUser(i18n, db)
 		wsHub                       = initWS(user)
 		notifier                    = initNotifier()
 		userNotification            = initUserNotification(db, i18n)
 		notifDispatcher             = initNotifDispatcher(userNotification, notifier, wsHub, ko.Bool("notification.email.enabled"))
 		automation                  = initAutomationEngine(db, i18n)
+		ai                          = initAI(ctx, db, i18n, ssrfControl)
 		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
 		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)
+		aiAgent                     = initAIAgent(db, i18n, ai, conversation, media, settings, user, notifier, rdb)
 		autoassigner                = initAutoAssigner(team, user, conversation)
 		rateLimiter                 = initRateLimit(rdb)
 	)
 
 	wsHub.SetConversationStore(conversation)
 	automation.SetConversationStore(conversation)
+	conversation.SetAIAgent(aiAgent)
 
-	// Start inboxes.
 	startInboxes(ctx, inbox, conversation, user, conversation.SignAvatarURL)
 
 	go automation.Run(ctx, automationWorkers)
@@ -249,6 +256,8 @@ func main() {
 	go user.MonitorUserAvailability(ctx, onUsersOffline(conversation))
 	go conversation.RunDraftCleaner(ctx, draftRetentionDuration)
 	go userNotification.RunNotificationCleaner(ctx)
+	go aiAgent.Run(ctx, cmp.Or(ko.Int("ai_agent.worker_count"), 10))
+	go ai.Run(ctx)
 
 	var app = &App{
 		ctx:              ctx,
@@ -281,13 +290,15 @@ func main() {
 		role:             initRole(db, i18n),
 		tag:              initTag(db, i18n),
 		macro:            initMacro(db, i18n),
-		ai:               initAI(db, i18n),
+		ai:               ai,
+		aiAgent:          aiAgent,
 		importer:         initImporter(i18n),
 		webhook:          webhook,
 		contextLink:      initContextLink(db, i18n),
 		rateLimit:        rateLimiter,
 		redis:            rdb,
 		userNotification: userNotification,
+		wsHub:            wsHub,
 	}
 	app.consts.Store(constants)
 
@@ -306,10 +317,10 @@ func main() {
 
 	go func() {
 		colorlog.Green("Server started at %s", ko.String("app.server.address"))
-		if ko.String("server.socket") != "" {
-			colorlog.Green("Unix socket created at %s", ko.String("server.socket"))
+		if ko.String("app.server.socket") != "" {
+			colorlog.Green("Unix socket created at %s", ko.String("app.server.socket"))
 		}
-		if err := g.ListenAndServe(ko.String("app.server.address"), ko.String("server.socket"), s); err != nil {
+		if err := g.ListenAndServe(ko.String("app.server.address"), ko.String("app.server.socket"), s); err != nil {
 			log.Fatalf("error starting server: %v", err)
 		}
 	}()
@@ -323,6 +334,10 @@ func main() {
 	<-ctx.Done()
 	colorlog.Red("Shutting down HTTP server...")
 	s.Shutdown()
+	colorlog.Red("Shutting down AI agent...")
+	aiAgent.Close()
+	colorlog.Red("Shutting down AI...")
+	ai.Close()
 	colorlog.Red("Shutting down inboxes...")
 	inbox.Close()
 	colorlog.Red("Shutting down automation...")
@@ -353,7 +368,7 @@ func onUsersOffline(conv *conversation.Manager) func([]umodels.OfflineUser) {
 		for _, u := range users {
 			switch u.Type {
 			case umodels.UserTypeAgent:
-				conv.BroadcastAgentStatusToWidget(u.ID, umodels.Offline)
+				conv.BroadcastAgentAvailability(u.ID, umodels.Offline)
 			case umodels.UserTypeContact, umodels.UserTypeVisitor:
 				conv.BroadcastContactUpdate(u.ID, map[string]any{"availability_status": umodels.Offline})
 			}

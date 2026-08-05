@@ -60,7 +60,7 @@
                   :data-index="index"
                   @select="handleApplyMacro(macro)"
                   @pointerenter="highlightedMacro = macro"
-                  class="px-2 py-2 rounded cursor-pointer transition-colors duration-150 hover:bg-accent"
+                  class="px-2 py-2 rounded-md cursor-pointer transition-colors duration-150 hover:bg-accent"
                 >
                   <div class="flex items-center gap-2">
                     <Zap :size="16" class="shrink-0" />
@@ -165,19 +165,19 @@
     <!-- Navigation -->
     <div class="flex items-center gap-4 border-t px-3 py-2">
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Enter</kbd>
+        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Enter</kbd>
         {{ $t('globals.terms.select') }}
       </span>
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">&uarr;&darr;</kbd>
+        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">&uarr;&darr;</kbd>
         {{ $t('command.navigate') }}
       </span>
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Esc</kbd>
+        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Esc</kbd>
         {{ $t('globals.messages.close') }}
       </span>
       <span v-if="nestedCommand" class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Backspace</kbd>
+        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Backspace</kbd>
         {{ $t('globals.messages.back') }}
       </span>
     </div>
@@ -289,17 +289,38 @@ const visibleMacros = computed(() => {
   return matched
 })
 
-const { Meta_K, Ctrl_K } = useMagicKeys({
-  passive: false,
-  onEventFired(e) {
-    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+function preventDefaultOnHotkey(key) {
+  return (e) => {
+    if (e.key === key && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
     }
   }
+}
+
+const { Meta_K, Ctrl_K } = useMagicKeys({
+  passive: false,
+  onEventFired: preventDefaultOnHotkey('k')
 })
 
 watch([Meta_K, Ctrl_K], ([mac, win]) => {
-  if (mac || win) toggleOpen()
+  if (mac || win) {
+    if (nestedCommand.value !== 'apply-macro-to-new-conversation') setNestedCommand(null)
+    toggleOpen()
+  }
+})
+
+const { Meta_M, Ctrl_M } = useMagicKeys({
+  passive: false,
+  onEventFired: preventDefaultOnHotkey('m')
+})
+
+watch([Meta_M, Ctrl_M], ([mac, win]) => {
+  if (mac || win) {
+    if (nestedCommand.value !== 'apply-macro-to-new-conversation') {
+      setNestedCommand('apply-macro-to-existing-conversation')
+    }
+    toggleOpen()
+  }
 })
 
 const highlightedMacro = ref(null)
@@ -338,9 +359,6 @@ const otherActions = computed(
 )
 
 function toggleOpen() {
-  if (nestedCommand.value != 'apply-macro-to-new-conversation' && !open.value) {
-    nestedCommand.value = null
-  }
   open.value = !open.value
 }
 
@@ -378,7 +396,10 @@ function handleCustomSnooze() {
   const diffMinutes = Math.floor((snoozeDate - new Date()) / (1000 * 60))
 
   if (diffMinutes <= 0) {
-    alert(t('globals.messages.selectAFutureTime'))
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      variant: 'destructive',
+      description: t('globals.messages.selectAFutureTime')
+    })
     return
   }
   handleSnooze(diffMinutes)

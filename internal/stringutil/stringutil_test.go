@@ -175,7 +175,6 @@ func TestExtractConvUUID(t *testing.T) {
 	}
 }
 
-
 func TestExtractReferenceNumber(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -229,6 +228,121 @@ func TestExtractReferenceNumber(t *testing.T) {
 			result := ExtractReferenceNumber(tt.subject)
 			if result != tt.expected {
 				t.Errorf("ExtractReferenceNumber(%q) = %q, want %q", tt.subject, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizeUTF8(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"empty", "", ""},
+		{"plain ascii unchanged", "Hello, world!", "Hello, world!"},
+		{"valid copyright unchanged", "© 2026", "© 2026"},
+		{"orphan 0xa9 replaced", "\xa9 2026 Upstox", "� 2026 Upstox"},
+		{"nul stripped", "a\x00b", "ab"},
+		{"chinese unchanged", "你好世界", "你好世界"},
+		{"devanagari unchanged", "नमस्ते", "नमस्ते"},
+		{"arabic unchanged", "مرحبا", "مرحبا"},
+		{"emoji unchanged", "ok 😀👍", "ok 😀👍"},
+		{"accented latin unchanged", "café résumé", "café résumé"},
+		{"run of invalid bytes collapses to one replacement", "x\xa9\xa9y", "x�y"},
+		{"truncated 3-byte char replaced", "\xe4\xbd", "�"},
+		{"lead byte at end replaced", "abc\xc3", "abc�"},
+		{"overlong encoding replaced", "x\xc0\x80y", "x�y"},
+		{"cp1252 smart quotes replaced", "\x93hi\x94", "�hi�"},
+		{"multiple embedded nuls stripped", "a\x00\x00b\x00c", "abc"},
+		{"nul and invalid byte combined", "a\x00\xa9b", "a�b"},
+		{"valid multibyte preserved around invalid byte", "a你\xa9好b", "a你�好b"},
+		{"bom preserved", "\ufeffhi", "\ufeffhi"},
+		{"existing replacement char preserved", "a�b", "a�b"},
+		{"crlf and tab preserved", "l1\r\nl2\t", "l1\r\nl2\t"},
+		{"paired continuation kept, orphan replaced", "é\xa9", "é�"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SanitizeUTF8(tt.input); got != tt.expected {
+				t.Errorf("SanitizeUTF8(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSplitName(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantFirst string
+		wantLast  string
+	}{
+		{name: "empty", input: "", wantFirst: "", wantLast: ""},
+		{name: "whitespace only", input: "   ", wantFirst: "", wantLast: ""},
+		{name: "single name", input: "Cher", wantFirst: "Cher", wantLast: ""},
+		{name: "first and last", input: "John Doe", wantFirst: "John", wantLast: "Doe"},
+		{name: "middle name", input: "John Michael Doe", wantFirst: "John", wantLast: "Michael Doe"},
+		{name: "multi-word surname", input: "Ludwig van der Berg", wantFirst: "Ludwig", wantLast: "van der Berg"},
+		{name: "extra spaces", input: "  John   Doe  ", wantFirst: "John", wantLast: "Doe"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			first, last := SplitName(tt.input)
+			if first != tt.wantFirst || last != tt.wantLast {
+				t.Errorf("SplitName(%q) = (%q, %q), want (%q, %q)", tt.input, first, last, tt.wantFirst, tt.wantLast)
+			}
+		})
+	}
+}
+
+func TestHTML2TextMarkdownLinks(t *testing.T) {
+	tests := []struct {
+		name string
+		html string
+		want string
+	}{
+		{
+			name: "link with distinct text becomes a markdown link",
+			html: `<p>See <a href="https://example.com/guide">the guide</a> for steps.</p>`,
+			want: "See [the guide](https://example.com/guide) for steps.",
+		},
+		{
+			name: "link text equal to url not duplicated",
+			html: `<p><a href="https://example.com">https://example.com</a></p>`,
+			want: "https://example.com",
+		},
+		{
+			name: "plain text unchanged",
+			html: `<p>No links here.</p>`,
+			want: "No links here.",
+		},
+		{
+			name: "nested markup inside the anchor flattens to link text",
+			html: `<p><a href="https://example.com/x"><strong>Pay</strong> now</a></p>`,
+			want: "[Pay now](https://example.com/x)",
+		},
+		{
+			name: "brackets in link text are escaped",
+			html: `<p><a href="https://example.com">Docs [beta]</a></p>`,
+			want: `[Docs \[beta\]](https://example.com)`,
+		},
+		{
+			name: "url with parentheses is wrapped in angle brackets",
+			html: `<p><a href="https://example.com/a(b)">See</a></p>`,
+			want: "[See](<https://example.com/a(b)>)",
+		},
+		{
+			name: "anchor without href keeps its text",
+			html: `<p><a name="top">Top</a> of page.</p>`,
+			want: "Top of page.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HTML2TextMarkdownLinks(tt.html); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
 	}
