@@ -196,6 +196,30 @@ export function useConversationFilters () {
             type: FIELD_TYPE.SELECT,
             operators: FIELD_OPERATORS.SELECT,
             options: iStore.options
+        },
+        previous_status: {
+            label: t('admin.automation.previousStatus'),
+            type: FIELD_TYPE.SELECT,
+            operators: FIELD_OPERATORS.SELECT,
+            options: cStore.statusOptions
+        },
+        previous_priority: {
+            label: t('admin.automation.previousPriority'),
+            type: FIELD_TYPE.SELECT,
+            operators: FIELD_OPERATORS.SELECT,
+            options: cStore.priorityOptions
+        },
+        previous_assigned_user: {
+            label: t('admin.automation.previousAssignedUser'),
+            type: FIELD_TYPE.SELECT,
+            operators: FIELD_OPERATORS.SELECT,
+            options: uStore.options
+        },
+        previous_assigned_team: {
+            label: t('admin.automation.previousAssignedTeam'),
+            type: FIELD_TYPE.SELECT,
+            operators: FIELD_OPERATORS.SELECT,
+            options: tStore.options
         }
     }))
 
@@ -247,6 +271,18 @@ export function useConversationFilters () {
         remove_tags: {
             label: t('actions.removeTags'),
             type: FIELD_TYPE.TAG
+        },
+        notify: {
+            label: t('actions.notify'),
+            type: FIELD_TYPE.TAG
+        },
+        snooze: {
+            label: t('actions.snooze'),
+            type: FIELD_TYPE.TEXT
+        },
+        trigger_webhook: {
+            label: t('actions.triggerWebhook'),
+            type: FIELD_TYPE.WEBHOOK
         }
     }))
 

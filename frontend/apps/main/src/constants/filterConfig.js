@@ -7,6 +7,7 @@ export const FIELD_TYPE = {
     RICHTEXT: 'richtext',
     BOOLEAN: 'boolean',
     DATE: 'date',
+    WEBHOOK: 'webhook',
 }
 
 export const OPERATOR = {
@@ -18,7 +19,8 @@ export const OPERATOR = {
     NOT_CONTAINS: 'not contains',
     GREATER_THAN: 'greater than',
     LESS_THAN: 'less than',
-    BETWEEN: 'between'
+    BETWEEN: 'between',
+    STARTS_WITH: 'starts with'
 }
 
 export const FIELD_OPERATORS = {
@@ -30,7 +32,8 @@ export const FIELD_OPERATORS = {
         OPERATOR.SET,
         OPERATOR.NOT_SET,
         OPERATOR.CONTAINS,
-        OPERATOR.NOT_CONTAINS
+        OPERATOR.NOT_CONTAINS,
+        OPERATOR.STARTS_WITH
     ],
     DATE: [
         OPERATOR.EQUALS,

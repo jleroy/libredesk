@@ -166,6 +166,7 @@ type csatStore interface {
 
 type webhookStore interface {
 	TriggerEvent(event wmodels.WebhookEvent, data any)
+	TriggerWebhook(webhookID int, event wmodels.WebhookEvent, data any)
 }
 
 // ContinuityConfig holds configuration for conversation continuity emails
@@ -665,11 +666,16 @@ func (c *Manager) UpdateConversationWaitingSince(conversationUUID string, at *ti
 
 // UpdateConversationUserAssignee sets the assignee of a conversation to a specifc user.
 func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, actor umodels.User) error {
+	previousConversation, _ := c.GetConversation(0, uuid, "")
+	previousUserID := ""
+	if previousConversation.AssignedUserID.Valid {
+		previousUserID = strconv.Itoa(previousConversation.AssignedUserID.Int)
+	}
+
 	if err := c.UpdateAssignee(uuid, assigneeID, models.AssigneeTypeUser); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Refetch the conversation to get the updated details.
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		return err
@@ -682,8 +688,9 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 		"conversation":      conversation,
 	})
 
-	// Evaluate automation rules.
-	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned)
+	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned, map[string]string{
+		amodels.ConversationPreviousAssignedUser: previousUserID,
+	})
 
 	// Send notifications to assignee (skip if self-assigning).
 	if assigneeID != actor.ID {
@@ -757,8 +764,9 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 			}
 		}
 
-		// Evaluate automation rules for conversation team assignment.
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned)
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, map[string]string{
+			amodels.ConversationPreviousAssignedTeam: strconv.Itoa(previousAssignedTeamID),
+		})
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -795,7 +803,12 @@ func (c *Manager) UpdateAssignee(uuid string, assigneeID int, assigneeType strin
 
 // UpdateConversationPriority updates the priority of a conversation.
 func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priority string, actor umodels.User) error {
-	// Fetch the priority name if priority ID is provided.
+	previousConversation, _ := c.GetConversation(0, uuid, "")
+	previousPriorityID := ""
+	if previousConversation.PriorityID.Valid {
+		previousPriorityID = strconv.Itoa(previousConversation.PriorityID.Int)
+	}
+
 	if priorityID > 0 {
 		p, err := c.priorityStore.Get(priorityID)
 		if err != nil {
@@ -808,10 +821,11 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Evaluate automation rules for conversation priority change.
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err == nil {
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange)
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange, map[string]string{
+			amodels.ConversationPreviousPriority: previousPriorityID,
+		})
 	}
 
 	// Record activity.
@@ -903,9 +917,14 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	}
 	c.BroadcastConversationUpdate(uuid, agentData)
 
-	// Evaluate automation rules.
 	if conversation.ID != 0 {
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange)
+		previousStatusID := ""
+		if conversationBeforeChange.StatusID.Valid {
+			previousStatusID = strconv.Itoa(conversationBeforeChange.StatusID.Int)
+		}
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange, map[string]string{
+			amodels.ConversationPreviousStatus: previousStatusID,
+		})
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -1315,10 +1334,108 @@ func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversatio
 		return m.SetConversationTags(conv.UUID, action.Type, action.Value, user)
 	case amodels.ActionSendCSAT:
 		return m.SendCSATReply(user.ID, conv)
+	case amodels.ActionSnooze:
+		return m.UpdateConversationStatus(conv.UUID, 0, models.StatusSnoozed, action.Value[0], user)
+	case amodels.ActionTriggerWebhook:
+		if len(action.Value) < 2 {
+			return fmt.Errorf("trigger webhook action requires a webhook and an event name")
+		}
+		webhookID, err := strconv.Atoi(action.Value[0])
+		if err != nil {
+			return fmt.Errorf("invalid webhook ID %q: %w", action.Value[0], err)
+		}
+		eventName := strings.TrimSpace(action.Value[1])
+		if eventName == "" {
+			return fmt.Errorf("trigger webhook action requires an event name")
+		}
+		m.webhookStore.TriggerWebhook(webhookID, wmodels.WebhookEvent(eventName), map[string]any{
+			"conversation": conv,
+			"actor_id":     user.ID,
+		})
+		return nil
+	case amodels.ActionNotify:
+		return m.notifyAutomation(action.Value, conv)
 	default:
 		return fmt.Errorf("unknown action: %s", action.Type)
 	}
 	return nil
+}
+
+func (m *Manager) notifyAutomation(entries []string, conv models.Conversation) error {
+	userIDs := m.resolveNotifyRecipients(entries, conv)
+	if len(userIDs) == 0 {
+		m.lo.Debug("notify action: no recipients resolved", "conversation_uuid", conv.UUID)
+		return nil
+	}
+	if len(userIDs) > amodels.MaxNotifyRecipients {
+		m.lo.Warn("notify action: recipient cap reached, truncating", "original", len(userIDs), "cap", amodels.MaxNotifyRecipients, "conversation_uuid", conv.UUID)
+		userIDs = userIDs[:amodels.MaxNotifyRecipients]
+	}
+	m.dispatcher.Send(notifier.Notification{
+		Type:             nmodels.NotificationTypeMention,
+		RecipientIDs:     userIDs,
+		Title:            m.i18n.Ts("notification.automationNotify", "referenceNumber", conv.ReferenceNumber),
+		Body:             conv.Subject,
+		ConversationID:   null.IntFrom(conv.ID),
+		ConversationUUID: conv.UUID,
+	})
+	return nil
+}
+
+func (m *Manager) resolveNotifyRecipients(entries []string, conv models.Conversation) []int {
+	seen := make(map[int]bool)
+	ids := make([]int, 0, len(entries))
+	addUser := func(id int) {
+		if id > 0 && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	addTeam := func(teamID int) {
+		members, err := m.teamStore.GetMembers(teamID)
+		if err != nil {
+			m.lo.Error("notify: failed to get team members", "team_id", teamID, "error", err)
+			return
+		}
+		for _, mm := range members {
+			addUser(mm.ID)
+		}
+	}
+	for _, e := range entries {
+		kind, id := parseNotifyRecipient(e)
+		switch kind {
+		case amodels.NotifyRecipientAssignee:
+			if conv.AssignedUserID.Valid {
+				addUser(conv.AssignedUserID.Int)
+			} else {
+				m.lo.Debug("notify: assignee unset, skipping", "uuid", conv.UUID)
+			}
+		case amodels.NotifyRecipientAssignedTeam:
+			if conv.AssignedTeamID.Valid {
+				addTeam(conv.AssignedTeamID.Int)
+			} else {
+				m.lo.Debug("notify: assigned team unset, skipping", "uuid", conv.UUID)
+			}
+		case amodels.NotifyRecipientTeam:
+			if id > 0 {
+				addTeam(id)
+			}
+		case amodels.NotifyRecipientUser:
+			addUser(id)
+		default:
+			m.lo.Warn("notify: unknown recipient kind", "entry", e, "uuid", conv.UUID)
+		}
+	}
+	return ids
+}
+
+func parseNotifyRecipient(entry string) (string, int) {
+	parts := strings.SplitN(entry, ":", 2)
+	if len(parts) == 1 {
+		return parts[0], 0
+	}
+	id, _ := strconv.Atoi(parts[1])
+	return parts[0], id
 }
 
 // RemoveConversationAssignee removes assigned user from a conversation.

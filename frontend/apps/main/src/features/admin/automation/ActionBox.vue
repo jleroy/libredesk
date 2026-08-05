@@ -34,7 +34,11 @@
 
               <!-- Value -->
               <div
-                v-if="action.type && conversationActions[action.type]?.type === 'tag'"
+                v-if="
+                  action.type &&
+                  conversationActions[action.type]?.type === 'tag' &&
+                  action.type !== 'notify'
+                "
                 class="w-full"
               >
                 <SelectTag
@@ -42,6 +46,29 @@
                   :items="tagsStore.tagNames.map((tag) => ({ label: tag, value: tag }))"
                   :placeholder="t('placeholders.selectTags')"
                 />
+              </div>
+
+              <div v-if="action.type === 'notify'" class="w-full">
+                <TagsInput
+                  :modelValue="action.value || []"
+                  @update:modelValue="(value) => handleNotifyChange(value, index)"
+                  :addOnBlur="true"
+                  :addOnTab="true"
+                  :addOnPaste="true"
+                >
+                  <TagsInputItem
+                    v-for="item in action.value || []"
+                    :key="item"
+                    :value="item"
+                  >
+                    <TagsInputItemText />
+                    <TagsInputItemDelete />
+                  </TagsInputItem>
+                  <TagsInputInput :placeholder="t('placeholders.notifyRecipient')" />
+                </TagsInput>
+                <p class="text-xs text-muted-foreground mt-1">
+                  {{ $t('admin.automation.notifyRecipientHint') }}
+                </p>
               </div>
 
               <div
@@ -54,6 +81,40 @@
                   :placeholder="t('placeholders.selectValue')"
                   @select="handleValueChange($event, index)"
                   :type="action.type === 'assign_team' ? 'team' : 'user'"
+                />
+              </div>
+
+              <div
+                class="flex gap-3"
+                v-if="action.type && conversationActions[action.type]?.type === 'webhook'"
+              >
+                <div class="w-48">
+                  <SelectComboBox
+                    v-model="action.value[0]"
+                    :items="webhookStore.options"
+                    :placeholder="t('placeholders.selectWebhook')"
+                    @select="handleWebhookChange($event, index)"
+                  />
+                </div>
+                <div class="w-48">
+                  <Input
+                    type="text"
+                    :placeholder="t('placeholders.webhookEventName')"
+                    :modelValue="action.value[1] || ''"
+                    @update:modelValue="(value) => handleWebhookEventChange(value, index)"
+                  />
+                </div>
+              </div>
+
+              <div
+                class="w-48"
+                v-if="action.type && conversationActions[action.type]?.type === 'text'"
+              >
+                <Input
+                  type="text"
+                  :placeholder="placeholderForText(action.type)"
+                  :modelValue="action.value[0] || ''"
+                  @update:modelValue="(value) => handleTextChange(value, index)"
                 />
               </div>
             </div>
@@ -84,10 +145,12 @@
 </template>
 
 <script setup>
-import { toRefs } from 'vue'
+import { toRefs, onMounted } from 'vue'
 import { Button } from '@shared-ui/components/ui/button'
+import { Input } from '@shared-ui/components/ui/input'
 import CloseButton from '@main/components/button/CloseButton.vue'
-import { useTagStore } from '../../../stores/tag'
+import { useTagStore } from '@main/stores/tag'
+import { useWebhookStore } from '@main/stores/webhook'
 import {
   Select,
   SelectContent,
@@ -97,7 +160,14 @@ import {
   SelectValue
 } from '@shared-ui/components/ui/select'
 import { SelectTag } from '@shared-ui/components/ui/select'
-import { useConversationFilters } from '../../../composables/useConversationFilters'
+import {
+  TagsInput,
+  TagsInputInput,
+  TagsInputItem,
+  TagsInputItemDelete,
+  TagsInputItemText
+} from '@shared-ui/components/ui/tags-input'
+import { useConversationFilters } from '@main/composables/useConversationFilters'
 import { getTextFromHTML } from '@shared-ui/utils/string'
 import { useI18n } from 'vue-i18n'
 import Editor from '@main/components/editor/TextEditor.vue'
@@ -114,7 +184,42 @@ const { actions } = toRefs(props)
 const { t } = useI18n()
 const emit = defineEmits(['update-actions', 'add-action', 'remove-action'])
 const tagsStore = useTagStore()
+const webhookStore = useWebhookStore()
 const { conversationActions } = useConversationFilters()
+
+onMounted(() => {
+  webhookStore.fetchWebhooks()
+})
+
+const handleNotifyChange = (value, index) => {
+  actions.value[index].value = value || []
+  emitUpdate(index)
+}
+
+const handleTextChange = (value, index) => {
+  actions.value[index].value = [value]
+  emitUpdate(index)
+}
+
+const handleWebhookChange = (value, index) => {
+  if (typeof value === 'object') {
+    value = value.value
+  }
+  const current = actions.value[index].value || []
+  actions.value[index].value = [value || '', current[1] || '']
+  emitUpdate(index)
+}
+
+const handleWebhookEventChange = (value, index) => {
+  const current = actions.value[index].value || []
+  actions.value[index].value = [current[0] || '', value]
+  emitUpdate(index)
+}
+
+const placeholderForText = (type) => {
+  if (type === 'snooze') return t('placeholders.snoozeDuration')
+  return t('actions.setValue')
+}
 
 const handleFieldChange = (value, index) => {
   actions.value[index].value = []

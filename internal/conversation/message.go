@@ -218,8 +218,9 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 
 		m.BroadcastConversationUpdate(message.ConversationUUID, wsData)
 
-		// Evaluate automation rules for outgoing message.
-		m.automation.EvaluateConversationUpdateRulesByID(message.ConversationID, "", amodels.EventConversationMessageOutgoing)
+		if !message.IsAutomated() {
+			m.automation.EvaluateConversationUpdateRulesByID(message.ConversationID, "", amodels.EventConversationMessageOutgoing)
+		}
 	}
 }
 
@@ -1350,7 +1351,7 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 		m.lo.Error("error fetching conversation for incoming message hooks", "conversation_uuid", conversationUUID, "error", err)
 	} else {
 		// Trigger automations on incoming message event.
-		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming)
+		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming, nil)
 
 		if conversation.SLAPolicyID.Int == 0 {
 			m.lo.Info("no SLA policy applied to conversation, skipping next response SLA event creation")

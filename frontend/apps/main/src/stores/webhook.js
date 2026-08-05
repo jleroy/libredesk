@@ -1,0 +1,35 @@
+import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
+import { handleHTTPError } from '@shared-ui/utils/http.js'
+import { useEmitter } from '../composables/useEmitter'
+import { EMITTER_EVENTS } from '../constants/emitterEvents'
+import api from '../api'
+
+export const useWebhookStore = defineStore('webhook', () => {
+    const webhooks = ref([])
+    const emitter = useEmitter()
+
+    const options = computed(() => webhooks.value.map((w) => ({
+        label: w.name,
+        value: String(w.id)
+    })))
+
+    const fetchWebhooks = async (force = false) => {
+        if (webhooks.value.length && !force) return
+        try {
+            const response = await api.getWebhooks()
+            webhooks.value = response?.data?.data || []
+        } catch (error) {
+            emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+                variant: 'destructive',
+                description: handleHTTPError(error).message
+            })
+        }
+    }
+
+    return {
+        webhooks,
+        options,
+        fetchWebhooks
+    }
+})

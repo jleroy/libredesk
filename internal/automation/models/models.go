@@ -20,6 +20,9 @@ const (
 	ActionSetTags         = "set_tags"
 	ActionRemoveTags      = "remove_tags"
 	ActionSendCSAT        = "send_csat"
+	ActionNotify          = "notify"
+	ActionSnooze          = "snooze"
+	ActionTriggerWebhook  = "trigger_webhook"
 
 	OperatorAnd = "AND"
 	OperatorOR  = "OR"
@@ -32,6 +35,7 @@ const (
 	RuleOperatorNotSet      = "not set"
 	RuleOperatorGreaterThan = "greater than"
 	RuleOperatorLessThan    = "less than"
+	RuleOperatorStartsWith  = "starts with"
 
 	RuleTypeNewConversation    = "new_conversation"
 	RuleTypeConversationUpdate = "conversation_update"
@@ -50,6 +54,18 @@ const (
 	ConversationInbox                = "inbox"
 	ContactEmail                     = "contact_email"
 
+	ConversationPreviousStatus       = "previous_status"
+	ConversationPreviousPriority     = "previous_priority"
+	ConversationPreviousAssignedUser = "previous_assigned_user"
+	ConversationPreviousAssignedTeam = "previous_assigned_team"
+
+	NotifyRecipientAssignee     = "assignee"
+	NotifyRecipientAssignedTeam = "assigned_team"
+	NotifyRecipientTeam         = "team"
+	NotifyRecipientUser         = "user"
+
+	MaxNotifyRecipients = 1000
+
 	EventConversationUserAssigned    = "conversation.user.assigned"
 	EventConversationTeamAssigned    = "conversation.team.assigned"
 	EventConversationStatusChange    = "conversation.status.change"
@@ -60,8 +76,8 @@ const (
 	ExecutionModeAll        = "all"
 	ExecutionModeFirstMatch = "first_match"
 
-	FieldTypeContactCustomAttribute      = "contact_custom_attribute"
-	FieldTypeConversationField           = "conversation"
+	FieldTypeContactCustomAttribute = "contact_custom_attribute"
+	FieldTypeConversationField      = "conversation"
 )
 
 // ActionPermissions maps actions to permissions
@@ -75,6 +91,7 @@ var ActionPermissions = map[string]string{
 	ActionAddTags:         authzModels.PermConversationsUpdateTags,
 	ActionSetTags:         authzModels.PermConversationsUpdateTags,
 	ActionRemoveTags:      authzModels.PermConversationsUpdateTags,
+	ActionSnooze:          authzModels.PermConversationsUpdateStatus,
 }
 
 // RuleRecord represents a rule record in the database
