@@ -330,7 +330,7 @@ func (e *Engine) EvaluateConversationUpdateRulesByID(conversationID int, convers
 		e.lo.Error("error fetching conversation", "conversation_id", conversationID, "error", err)
 		return
 	}
-	e.EvaluateConversationUpdateRules(conversation, eventType, nil)
+	e.EvaluateConversationUpdateRules(conversation, eventType, models.PreviousValues(conversation))
 }
 
 // handleNewConversation handles new conversation events.

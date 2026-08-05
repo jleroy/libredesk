@@ -1480,7 +1480,7 @@ func TestStartsWithOperator(t *testing.T) {
 
 func TestNotifyAction_PassedThrough(t *testing.T) {
 	mockStore := new(mockConversationStore)
-	expected := models.RuleAction{Type: models.ActionNotify, Value: []string{"assignee", "team:5"}}
+	expected := models.RuleAction{Type: models.ActionNotify, Subject: "subject", Message: "message", Recipients: []string{"assignee", "team:5"}}
 	mockStore.On("ApplyAction", expected, mock.Anything, mock.Anything).Return(nil).Once()
 	engine := createTestEngine(mockStore)
 
@@ -1526,8 +1526,8 @@ func TestMultipleNotifyActions(t *testing.T) {
 				},
 			}},
 			[]models.RuleAction{
-				{Type: models.ActionNotify, Value: []string{"assignee"}},
-				{Type: models.ActionNotify, Value: []string{"team:5"}},
+				{Type: models.ActionNotify, Subject: "subject", Message: "message", Recipients: []string{"assignee"}},
+				{Type: models.ActionNotify, Subject: "subject", Message: "message", Recipients: []string{"team:5"}},
 			},
 			models.OperatorOR,
 		),

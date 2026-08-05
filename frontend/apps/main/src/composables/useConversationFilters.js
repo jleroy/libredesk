@@ -339,7 +339,7 @@ export function useConversationFilters () {
             type: FIELD_TYPE.RECIPIENTS
         },
         snooze: {
-            label: t('actions.snooze'),
+            label: t('globals.terms.snooze'),
             type: FIELD_TYPE.TEXT
         },
         trigger_webhook: {

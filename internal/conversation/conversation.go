@@ -59,6 +59,12 @@ var (
 
 const (
 	conversationsListMaxPageSize = 500
+
+	automationNotifyEmailContent = `<p style="white-space: pre-line;">{{ .Message }}</p>
+
+<p>
+<a href="{{ RootURL }}/inboxes/all/conversation/{{ .Conversation.UUID }}">#{{ .Conversation.ReferenceNumber }}</a>
+</p>`
 )
 
 var conversationFilterRenderers = dbutil.FieldRenderers{
@@ -746,7 +752,7 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	if err := c.updateAssignee(uuid, assigneeID, models.AssigneeTypeUser); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	return c.afterUserAssignedHooks(uuid, assigneeID, actor, previousValuesFor(previousConversation))
+	return c.afterUserAssignedHooks(uuid, assigneeID, actor, amodels.PreviousValues(previousConversation))
 }
 
 // ClaimUnassignedConversation atomically assigns a conversation only if still unassigned and still in expectedTeamID, else returns ErrConversationAlreadyAssigned.
@@ -834,7 +840,7 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 		return err
 	}
 	previousAssignedTeamID := conversation.AssignedTeamID.Int
-	previousValues := previousValuesFor(conversation)
+	previousValues := amodels.PreviousValues(conversation)
 
 	if err := c.updateAssignee(uuid, teamID, models.AssigneeTypeTeam); err != nil {
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
@@ -923,7 +929,7 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err == nil {
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange, previousValuesFor(previousConversation))
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange, amodels.PreviousValues(previousConversation))
 	}
 
 	// Record activity.
@@ -1040,7 +1046,7 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	c.BroadcastConversationUpdate(uuid, agentData)
 
 	if conversation.ID != 0 {
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange, previousValuesFor(conversationBeforeChange))
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange, amodels.PreviousValues(conversationBeforeChange))
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -1397,8 +1403,8 @@ func (m *Manager) ApplySLA(conversation models.Conversation, policyID int, actor
 // ApplyAction applies an action to a conversation, this can be called from multiple packages across the app to perform actions on conversations.
 // all actions are executed on behalf of the provided user if the user is not provided, system user is used.
 func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversation, user umodels.User) error {
-	// CSAT action does not require a value.
-	if len(action.Value) == 0 && action.Type != amodels.ActionSendCSAT {
+	// CSAT has no value; notify carries its data in dedicated fields.
+	if len(action.Value) == 0 && action.Type != amodels.ActionSendCSAT && action.Type != amodels.ActionNotify {
 		return fmt.Errorf("empty value for action %s", action.Type)
 	}
 
@@ -1504,14 +1510,19 @@ func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversatio
 		})
 		return nil
 	case amodels.ActionNotify:
-		return m.notifyAutomation(action.Value, conv)
+		subject := strings.TrimSpace(action.Subject)
+		message := strings.TrimSpace(action.Message)
+		if subject == "" || message == "" || len(action.Recipients) == 0 {
+			return fmt.Errorf("notify action requires a subject, a message and at least one recipient")
+		}
+		return m.notifyAutomation(subject, message, action.Recipients, conv)
 	default:
 		return fmt.Errorf("unknown action: %s", action.Type)
 	}
 	return nil
 }
 
-func (m *Manager) notifyAutomation(entries []string, conv models.Conversation) error {
+func (m *Manager) notifyAutomation(subject, message string, entries []string, conv models.Conversation) error {
 	userIDs := m.resolveNotifyRecipients(entries, conv)
 	if len(userIDs) == 0 {
 		m.lo.Debug("notify action: no recipients resolved", "conversation_uuid", conv.UUID)
@@ -1521,14 +1532,45 @@ func (m *Manager) notifyAutomation(entries []string, conv models.Conversation) e
 		m.lo.Warn("notify action: recipient cap reached, truncating", "original", len(userIDs), "cap", amodels.MaxNotifyRecipients, "conversation_uuid", conv.UUID)
 		userIDs = userIDs[:amodels.MaxNotifyRecipients]
 	}
-	m.dispatcher.Send(notifier.Notification{
+
+	notification := notifier.Notification{
 		Type:             nmodels.NotificationTypeMention,
 		RecipientIDs:     userIDs,
-		Title:            m.i18n.Ts("notification.automationNotify", "referenceNumber", conv.ReferenceNumber),
-		Body:             conv.Subject,
+		Title:            subject,
+		Body:             null.StringFrom(message),
 		ConversationID:   null.IntFrom(conv.ID),
 		ConversationUUID: conv.UUID,
-	})
+	}
+
+	content, err := m.template.RenderEmailWithTemplate(
+		map[string]any{
+			"Conversation": map[string]any{
+				"ReferenceNumber": conv.ReferenceNumber,
+				"UUID":            conv.UUID,
+			},
+			"Message": message,
+		},
+		automationNotifyEmailContent)
+	if err != nil {
+		m.lo.Error("error rendering automation notify email", "conversation_uuid", conv.UUID, "error", err)
+	} else {
+		emails := make([]string, len(userIDs))
+		for i, id := range userIDs {
+			agent, err := m.userStore.GetAgent(id, "")
+			if err != nil {
+				m.lo.Error("notify: error fetching agent for email", "user_id", id, "error", err)
+				continue
+			}
+			emails[i] = agent.Email.String
+		}
+		notification.Email = &notifier.EmailNotification{
+			Recipients: emails,
+			Subject:    notification.Title,
+			Content:    content,
+		}
+	}
+
+	m.dispatcher.Send(notification)
 	return nil
 }
 
@@ -2142,29 +2184,6 @@ func parseNotifyRecipient(entry string) (string, int) {
 	}
 	id, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
 	return kind, id
-}
-
-// previousValuesFor returns the pre-change field values consumed by previous_* automation filters.
-func previousValuesFor(conv models.Conversation) map[string]string {
-	values := map[string]string{
-		amodels.ConversationPreviousStatus:       "",
-		amodels.ConversationPreviousPriority:     "",
-		amodels.ConversationPreviousAssignedUser: "",
-		amodels.ConversationPreviousAssignedTeam: "",
-	}
-	if conv.StatusID.Valid {
-		values[amodels.ConversationPreviousStatus] = strconv.Itoa(conv.StatusID.Int)
-	}
-	if conv.PriorityID.Valid {
-		values[amodels.ConversationPreviousPriority] = strconv.Itoa(conv.PriorityID.Int)
-	}
-	if conv.AssignedUserID.Valid {
-		values[amodels.ConversationPreviousAssignedUser] = strconv.Itoa(conv.AssignedUserID.Int)
-	}
-	if conv.AssignedTeamID.Valid {
-		values[amodels.ConversationPreviousAssignedTeam] = strconv.Itoa(conv.AssignedTeamID.Int)
-	}
-	return values
 }
 
 func nullTimeOrNil(t null.Time) any {

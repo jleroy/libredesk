@@ -2,9 +2,11 @@ package models
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	authzModels "github.com/abhinavxd/libredesk/internal/authz/models"
+	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/lib/pq"
 )
 
@@ -135,4 +137,32 @@ type RuleAction struct {
 	Type         string   `json:"type" db:"type"`
 	Value        []string `json:"value" db:"value"`
 	DisplayValue []string `json:"display_value" db:"-"`
+
+	// Set only for the notify action.
+	Subject    string   `json:"subject,omitempty"`
+	Message    string   `json:"message,omitempty"`
+	Recipients []string `json:"recipients,omitempty"`
+}
+
+// PreviousValues returns conv's field values keyed for previous_* filters; pass the pre-change conversation.
+func PreviousValues(conv cmodels.Conversation) map[string]string {
+	values := map[string]string{
+		ConversationPreviousStatus:       "",
+		ConversationPreviousPriority:     "",
+		ConversationPreviousAssignedUser: "",
+		ConversationPreviousAssignedTeam: "",
+	}
+	if conv.StatusID.Valid {
+		values[ConversationPreviousStatus] = strconv.Itoa(conv.StatusID.Int)
+	}
+	if conv.PriorityID.Valid {
+		values[ConversationPreviousPriority] = strconv.Itoa(conv.PriorityID.Int)
+	}
+	if conv.AssignedUserID.Valid {
+		values[ConversationPreviousAssignedUser] = strconv.Itoa(conv.AssignedUserID.Int)
+	}
+	if conv.AssignedTeamID.Valid {
+		values[ConversationPreviousAssignedTeam] = strconv.Itoa(conv.AssignedTeamID.Int)
+	}
+	return values
 }

@@ -7,9 +7,9 @@
         </div>
 
         <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex gap-5">
-              <div class="w-48">
+          <div class="flex items-start justify-between gap-5">
+            <div class="flex gap-5 flex-1 min-w-0">
+              <div class="w-56 shrink-0">
                 <!-- Type -->
                 <Select
                   v-model="action.type"
@@ -35,7 +35,7 @@
               <!-- Value -->
               <div
                 v-if="action.type && conversationActions[action.type]?.type === 'tag'"
-                class="w-full"
+                class="flex-1 min-w-0"
               >
                 <SelectTag
                   v-model="action.value"
@@ -46,32 +46,29 @@
 
               <div
                 v-if="action.type && conversationActions[action.type]?.type === 'recipients'"
-                class="w-full"
+                class="flex-1 min-w-0 space-y-3"
               >
-                <TagsInput
-                  :modelValue="action.value || []"
-                  @update:modelValue="(value) => handleNotifyChange(value, index)"
-                  :addOnBlur="true"
-                  :addOnTab="true"
-                  :addOnPaste="true"
-                >
-                  <TagsInputItem
-                    v-for="item in action.value || []"
-                    :key="item"
-                    :value="item"
-                  >
-                    <TagsInputItemText />
-                    <TagsInputItemDelete />
-                  </TagsInputItem>
-                  <TagsInputInput :placeholder="t('placeholders.notifyRecipient')" />
-                </TagsInput>
-                <p class="text-xs text-muted-foreground mt-1">
-                  {{ $t('admin.automation.notifyRecipientHint') }}
-                </p>
+                <SelectTag
+                  :modelValue="action.recipients || []"
+                  @update:modelValue="(value) => handleNotifyRecipientsChange(value, index)"
+                  :items="notifyRecipientOptions"
+                  :placeholder="t('placeholders.selectRecipients')"
+                />
+                <Input
+                  type="text"
+                  :placeholder="t('globals.terms.subject')"
+                  :modelValue="action.subject || ''"
+                  @update:modelValue="(value) => handleNotifySubjectChange(value, index)"
+                />
+                <Textarea
+                  :placeholder="t('globals.terms.message')"
+                  :modelValue="action.message || ''"
+                  @update:modelValue="(value) => handleNotifyMessageChange(value, index)"
+                />
               </div>
 
               <div
-                class="w-48"
+                class="flex-1 min-w-0"
                 v-if="action.type && conversationActions[action.type]?.type === 'select'"
               >
                 <SelectComboBox
@@ -84,10 +81,10 @@
               </div>
 
               <div
-                class="flex gap-3"
+                class="flex gap-3 flex-1 min-w-0"
                 v-if="action.type && conversationActions[action.type]?.type === 'webhook'"
               >
-                <div class="w-48">
+                <div class="flex-1 min-w-0">
                   <SelectComboBox
                     v-model="action.value[0]"
                     :items="webhookStore.options"
@@ -95,7 +92,7 @@
                     @select="handleWebhookChange($event, index)"
                   />
                 </div>
-                <div class="w-48">
+                <div class="flex-1 min-w-0">
                   <Input
                     type="text"
                     :placeholder="t('placeholders.webhookEventName')"
@@ -109,7 +106,7 @@
               </div>
 
               <div
-                class="w-48"
+                class="flex-1 min-w-0"
                 v-if="action.type && conversationActions[action.type]?.type === 'text'"
               >
                 <Input
@@ -147,12 +144,15 @@
 </template>
 
 <script setup>
-import { toRefs } from 'vue'
+import { toRefs, computed } from 'vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { Input } from '@shared-ui/components/ui/input'
+import { Textarea } from '@shared-ui/components/ui/textarea'
 import CloseButton from '@main/components/button/CloseButton.vue'
 import { useTagStore } from '@main/stores/tag'
 import { useWebhookStore } from '@main/stores/webhook'
+import { useUsersStore } from '@main/stores/users'
+import { useTeamStore } from '@main/stores/team'
 import {
   Select,
   SelectContent,
@@ -162,13 +162,6 @@ import {
   SelectValue
 } from '@shared-ui/components/ui/select'
 import { SelectTag } from '@shared-ui/components/ui/select'
-import {
-  TagsInput,
-  TagsInputInput,
-  TagsInputItem,
-  TagsInputItemDelete,
-  TagsInputItemText
-} from '@shared-ui/components/ui/tags-input'
 import { useConversationFilters } from '@main/composables/useConversationFilters'
 import { getTextFromHTML } from '@shared-ui/utils/string'
 import { useI18n } from 'vue-i18n'
@@ -187,12 +180,37 @@ const { t } = useI18n()
 const emit = defineEmits(['update-actions', 'add-action', 'remove-action'])
 const tagsStore = useTagStore()
 const webhookStore = useWebhookStore()
+const uStore = useUsersStore()
+const tStore = useTeamStore()
 const { conversationActions } = useConversationFilters()
 
 webhookStore.fetchWebhooks()
 
-const handleNotifyChange = (value, index) => {
-  actions.value[index].value = value || []
+const notifyRecipientOptions = computed(() => [
+  { label: t('admin.automation.notifyAssignee'), value: 'assignee' },
+  { label: t('admin.automation.notifyAssignedTeam'), value: 'assigned_team' },
+  ...tStore.options.map((o) => ({
+    label: `${t('globals.terms.team')}: ${o.label}`,
+    value: `team:${o.value}`
+  })),
+  ...uStore.options.map((o) => ({
+    label: `${t('globals.terms.agent')}: ${o.label}`,
+    value: `user:${o.value}`
+  }))
+])
+
+const handleNotifyRecipientsChange = (value, index) => {
+  actions.value[index].recipients = value || []
+  emitUpdate(index)
+}
+
+const handleNotifySubjectChange = (value, index) => {
+  actions.value[index].subject = value
+  emitUpdate(index)
+}
+
+const handleNotifyMessageChange = (value, index) => {
+  actions.value[index].message = value
   emitUpdate(index)
 }
 
@@ -222,8 +240,12 @@ const placeholderForText = (type) => {
 }
 
 const handleFieldChange = (value, index) => {
-  actions.value[index].value = []
-  actions.value[index].type = value
+  const action = actions.value[index]
+  action.value = []
+  action.type = value
+  delete action.subject
+  delete action.message
+  delete action.recipients
   emitUpdate(index)
 }
 

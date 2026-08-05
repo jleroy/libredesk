@@ -404,6 +404,14 @@ const getRulesValidationError = () => {
       action.value = ['0']
     }
 
+    // Notify uses its own fields instead of value.
+    if (action.type === 'notify') {
+      if (!action.subject?.trim() || !action.message?.trim() || !action.recipients?.length) {
+        return t('admin.automation.validation.setActionValue')
+      }
+      continue
+    }
+
     // Empty array, no value selected.
     if (action.value.length === 0) {
       return t('admin.automation.validation.setActionValue')
