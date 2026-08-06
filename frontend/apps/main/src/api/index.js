@@ -6,6 +6,9 @@ const http = axios.create({
   responseType: 'json'
 })
 
+// LLM calls can take 30-40s+, well past the default request timeout.
+const AI_TIMEOUT = 120000
+
 function getCSRFToken () {
   const name = 'csrf_token='
   const cookies = document.cookie.split(';')
@@ -452,13 +455,15 @@ const deleteSharedView = (id) => http.delete(`/api/v1/shared-views/${id}`)
 
 const getAiPrompts = () => http.get('/api/v1/ai/prompts')
 const aiCompletion = (data) => http.post('/api/v1/ai/completion', data, {
+  timeout: AI_TIMEOUT,
   headers: {
     'Content-Type': 'application/json'
   }
 })
 const getAIConfig = (type) => http.get(`/api/v1/ai/config/${type}`)
 const updateAIConfig = (type, data) => http.put(`/api/v1/ai/config/${type}`, data)
-const testAIConfig = (type, data) => http.post(`/api/v1/ai/config/${type}/test`, data)
+const testAIConfig = (type, data) =>
+  http.post(`/api/v1/ai/config/${type}/test`, data, { timeout: AI_TIMEOUT })
 const getAITools = () => http.get('/api/v1/ai/tools')
 const getAITool = (id) => http.get(`/api/v1/ai/tools/${id}`)
 const createAITool = (data) => http.post('/api/v1/ai/tools', data)
@@ -476,12 +481,14 @@ const updateAIAssistant = (id, data) =>
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 const deleteAIAssistant = (id) => http.delete(`/api/v1/ai/assistants/${id}`)
-const previewAIAssistant = (id, data) => http.post(`/api/v1/ai/assistants/${id}/preview`, data)
+const previewAIAssistant = (id, data) =>
+  http.post(`/api/v1/ai/assistants/${id}/preview`, data, { timeout: AI_TIMEOUT })
 const getAIAssistantStats = (id, range) =>
   http.get(`/api/v1/ai/assistants/${id}/stats`, { params: range ? { range } : {} })
 const getAISnippets = () => http.get('/api/v1/ai/snippets')
 const createAISnippet = (data) => http.post('/api/v1/ai/snippets', data)
-const importAISnippetFromURL = (data) => http.post('/api/v1/ai/snippets/import-url', data)
+const importAISnippetFromURL = (data) =>
+  http.post('/api/v1/ai/snippets/import-url', data, { timeout: AI_TIMEOUT })
 const updateAISnippet = (id, data) => http.put(`/api/v1/ai/snippets/${id}`, data)
 const deleteAISnippet = (id) => http.delete(`/api/v1/ai/snippets/${id}`)
 const getAIFaqSuggestions = (status) =>
@@ -491,10 +498,10 @@ const approveAIFaqSuggestion = (id, data) =>
 const rejectAIFaqSuggestion = (id) => http.post(`/api/v1/ai/faq-suggestions/${id}/reject`)
 const getAIFaqLearning = () => http.get('/api/v1/ai/faq-learning')
 const updateAIFaqLearning = (data) => http.put('/api/v1/ai/faq-learning', data)
-const aiGenerateReply = (data) => http.post('/api/v1/ai/generate-reply', data)
-const aiSummarizeConversation = (data) => http.post('/api/v1/ai/summarize', data)
-const aiSuggestTags = (data) => http.post('/api/v1/ai/suggest-tags', data)
-const aiCopilot = (data) => http.post('/api/v1/ai/copilot', data)
+const aiGenerateReply = (data) => http.post('/api/v1/ai/generate-reply', data, { timeout: AI_TIMEOUT })
+const aiSummarizeConversation = (data) => http.post('/api/v1/ai/summarize', data, { timeout: AI_TIMEOUT })
+const aiSuggestTags = (data) => http.post('/api/v1/ai/suggest-tags', data, { timeout: AI_TIMEOUT })
+const aiCopilot = (data) => http.post('/api/v1/ai/copilot', data, { timeout: AI_TIMEOUT })
 const getCopilotMessages = (conversationUUID) =>
   http.get('/api/v1/ai/copilot/messages', { params: { conversation_uuid: conversationUUID } })
 const clearCopilotMessages = (conversationUUID) =>
