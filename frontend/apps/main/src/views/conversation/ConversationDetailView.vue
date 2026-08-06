@@ -22,9 +22,13 @@
       <ResizableHandle />
 
       <!-- Sidebar Panel (collapsible) -->
+      <!-- default-size must match collapsed-size when the sidebar is persisted
+           closed, so the panel mounts collapsed. Collapsing after mount does
+           not work: the group has already normalised the two default sizes and
+           laid out, so the sidebar keeps a share of the width. -->
       <ResizablePanel
         ref="sidebarPanelRef"
-:default-size="panelSizes[1]"
+        :default-size="sidebarOpen ? panelSizes[1] : 0"
         :min-size="15"
         :max-size="40"
         :collapsible="true"
