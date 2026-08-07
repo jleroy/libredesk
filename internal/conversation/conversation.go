@@ -1557,14 +1557,17 @@ func (m *Manager) notifyAutomation(subject, message string, entries []string, co
 	if err != nil {
 		m.lo.Error("error rendering automation notify email", "conversation_uuid", conv.UUID, "error", err)
 	} else {
-		emails := make([]string, len(userIDs))
-		for i, id := range userIDs {
+		emails := make([]string, 0, len(userIDs))
+		for _, id := range userIDs {
 			agent, err := m.userStore.GetAgent(id, "")
 			if err != nil {
 				m.lo.Error("notify: error fetching agent for email", "user_id", id, "error", err)
 				continue
 			}
-			emails[i] = agent.Email.String
+			if agent.Email.String == "" {
+				continue
+			}
+			emails = append(emails, agent.Email.String)
 		}
 		notification.Email = &notifier.EmailNotification{
 			Recipients: emails,
@@ -1581,10 +1584,20 @@ func (m *Manager) resolveNotifyRecipients(entries []string, conv models.Conversa
 	seen := make(map[int]bool)
 	ids := make([]int, 0, len(entries))
 	addUser := func(id int) {
-		if id > 0 && !seen[id] {
-			seen[id] = true
-			ids = append(ids, id)
+		if id <= 0 || seen[id] {
+			return
 		}
+		seen[id] = true
+		agent, err := m.userStore.GetAgentCachedOrLoad(id)
+		if err != nil {
+			m.lo.Error("notify: error fetching agent", "user_id", id, "error", err)
+			return
+		}
+		if !agent.Enabled {
+			m.lo.Debug("notify: agent disabled, skipping", "user_id", id)
+			return
+		}
+		ids = append(ids, id)
 	}
 	addTeam := func(teamID int) {
 		members, err := m.teamStore.GetMembers(teamID)
