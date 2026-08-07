@@ -2,7 +2,7 @@
   <BaseBanner
     v-if="!isOnline"
     :text="$t('globals.messages.noInternetConnection')"
-    color-class="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+    color-class="bg-warning text-warning-foreground"
   />
   <BaseBanner
     v-else-if="connectionFailed"
@@ -12,7 +12,7 @@
   <BaseBanner
     v-else-if="showReconnecting"
     :text="$t('globals.messages.connecting')"
-    color-class="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+    color-class="bg-warning text-warning-foreground"
   />
 </template>
 
