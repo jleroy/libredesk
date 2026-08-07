@@ -239,6 +239,11 @@ func main() {
 
 	wsHub.SetConversationStore(conversation)
 	automation.SetConversationStore(conversation)
+	systemUser, err := user.GetSystemUser()
+	if err != nil {
+		log.Fatalf("error fetching system user: %v", err)
+	}
+	automation.SetSystemUserID(systemUser.ID)
 	conversation.SetAIAgent(aiAgent)
 
 	startInboxes(ctx, inbox, conversation, user, conversation.SignAvatarURL)

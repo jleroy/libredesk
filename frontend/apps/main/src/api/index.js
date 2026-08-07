@@ -514,6 +514,7 @@ const createContactNote = (id, data) => http.post(`/api/v1/contacts/${id}/notes`
 })
 const deleteContactNote = (id, noteId) => http.delete(`/api/v1/contacts/${id}/notes/${noteId}`)
 const getActivityLogs = (params) => http.get('/api/v1/activity-logs', { params })
+const getWebhooksCompact = () => http.get('/api/v1/webhooks/compact')
 const getWebhooks = () => http.get('/api/v1/webhooks')
 const getWebhook = (id) => http.get(`/api/v1/webhooks/${id}`)
 const createWebhook = (data) =>
@@ -751,6 +752,7 @@ export default {
   createContactNote,
   deleteContactNote,
   getActivityLogs,
+  getWebhooksCompact,
   getWebhooks,
   getWebhook,
   createWebhook,
