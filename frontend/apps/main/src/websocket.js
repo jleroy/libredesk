@@ -52,7 +52,6 @@ export class WebSocketClient {
     this.reconnectInterval = 1000
     this.reconnectAttempts = 0
     this.isReconnecting = false
-    this.connectionStore.setConnected(true)
     this.connectionStore.setConnecting(false)
     this.connectionStore.setConnectionFailed(false)
     this.lastPong = Date.now()
@@ -155,7 +154,6 @@ export class WebSocketClient {
   reconnect () {
     if (this.isReconnecting) return
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.connectionStore.setConnected(false)
       this.connectionStore.setConnecting(false)
       this.connectionStore.setConnectionFailed(true)
       return
@@ -164,7 +162,6 @@ export class WebSocketClient {
     this.isReconnecting = true
     this.reconnectAttempts++
 
-    this.connectionStore.setConnected(false)
     this.connectionStore.setConnecting(true)
     // The online listener resets the attempt counter, so a retry can follow a give up.
     this.connectionStore.setConnectionFailed(false)
@@ -195,6 +192,8 @@ export class WebSocketClient {
 
     window.addEventListener('focus', () => {
       if (this.socket?.readyState !== WebSocket.OPEN) {
+        this.reconnectAttempts = 0
+        this.reconnectInterval = 1000
         this.reconnect()
       }
     })
@@ -322,7 +321,6 @@ export class WebSocketClient {
   close () {
     this.manualClose = true
     this.clearPing()
-    this.connectionStore.setConnected(false)
     this.connectionStore.setConnecting(false)
     this.connectionStore.setConnectionFailed(false)
     if (this.socket) {
