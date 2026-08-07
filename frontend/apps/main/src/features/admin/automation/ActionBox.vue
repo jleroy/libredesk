@@ -64,6 +64,7 @@
                   :placeholder="t('globals.terms.message')"
                   :modelValue="action.message || ''"
                   @update:modelValue="(value) => handleNotifyMessageChange(value, index)"
+                  class="h-36"
                 />
               </div>
 
@@ -187,8 +188,8 @@ const { conversationActions } = useConversationFilters()
 webhookStore.fetchWebhooks()
 
 const notifyRecipientOptions = computed(() => [
-  { label: t('admin.automation.notifyAssignee'), value: 'assignee' },
-  { label: t('admin.automation.notifyAssignedTeam'), value: 'assigned_team' },
+  { label: t('globals.terms.assignee'), value: 'assignee' },
+  { label: t('globals.terms.assignedTeam'), value: 'assigned_team' },
   ...tStore.options.map((o) => ({
     label: `${t('globals.terms.team')}: ${o.label}`,
     value: `team:${o.value}`

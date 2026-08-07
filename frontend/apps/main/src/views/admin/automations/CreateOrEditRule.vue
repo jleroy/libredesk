@@ -95,7 +95,9 @@
             </div>
           </div>
 
-          <p class="font-semibold">{{ $t('admin.automation.matchTheseRules') }}</p>
+          <h4 class="text-base font-semibold text-foreground">
+            {{ $t('admin.automation.matchTheseRules') }}
+          </h4>
 
           <RuleBox
             v-if="form.values.type"
@@ -135,7 +137,9 @@
             :type="form.values.type"
             :groupIndex="1"
           />
-          <p class="font-semibold mt-2">{{ $t('admin.automation.performTheseActions') }}</p>
+          <h4 class="text-base font-semibold text-foreground mt-2">
+            {{ $t('admin.automation.performTheseActions') }}
+          </h4>
 
           <ActionBox
             :actions="getActions()"

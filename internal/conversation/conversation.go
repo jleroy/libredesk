@@ -757,6 +757,10 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 
 // ClaimUnassignedConversation atomically assigns a conversation only if still unassigned and still in expectedTeamID, else returns ErrConversationAlreadyAssigned.
 func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedTeamID int, actor umodels.User) error {
+	previousConversation, err := c.GetConversation(0, uuid, "")
+	if err != nil {
+		return err
+	}
 	prev, prevErr := c.GetConversationListItem(uuid)
 
 	res, err := c.q.ClaimUnassignedConversation.Exec(uuid, assigneeID, expectedTeamID)
@@ -774,9 +778,7 @@ func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedT
 	}
 
 	c.broadcastReassignment(uuid, prev, prevErr)
-	return c.afterUserAssignedHooks(uuid, assigneeID, actor, map[string]string{
-		amodels.ConversationPreviousAssignedUser: "",
-	})
+	return c.afterUserAssignedHooks(uuid, assigneeID, actor, amodels.PreviousValues(previousConversation))
 }
 
 // afterUserAssignedHooks runs the side-effects shared by every user-assignment path.
