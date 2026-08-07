@@ -1376,6 +1376,12 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 		return nil
 	}
 
+	// Snapshot before reopening so previous_* filters see the pre-reopen state.
+	var previousValues map[string]string
+	if preReopen, err := m.GetConversation(0, conversationUUID, ""); err == nil {
+		previousValues = amodels.PreviousValues(preReopen)
+	}
+
 	// Reopen conversation if it's not Open.
 	systemUser, err := m.userStore.GetSystemUser()
 	if err != nil {
@@ -1393,7 +1399,10 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 		m.lo.Error("error fetching conversation for incoming message hooks", "conversation_uuid", conversationUUID, "error", err)
 	} else {
 		// Trigger automations on incoming message event.
-		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming, amodels.PreviousValues(conversation), umodels.User{ID: conversation.ContactID})
+		if previousValues == nil {
+			previousValues = amodels.PreviousValues(conversation)
+		}
+		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming, previousValues, umodels.User{ID: conversation.ContactID})
 
 		// If assigned to an AI assistant, let it respond to this inbound customer message.
 		if m.aiAgent != nil && conversation.AssignedUserID.Valid {
