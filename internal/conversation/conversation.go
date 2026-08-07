@@ -793,7 +793,7 @@ func (c *Manager) afterUserAssignedHooks(uuid string, assigneeID int, actor umod
 		"conversation":      conversation,
 	})
 
-	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned, previousValues)
+	c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationUserAssigned, previousValues, actor)
 
 	if assigneeID != actor.ID {
 		if err := c.NotifyAssignment([]int{assigneeID}, conversation); err != nil {
@@ -876,7 +876,7 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 			}
 		}
 
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, previousValues)
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, previousValues, actor)
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -929,7 +929,7 @@ func (c *Manager) UpdateConversationPriority(uuid string, priorityID int, priori
 
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err == nil {
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange, amodels.PreviousValues(previousConversation))
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationPriorityChange, amodels.PreviousValues(previousConversation), actor)
 	}
 
 	// Record activity.
@@ -1046,7 +1046,7 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	c.BroadcastConversationUpdate(uuid, agentData)
 
 	if conversation.ID != 0 {
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange, amodels.PreviousValues(conversationBeforeChange))
+		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationStatusChange, amodels.PreviousValues(conversationBeforeChange), actor)
 	}
 
 	// Broadcast conversation update to widget clients.

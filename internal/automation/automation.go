@@ -53,6 +53,7 @@ type Engine struct {
 	lo                *logf.Logger
 	i18n              *i18n.I18n
 	conversationStore conversationStore
+	systemUserID      int
 	taskQueue         chan ConversationTask
 	closed            bool
 	closedMu          sync.RWMutex
@@ -107,6 +108,11 @@ func New(opt Opts) (*Engine, error) {
 // SetConversationStore sets conversations store.
 func (e *Engine) SetConversationStore(store conversationStore) {
 	e.conversationStore = store
+}
+
+// SetSystemUserID sets the system user ID used to identify events raised by automation actions.
+func (e *Engine) SetSystemUserID(id int) {
+	e.systemUserID = id
 }
 
 // ReloadRules reloads automation rules from DB.
@@ -297,12 +303,13 @@ func (e *Engine) EvaluateNewConversationRules(conversation cmodels.Conversation)
 }
 
 // EvaluateConversationUpdateRules enqueues a conversation for rule evaluation. previousValues carries pre-change field values for filters like previous_status.
-func (e *Engine) EvaluateConversationUpdateRules(conversation cmodels.Conversation, eventType string, previousValues map[string]string) {
+func (e *Engine) EvaluateConversationUpdateRules(conversation cmodels.Conversation, eventType string, previousValues map[string]string, actor umodels.User) {
 	if eventType == "" {
 		e.lo.Error("error evaluating conversation update rules: eventType is empty")
 		return
 	}
-	if e.isSuppressed(conversation.UUID) {
+	// Drop only the engine's own in-flight events; a concurrent agent update on a suppressed conversation must still evaluate.
+	if actor.ID == e.systemUserID && e.isSuppressed(conversation.UUID) {
 		e.lo.Debug("automation suppressed for conversation, skipping update rule evaluation", "uuid", conversation.UUID, "event_type", eventType)
 		return
 	}
@@ -324,13 +331,13 @@ func (e *Engine) EvaluateConversationUpdateRules(conversation cmodels.Conversati
 }
 
 // EvaluateConversationUpdateRulesByID fetches conversation by ID and enqueues for rule evaluation.
-func (e *Engine) EvaluateConversationUpdateRulesByID(conversationID int, conversationUUID, eventType string) {
+func (e *Engine) EvaluateConversationUpdateRulesByID(conversationID int, conversationUUID, eventType string, actor umodels.User) {
 	conversation, err := e.conversationStore.GetConversation(conversationID, conversationUUID, "")
 	if err != nil {
 		e.lo.Error("error fetching conversation", "conversation_id", conversationID, "error", err)
 		return
 	}
-	e.EvaluateConversationUpdateRules(conversation, eventType, models.PreviousValues(conversation))
+	e.EvaluateConversationUpdateRules(conversation, eventType, models.PreviousValues(conversation), actor)
 }
 
 // handleNewConversation handles new conversation events.

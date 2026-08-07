@@ -230,7 +230,7 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 		m.BroadcastConversationUpdate(message.ConversationUUID, wsData)
 
 		if !message.IsAutomated() {
-			m.automation.EvaluateConversationUpdateRulesByID(message.ConversationID, "", amodels.EventConversationMessageOutgoing)
+			m.automation.EvaluateConversationUpdateRulesByID(message.ConversationID, "", amodels.EventConversationMessageOutgoing, umodels.User{ID: message.SenderID})
 		}
 	}
 }
@@ -1393,7 +1393,7 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 		m.lo.Error("error fetching conversation for incoming message hooks", "conversation_uuid", conversationUUID, "error", err)
 	} else {
 		// Trigger automations on incoming message event.
-		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming, amodels.PreviousValues(conversation))
+		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming, amodels.PreviousValues(conversation), umodels.User{ID: conversation.ContactID})
 
 		// If assigned to an AI assistant, let it respond to this inbound customer message.
 		if m.aiAgent != nil && conversation.AssignedUserID.Valid {
