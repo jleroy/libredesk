@@ -190,7 +190,8 @@ const {
   isLoading: isDraftLoading,
   clearDraft,
   loadedAttachments,
-  loadedMacroActions
+  loadedMacroActions,
+  loadedMacroID
 } = useDraftManager(currentConversationUUID, messageType, mediaFiles)
 
 // Rest of existing state
@@ -401,7 +402,7 @@ const processSend = async (skipContactEmailCheck = false, skipMissingTagsCheck =
   if (!hasMessageSendingErrored) {
     const macroID = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.id
     const macroActions = conversationStore.getMacro(MACRO_CONTEXT.REPLY)?.actions || []
-    if (macroID > 0 && macroActions.length > 0) {
+    if (macroID > 0) {
       try {
         await api.applyMacro(convUUID, macroID, macroActions)
       } catch (error) {
@@ -444,12 +445,13 @@ watch(
   { deep: true }
 )
 
-// Reset first so a loaded draft never inherits the previous conversation's macro id/message_content (drafts store only actions).
+// Reset first so a loaded draft never inherits the previous conversation's macro (drafts store no message_content).
 watch(
-  loadedMacroActions,
-  (actions) => {
+  [loadedMacroID, loadedMacroActions],
+  ([id, actions]) => {
     conversationStore.resetMacro(MACRO_CONTEXT.REPLY)
-    if (actions.length) conversationStore.setMacroActions([...toRaw(actions)], MACRO_CONTEXT.REPLY)
+    if (id > 0) conversationStore.setMacro({ id, actions: [...toRaw(actions)] }, MACRO_CONTEXT.REPLY)
+    else if (actions.length) conversationStore.setMacroActions([...toRaw(actions)], MACRO_CONTEXT.REPLY)
   },
   { deep: true }
 )
