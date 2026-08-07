@@ -344,6 +344,11 @@ func (m *Message) IsContinuityMessage() bool {
 	return isContinuity
 }
 
+// ShouldEvaluateAutomation reports whether this outgoing message may trigger automation rules; machine-generated messages must not, else they loop.
+func (m *Message) ShouldEvaluateAutomation(systemUserID int) bool {
+	return m.SenderID != systemUserID && !m.IsAutomated()
+}
+
 // IsAutomated returns true if the message was produced by an automation rule action.
 func (m *Message) IsAutomated() bool {
 	var meta map[string]any

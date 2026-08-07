@@ -1405,6 +1405,7 @@ func (m *Manager) ApplySLA(conversation models.Conversation, policyID int, actor
 func (m *Manager) ApplyAction(action amodels.RuleAction, conv models.Conversation, user umodels.User) error {
 	// CSAT has no value; notify carries its data in dedicated fields.
 	if len(action.Value) == 0 && action.Type != amodels.ActionSendCSAT && action.Type != amodels.ActionNotify {
+		m.lo.Warn("empty value for action", "type", action.Type, "conversation_uuid", conv.UUID)
 		return fmt.Errorf("empty value for action %s", action.Type)
 	}
 

@@ -229,7 +229,7 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 
 		m.BroadcastConversationUpdate(message.ConversationUUID, wsData)
 
-		if !message.IsAutomated() {
+		if message.ShouldEvaluateAutomation(systemUser.ID) {
 			m.automation.EvaluateConversationUpdateRulesByID(message.ConversationID, "", amodels.EventConversationMessageOutgoing, umodels.User{ID: message.SenderID})
 		}
 	}
