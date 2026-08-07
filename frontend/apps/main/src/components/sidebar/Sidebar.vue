@@ -7,6 +7,7 @@ import {
 } from '../../constants/navigation'
 import { useRoute, useRouter } from 'vue-router'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@shared-ui/components/ui/collapsible'
+import { Badge } from '@shared-ui/components/ui/badge'
 import {
   Sidebar,
   SidebarContent,
@@ -52,7 +53,12 @@ import {
   Link,
   BarChart3,
   CircleUser,
-  Contact
+  Contact,
+  Sparkles,
+  NotebookText,
+  Wrench,
+  Bot,
+  Lightbulb
 } from 'lucide-vue-next'
 
 const navIconMap = {
@@ -77,7 +83,12 @@ const navIconMap = {
   Link,
   BarChart3,
   CircleUser,
-  Contact
+  Contact,
+  Sparkles,
+  NotebookText,
+  Wrench,
+  Bot,
+  Lightbulb
 }
 import {
   DropdownMenu,
@@ -351,6 +362,13 @@ const viewToDelete = ref(null)
                   <CollapsibleTrigger as-child>
                     <SidebarMenuButton :isActive="isActiveParent(item.href)">
                       <span>{{ t(item.titleKey, item.isTitleKeyPlural === true ? 2 : 1) }}</span>
+                      <Badge
+                        v-if="item.badge"
+                        variant="outline"
+                        class="ml-1.5 rounded-full uppercase tracking-[0.07em] font-medium text-[9px] leading-none px-[5.5px] py-[3px] bg-warning/10 text-warning-600 border-warning/50 shrink-0"
+                      >
+                        {{ item.badge }}
+                      </Badge>
                       <ChevronRight
                         class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                       />
@@ -483,7 +501,7 @@ const viewToDelete = ref(null)
                 <SidebarMenuItem>
                   <CollapsibleTrigger as-child>
                     <SidebarMenuButton>
-                        <span>
+                        <span class="sidebar-section-label">
                           {{ t('globals.terms.teamInbox', 2) }}
                         </span>
                         <ChevronRight
@@ -512,14 +530,14 @@ const viewToDelete = ref(null)
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton class="group/item !p-2">
-                        <span>
+                        <span class="sidebar-section-label">
                           {{ t('globals.terms.view', 2) }}
                         </span>
                         <div>
                           <Plus
                             size="18"
                             @click.stop="openCreateViewDialog"
-                            class="rounded cursor-pointer opacity-0 transition-colors duration-200 group-hover/item:opacity-100 hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-accent-foreground p-1"
+                            class="rounded-md cursor-pointer opacity-0 transition-colors duration-200 group-hover/item:opacity-100 hover:bg-sidebar-accent/50 text-muted-foreground hover:text-sidebar-accent-foreground p-1"
                           />
                         </div>
                         <ChevronRight
@@ -581,7 +599,7 @@ const viewToDelete = ref(null)
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton class="!p-2">
-                        <span>
+                        <span class="sidebar-section-label">
                           {{ t('globals.terms.sharedView', 2) }}
                         </span>
                         <ChevronRight
@@ -630,7 +648,7 @@ const viewToDelete = ref(null)
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>{{ t('globals.messages.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction @click="handleDeleteView">
+        <AlertDialogAction variant="destructive" @click="handleDeleteView">
           {{ t('globals.messages.delete') }}
         </AlertDialogAction>
       </AlertDialogFooter>
@@ -640,7 +658,7 @@ const viewToDelete = ref(null)
 
 <style scoped>
 :deep(.sidebar-secondary) {
-  @apply border ml-[3.2rem] rounded-lg overflow-hidden;
+  @apply border border-sidebar-border ml-[3.2rem] rounded-lg overflow-hidden;
   top: 0.40rem !important;
   bottom: 0.35rem !important;
   height: auto !important;

@@ -478,7 +478,7 @@ const createConversation = form.handleSubmit(async (values) => {
 
     // Get macro from context, and set if any actions are available.
     const macro = conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION)
-    if (conversationUUID !== '' && macro?.id && macro?.actions?.length > 0) {
+    if (conversationUUID !== '' && macro?.id) {
       try {
         await api.applyMacro(conversationUUID, macro.id, macro.actions)
       } catch (error) {
@@ -506,10 +506,8 @@ const createConversation = form.handleSubmit(async (values) => {
 watch(
   () => conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).id,
   () => {
-    form.setFieldValue(
-      'content',
-      conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).message_content
-    )
+    const content = conversationStore.getMacro(MACRO_CONTEXT.NEW_CONVERSATION).message_content
+    if (content) form.setFieldValue('content', content)
   },
   { deep: true }
 )
