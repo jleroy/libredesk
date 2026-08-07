@@ -1595,3 +1595,194 @@ func TestTriggerWebhookAction_PassedThrough(t *testing.T) {
 	mockStore.AssertExpectations(t)
 	assert.Equal(t, 1, mockStore.callCount)
 }
+func singleRule(detail models.RuleDetail) []models.Rule {
+	return []models.Rule{
+		createTestRule(
+			[]models.RuleGroup{{LogicalOp: models.OperatorAnd, Rules: []models.RuleDetail{detail}}},
+			[]models.RuleAction{{Type: models.ActionSetPriority, Value: []string{"1"}}},
+			models.OperatorOR,
+		),
+	}
+}
+
+func runSingleRule(t *testing.T, conv cmodels.Conversation, detail models.RuleDetail) int {
+	t.Helper()
+	mockStore := new(mockConversationStore)
+	mockStore.On("ApplyAction", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	engine := createTestEngine(mockStore)
+	engine.evalConversationRules(singleRule(detail), conv, nil)
+	return mockStore.callCount
+}
+
+func TestLessThanOperator(t *testing.T) {
+	conv := createTestConversation(func(c *cmodels.Conversation) {
+		c.CreatedAt = time.Now().Add(-2 * time.Hour)
+	})
+
+	match := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationHoursSinceCreated, Operator: models.RuleOperatorLessThan, Value: "5", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 1, match, "2 hours < 5 should match")
+
+	noMatch := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationHoursSinceCreated, Operator: models.RuleOperatorLessThan, Value: "1", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 0, noMatch, "2 hours < 1 should not match")
+
+	equal := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationHoursSinceCreated, Operator: models.RuleOperatorLessThan, Value: "2", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 0, equal, "less than is strict, equal value should not match")
+}
+
+func TestGreaterThanOperator_EqualValueIsStrict(t *testing.T) {
+	conv := createTestConversation(func(c *cmodels.Conversation) {
+		c.CreatedAt = time.Now().Add(-2 * time.Hour)
+	})
+
+	equal := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationHoursSinceCreated, Operator: models.RuleOperatorGreaterThan, Value: "2", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 0, equal, "greater than is strict, equal value should not match")
+}
+
+// Atoi failures fall back to 0 on either side; pins current behavior.
+func TestNumericOperators_NonNumericValues(t *testing.T) {
+	conv := createTestConversation(func(c *cmodels.Conversation) {
+		c.Subject = null.StringFrom("hello")
+	})
+
+	gt := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationSubject, Operator: models.RuleOperatorGreaterThan, Value: "5", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 0, gt, "non-numeric compares as 0, 0 > 5 is false")
+
+	lt := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationSubject, Operator: models.RuleOperatorLessThan, Value: "5", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 1, lt, "non-numeric compares as 0, 0 < 5 is true")
+}
+
+func TestStartsWithOperator_CaseSensitive(t *testing.T) {
+	conv := createTestConversation(func(c *cmodels.Conversation) {
+		c.Subject = null.StringFrom("URGENT: server down")
+	})
+
+	noMatch := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationSubject, Operator: models.RuleOperatorStartsWith, Value: "urgent", FieldType: models.FieldTypeConversationField, CaseSensitiveMatch: true,
+	})
+	assert.Equal(t, 0, noMatch, "case-sensitive prefix with wrong case should not match")
+
+	match := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationSubject, Operator: models.RuleOperatorStartsWith, Value: "URGENT", FieldType: models.FieldTypeConversationField, CaseSensitiveMatch: true,
+	})
+	assert.Equal(t, 1, match, "case-sensitive prefix with exact case should match")
+}
+
+func TestStartsWithOperator_NoMatchMidString(t *testing.T) {
+	conv := createTestConversation(func(c *cmodels.Conversation) {
+		c.Subject = null.StringFrom("server down URGENT")
+	})
+
+	got := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationSubject, Operator: models.RuleOperatorStartsWith, Value: "urgent", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 0, got, "starts_with must anchor at the beginning, not substring-match")
+}
+
+func TestAssignedTeamField(t *testing.T) {
+	conv := createTestConversation(func(c *cmodels.Conversation) {
+		c.AssignedTeamID = null.IntFrom(5)
+	})
+
+	match := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationAssignedTeam, Operator: models.RuleOperatorEquals, Value: "5", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 1, match)
+
+	unassigned := createTestConversation()
+	notSet := runSingleRule(t, unassigned, models.RuleDetail{
+		Field: models.ConversationAssignedTeam, Operator: models.RuleOperatorNotSet, Value: "", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 1, notSet, "invalid team ID should evaluate as not set")
+}
+
+func TestHoursSinceFirstAndLastReply(t *testing.T) {
+	conv := createTestConversation(func(c *cmodels.Conversation) {
+		c.FirstReplyAt = null.TimeFrom(time.Now().Add(-10 * time.Hour))
+		c.LastReplyAt = null.TimeFrom(time.Now().Add(-3 * time.Hour))
+	})
+
+	first := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationHoursSinceFirstReply, Operator: models.RuleOperatorGreaterThan, Value: "5", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 1, first, "10 hours since first reply > 5 should match")
+
+	last := runSingleRule(t, conv, models.RuleDetail{
+		Field: models.ConversationHoursSinceLastReply, Operator: models.RuleOperatorGreaterThan, Value: "5", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 0, last, "3 hours since last reply > 5 should not match")
+}
+
+func TestUnknownField_NoMatch(t *testing.T) {
+	got := runSingleRule(t, createTestConversation(), models.RuleDetail{
+		Field: "nonexistent_field", Operator: models.RuleOperatorEquals, Value: "x", FieldType: models.FieldTypeConversationField,
+	})
+	assert.Equal(t, 0, got, "unknown conversation field must evaluate false")
+}
+
+func TestUnknownFieldType_NoMatch(t *testing.T) {
+	got := runSingleRule(t, createTestConversation(), models.RuleDetail{
+		Field: models.ConversationStatus, Operator: models.RuleOperatorEquals, Value: "1", FieldType: "bogus",
+	})
+	assert.Equal(t, 0, got, "unknown field type must evaluate false")
+}
+
+func TestEmptyFieldType_DefaultsToConversationField(t *testing.T) {
+	got := runSingleRule(t, createTestConversation(), models.RuleDetail{
+		Field: models.ConversationStatus, Operator: models.RuleOperatorEquals, Value: "1",
+	})
+	assert.Equal(t, 1, got, "empty field type must default to conversation field")
+}
+
+func TestInvalidGroupOperator_NoMatch(t *testing.T) {
+	mockStore := new(mockConversationStore)
+	engine := createTestEngine(mockStore)
+	rules := []models.Rule{
+		createTestRule(
+			[]models.RuleGroup{{
+				LogicalOp: "XOR",
+				Rules: []models.RuleDetail{
+					{Field: models.ConversationStatus, Operator: models.RuleOperatorEquals, Value: "1", FieldType: models.FieldTypeConversationField},
+				},
+			}},
+			[]models.RuleAction{{Type: models.ActionSetPriority, Value: []string{"1"}}},
+			models.OperatorOR,
+		),
+	}
+
+	engine.evalConversationRules(rules, createTestConversation(), nil)
+
+	assert.Equal(t, 0, mockStore.callCount, "invalid group logical operator must not run actions")
+}
+
+func TestMoreThanTwoGroups_RuleSkipped(t *testing.T) {
+	mockStore := new(mockConversationStore)
+	engine := createTestEngine(mockStore)
+	group := models.RuleGroup{
+		LogicalOp: models.OperatorAnd,
+		Rules: []models.RuleDetail{
+			{Field: models.ConversationStatus, Operator: models.RuleOperatorEquals, Value: "1", FieldType: models.FieldTypeConversationField},
+		},
+	}
+	rules := []models.Rule{
+		createTestRule([]models.RuleGroup{group, group, group},
+			[]models.RuleAction{{Type: models.ActionSetPriority, Value: []string{"1"}}},
+			models.OperatorOR,
+		),
+	}
+
+	engine.evalConversationRules(rules, createTestConversation(), nil)
+
+	assert.Equal(t, 0, mockStore.callCount, "rules with more than 2 groups must be skipped entirely")
+}
