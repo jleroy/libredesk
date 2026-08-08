@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"slices"
 
@@ -20,6 +21,9 @@ import (
 	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/fastglue"
 )
+
+// immutable suppresses revalidation, so this is how long a revoked file stays reachable from a client cache.
+const mediaCacheTTL = 24 * time.Hour
 
 // handleMediaUpload handles media uploads.
 func handleMediaUpload(r *fastglue.Request) error {
@@ -256,6 +260,7 @@ func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.M
 		r.RequestCtx.Response.Header.Set("Content-Type", media.ContentType)
 		r.RequestCtx.Response.Header.Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, media.Filename))
 		r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
+		r.RequestCtx.Response.Header.Set("Cache-Control", fmt.Sprintf("%s, max-age=%d, immutable", cacheVisibility(media.Private), int(mediaCacheTTL.Seconds())))
 
 		fasthttp.ServeFile(r.RequestCtx, filepath.Join(ko.String("upload.fs.upload_path"), uuid))
 	case "s3":
@@ -263,6 +268,8 @@ func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.M
 		if forceDownload {
 			url = app.media.GetURLForDownload(uuid, media.Filename)
 		}
+		// The presigned target is an expiring credential; a cached redirect would leak it and 403 later.
+		r.RequestCtx.Response.Header.Set("Cache-Control", "no-store")
 		r.RequestCtx.Redirect(url, http.StatusFound)
 	}
 	return nil
@@ -297,4 +304,11 @@ func getMediaByUUID(app *App, mediaUUID string) (mmodels.Media, error) {
 		return mmodels.Media{}, envelope.NewError(envelope.NotFoundError, app.i18n.T("globals.messages.notFound"), nil)
 	}
 	return app.media.Get(0, mediaUUID)
+}
+
+func cacheVisibility(private bool) string {
+	if private {
+		return "private"
+	}
+	return "public"
 }

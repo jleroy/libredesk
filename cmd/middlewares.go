@@ -266,6 +266,9 @@ func authOrSignedURL(handler fastglue.FastRequestHandler) fastglue.FastRequestHa
 		// No signature (or store doesn't support them) - let the handler through without
 		// a user; it serves public media and rejects private media.
 		if validator == nil || sig == "" || expStr == "" {
+			if err := app.rateLimit.Check(r.RequestCtx, "media"); err != nil {
+				return err
+			}
 			r.RequestCtx.SetUserValue("auth_method", "public")
 			return handler(r)
 		}

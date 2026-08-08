@@ -40,6 +40,14 @@ RETURNING *;
 DELETE FROM help_centers
 WHERE id = $1;
 
+-- name: get-help-center-locales-in-use
+SELECT DISTINCT locale FROM article_collections WHERE help_center_id = $1
+UNION
+SELECT DISTINCT a.locale
+FROM help_articles a
+JOIN article_collections c ON c.id = a.collection_id
+WHERE c.help_center_id = $1;
+
 -- name: get-collections-by-help-center
 SELECT id, created_at, updated_at, help_center_id, slug, parent_id, locale, name, description, icon, sort_order, is_published
 FROM article_collections
@@ -92,6 +100,13 @@ SELECT id, created_at, updated_at, help_center_id, slug, parent_id, locale, name
 FROM article_collections
 WHERE id = $1
 FOR UPDATE;
+
+-- name: collection-slug-exists-in-help-center
+SELECT EXISTS(
+    SELECT 1
+    FROM article_collections
+    WHERE help_center_id = $1 AND slug = $2 AND locale = $3
+);
 
 -- name: insert-collection
 INSERT INTO article_collections (help_center_id, slug, parent_id, locale, name, description, icon, sort_order, is_published)

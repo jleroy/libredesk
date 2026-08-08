@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/abhinavxd/ssrfguard v0.1.0
+	github.com/alicebob/miniredis/v2 v2.32.1
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/emersion/go-imap/v2 v2.0.0-beta.3
@@ -49,12 +50,12 @@ require (
 	golang.org/x/mod v0.35.0
 	golang.org/x/net v0.55.0
 	golang.org/x/oauth2 v0.27.0
+	golang.org/x/text v0.37.0
 )
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
-	github.com/alicebob/miniredis/v2 v2.32.1 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/cention-sany/utf7 v0.0.0-20170124080048-26cad61bd60a // indirect
@@ -86,6 +87,5 @@ require (
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	golang.org/x/image v0.41.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

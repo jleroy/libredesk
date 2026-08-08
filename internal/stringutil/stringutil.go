@@ -9,11 +9,13 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jaytaylor/html2text"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/renderer/html"
+	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -45,9 +47,9 @@ func SanitizeUTF8(s string) string {
 	return strings.ToValidUTF8(s, "�")
 }
 
-// GenerateSlug generates a URL-friendly slug from a title.
+// GenerateSlug generates a URL-friendly slug from a title; a script with no ASCII form falls back to a random slug.
 func GenerateSlug(title string) string {
-	slug := strings.ToLower(strings.TrimSpace(title))
+	slug := strings.ToLower(strings.TrimSpace(foldAccents(title)))
 	slug = regexpSpaces.ReplaceAllString(slug, "-")
 	slug = regexpSlugChars.ReplaceAllString(slug, "")
 	slug = regexpHyphens.ReplaceAllString(slug, "-")
@@ -292,4 +294,15 @@ func htmlToText(html string, opts html2text.Options) string {
 		return ""
 	}
 	return strings.TrimSpace(out)
+}
+
+func foldAccents(s string) string {
+	var b strings.Builder
+	for _, r := range norm.NFD.String(s) {
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return norm.NFC.String(b.String())
 }

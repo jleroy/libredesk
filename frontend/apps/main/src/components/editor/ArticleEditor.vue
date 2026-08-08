@@ -104,6 +104,7 @@ defineExpose({ focus })
 <style lang="scss">
 .tiptap {
   --hc-accent: hsl(var(--primary));
+  --hc-accent-ink: color-mix(in srgb, var(--hc-accent), #0d1117 46%);
   --hc-border: hsl(var(--border));
   --hc-accent-tint: hsl(var(--primary) / 0.08);
   --hc-muted: hsl(var(--muted-foreground));

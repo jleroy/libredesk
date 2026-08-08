@@ -320,7 +320,7 @@ func handleCreateCollection(r *fastglue.Request) error {
 	if err := validateCollection(r, &req); err != nil {
 		return err
 	}
-	req.Slug = stringutil.GenerateSlug(req.Name)
+	req.Slug = helpcenter.GenerateSlug(req.Name)
 	collection, err := app.helpcenter.CreateCollection(helpCenterID, req)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
@@ -454,7 +454,7 @@ func handleCreateArticle(r *fastglue.Request) error {
 	if err := validateArticle(r, &req); err != nil {
 		return err
 	}
-	req.Slug = stringutil.GenerateSlug(req.Title)
+	req.Slug = helpcenter.GenerateSlug(req.Title)
 	req.CollectionID = nil
 	if req.Status == "" {
 		req.Status = hcmodels.ArticleStatusDraft
@@ -887,6 +887,7 @@ func handleGetPublicHelpCenterTree(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	hideTreeAuthors(helpCenterTheme(helpCenter), tree.Tree)
 	return r.SendEnvelope(tree)
 }
 
@@ -906,6 +907,7 @@ func handleGetPublicHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
+	hideArticleAuthor(helpCenterTheme(helpCenter), &article)
 	if !isCrawler(r) {
 		app.helpcenter.IncrementArticleViewCount(article.ID)
 	}
@@ -1380,6 +1382,37 @@ func helpCenterLocales(hc hcmodels.HelpCenter) []string {
 	return locales
 }
 
+func helpCenterTheme(hc hcmodels.HelpCenter) hcmodels.Theme {
+	theme := hcmodels.DefaultTheme()
+	if len(hc.Theme) > 0 {
+		if err := json.Unmarshal(hc.Theme, &theme); err != nil {
+			return hcmodels.DefaultTheme()
+		}
+	}
+	return theme
+}
+
+func hideArticleAuthor(theme hcmodels.Theme, article *hcmodels.Article) {
+	if theme.Article.ShowAuthor {
+		return
+	}
+	article.AuthorName = nil
+	article.AuthorAvatar = nil
+}
+
+func hideTreeAuthors(theme hcmodels.Theme, cols []hcmodels.TreeCollection) {
+	for i := range cols {
+		if !theme.Cards.ShowAuthors {
+			cols[i].Authors = []hcmodels.ArticleAuthor{}
+			cols[i].AuthorCount = 0
+		}
+		for j := range cols[i].Articles {
+			hideArticleAuthor(theme, &cols[i].Articles[j])
+		}
+		hideTreeAuthors(theme, cols[i].Children)
+	}
+}
+
 // helpCenterTemplateData shapes a help center row for the public templates.
 func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map[string]interface{} {
 	navLinks := []hcmodels.NavLink{}
@@ -1388,12 +1421,7 @@ func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map
 			navLinks = nil
 		}
 	}
-	theme := hcmodels.DefaultTheme()
-	if len(hc.Theme) > 0 {
-		if err := json.Unmarshal(hc.Theme, &theme); err != nil {
-			theme = hcmodels.DefaultTheme()
-		}
-	}
+	theme := helpCenterTheme(hc)
 	theme.Favicon = publicAssetPaths(app, theme.Favicon)
 	theme.Header.BackgroundImage = publicAssetPaths(app, theme.Header.BackgroundImage)
 	return map[string]interface{}{
@@ -1571,11 +1599,14 @@ func readableOn(hexColors ...string) string {
 	return headerTextDark
 }
 
-// relativeLuminance returns the WCAG relative luminance of a #rgb or #rrggbb color.
+// relativeLuminance returns the WCAG relative luminance of any hex color hexColorRe accepts; alpha is dropped.
 func relativeLuminance(hexColor string) (float64, bool) {
 	c := strings.TrimPrefix(strings.TrimSpace(hexColor), "#")
-	if len(c) == 3 {
+	if len(c) == 3 || len(c) == 4 {
 		c = string([]byte{c[0], c[0], c[1], c[1], c[2], c[2]})
+	}
+	if len(c) == 8 {
+		c = c[:6]
 	}
 	if len(c) != 6 {
 		return 0, false

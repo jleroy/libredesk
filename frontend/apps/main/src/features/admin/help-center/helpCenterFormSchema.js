@@ -5,6 +5,9 @@ const localeRe = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/
 // Mirrors assetURLRe on the backend.
 const urlRe = /^(?:https?:\/\/|\/)[^"'()\s\\<>;{}]+$/
 
+// Mirrors hexColorRe on the backend, which discards anything else on save.
+const hexColorRe = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+
 export const createHelpCenterBasicsSchema = (t) =>
   createHelpCenterFormSchema(t).pick({ name: true, slug: true, page_title: true })
 
@@ -12,6 +15,11 @@ export const createHelpCenterFormSchema = (t) => {
   const optionalURL = z
     .string()
     .refine((v) => !v || urlRe.test(v), t('helpCenter.invalidURL'))
+    .optional()
+
+  const optionalHexColor = z
+    .string()
+    .refine((v) => !v || hexColorRe.test(v), t('validation.invalidColor'))
     .optional()
 
   const linkArray = z
@@ -61,11 +69,11 @@ export const createHelpCenterFormSchema = (t) => {
         header: z
           .object({
             background_type: z.string().optional(),
-            background_color: z.string().optional(),
-            gradient_from: z.string().optional(),
-            gradient_to: z.string().optional(),
+            background_color: optionalHexColor,
+            gradient_from: optionalHexColor,
+            gradient_to: optionalHexColor,
             background_image: optionalURL,
-            text_color: z.string().optional()
+            text_color: optionalHexColor
           })
           .optional(),
         layout: z
@@ -94,8 +102,8 @@ export const createHelpCenterFormSchema = (t) => {
           .optional(),
         footer: z
           .object({
-            background_color: z.string().optional(),
-            text_color: z.string().optional(),
+            background_color: optionalHexColor,
+            text_color: optionalHexColor,
             tagline: z.string().optional()
           })
           .optional(),

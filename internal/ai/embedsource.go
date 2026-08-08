@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/abhinavxd/libredesk/internal/ai/models"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 )
 
 // embedItem is one indexable row, normalized across the content types that can be embedded.
@@ -215,10 +216,8 @@ func (m *Manager) embedSources() []embedSource {
 	return []embedSource{snippetSource{m}, helpArticleSource{m}}
 }
 
-// itemFingerprint signs the content and the full embedding provider identity (base URL, model,
-// dimensions); base URL is included so re-pointing the provider triggers reindex even when the
-// model name is unchanged.
+// Base URL is signed too, so re-pointing the provider reindexes even when the model name is unchanged.
 func itemFingerprint(item embedItem, baseURL, model string, dimensions int) string {
-	sum := sha256.Sum256(fmt.Appendf(nil, "%s\x00%s\x00%s\x00%s\x00%d", item.Title, item.Content, baseURL, model, dimensions))
+	sum := sha256.Sum256(fmt.Appendf(nil, "%s\x00%s\x00%s\x00%s\x00%d\x00%d", item.Title, item.Content, baseURL, model, dimensions, stringutil.ChunkerVersion))
 	return hex.EncodeToString(sum[:])
 }

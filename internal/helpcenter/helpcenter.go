@@ -12,10 +12,12 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/helpcenter/models"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-i18n"
 	"github.com/microcosm-cc/bluemonday"
@@ -28,6 +30,10 @@ const (
 	defaultAccentColor = "#1f93ff"
 	maxCardAuthors     = 3
 	maxSearchQueryLen  = 200
+	maxSlugLen         = 200
+
+	// minSearchQueryLen mirrors the typeahead's floor; shorter terms miss the trigram index and seq-scan.
+	minSearchQueryLen = 2
 
 	// searchLogRetentionDays bounds both what insights read and what the cleaner keeps.
 	searchLogRetentionDays = 90
@@ -55,7 +61,7 @@ var (
 	iconNameRe = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
 
 	// slugRe matches the charset stringutil.GenerateSlug emits; anything else breaks /hc/ URLs.
-	slugRe = regexp.MustCompile(`^[a-z0-9_-]{1,200}$`)
+	slugRe = regexp.MustCompile(fmt.Sprintf(`^[a-z0-9_-]{1,%d}$`, maxSlugLen))
 
 	// localeRe matches BCP-47 style codes, e.g. "en", "en-US"; the code becomes a /hc/ path segment.
 	localeRe = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$`)
@@ -155,6 +161,7 @@ type queries struct {
 	UpdateHelpCenter     *sqlx.Stmt `query:"update-help-center"`
 	ToggleHelpCenter     *sqlx.Stmt `query:"toggle-help-center-active"`
 	DeleteHelpCenter     *sqlx.Stmt `query:"delete-help-center"`
+	GetLocalesInUse      *sqlx.Stmt `query:"get-help-center-locales-in-use"`
 
 	GetCollectionsByHelpCenter *sqlx.Stmt `query:"get-collections-by-help-center"`
 	GetCollectionByID          *sqlx.Stmt `query:"get-collection-by-id"`
@@ -165,6 +172,7 @@ type queries struct {
 	GetSubtreeArticleIDs       *sqlx.Stmt `query:"get-article-ids-in-collection-subtree"`
 	GetHelpCenterArticleIDs    *sqlx.Stmt `query:"get-article-ids-in-help-center"`
 	UpdateCollectionSortOrder  *sqlx.Stmt `query:"update-collection-sort-order"`
+	CollectionSlugExists       *sqlx.Stmt `query:"collection-slug-exists-in-help-center"`
 	InsertCollection           *sqlx.Stmt `query:"insert-collection"`
 	UpdateCollection           *sqlx.Stmt `query:"update-collection"`
 	ToggleCollectionPublished  *sqlx.Stmt `query:"toggle-collection-published"`
@@ -322,6 +330,9 @@ func (m *Manager) UpdateHelpCenter(id int, req HelpCenterRequest) (models.HelpCe
 	if err := m.validateLocales(req.DefaultLocale, req.AllowedLocales); err != nil {
 		return hc, err
 	}
+	if err := m.validateLocalesRetained(id, req.AllowedLocales); err != nil {
+		return hc, err
+	}
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
@@ -366,10 +377,13 @@ func (m *Manager) reindexHelpCenterArticles(helpCenterID int) {
 
 // DeleteHelpCenter deletes a help center by ID.
 func (m *Manager) DeleteHelpCenter(id int) error {
+	// Read before the delete: the cascade takes the collections and articles with it.
+	articleIDs := m.articleIDsFor(m.q.GetHelpCenterArticleIDs, id)
 	if _, err := m.q.DeleteHelpCenter.Exec(id); err != nil {
 		m.lo.Error("error deleting help center", "error", err, "id", id)
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	m.removeArticleEmbeddings(articleIDs)
 	return nil
 }
 
@@ -414,6 +428,11 @@ func (m *Manager) CreateCollection(helpCenterID int, req CollectionRequest) (mod
 		return collection, err
 	}
 	req.Icon = sanitizeIconName(req.Icon)
+	slug, err := m.uniqueCollectionSlug(helpCenterID, req.Slug, req.Locale)
+	if err != nil {
+		return collection, err
+	}
+	req.Slug = slug
 	if err := m.q.InsertCollection.Get(&collection, helpCenterID, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.Icon, req.SortOrder, req.IsPublished); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return collection, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
@@ -533,11 +552,37 @@ func (m *Manager) reindexSubtreeArticles(collectionID int) {
 
 // DeleteCollection deletes a collection by ID.
 func (m *Manager) DeleteCollection(id int) error {
+	// Read before the delete: the cascade takes the articles with it.
+	articleIDs := m.articleIDsFor(m.q.GetSubtreeArticleIDs, id)
 	if _, err := m.q.DeleteCollection.Exec(id); err != nil {
 		m.lo.Error("error deleting collection", "error", err, "id", id)
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	m.removeArticleEmbeddings(articleIDs)
 	return nil
+}
+
+func (m *Manager) articleIDsFor(stmt *sqlx.Stmt, arg int) []int {
+	if m.indexer == nil {
+		return nil
+	}
+	var ids []int
+	if err := stmt.Select(&ids, arg); err != nil {
+		m.lo.Error("error fetching articles for embedding cleanup", "error", err, "arg", arg)
+		return nil
+	}
+	return ids
+}
+
+func (m *Manager) removeArticleEmbeddings(ids []int) {
+	if m.indexer == nil {
+		return
+	}
+	for _, id := range ids {
+		if err := m.indexer.RemoveHelpArticleEmbeddings(id); err != nil {
+			m.lo.Error("error removing article embeddings", "error", err, "id", id)
+		}
+	}
 }
 
 // GetArticlesByCollection retrieves all articles for a collection.
@@ -846,6 +891,10 @@ func (m *Manager) GetPublishedCollectionLocales(helpCenterSlug, collectionSlug s
 // SearchPublishedArticles searches published articles in a help center, content trimmed to an excerpt, filtered to locale (empty = all).
 func (m *Manager) SearchPublishedArticles(helpCenterSlug, query, locale string, limit int) ([]models.Article, error) {
 	var articles = make([]models.Article, 0)
+	query = strings.TrimSpace(query)
+	if utf8.RuneCountInString(query) < minSearchQueryLen {
+		return articles, nil
+	}
 	query = ilikeEscaper.Replace(truncateRunes(query, maxSearchQueryLen))
 	if err := m.q.SearchPublishedArticles.Select(&articles, helpCenterSlug, query, limit, locale); err != nil {
 		m.lo.Error("error searching published articles", "error", err, "help_center_slug", helpCenterSlug)
@@ -1171,6 +1220,22 @@ func (m *Manager) validateArticleAuthor(authorID *int64) error {
 	return nil
 }
 
+// uniqueCollectionSlug appends a numeric suffix until the slug is unique within the help center.
+func (m *Manager) uniqueCollectionSlug(helpCenterID int, slug, locale string) (string, error) {
+	candidate := slug
+	for i := 2; ; i++ {
+		var exists bool
+		if err := m.q.CollectionSlugExists.Get(&exists, helpCenterID, candidate, locale); err != nil {
+			m.lo.Error("error checking collection slug uniqueness", "error", err, "slug", candidate)
+			return "", envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
+		if !exists {
+			return candidate, nil
+		}
+		candidate = withSuffix(slug, fmt.Sprintf("-%d", i))
+	}
+}
+
 // uniqueArticleSlug appends a numeric suffix until the slug is unique within the collection's help center.
 func (m *Manager) uniqueArticleSlug(tx *sqlx.Tx, collectionID int, slug, locale string) (string, error) {
 	candidate := slug
@@ -1183,7 +1248,7 @@ func (m *Manager) uniqueArticleSlug(tx *sqlx.Tx, collectionID int, slug, locale 
 		if !exists {
 			return candidate, nil
 		}
-		candidate = fmt.Sprintf("%s-%d", slug, i)
+		candidate = withSuffix(slug, fmt.Sprintf("-%d", i))
 	}
 }
 
@@ -1205,13 +1270,38 @@ func (m *Manager) validateHelpCenterSlug(slug string) error {
 
 // validateLocales rejects language codes that aren't valid BCP-47 style codes.
 func (m *Manager) validateLocales(defaultLocale string, allowed json.RawMessage) error {
-	locales := []string{}
-	if len(allowed) > 0 {
-		_ = json.Unmarshal(allowed, &locales)
-	}
-	for _, l := range append(locales, defaultLocale) {
+	for _, l := range append(parseLocales(allowed), defaultLocale) {
 		if !localeRe.MatchString(strings.TrimSpace(l)) {
 			return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidLocale"), nil)
+		}
+	}
+	return nil
+}
+
+// Only currently-allowed locales are checked, so a pre-existing orphan locale can still be saved.
+func (m *Manager) validateLocalesRetained(helpCenterID int, allowed json.RawMessage) error {
+	hc, err := m.GetHelpCenterByID(helpCenterID)
+	if err != nil {
+		return err
+	}
+	kept := parseLocales(allowed)
+	var dropped []string
+	for _, l := range parseLocales(hc.AllowedLocales) {
+		if !slices.Contains(kept, l) {
+			dropped = append(dropped, l)
+		}
+	}
+	if len(dropped) == 0 {
+		return nil
+	}
+	var inUse []string
+	if err := m.q.GetLocalesInUse.Select(&inUse, helpCenterID); err != nil {
+		m.lo.Error("error fetching help center locales in use", "error", err, "help_center_id", helpCenterID)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	for _, l := range dropped {
+		if slices.Contains(inUse, l) {
+			return envelope.NewError(envelope.InputError, m.i18n.Ts("helpCenter.localeInUse", "locale", l), nil)
 		}
 	}
 	return nil
@@ -1241,11 +1331,7 @@ func (m *Manager) validateHelpCenterServesLocale(helpCenterID int, locale string
 	if err != nil {
 		return err
 	}
-	locales := []string{}
-	if len(hc.AllowedLocales) > 0 {
-		_ = json.Unmarshal(hc.AllowedLocales, &locales)
-	}
-	if !slices.Contains(locales, locale) {
+	if !slices.Contains(parseLocales(hc.AllowedLocales), locale) {
 		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.localeNotSupported"), nil)
 	}
 	return nil
@@ -1254,6 +1340,16 @@ func (m *Manager) validateHelpCenterServesLocale(helpCenterID int, locale string
 // SanitizeInlineHTML strips unsafe HTML from theme text fields that render raw on public pages.
 func SanitizeInlineHTML(s string) string {
 	return inlineTextSanitizer.Sanitize(s)
+}
+
+// GenerateSlug derives a slug from a title, bounded to what validateSlug accepts.
+func GenerateSlug(title string) string {
+	return withSuffix(stringutil.GenerateSlug(title), "")
+}
+
+// withSuffix truncates a slug so the suffix still fits inside maxSlugLen.
+func withSuffix(slug, suffix string) string {
+	return strings.Trim(truncateRunes(slug, maxSlugLen-len(suffix)), "-") + suffix
 }
 
 func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
@@ -1267,11 +1363,7 @@ func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	req.LogoURL = sanitizeAssetURL(req.LogoURL)
 	req.NavLinks = normalizeNavLinks(req.NavLinks)
 
-	locales := []string{}
-	if len(req.AllowedLocales) > 0 {
-		_ = json.Unmarshal(req.AllowedLocales, &locales)
-	}
-	locales = normalizeLocales(locales, req.DefaultLocale)
+	locales := normalizeLocales(parseLocales(req.AllowedLocales), req.DefaultLocale)
 	if b, err := json.Marshal(locales); err == nil {
 		req.AllowedLocales = b
 	}
@@ -1388,6 +1480,14 @@ func sanitizeIconName(n string) string {
 		return ""
 	}
 	return n
+}
+
+func parseLocales(raw json.RawMessage) []string {
+	locales := []string{}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &locales)
+	}
+	return locales
 }
 
 // normalizeLocales trims/dedupes locale codes and guarantees the default locale is present and first.
