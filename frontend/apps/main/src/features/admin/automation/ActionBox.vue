@@ -77,7 +77,7 @@
                   :items="conversationActions[action.type]?.options"
                   :placeholder="t('placeholders.selectValue')"
                   @select="handleValueChange($event, index)"
-                  :type="action.type === 'assign_team' ? 'team' : 'user'"
+                  :type="action.type === 'assign_user' ? 'user' : 'team'"
                 />
               </div>
 
