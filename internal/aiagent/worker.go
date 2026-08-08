@@ -303,7 +303,8 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 	// verified: the 30-min window can expire mid-run and a blocked tool then points the model at
 	// them. set_contact_email is visitor-only, so a self-claimed email can be corrected in chat; a
 	// known contact's email is never swappable this way.
-	if conv.InboxChannel == channelEmail || conv.Contact.Type != umodels.UserTypeContact {
+	needsVerification := m.assistantHasVerifiedTool(assistant)
+	if needsVerification && (conv.InboxChannel == channelEmail || conv.Contact.Type != umodels.UserTypeContact) {
 		offerSetEmail := conv.Contact.Type == umodels.UserTypeVisitor
 		tools = append(tools, &sendEmailVerificationTool{m: m, conv: &conv})
 		tools = append(tools, &checkEmailVerificationTool{m: m, conv: &conv})
@@ -312,7 +313,7 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 		}
 		m.lo.Debug("ai agent offering verification tools", "conversation_uuid", conv.UUID, "set_contact_email_offered", offerSetEmail)
 	}
-	if !runVerified {
+	if needsVerification && !runVerified {
 		systemPrompt += "\n\n" + verificationNote
 	}
 
@@ -630,6 +631,25 @@ func (m *Manager) recentContactConversations(conv cmodels.Conversation, verified
 		return nil
 	}
 	return recent
+}
+
+// assistantHasVerifiedTool reports whether any tool attached to the assistant is verification-gated;
+// it fails open so a lookup error keeps the verification flow available.
+func (m *Manager) assistantHasVerifiedTool(a models.Assistant) bool {
+	if len(a.ToolIDs) == 0 {
+		return false
+	}
+	tools, err := m.ai.GetEnabledToolsByIDs(a.ToolIDs)
+	if err != nil {
+		m.lo.Error("error fetching assistant tools for verification check", "assistant_id", a.ID, "error", err)
+		return true
+	}
+	for _, t := range tools {
+		if t.RequiresVerification {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) encodeAttachmentImage(att attachment.Attachment) (aimodels.ChatImage, bool) {
