@@ -106,10 +106,10 @@ body[data-hcd-modal-open] { overflow: hidden; }
     padding: 0 1.5rem;
 }
 .hcd-topbar-start { display: flex; align-items: center; gap: .8rem; min-width: 0; }
-.hcd-brand { display: inline-flex; align-items: center; gap: .6rem; color: var(--hc-ink); flex: none; }
+.hcd-brand { display: inline-flex; align-items: center; gap: .6rem; color: var(--hc-ink); flex: 0 1 auto; min-width: 0; }
 .hcd-brand:hover { text-decoration: none; }
-.hcd-brand img { max-height: 1.7rem; width: auto; display: block; }
-.hcd-brand-name { font-weight: 700; font-size: 1.02rem; letter-spacing: -.01em; }
+.hcd-brand img { max-height: 1.7rem; max-width: 100%; width: auto; object-fit: contain; display: block; }
+.hcd-brand-name { font-weight: 700; font-size: 1.02rem; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hcd-topnav { display: flex; gap: 1.35rem; flex-wrap: nowrap; overflow: hidden; }
 .hcd-topnav a { color: var(--hc-muted); font-size: .92rem; font-weight: 500; white-space: nowrap; }
 .hcd-topnav a:hover { color: var(--hc-ink); text-decoration: none; }

@@ -7,6 +7,7 @@
     var locale = form.getAttribute('data-hc-locale');
     var emptyText = form.getAttribute('data-hc-empty') || 'No results';
     var resultsText = form.getAttribute('data-hc-results') || '{count} results';
+    var resultsTextOne = form.getAttribute('data-hc-results-one') || '{count} result';
     if (!input || !slug) return;
 
     var DEBOUNCE = 250;
@@ -76,7 +77,7 @@
         panel.hidden = false;
         active = -1;
         input.setAttribute('aria-expanded', 'true');
-        status.textContent = list.length ? resultsText.replace('{count}', list.length) : emptyText;
+        status.textContent = list.length ? (list.length > 1 ? resultsText : resultsTextOne).replace('{count}', list.length) : emptyText;
         pending = q;
     }
 

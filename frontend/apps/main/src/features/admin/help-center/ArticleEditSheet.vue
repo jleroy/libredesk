@@ -283,9 +283,9 @@
                   <span class="text-muted-foreground">{{ t('helpCenter.createdBy') }}</span>
                   <span>{{ loadedArticle.created_by_name }}</span>
                 </div>
-                <div v-if="article.helpful_count !== undefined" class="flex justify-between py-1">
+                <div v-if="loadedArticle?.helpful_count !== undefined" class="flex justify-between py-1">
                   <span class="text-muted-foreground">{{ t('globals.terms.feedback') }}</span>
-                  <span>👍 {{ article.helpful_count }} · 👎 {{ article.not_helpful_count }}</span>
+                  <span>👍 {{ loadedArticle.helpful_count }} · 👎 {{ loadedArticle.not_helpful_count }}</span>
                 </div>
                 <div class="flex justify-between py-1">
                   <span class="text-muted-foreground">{{ t('globals.terms.createdAt') }}</span>

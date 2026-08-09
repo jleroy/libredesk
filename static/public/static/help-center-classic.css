@@ -82,10 +82,10 @@ a:hover { text-decoration: underline; }
     gap: 1.25rem;
     padding: 2rem 1.5rem;
 }
-.hc-brand { display: inline-flex; align-items: center; gap: .6rem; color: var(--hc-header-text, var(--hc-ink)); }
+.hc-brand { display: inline-flex; align-items: center; gap: .6rem; color: var(--hc-header-text, var(--hc-ink)); min-width: 0; }
 .hc-brand:hover { text-decoration: none; }
-.hc-brand img { max-height: 1.9rem; width: auto; display: block; }
-.hc-brand .hc-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; }
+.hc-brand img { max-height: 1.9rem; max-width: 100%; width: auto; object-fit: contain; display: block; }
+.hc-brand .hc-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hc-nav-links { margin-left: auto; display: flex; gap: 1.4rem; flex-wrap: wrap; align-items: center; }
 .hc-nav-links a { color: var(--hc-header-text, var(--hc-muted)); font-size: .95rem; font-weight: 500; opacity: .92; }
 .hc-nav-links a:hover { opacity: 1; text-decoration: none; }
