@@ -168,6 +168,7 @@ type queries struct {
 	GetCollectionByIDForUpdate *sqlx.Stmt `query:"get-collection-by-id-for-update"`
 	GetCollectionSubtreeDepth  *sqlx.Stmt `query:"get-collection-subtree-depth"`
 	CollectionHasContent       *sqlx.Stmt `query:"collection-has-content"`
+	LockHelpCenter             *sqlx.Stmt `query:"lock-help-center"`
 	LockHelpCenterByCollection *sqlx.Stmt `query:"lock-help-center-by-collection"`
 	GetSubtreeArticleIDs       *sqlx.Stmt `query:"get-article-ids-in-collection-subtree"`
 	GetHelpCenterArticleIDs    *sqlx.Stmt `query:"get-article-ids-in-help-center"`
@@ -410,16 +411,11 @@ func (m *Manager) GetCollectionByID(id int) (models.Collection, error) {
 	return collection, nil
 }
 
-// CreateCollection creates a new collection.
+// CreateCollection creates a new collection; the help center row lock keeps a concurrent re-parent from pushing the new node past maxCollectionDepth.
 func (m *Manager) CreateCollection(helpCenterID int, req CollectionRequest) (models.Collection, error) {
 	var collection models.Collection
 	if err := m.validateSlug(req.Slug); err != nil {
 		return collection, err
-	}
-	if req.ParentID != nil {
-		if err := m.validateCollectionParent(m.GetCollectionByID, *req.ParentID, 0, helpCenterID, req.Locale); err != nil {
-			return collection, err
-		}
 	}
 	if req.Locale == "" {
 		req.Locale = defaultLocale
@@ -428,23 +424,41 @@ func (m *Manager) CreateCollection(helpCenterID int, req CollectionRequest) (mod
 		return collection, err
 	}
 	req.Icon = sanitizeIconName(req.Icon)
+
+	tx, err := m.db.Beginx()
+	if err != nil {
+		m.lo.Error("error starting transaction", "error", err)
+		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
+	if err := m.lockHelpCenter(tx, helpCenterID); err != nil {
+		return collection, err
+	}
+	if req.ParentID != nil {
+		if err := m.validateCollectionParent(tx, *req.ParentID, 0, helpCenterID, req.Locale); err != nil {
+			return collection, err
+		}
+	}
 	slug, err := m.uniqueCollectionSlug(helpCenterID, req.Slug, req.Locale)
 	if err != nil {
 		return collection, err
 	}
 	req.Slug = slug
-	if err := m.q.InsertCollection.Get(&collection, helpCenterID, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.Icon, req.SortOrder, req.IsPublished); err != nil {
+	if err := tx.Stmtx(m.q.InsertCollection).Get(&collection, helpCenterID, req.Slug, req.ParentID, req.Locale, req.Name, req.Description, req.Icon, req.SortOrder, req.IsPublished); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return collection, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
 		m.lo.Error("error creating collection", "error", err)
 		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
+	if err := tx.Commit(); err != nil {
+		m.lo.Error("error committing collection create", "error", err)
+		return collection, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
 	return collection, nil
 }
 
-// UpdateCollection updates a collection. The parent check and the write share one
-// transaction that locks the ancestor walk, so two simultaneous re-parents cannot form a cycle.
+// UpdateCollection updates a collection; the help center row lock keeps two simultaneous tree mutations from forming a cycle or overshooting maxCollectionDepth.
 func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collection, error) {
 	var collection models.Collection
 	if err := m.validateSlug(req.Slug); err != nil {
@@ -462,6 +476,9 @@ func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collec
 	}
 	defer tx.Rollback()
 
+	if err := m.lockHelpCenterByCollection(tx, id); err != nil {
+		return collection, err
+	}
 	get := m.lockedCollectionGetter(tx)
 	existing, err := get(id)
 	if err != nil {
@@ -481,7 +498,7 @@ func (m *Manager) UpdateCollection(id int, req CollectionRequest) (models.Collec
 		}
 	}
 	if req.ParentID != nil {
-		if err := m.validateCollectionParent(get, *req.ParentID, id, existing.HelpCenterID, req.Locale); err != nil {
+		if err := m.validateCollectionParent(tx, *req.ParentID, id, existing.HelpCenterID, req.Locale); err != nil {
 			return collection, err
 		}
 	}
@@ -628,17 +645,15 @@ func (m *Manager) CreateArticle(collectionID int, req ArticleRequest) (models.Ar
 	}
 
 	// Slug uniqueness is per help center but the DB index is per collection, so the
-	// check and insert lock the help center row to serialize concurrent creates.
+	// check and insert lock the help center row to serialize concurrent writers.
 	tx, err := m.db.Beginx()
 	if err != nil {
 		m.lo.Error("error starting transaction", "error", err)
 		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	defer tx.Rollback()
-	var hcID int
-	if err := tx.Stmtx(m.q.LockHelpCenterByCollection).Get(&hcID, collectionID); err != nil {
-		m.lo.Error("error locking help center", "error", err, "collection_id", collectionID)
-		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	if err := m.lockHelpCenterByCollection(tx, collectionID); err != nil {
+		return article, err
 	}
 	slug, err := m.uniqueArticleSlug(tx, collectionID, req.Slug, req.Locale)
 	if err != nil {
@@ -685,14 +700,6 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 	if err := m.validateArticleCollectionLocale(collectionID, req.Locale); err != nil {
 		return article, err
 	}
-	var slugTaken bool
-	if err := m.q.OtherArticleSlugExists.Get(&slugTaken, collectionID, req.Slug, req.Locale, id); err != nil {
-		m.lo.Error("error checking article slug uniqueness", "error", err, "id", id, "slug", req.Slug)
-		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-	if slugTaken {
-		return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
-	}
 	// A soft-deleted author must not block saving an article that already has them.
 	if req.AuthorID == nil || existing.AuthorID == nil || *existing.AuthorID != *req.AuthorID {
 		if err := m.validateArticleAuthor(req.AuthorID); err != nil {
@@ -701,11 +708,34 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 	}
 	req.Content = articleSanitizer.Sanitize(req.Content)
 	req.Excerpt = strings.TrimSpace(req.Excerpt)
-	if err := m.q.UpdateArticle.Get(&article, id, req.Slug, req.Locale, req.Title, req.Content, req.SortOrder, req.Status, req.AIEnabled, req.CollectionID, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.AuthorID); err != nil {
+
+	// The slug check and write hold the same help center row lock as CreateArticle.
+	tx, err := m.db.Beginx()
+	if err != nil {
+		m.lo.Error("error starting transaction", "error", err)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
+	if err := m.lockHelpCenterByCollection(tx, collectionID); err != nil {
+		return article, err
+	}
+	var slugTaken bool
+	if err := tx.Stmtx(m.q.OtherArticleSlugExists).Get(&slugTaken, collectionID, req.Slug, req.Locale, id); err != nil {
+		m.lo.Error("error checking article slug uniqueness", "error", err, "id", id, "slug", req.Slug)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if slugTaken {
+		return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
+	}
+	if err := tx.Stmtx(m.q.UpdateArticle).Get(&article, id, req.Slug, req.Locale, req.Title, req.Content, req.SortOrder, req.Status, req.AIEnabled, req.CollectionID, req.Excerpt, req.MetaTitle, req.MetaDescription, req.MetaImageURL, req.AuthorID); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
 		m.lo.Error("error updating article", "error", err, "id", id)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if err := tx.Commit(); err != nil {
+		m.lo.Error("error committing article update", "error", err, "id", id)
 		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	m.reindexArticle(article.ID)
@@ -734,16 +764,30 @@ func (m *Manager) MoveArticle(id, collectionID int) (models.Article, error) {
 	if target.Locale != existing.Locale {
 		return article, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.collectionLocaleMismatch"), nil)
 	}
+	// The slug check and write hold the same help center row lock as CreateArticle.
+	tx, err := m.db.Beginx()
+	if err != nil {
+		m.lo.Error("error starting transaction", "error", err)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
+	if err := m.lockHelpCenterByCollection(tx, collectionID); err != nil {
+		return article, err
+	}
 	var slugTaken bool
-	if err := m.q.OtherArticleSlugExists.Get(&slugTaken, collectionID, existing.Slug, existing.Locale, id); err != nil {
+	if err := tx.Stmtx(m.q.OtherArticleSlugExists).Get(&slugTaken, collectionID, existing.Slug, existing.Locale, id); err != nil {
 		m.lo.Error("error checking article slug uniqueness", "error", err, "id", id)
 		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	if slugTaken {
 		return article, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 	}
-	if err := m.q.MoveArticleToCollection.Get(&article, id, collectionID); err != nil {
+	if err := tx.Stmtx(m.q.MoveArticleToCollection).Get(&article, id, collectionID); err != nil {
 		m.lo.Error("error moving article", "error", err, "id", id, "collection_id", collectionID)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if err := tx.Commit(); err != nil {
+		m.lo.Error("error committing article move", "error", err, "id", id)
 		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	m.reindexArticle(article.ID)
@@ -919,10 +963,11 @@ func (m *Manager) RecordArticleFeedback(articleID int, isHelpful bool) error {
 	return nil
 }
 
-// LogSearch records a public search term and how many results it returned.
+// LogSearch records a public search term and how many results it returned. Terms under
+// the search floor never ran, so logging them would pollute the zero-result insights.
 func (m *Manager) LogSearch(helpCenterID int, query string, resultsCount int) {
 	query = truncateRunes(strings.TrimSpace(query), maxSearchQueryLen)
-	if query == "" {
+	if utf8.RuneCountInString(query) < minSearchQueryLen {
 		return
 	}
 	if _, err := m.q.InsertSearchQuery.Exec(helpCenterID, query, resultsCount); err != nil {
@@ -1142,8 +1187,9 @@ func (m *Manager) lockedCollectionGetter(tx *sqlx.Tx) collectionGetter {
 
 // validateCollectionParent rejects parents that belong to another help center, use another
 // language, would make the collection its own ancestor, or would push the collection's own
-// descendants past maxCollectionDepth.
-func (m *Manager) validateCollectionParent(get collectionGetter, parentID, selfID, helpCenterID int, locale string) error {
+// descendants past maxCollectionDepth. Runs inside tx with the help center row locked.
+func (m *Manager) validateCollectionParent(tx *sqlx.Tx, parentID, selfID, helpCenterID int, locale string) error {
+	get := m.lockedCollectionGetter(tx)
 	depth := 2
 	currentID := parentID
 	for {
@@ -1172,7 +1218,7 @@ func (m *Manager) validateCollectionParent(get collectionGetter, parentID, selfI
 	if selfID == 0 {
 		return nil
 	}
-	subtreeDepth, err := m.collectionSubtreeDepth(selfID)
+	subtreeDepth, err := m.collectionSubtreeDepth(tx, selfID)
 	if err != nil {
 		return err
 	}
@@ -1183,13 +1229,39 @@ func (m *Manager) validateCollectionParent(get collectionGetter, parentID, selfI
 }
 
 // collectionSubtreeDepth returns how many levels the collection spans, itself counting as one.
-func (m *Manager) collectionSubtreeDepth(id int) (int, error) {
+func (m *Manager) collectionSubtreeDepth(tx *sqlx.Tx, id int) (int, error) {
 	var depth int
-	if err := m.q.GetCollectionSubtreeDepth.Get(&depth, id); err != nil {
+	if err := tx.Stmtx(m.q.GetCollectionSubtreeDepth).Get(&depth, id); err != nil {
 		m.lo.Error("error fetching collection subtree depth", "error", err, "id", id)
 		return 0, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return depth, nil
+}
+
+// lockHelpCenter locks the help center row that serializes tree and article slug mutations.
+func (m *Manager) lockHelpCenter(tx *sqlx.Tx, id int) error {
+	var hcID int
+	if err := tx.Stmtx(m.q.LockHelpCenter).Get(&hcID, id); err != nil {
+		if err == sql.ErrNoRows {
+			return envelope.NewError(envelope.NotFoundError, m.i18n.T("globals.messages.notFound"), nil)
+		}
+		m.lo.Error("error locking help center", "error", err, "id", id)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return nil
+}
+
+// lockHelpCenterByCollection locks the collection's help center row, see lockHelpCenter.
+func (m *Manager) lockHelpCenterByCollection(tx *sqlx.Tx, collectionID int) error {
+	var hcID int
+	if err := tx.Stmtx(m.q.LockHelpCenterByCollection).Get(&hcID, collectionID); err != nil {
+		if err == sql.ErrNoRows {
+			return envelope.NewError(envelope.NotFoundError, m.i18n.T("globals.messages.notFound"), nil)
+		}
+		m.lo.Error("error locking help center", "error", err, "collection_id", collectionID)
+		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return nil
 }
 
 // validateArticleCollectionLocale rejects a collection in a different language than the article.

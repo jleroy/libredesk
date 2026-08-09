@@ -83,7 +83,7 @@
                           {{
                             source.type === 'help_article'
                               ? t('globals.terms.article')
-                              : t('admin.ai.snippets')
+                              : t('admin.ai.snippets', 1)
                           }}
                         </span>
                       </span>

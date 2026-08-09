@@ -171,7 +171,7 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	if _, err := db.Exec(`
 		UPDATE media SET private = false
 		WHERE model_type = 'users'
-		AND model_id IN (SELECT id FROM users WHERE type = 'agent');
+		AND model_id IN (SELECT id FROM users WHERE type IN ('agent', 'ai_assistant'));
 	`); err != nil {
 		return err
 	}

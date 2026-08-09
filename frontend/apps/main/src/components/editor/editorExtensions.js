@@ -128,8 +128,7 @@ export function buildConversationExtensions({ getPlaceholder }) {
     CustomTable.configure({ resizable: false }),
     TableRow,
     CustomTableCell,
-    CustomTableHeader,
-    TrailingNode
+    CustomTableHeader
   ]
 }
 

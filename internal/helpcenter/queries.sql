@@ -67,6 +67,9 @@ WITH RECURSIVE subtree AS (
 )
 SELECT COALESCE(MAX(depth), 1) FROM subtree;
 
+-- name: lock-help-center
+SELECT id FROM help_centers WHERE id = $1 FOR UPDATE;
+
 -- name: lock-help-center-by-collection
 SELECT hc.id FROM help_centers hc
 JOIN article_collections c ON c.help_center_id = hc.id

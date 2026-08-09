@@ -179,6 +179,10 @@ func handleServeMedia(r *fastglue.Request) error {
 
 	media, err := getMediaByUUID(app, uuid)
 	if err != nil {
+		// Anonymous probes must not distinguish missing media from existing private media.
+		if authMethod == "public" {
+			return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.T("auth.invalidOrExpiredSession"), nil, envelope.UnauthorizedError)
+		}
 		return sendErrorEnvelope(r, err)
 	}
 

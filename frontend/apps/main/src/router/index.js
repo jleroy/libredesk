@@ -234,7 +234,7 @@ const routes = [
             path: 'ai/snippets',
             name: 'ai-snippets',
             component: () => import('@main/views/admin/ai/AISnippets.vue'),
-            meta: { titleKey: 'admin.ai.snippets' }
+            meta: { titleKey: 'admin.ai.snippets', titleCount: 2 }
           },
           {
             path: 'ai/suggestions',

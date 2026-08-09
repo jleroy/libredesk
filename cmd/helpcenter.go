@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"math"
+	"net"
 	"net/url"
 	"regexp"
 	"slices"
@@ -568,7 +569,8 @@ func handleRedirectHelpCenterHome(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, nil)
 	}
-	r.RequestCtx.Redirect(helpCenterHomePath(slug, helpCenter.DefaultLocale), fasthttp.StatusMovedPermanently)
+	// 302, not 301: the default locale is mutable and browsers cache permanent redirects.
+	r.RequestCtx.Redirect(helpCenterHomePath(slug, helpCenter.DefaultLocale), fasthttp.StatusFound)
 	return nil
 }
 
@@ -692,6 +694,8 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, &helpCenter)
 	}
+	// The JSON-LD embeds the author too, not just the byline.
+	hideArticleAuthor(helpCenterTheme(helpCenter), &article)
 	if !isCrawler(r) {
 		app.helpcenter.IncrementArticleViewCount(article.ID)
 	}
@@ -966,6 +970,8 @@ func handleHelpCenterArticleFeedback(r *fastglue.Request) error {
 		return r.SendEnvelope(true)
 	}
 	if err := app.helpcenter.RecordArticleFeedback(article.ID, req.Helpful); err != nil {
+		// A failed insert must not consume the reader's vote for the dedup window.
+		app.redis.Del(r.RequestCtx, dedupKey)
 		return sendErrorEnvelope(r, err)
 	}
 	return r.SendEnvelope(true)
@@ -1078,7 +1084,7 @@ func helpCenterBaseURL(app *App, hc hcmodels.HelpCenter) string {
 // helpCentersForHost returns the help centers whose public URL is this request's host, else the app-root ones.
 func helpCentersForHost(r *fastglue.Request, helpCenters []hcmodels.HelpCenter) []hcmodels.HelpCenter {
 	var (
-		host       = string(r.RequestCtx.Host())
+		host       = hostWithoutPort(string(r.RequestCtx.Host()))
 		matched    []hcmodels.HelpCenter
 		rootHosted []hcmodels.HelpCenter
 	)
@@ -1087,7 +1093,7 @@ func helpCentersForHost(r *fastglue.Request, helpCenters []hcmodels.HelpCenter) 
 			rootHosted = append(rootHosted, hc)
 			continue
 		}
-		if strings.EqualFold(urlHost(hc.PublicURL), host) {
+		if strings.EqualFold(urlHostname(hc.PublicURL), host) {
 			matched = append(matched, hc)
 		}
 	}
@@ -1107,12 +1113,21 @@ func helpCenterHostRootURL(app *App, helpCenters []hcmodels.HelpCenter) string {
 	return helpCenterRootURL(app)
 }
 
-func urlHost(raw string) string {
+// urlHostname returns the URL's host without any port, so a public URL saved with an
+// explicit port still matches the Host header and vice versa.
+func urlHostname(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return ""
 	}
-	return u.Host
+	return u.Hostname()
+}
+
+func hostWithoutPort(h string) string {
+	if host, _, err := net.SplitHostPort(h); err == nil {
+		return host
+	}
+	return h
 }
 
 func urlOrigin(raw string) string {

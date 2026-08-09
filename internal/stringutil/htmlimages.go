@@ -5,12 +5,16 @@ import (
 	"strings"
 )
 
+// imgAttrPrefix skips over complete attributes so the name can't match inside another
+// attribute's name (data-loading) or a quoted value (alt="loading=x").
+const imgAttrPrefix = `(?is)^<img(?:\s+[^\s=>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]*))?)*\s+`
+
 var (
 	imgTagRe = regexp.MustCompile(`(?is)<img\b(?:"[^"]*"|'[^']*'|[^>"'])*>`)
 
-	imgLoadingAttrRe = regexp.MustCompile(`(?i)\bloading\s*=`)
+	imgLoadingAttrRe = regexp.MustCompile(imgAttrPrefix + `loading\s*=`)
 
-	imgDecodingAttrRe = regexp.MustCompile(`(?i)\bdecoding\s*=`)
+	imgDecodingAttrRe = regexp.MustCompile(imgAttrPrefix + `decoding\s*=`)
 )
 
 // DeferOffscreenImages adds loading="lazy" and decoding="async" to every <img> tag

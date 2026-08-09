@@ -14,7 +14,7 @@
       <FormItem>
         <FormLabel>{{ t('globals.terms.slug') }}</FormLabel>
         <FormControl>
-          <Input type="text" v-bind="componentField" />
+          <Input type="text" v-bind="componentField" @input="markSlugEdited" />
         </FormControl>
         <FormDescription>{{ t('helpCenter.slugHint') }}</FormDescription>
         <FormMessage />
@@ -43,6 +43,7 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@shared-ui/components/ui/button'
@@ -78,9 +79,15 @@ const form = useForm({
   initialValues: { name: '', slug: '', page_title: '' }
 })
 
+// A hand-edited slug is the admin's choice; clearing the field resumes the suggestions.
+const slugEdited = ref(false)
+const markSlugEdited = (e) => {
+  slugEdited.value = !!e.target.value
+}
+
 // Mirrors stringutil.GenerateSlug on the backend so the suggestion matches what gets saved.
 const generateSlug = () => {
-  if (!form.values.name) return
+  if (slugEdited.value || !form.values.name) return
   form.setFieldValue(
     'slug',
     form.values.name
