@@ -4,7 +4,7 @@
 {{ template "docs-breadcrumb" (map "L" .L "Data" .Data "Current" .Data.Collection.Name) }}
 
 <header class="hcd-collection-head">
-    <span class="hcd-card-icon{{ if .Data.HelpCenter.Theme.Cards.ShowIconTile }} hcd-icon-tile{{ end }}">{{ with LucideIcon .Data.Collection.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>
+    <div class="hc-collection-icon{{ if .Data.HelpCenter.Theme.Cards.ShowIconTile }} hc-icon-tile{{ end }}">{{ with LucideIcon .Data.Collection.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</div>
     <div class="hcd-collection-headings">
         <h1>{{ .Data.Collection.Name }}</h1>
         {{ if .Data.Collection.Description }}<p class="hcd-lead">{{ .Data.Collection.Description }}</p>{{ end }}

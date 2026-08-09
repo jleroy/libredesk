@@ -25,6 +25,7 @@
     {{ if .Data.OGImage }}<meta name="twitter:image" content="{{ .Data.OGImage }}" />{{ end }}
     <meta name="theme-color" content="{{ .Data.HelpCenter.Color }}" />
     {{ if .Data.HelpCenter.Theme.Favicon }}<link rel="icon" href="{{ .Data.HelpCenter.Theme.Favicon }}" />{{ else if ne FaviconURL "" }}<link rel="icon" href="{{ FaviconURL }}" />{{ end }}
+    <link rel="stylesheet" href="/static/public/static/help-center-cards.css?v={{ AssetVer }}" />
     <link rel="stylesheet" href="/static/public/static/help-center-{{ .Data.HelpCenter.Template }}.css?v={{ AssetVer }}" />
     <link rel="stylesheet" href="/static/public/static/article-content.css?v={{ AssetVer }}" />
     <style>:root { --hc-accent: {{ .Data.HelpCenter.Color }}; {{ .Data.HelpCenter.ThemeCSS }} }</style>

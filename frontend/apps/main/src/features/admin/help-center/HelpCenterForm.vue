@@ -355,7 +355,7 @@
             :open="openSections.landing"
             @toggle="toggleSection('landing')"
           >
-            <FormField v-if="isClassic" v-slot="{ componentField }" name="theme.layout.collections">
+            <FormField v-slot="{ componentField }" name="theme.layout.collections">
               <FormItem>
                 <FormLabel>{{ t('helpCenter.styling.collectionLayout') }}</FormLabel>
                 <FormControl>
@@ -372,7 +372,7 @@
               </FormItem>
             </FormField>
 
-            <div v-show="isClassic && form.values.theme?.layout?.collections !== 'list'">
+            <div v-show="form.values.theme?.layout?.collections !== 'list'">
               <FormField v-slot="{ componentField }" name="theme.layout.columns">
                 <FormItem>
                   <FormLabel>{{ t('helpCenter.styling.cardsPerRow') }}</FormLabel>
@@ -391,33 +391,31 @@
               </FormField>
             </div>
 
-            <FormField
-              v-if="isClassic"
-              v-slot="{ componentField }"
-              name="theme.cards.icon_position"
-            >
-              <FormItem>
-                <FormLabel>{{ t('helpCenter.styling.cardIconPosition') }}</FormLabel>
-                <FormControl>
-                  <Select v-bind="componentField">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="inline">{{
-                        t('helpCenter.styling.iconBesideTitle')
-                      }}</SelectItem>
-                      <SelectItem value="top">{{
-                        t('helpCenter.styling.iconAboveTitle')
-                      }}</SelectItem>
-                      <SelectItem value="center">{{
-                        t('helpCenter.styling.iconCentered')
-                      }}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-              </FormItem>
-            </FormField>
+            <div v-show="form.values.theme?.layout?.collections !== 'list'">
+              <FormField v-slot="{ componentField }" name="theme.cards.icon_position">
+                <FormItem>
+                  <FormLabel>{{ t('helpCenter.styling.cardIconPosition') }}</FormLabel>
+                  <FormControl>
+                    <Select v-bind="componentField">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="inline">{{
+                          t('helpCenter.styling.iconBesideTitle')
+                        }}</SelectItem>
+                        <SelectItem value="top">{{
+                          t('helpCenter.styling.iconAboveTitle')
+                        }}</SelectItem>
+                        <SelectItem value="center">{{
+                          t('helpCenter.styling.iconCentered')
+                        }}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              </FormField>
+            </div>
 
             <FormField v-slot="{ value, handleChange }" name="theme.layout.show_popular_articles">
               <FormItem class="flex items-center gap-2 space-y-0">
@@ -434,11 +432,7 @@
                 <FormItem>
                   <FormLabel>{{ t('helpCenter.styling.popularArticlesLabel') }}</FormLabel>
                   <FormControl>
-                    <Input
-                      type="text"
-                      :placeholder="t('helpCenter.popularArticles')"
-                      v-bind="componentField"
-                    />
+                    <Input type="text" v-bind="componentField" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -760,7 +754,9 @@ const toFormValues = (hc) => ({
       collections: hc?.theme?.layout?.collections || 'grid',
       columns: String(hc?.theme?.layout?.columns || 2),
       show_popular_articles: hc?.theme?.layout?.show_popular_articles ?? true,
-      popular_articles_label: hc?.theme?.layout?.popular_articles_label || ''
+      popular_articles_label: hc
+        ? hc.theme?.layout?.popular_articles_label || ''
+        : t('helpCenter.popularArticles')
     },
     cards: {
       hide_description: !!hc?.theme?.cards?.hide_description,

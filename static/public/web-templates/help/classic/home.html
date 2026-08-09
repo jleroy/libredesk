@@ -1,29 +1,9 @@
-{{ define "classic-collection-card" }}
-{{ $cards := .Theme.Cards }}
-<a class="hc-collection hc-collection-card hc-icon-{{ if $cards.IconPosition }}{{ $cards.IconPosition }}{{ else }}inline{{ end }}" href="/hc/{{ .Slug }}/{{ .Locale }}/collections/{{ .Collection.Slug }}">
-    <div class="hc-collection-icon{{ if $cards.ShowIconTile }} hc-icon-tile{{ end }}">{{ with LucideIcon .Collection.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</div>
-    <div class="hc-collection-body">
-        <h2>{{ .Collection.Name }}</h2>
-        {{ if and .Collection.Description (not $cards.HideDescription) }}<p class="hc-desc">{{ .Collection.Description }}</p>{{ end }}
-        {{ if and $cards.ShowAuthors .Collection.Authors }}
-        <span class="hc-card-meta">
-            {{ template "hc-avatar-stack" .Collection.Authors }}
-            <span>{{ .Collection.AuthorCount }} {{ $.L.Tc "helpCenter.authors" .Collection.AuthorCount }}{{ if not $cards.HideCount }} &middot; {{ .Collection.ArticleCount }} {{ $.L.Tc "helpCenter.article" .Collection.ArticleCount }}{{ end }}</span>
-        </span>
-        {{ else if not $cards.HideCount }}
-        <span class="hc-count">{{ .Collection.ArticleCount }} {{ $.L.Tc "helpCenter.article" .Collection.ArticleCount }}</span>
-        {{ end }}
-    </div>
-</a>
-{{ end }}
-
 {{ define "classic-help-center" }}
 {{ template "classic-header" . }}
 
 {{ if and .Data.Popular .Data.HelpCenter.Theme.Layout.ShowPopularArticles }}
-{{ $popularLabel := .Data.HelpCenter.Theme.Layout.PopularArticlesLabel }}{{ if not $popularLabel }}{{ $popularLabel = .L.T "helpCenter.popularArticles" }}{{ end }}
 <section class="hc-popular">
-    <h2>{{ $popularLabel }}</h2>
+    {{ with .Data.HelpCenter.Theme.Layout.PopularArticlesLabel }}<h2>{{ . }}</h2>{{ end }}
     <ul>
         {{ range .Data.Popular }}
         <li><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}"><span>{{ .Title }}</span>{{ template "hc-arrow-icon" }}</a></li>
@@ -33,12 +13,7 @@
 {{ end }}
 
 {{ if .Data.Tree }}
-{{ $layout := .Data.HelpCenter.Theme.Layout }}
-<div class="hc-collections{{ if eq $layout.Collections "list" }} hc-layout-list{{ else if eq $layout.Columns 3 }} hc-cols-3{{ end }}">
-{{ range .Data.Tree }}
-    {{ template "classic-collection-card" (map "Collection" . "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale "Theme" $.Data.HelpCenter.Theme "L" $.L) }}
-{{ end }}
-</div>
+{{ template "hc-collections-grid" (map "HelpCenter" .Data.HelpCenter "Tree" .Data.Tree "L" .L "Heading" "h2") }}
 {{ else }}
 <p class="hc-empty">{{ $.L.T "helpCenter.noPublishedContent" }}</p>
 {{ end }}
