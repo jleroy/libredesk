@@ -9,7 +9,7 @@ const urlRe = /^(?:https?:\/\/|\/)[^"'()\s\\<>;{}]+$/
 const hexColorRe = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 
 export const createHelpCenterBasicsSchema = (t) =>
-  createHelpCenterFormSchema(t).pick({ name: true, slug: true, page_title: true })
+  createHelpCenterFormSchema(t).pick({ name: true, slug: true, page_title: true, template: true })
 
 export const createHelpCenterFormSchema = (t) => {
   const optionalURL = z
@@ -42,6 +42,7 @@ export const createHelpCenterFormSchema = (t) => {
       .max(200, t('helpCenter.invalidSlug'))
       .regex(/^[a-z0-9_-]+$/, t('helpCenter.invalidSlug')),
     page_title: z.string().min(1, t('globals.messages.required')),
+    template: z.enum(['docs', 'classic']).default('classic'),
     header_text: z.string().optional(),
     meta_description: z.string().optional(),
     logo_url: optionalURL,
@@ -49,7 +50,10 @@ export const createHelpCenterFormSchema = (t) => {
     nav_links: linkArray,
     public_url: z
       .string()
-      .refine((v) => !v || /^https?:\/\/[^"'()\s\\<>;{}]+$/.test(v), t('helpCenter.invalidPublicURL'))
+      .refine(
+        (v) => !v || /^https?:\/\/[^"'()\s\\<>;{}]+$/.test(v),
+        t('helpCenter.invalidPublicURL')
+      )
       .optional(),
     custom_css: z.string().optional(),
     custom_js: z.string().optional(),
@@ -59,7 +63,12 @@ export const createHelpCenterFormSchema = (t) => {
       .regex(localeRe, t('helpCenter.invalidLocale'))
       .default('en'),
     allowed_locales: z
-      .array(z.string().min(1, t('globals.messages.required')).regex(localeRe, t('helpCenter.invalidLocale')))
+      .array(
+        z
+          .string()
+          .min(1, t('globals.messages.required'))
+          .regex(localeRe, t('helpCenter.invalidLocale'))
+      )
       .min(1, t('globals.messages.required'))
       .default(['en']),
     theme: z

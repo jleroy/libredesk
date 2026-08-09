@@ -1,4 +1,4 @@
-{{ define "hc-article-items" }}
+{{ define "classic-article-items" }}
 <ul class="hc-article-list">
     {{ range .Articles }}
     <li><a href="/hc/{{ $.Slug }}/{{ $.Locale }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}{{ template "hc-arrow-icon" }}</a></li>
@@ -6,8 +6,8 @@
 </ul>
 {{ end }}
 
-{{ define "help-collection" }}
-{{ template "hc-header" . }}
+{{ define "classic-help-collection" }}
+{{ template "classic-header" . }}
 
 <nav class="hc-breadcrumb" aria-label="{{ .L.T "globals.terms.breadcrumb" }}">
     <ol>
@@ -26,7 +26,7 @@
 
 {{ if .Data.Collection.Articles }}
 <div class="hc-article-panel">
-    {{ template "hc-article-items" (map "Articles" .Data.Collection.Articles "Slug" .Data.HelpCenter.Slug "Locale" .Data.HelpCenter.CurrentLocale) }}
+    {{ template "classic-article-items" (map "Articles" .Data.Collection.Articles "Slug" .Data.HelpCenter.Slug "Locale" .Data.HelpCenter.CurrentLocale) }}
 </div>
 {{ end }}
 
@@ -34,12 +34,12 @@
 <section class="hc-collection-block" aria-labelledby="hc-col-{{ .Slug }}">
     <h2 id="hc-col-{{ .Slug }}"><a class="hc-block-head" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a></h2>
     {{ if .Description }}<p class="hc-block-desc">{{ .Description }}</p>{{ end }}
-    {{ if .Articles }}{{ template "hc-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
+    {{ if .Articles }}{{ template "classic-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
     {{ range .Children }}
     <div class="hc-block-sub">
         <h3><a class="hc-block-subhead" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a></h3>
         {{ if .Description }}<p class="hc-block-desc">{{ .Description }}</p>{{ end }}
-        {{ if .Articles }}{{ template "hc-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
+        {{ if .Articles }}{{ template "classic-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
     </div>
     {{ end }}
 </section>
@@ -49,5 +49,5 @@
 <p class="hc-empty">{{ $.L.T "helpCenter.noArticles" }}</p>
 {{ end }}
 
-{{ template "hc-footer" . }}
+{{ template "classic-footer" . }}
 {{ end }}

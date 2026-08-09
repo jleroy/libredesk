@@ -209,7 +209,7 @@ func handleHelpCenterPreview(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	if err := app.tmpl.RenderWebPage(r.RequestCtx, "help-center", map[string]interface{}{
+	if err := app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-center"), map[string]interface{}{
 		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
 			"Title":       helpCenter.PageTitle,
@@ -603,7 +603,7 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 		metaDescription = firstNonEmpty(tree.HelpCenter.MetaDescription, tree.HelpCenter.HeaderText)
 	)
 	data := helpCenterTemplateData(app, tree.HelpCenter, locale)
-	return renderHelpCenterPage(r, "help-center", map[string]interface{}{
+	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-center"), map[string]interface{}{
 		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
 			"Title":           tree.HelpCenter.PageTitle,
@@ -654,19 +654,21 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 		pathFor = func(l string) string { return collectionPath(helpCenter.Slug, l, collection.Slug) }
 	)
 	data := helpCenterTemplateData(app, helpCenter, locale)
-	return renderHelpCenterPage(r, "help-collection", map[string]interface{}{
+	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-collection"), map[string]interface{}{
 		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
-			"Title":           fmt.Sprintf("%s - %s", collection.Name, helpCenter.Name),
-			"MetaDescription": collection.Description,
-			"CanonicalPath":   pathFor(locale),
-			"OGImage":         absoluteURL(root, publicAssetPaths(app, helpCenter.LogoURL)),
-			"Alternates":      helpCenterAlternates(helpCenter, translated, pathFor),
-			"XDefaultPath":    defaultLocalePath(helpCenter, translated, pathFor),
-			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, translated, pathFor),
-			"JSONLD":          collectionJSONLD(root, helpCenter, *collection, locale, pathFor(locale)),
-			"HelpCenter":      data,
-			"Collection":      collection,
+			"Title":            fmt.Sprintf("%s - %s", collection.Name, helpCenter.Name),
+			"MetaDescription":  collection.Description,
+			"CanonicalPath":    pathFor(locale),
+			"OGImage":          absoluteURL(root, publicAssetPaths(app, helpCenter.LogoURL)),
+			"Alternates":       helpCenterAlternates(helpCenter, translated, pathFor),
+			"XDefaultPath":     defaultLocalePath(helpCenter, translated, pathFor),
+			"LocaleLinks":      helpCenterLocaleLinks(helpCenter, translated, pathFor),
+			"JSONLD":           collectionJSONLD(root, helpCenter, *collection, locale, pathFor(locale)),
+			"HelpCenter":       data,
+			"Collection":       collection,
+			"Tree":             tree.Tree,
+			"ActiveCollection": collection.Slug,
 		},
 	})
 }
@@ -726,26 +728,29 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 		ogImage         = absoluteURL(root, publicAssetPaths(app, firstNonEmpty(article.MetaImageURL, helpCenter.LogoURL)))
 	)
 	data := helpCenterTemplateData(app, helpCenter, locale)
-	return renderHelpCenterPage(r, "help-article", map[string]interface{}{
+	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-article"), map[string]interface{}{
 		"L": localeI18n(app, locale),
 		"Data": map[string]interface{}{
-			"Title":           metaTitle,
-			"MetaDescription": metaDescription,
-			"OGImage":         ogImage,
-			"CanonicalPath":   pathFor(locale),
-			"OGType":          "article",
-			"PublishedTime":   article.CreatedAt.Format(time.RFC3339),
-			"ModifiedTime":    article.UpdatedAt.Format(time.RFC3339),
-			"Alternates":      helpCenterAlternates(helpCenter, translated, pathFor),
-			"XDefaultPath":    defaultLocalePath(helpCenter, translated, pathFor),
-			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, translated, pathFor),
-			"JSONLD":          articleJSONLD(root, helpCenter, collection, article, locale, pathFor(locale), ogImage),
-			"HelpCenter":      data,
-			"Article":         article,
-			"AuthorInitial":   authorInitial(article),
-			"Collection":      collection,
-			"Related":         related,
-			"Content":         template.HTML(publicAssetPaths(app, stringutil.DeferOffscreenImages(article.Content))),
+			"Title":            metaTitle,
+			"MetaDescription":  metaDescription,
+			"OGImage":          ogImage,
+			"CanonicalPath":    pathFor(locale),
+			"OGType":           "article",
+			"PublishedTime":    article.CreatedAt.Format(time.RFC3339),
+			"ModifiedTime":     article.UpdatedAt.Format(time.RFC3339),
+			"Alternates":       helpCenterAlternates(helpCenter, translated, pathFor),
+			"XDefaultPath":     defaultLocalePath(helpCenter, translated, pathFor),
+			"LocaleLinks":      helpCenterLocaleLinks(helpCenter, translated, pathFor),
+			"JSONLD":           articleJSONLD(root, helpCenter, collection, article, locale, pathFor(locale), ogImage),
+			"HelpCenter":       data,
+			"Article":          article,
+			"AuthorInitial":    authorInitial(article),
+			"Collection":       collection,
+			"Related":          related,
+			"Tree":             sidebarTree(app, helpCenter, locale),
+			"ActiveCollection": collection.Slug,
+			"ActiveArticle":    article.Slug,
+			"Content":          template.HTML(publicAssetPaths(app, stringutil.DeferOffscreenImages(article.Content))),
 		},
 	})
 }
@@ -780,7 +785,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 		pathFor = func(l string) string { return searchPath(helpCenter.Slug, l) }
 	)
 	r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
-	return app.tmpl.RenderWebPage(r.RequestCtx, "help-search", map[string]interface{}{
+	return app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-search"), map[string]interface{}{
 		"L": lcl,
 		"Data": map[string]interface{}{
 			"Title":       fmt.Sprintf("%s - %s", lcl.T("globals.terms.search"), helpCenter.Name),
@@ -789,6 +794,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 			"HelpCenter":  data,
 			"Query":       query,
 			"Results":     articles,
+			"Tree":        sidebarTree(app, helpCenter, locale),
 		},
 	})
 }
@@ -1428,6 +1434,23 @@ func hideTreeAuthors(theme hcmodels.Theme, cols []hcmodels.TreeCollection) {
 	}
 }
 
+// hcPageName returns the page's template name under the help center's chosen page template.
+func hcPageName(hc hcmodels.HelpCenter, page string) string {
+	return firstNonEmpty(hc.Template, hcmodels.TemplateClassic) + "-" + page
+}
+
+// sidebarTree returns the published tree for page templates that render a navigation sidebar on every page.
+func sidebarTree(app *App, hc hcmodels.HelpCenter, locale string) []hcmodels.TreeCollection {
+	if hc.Template != hcmodels.TemplateDocs {
+		return nil
+	}
+	tree, err := app.helpcenter.GetPublicTree(hc, locale)
+	if err != nil {
+		return nil
+	}
+	return tree.Tree
+}
+
 // helpCenterTemplateData shapes a help center row for the public templates.
 func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map[string]interface{} {
 	navLinks := []hcmodels.NavLink{}
@@ -1439,9 +1462,14 @@ func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map
 	theme := helpCenterTheme(hc)
 	theme.Favicon = publicAssetPaths(app, theme.Favicon)
 	theme.Header.BackgroundImage = publicAssetPaths(app, theme.Header.BackgroundImage)
+	pageTemplate := hc.Template
+	if pageTemplate == "" {
+		pageTemplate = hcmodels.TemplateClassic
+	}
 	return map[string]interface{}{
 		"Slug":              hc.Slug,
 		"Name":              hc.Name,
+		"Template":          pageTemplate,
 		"BaseURL":           helpCenterBaseURL(app, hc),
 		"PageTitle":         hc.PageTitle,
 		"HeaderText":        hc.HeaderText,
@@ -1526,13 +1554,14 @@ func renderHelpCenterNotFound(r *fastglue.Request, hc *hcmodels.HelpCenter) erro
 		data := helpCenterTemplateData(app, helpCenter, locale)
 		lcl := localeI18n(app, locale)
 		r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
-		rerr := app.tmpl.RenderWebPage(r.RequestCtx, "help-notfound", map[string]interface{}{
+		rerr := app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-notfound"), map[string]interface{}{
 			"L": lcl,
 			"Data": map[string]interface{}{
 				"Title":       lcl.T("globals.messages.pageNotFound"),
 				"NoIndex":     true,
 				"LocaleLinks": helpCenterLocaleLinks(helpCenter, nil, func(l string) string { return helpCenterHomePath(helpCenter.Slug, l) }),
 				"HelpCenter":  data,
+				"Tree":        sidebarTree(app, helpCenter, locale),
 			},
 		})
 		r.RequestCtx.SetStatusCode(fasthttp.StatusNotFound)
@@ -1690,7 +1719,7 @@ func renderHelpCenterArticlePreview(r *fastglue.Request, helpCenter hcmodels.Hel
 			{Slug: "sample-3", Title: toc[2].Title},
 		}
 	)
-	if err := app.tmpl.RenderWebPage(r.RequestCtx, "help-article", map[string]interface{}{
+	if err := app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-article"), map[string]interface{}{
 		"L": i18n,
 		"Data": map[string]interface{}{
 			"Title":         article.Title,
@@ -1701,6 +1730,7 @@ func renderHelpCenterArticlePreview(r *fastglue.Request, helpCenter hcmodels.Hel
 			"Collection":    collection,
 			"Related":       related,
 			"TOC":           toc,
+			"Tree":          sidebarTree(app, helpCenter, locale),
 			"Content":       template.HTML(article.Content),
 		},
 	}); err != nil {

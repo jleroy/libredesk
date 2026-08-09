@@ -50,6 +50,29 @@
             </FormItem>
           </FormField>
 
+          <FormField v-slot="{ componentField }" name="template">
+            <FormItem>
+              <FormLabel>{{ t('globals.terms.template') }}</FormLabel>
+              <FormControl>
+                <Select v-bind="componentField">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="classic">{{ t('helpCenter.templates.classic') }}</SelectItem>
+                    <SelectItem value="docs">{{ t('helpCenter.templates.docs') }}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormDescription>{{
+                form.values.template === 'classic'
+                  ? t('helpCenter.templates.classicHint')
+                  : t('helpCenter.templates.docsHint')
+              }}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+
           <FormField v-slot="{ componentField }" name="meta_description">
             <FormItem>
               <FormLabel>{{ t('helpCenter.metaDescription') }}</FormLabel>
@@ -199,7 +222,11 @@
               </FormItem>
             </FormField>
 
-            <FormField v-slot="{ componentField }" name="theme.header.background_type">
+            <FormField
+              v-if="isClassic"
+              v-slot="{ componentField }"
+              name="theme.header.background_type"
+            >
               <FormItem>
                 <FormLabel>{{ t('helpCenter.styling.headerBackground') }}</FormLabel>
                 <FormControl>
@@ -220,7 +247,7 @@
               </FormItem>
             </FormField>
 
-            <div v-show="form.values.theme?.header?.background_type === 'solid'">
+            <div v-show="isClassic && form.values.theme?.header?.background_type === 'solid'">
               <FormField v-slot="{ componentField }" name="theme.header.background_color">
                 <FormItem>
                   <FormLabel>{{ t('globals.messages.backgroundColor') }}</FormLabel>
@@ -232,7 +259,7 @@
             </div>
 
             <div
-              v-show="form.values.theme?.header?.background_type === 'gradient'"
+              v-show="isClassic && form.values.theme?.header?.background_type === 'gradient'"
               class="flex gap-4"
             >
               <FormField v-slot="{ componentField }" name="theme.header.gradient_from">
@@ -253,7 +280,7 @@
               </FormField>
             </div>
 
-            <div v-show="form.values.theme?.header?.background_type === 'image'">
+            <div v-show="isClassic && form.values.theme?.header?.background_type === 'image'">
               <FormField v-slot="{ componentField }" name="theme.header.background_image">
                 <FormItem>
                   <FormLabel>{{ t('helpCenter.styling.headerImage') }}</FormLabel>
@@ -270,7 +297,7 @@
               </FormField>
             </div>
 
-            <FormField v-slot="{ componentField }" name="theme.header.text_color">
+            <FormField v-if="isClassic" v-slot="{ componentField }" name="theme.header.text_color">
               <FormItem>
                 <FormLabel>{{ t('globals.terms.textColor') }}</FormLabel>
                 <FormControl>
@@ -328,7 +355,7 @@
             :open="openSections.landing"
             @toggle="toggleSection('landing')"
           >
-            <FormField v-slot="{ componentField }" name="theme.layout.collections">
+            <FormField v-if="isClassic" v-slot="{ componentField }" name="theme.layout.collections">
               <FormItem>
                 <FormLabel>{{ t('helpCenter.styling.collectionLayout') }}</FormLabel>
                 <FormControl>
@@ -345,7 +372,7 @@
               </FormItem>
             </FormField>
 
-            <div v-show="form.values.theme?.layout?.collections !== 'list'">
+            <div v-show="isClassic && form.values.theme?.layout?.collections !== 'list'">
               <FormField v-slot="{ componentField }" name="theme.layout.columns">
                 <FormItem>
                   <FormLabel>{{ t('helpCenter.styling.cardsPerRow') }}</FormLabel>
@@ -364,7 +391,11 @@
               </FormField>
             </div>
 
-            <FormField v-slot="{ componentField }" name="theme.cards.icon_position">
+            <FormField
+              v-if="isClassic"
+              v-slot="{ componentField }"
+              name="theme.cards.icon_position"
+            >
               <FormItem>
                 <FormLabel>{{ t('helpCenter.styling.cardIconPosition') }}</FormLabel>
                 <FormControl>
@@ -701,6 +732,7 @@ const socialPlatforms = [
 const toFormValues = (hc) => ({
   name: hc?.name || '',
   slug: hc?.slug || '',
+  template: hc?.template === 'docs' ? 'docs' : 'classic',
   public_url: hc?.public_url || '',
   page_title: hc?.page_title || '',
   header_text: hc?.header_text || '',
@@ -783,6 +815,8 @@ const {
   push: pushLocale,
   remove: removeLocale
 } = useFieldArray('allowed_locales')
+
+const isClassic = computed(() => form.values.template === 'classic')
 
 const availableLanguages = ref([])
 

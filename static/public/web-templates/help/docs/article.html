@@ -1,0 +1,49 @@
+{{ define "docs-help-article" }}
+{{ template "docs-header" . }}
+
+{{ template "docs-breadcrumb" (map "L" .L "Data" .Data "Collection" .Data.Collection "Current" .Data.Article.Title) }}
+
+<article class="hc-article hcd-article">
+    <h1>{{ .Data.Article.Title }}</h1>
+    {{ if .Data.Article.Excerpt }}<p class="hcd-lead">{{ .Data.Article.Excerpt }}</p>{{ end }}
+    {{ $showAuthor := and .Data.HelpCenter.Theme.Article.ShowAuthor .Data.Article.AuthorName }}
+    <div class="hcd-meta{{ if $showAuthor }} hcd-meta-byline{{ end }}">
+        {{ if $showAuthor }}
+        {{ if .Data.Article.AuthorAvatar }}<img class="hc-avatar hcd-byline-avatar" src="{{ .Data.Article.AuthorAvatar }}" alt="" loading="lazy" />{{ else }}<span class="hc-avatar hc-avatar-initial hcd-byline-avatar">{{ .Data.AuthorInitial }}</span>{{ end }}
+        {{ end }}
+        <span>{{ if $showAuthor }}<span class="hcd-author">{{ .Data.Article.AuthorName }}</span> &middot; {{ end }}{{ .L.T "globals.terms.lastUpdated" }} <time class="hc-date" datetime="{{ .Data.ModifiedTime }}">{{ .Data.Article.UpdatedAt.Format "Jan 2, 2006" }}</time></span>
+    </div>
+    <div class="hc-article-body hcd-article-body">
+        {{ if not .Data.HelpCenter.Theme.Article.HideToc }}
+        <nav class="hc-toc{{ if .Data.TOC }} hc-toc-open{{ end }}" id="hc-toc" aria-label="{{ .L.T "helpCenter.onThisPage" }}"{{ if not .Data.TOC }} hidden{{ end }}>
+            <button class="hc-toc-title" type="button" id="hc-toc-toggle" aria-expanded="{{ if .Data.TOC }}true{{ else }}false{{ end }}" aria-controls="hc-toc-list">
+                {{ .L.T "helpCenter.onThisPage" }}
+                <svg class="hc-toc-caret" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <ul id="hc-toc-list">{{ range .Data.TOC }}<li><a href="#{{ .ID }}">{{ .Title }}</a></li>{{ end }}</ul>
+        </nav>
+        {{ end }}
+        <div class="hc-prose" id="hc-prose">{{ .Data.Content }}</div>
+    </div>
+</article>
+
+<div class="hcd-article-foot">
+    <div class="hc-helpful" id="hc-helpful" role="group" aria-labelledby="hc-helpful-q" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback?locale={{ .Data.Article.Locale }}">
+        <span class="hc-helpful-q" id="hc-helpful-q">{{ .L.T "helpCenter.wasHelpful" }}</span>
+        <button type="button" data-helpful="true">{{ .L.T "globals.messages.yes" }}</button>
+        <button type="button" data-helpful="false">{{ .L.T "globals.messages.no" }}</button>
+        <span class="hc-helpful-thanks" hidden>{{ .L.T "helpCenter.feedbackThanks" }}</span>
+    </div>
+
+    {{ if and .Data.Related (not .Data.HelpCenter.Theme.Article.HideRelated) }}
+    <aside class="hcd-related">
+        <h2>{{ .L.T "helpCenter.relatedArticles" }}</h2>
+        {{ template "docs-article-rows" (map "Articles" .Data.Related "Slug" .Data.HelpCenter.Slug "Locale" .Data.HelpCenter.CurrentLocale) }}
+    </aside>
+    {{ end }}
+</div>
+
+{{ template "hc-article-behavior" }}
+
+{{ template "docs-footer" . }}
+{{ end }}

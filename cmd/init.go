@@ -434,7 +434,7 @@ func initTemplate(db *sqlx.DB, fs stuffbin.FileSystem, consts *constants, i18n *
 	if err != nil {
 		log.Fatalf("error parsing e-mail templates: %v", err)
 	}
-	webTpls, err := stuffbin.ParseTemplatesGlob(funcMap, fs, "/static/public/web-templates/*.html")
+	webTpls, err := parseWebTemplates(funcMap, fs)
 	if err != nil {
 		log.Fatalf("error parsing web templates: %v", err)
 	}
@@ -528,13 +528,29 @@ func reloadTemplates(app *App) error {
 		app.lo.Error("error parsing email templates", "error", err)
 		return err
 	}
-	webTpls, err := stuffbin.ParseTemplatesGlob(funcMap, app.fs, "/static/public/web-templates/*.html")
+	webTpls, err := parseWebTemplates(funcMap, app.fs)
 	if err != nil {
 		app.lo.Error("error parsing web templates", "error", err)
 		return err
 	}
 
 	return app.tmpl.Reload(webTpls, tpls, funcMap)
+}
+
+// parseWebTemplates parses the top-level web templates and the per-template help center pages.
+func parseWebTemplates(funcMap template.FuncMap, fs stuffbin.FileSystem) (*template.Template, error) {
+	var paths []string
+	for _, pattern := range []string{
+		"/static/public/web-templates/*.html",
+		"/static/public/web-templates/help/*/*.html",
+	} {
+		p, err := fs.Glob(pattern)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, p...)
+	}
+	return stuffbin.ParseTemplates(funcMap, fs, paths...)
 }
 
 // initTeam inits team manager.

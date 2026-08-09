@@ -48,6 +48,8 @@ var (
 
 	headerBackgroundTypes = []string{"solid", "gradient", "image"}
 
+	helpCenterTemplates = []string{models.TemplateDocs, models.TemplateClassic}
+
 	cardIconPositions = []string{"inline", "top", "center"}
 
 	hexColorRe = regexp.MustCompile(`^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$`)
@@ -105,6 +107,7 @@ type HelpCenterRequest struct {
 	AllowedLocales  json.RawMessage `json:"allowed_locales"`
 	Theme           json.RawMessage `json:"theme"`
 	PublicURL       string          `json:"public_url"`
+	Template        string          `json:"template"`
 }
 
 type CollectionRequest struct {
@@ -285,7 +288,7 @@ func (m *Manager) CreateHelpCenter(req HelpCenterRequest) (models.HelpCenter, er
 	if err := m.validatePublicURL(req.PublicURL); err != nil {
 		return hc, err
 	}
-	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.PublicURL); err != nil {
+	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.PublicURL, req.Template); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -315,6 +318,7 @@ func (m *Manager) DraftHelpCenter(id int, req HelpCenterRequest) (models.HelpCen
 	hc.AllowedLocales = req.AllowedLocales
 	hc.Theme = req.Theme
 	hc.PublicURL = req.PublicURL
+	hc.Template = req.Template
 	if err := m.validateColor(hc.Color); err != nil {
 		return hc, err
 	}
@@ -340,7 +344,7 @@ func (m *Manager) UpdateHelpCenter(id int, req HelpCenterRequest) (models.HelpCe
 	if err := m.validatePublicURL(req.PublicURL); err != nil {
 		return hc, err
 	}
-	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.PublicURL); err != nil {
+	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.PublicURL, req.Template); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -1430,6 +1434,9 @@ func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	}
 	if req.Color == "" {
 		req.Color = defaultAccentColor
+	}
+	if !slices.Contains(helpCenterTemplates, req.Template) {
+		req.Template = models.TemplateClassic
 	}
 	req.PublicURL = strings.TrimRight(strings.TrimSpace(req.PublicURL), "/")
 	req.LogoURL = sanitizeAssetURL(req.LogoURL)

@@ -1,5 +1,5 @@
-{{ define "help-search" }}
-{{ template "hc-header" . }}
+{{ define "classic-help-search" }}
+{{ template "classic-header" . }}
 
 {{ if .Data.Query }}
 <h1 class="hc-page-title">{{ $.L.T "helpCenter.searchResults" }} &ldquo;{{ .Data.Query }}&rdquo;</h1>
@@ -20,5 +20,5 @@
 <p class="hc-empty">{{ $.L.T "globals.messages.startTypingToSearch" }}</p>
 {{ end }}
 
-{{ template "hc-footer" . }}
+{{ template "classic-footer" . }}
 {{ end }}

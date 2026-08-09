@@ -9,6 +9,9 @@ const (
 	ArticleStatusDraft     = "draft"
 	ArticleStatusPublished = "published"
 	ArticleStatusArchived  = "archived"
+
+	TemplateDocs    = "docs"
+	TemplateClassic = "classic"
 )
 
 type HelpCenter struct {
@@ -30,6 +33,7 @@ type HelpCenter struct {
 	IsActive        bool            `db:"is_active" json:"is_active"`
 	Theme           json.RawMessage `db:"theme" json:"theme"`
 	PublicURL       string          `db:"public_url" json:"public_url"`
+	Template        string          `db:"template" json:"template"`
 }
 
 // Theme holds the customizable branding for a help center's public pages.

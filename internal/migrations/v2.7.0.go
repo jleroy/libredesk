@@ -46,6 +46,9 @@ func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS public_url TEXT NOT NULL DEFAULT '';`); err != nil {
 		return err
 	}
+	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS template TEXT NOT NULL DEFAULT 'classic' CHECK (template IN ('docs', 'classic'));`); err != nil {
+		return err
+	}
 
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS article_collections (
