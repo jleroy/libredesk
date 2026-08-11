@@ -817,7 +817,13 @@ func handleCreateConversation(r *fastglue.Request) error {
 		CustomAttributes: json.RawMessage(`{}`),
 	}
 	// Reuse an existing contact as-is; this endpoint is gated only on conversations:write and must never rename a contact.
-	existing, err := app.user.GetContactByEmail(email)
+	// Match by external_user_id when provided - one email can map to multiple external IDs.
+	var existing umodels.User
+	if req.ExternalUserID != "" {
+		existing, err = app.user.GetByExternalID(req.ExternalUserID)
+	} else {
+		existing, err = app.user.GetContactByEmail(email)
+	}
 	if err != nil {
 		if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
 			return sendErrorEnvelope(r, err)
