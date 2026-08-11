@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"mime"
 	"slices"
 	"strconv"
 	"strings"
@@ -357,7 +358,7 @@ func handleDownloadConversationTranscript(r *fastglue.Request) error {
 	transcript := app.conversation.BuildTranscript(*conversation, messages, time.Now())
 	safeRef := stringutil.SanitizeFilename(conversation.ReferenceNumber)
 	filename := fmt.Sprintf("transcript-%s.txt", safeRef)
-	r.RequestCtx.Response.Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	r.RequestCtx.Response.Header.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
 	r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
 	r.RequestCtx.SetContentType("text/plain; charset=utf-8")
 	r.RequestCtx.SetBody(transcript)

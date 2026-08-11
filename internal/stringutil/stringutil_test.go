@@ -271,6 +271,40 @@ func TestSanitizeUTF8(t *testing.T) {
 	}
 }
 
+func TestSanitizeFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"plain ascii", "report.pdf", "report.pdf"},
+		{"case preserved", "Report.PDF", "Report.PDF"},
+		{"cyrillic preserved", "Документ_Иванов.pdf", "Документ_Иванов.pdf"},
+		{"chinese with space", "报告 2024.xlsx", "报告-2024.xlsx"},
+		{"spaces collapse to hyphen", "my  file name.txt", "my-file-name.txt"},
+		{"path traversal", "../../etc/passwd", "passwd"},
+		{"windows path stripped to base name", `dir\sub\file.txt`, "file.txt"},
+		{"control chars stripped", "a\r\nb\x00c.pdf", "a-bc.pdf"},
+		{"empty", "", "attachment"},
+		{"whitespace only", "   ", "attachment"},
+		{"dot only", ".", "attachment"},
+		{"dot dot", "..", "attachment"},
+		{"slash only", "/", "attachment"},
+		{"slashes only", "///", "attachment"},
+		{"backslash only", `\`, "attachment"},
+		{"c1 control stripped", "a\u0085b.pdf", "ab.pdf"},
+		{"invalid utf8 replaced", "rapport\xe9.pdf", "rapport�.pdf"},
+		{"emoji preserved", "photo😀.jpg", "photo😀.jpg"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SanitizeFilename(tt.input); got != tt.expected {
+				t.Errorf("SanitizeFilename(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestSplitName(t *testing.T) {
 	tests := []struct {
 		name      string
