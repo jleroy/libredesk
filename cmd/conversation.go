@@ -797,7 +797,6 @@ func handleCreateConversation(r *fastglue.Request) error {
 
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
-	// Validate the request
 	if err := validateCreateConversationRequest(req, app); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -819,6 +818,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 	// Only contacts:write callers may change a contact's name/email; others must reuse the contact untouched.
 	canWriteContacts, err := app.authz.Enforce(user, "contacts", "write")
 	if err != nil {
+		app.lo.Error("error checking permission", "error", err)
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 	}
 	if canWriteContacts {
@@ -900,7 +900,6 @@ func handleCreateConversation(r *fastglue.Request) error {
 	return r.SendEnvelope(conversation)
 }
 
-// validateCreateConversationRequest validates the create conversation request fields.
 func validateCreateConversationRequest(req createConversationRequest, app *App) error {
 	if req.InboxID <= 0 {
 		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "`inbox_id`"), nil)

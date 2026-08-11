@@ -13,12 +13,6 @@ import (
 
 // GetOrCreateContact resolves user.ID to an existing contact, inserting one only if absent, never updating an existing row.
 func (u *Manager) GetOrCreateContact(user *models.User) error {
-	password, err := u.generatePassword()
-	if err != nil {
-		u.lo.Error("generating password", "error", err)
-		return fmt.Errorf("generating password: %w", err)
-	}
-
 	if len(user.CustomAttributes) == 0 {
 		user.CustomAttributes = []byte("{}")
 	}
@@ -46,6 +40,12 @@ func (u *Manager) GetOrCreateContact(user *models.User) error {
 	}
 	if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
 		return err
+	}
+
+	password, err := u.generatePassword()
+	if err != nil {
+		u.lo.Error("generating password", "error", err)
+		return fmt.Errorf("generating password: %w", err)
 	}
 
 	err = u.q.InsertContactIfAbsent.QueryRow(user.Email, user.FirstName, user.LastName, password, user.AvatarURL, user.ExternalUserID, user.CustomAttributes).Scan(&user.ID)
