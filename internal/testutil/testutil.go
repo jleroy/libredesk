@@ -1,6 +1,4 @@
-// Package testutil provides a Postgres test harness for integration tests.
-// Start a database with `make test-db` (or point LIBREDESK_TEST_DB_DSN at any
-// Postgres superuser); tests skip when none is reachable.
+// Package testutil provides a Postgres test harness for integration tests: start one with `make test-db` or set LIBREDESK_TEST_DB_DSN, else tests skip.
 package testutil
 
 import (
@@ -12,7 +10,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-i18n"
-	"github.com/zerodha/logf"
 
 	_ "github.com/lib/pq"
 )
@@ -70,13 +67,6 @@ func NewI18n(t *testing.T) *i18n.I18n {
 		t.Fatalf("loading i18n: %v", err)
 	}
 	return mgr
-}
-
-// NewLogger returns a logger for constructing managers in tests.
-func NewLogger(t *testing.T) *logf.Logger {
-	t.Helper()
-	lo := logf.New(logf.Opts{})
-	return &lo
 }
 
 // repoRoot walks up from the working directory to the go.mod directory.

@@ -45,7 +45,6 @@ func (u *Manager) UpdateContact(id int, user models.User) error {
 	return nil
 }
 
-// GetAllContacts returns a list of all contacts.
 func (u *Manager) GetContacts(page, pageSize int, order, orderBy string, filtersJSON, location string) ([]models.UserCompact, error) {
 	if pageSize > maxListPageSize {
 		pageSize = maxListPageSize
@@ -61,9 +60,13 @@ func (u *Manager) GetContacts(page, pageSize int, order, orderBy string, filters
 
 // reuseContact resolves to an existing contact without ever updating it, inserting one only if absent.
 func (u *Manager) reuseContact(user *models.User) error {
+	// An unknown ext_id falls back to the email lookup, else a duplicate contact with the same email gets inserted.
 	lookup := func() (models.User, error) {
 		if user.ExternalUserID.String != "" {
-			return u.GetContactByExternalID(user.ExternalUserID.String)
+			existing, err := u.GetContactByExternalID(user.ExternalUserID.String)
+			if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError || user.Email.String == "" {
+				return existing, err
+			}
 		}
 		return u.GetContactByEmail(user.Email.String)
 	}
@@ -84,10 +87,9 @@ func (u *Manager) reuseContact(user *models.User) error {
 		return err
 	}
 
-	password, err := u.generatePassword()
+	password, err := u.newContactPassword()
 	if err != nil {
-		u.lo.Error("generating password", "error", err)
-		return fmt.Errorf("generating password: %w", err)
+		return err
 	}
 
 	err = u.q.InsertContactIfAbsent.QueryRow(user.Email, user.FirstName, user.LastName, password, user.AvatarURL, user.ExternalUserID, user.CustomAttributes).Scan(&user.ID)
@@ -132,10 +134,9 @@ func (u *Manager) syncContact(user *models.User) error {
 			}
 		}
 
-		password, err := u.generatePassword()
+		password, err := u.newContactPassword()
 		if err != nil {
-			u.lo.Error("generating password", "error", err)
-			return fmt.Errorf("generating password: %w", err)
+			return err
 		}
 
 		// Upsert by ext_id - creates new or updates email/name on ext_id conflict.
@@ -162,10 +163,9 @@ func (u *Manager) syncContact(user *models.User) error {
 		}
 	}
 
-	password, err := u.generatePassword()
+	password, err := u.newContactPassword()
 	if err != nil {
-		u.lo.Error("generating password", "error", err)
-		return fmt.Errorf("generating password: %w", err)
+		return err
 	}
 
 	// No ext_id contact for this email - insert new, or update the existing no-ext-id contact's name.
@@ -174,4 +174,13 @@ func (u *Manager) syncContact(user *models.User) error {
 		return fmt.Errorf("insert contact: %w", err)
 	}
 	return nil
+}
+
+func (u *Manager) newContactPassword() ([]byte, error) {
+	password, err := u.generatePassword()
+	if err != nil {
+		u.lo.Error("generating password", "error", err)
+		return nil, fmt.Errorf("generating password: %w", err)
+	}
+	return password, nil
 }

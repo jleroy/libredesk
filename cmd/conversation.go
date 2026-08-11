@@ -52,6 +52,7 @@ type createConversationRequest struct {
 	FirstName        string         `json:"first_name"`
 	LastName         string         `json:"last_name"`
 	ExternalUserID   string         `json:"external_user_id"`
+	ReuseContact     bool           `json:"reuse_contact"`
 	Subject          string         `json:"subject"`
 	Content          string         `json:"content"`
 	Attachments      []int          `json:"attachments"`
@@ -815,14 +816,13 @@ func handleCreateConversation(r *fastglue.Request) error {
 		ExternalUserID:   null.NewString(req.ExternalUserID, req.ExternalUserID != ""),
 		CustomAttributes: json.RawMessage(`{}`),
 	}
-	// Only contacts:write callers may change a contact's name/email; others must reuse the contact untouched.
 	canWriteContacts, err := app.authz.Enforce(user, "contacts", "write")
 	if err != nil {
 		app.lo.Error("error checking permission", "error", err)
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 	}
 	policy := umodels.ContactReuse
-	if canWriteContacts {
+	if canWriteContacts && !req.ReuseContact {
 		policy = umodels.ContactSync
 	}
 	if err := app.user.ResolveContact(&contact, policy); err != nil {

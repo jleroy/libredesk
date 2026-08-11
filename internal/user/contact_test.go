@@ -8,6 +8,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/jmoiron/sqlx"
 	"github.com/volatiletech/null/v9"
+	"github.com/zerodha/logf"
 )
 
 type userRow struct {
@@ -21,7 +22,8 @@ type userRow struct {
 func newTestManager(t *testing.T) (*Manager, *sqlx.DB) {
 	t.Helper()
 	db := testutil.NewDB(t, "user_contact")
-	mgr, err := New(testutil.NewI18n(t), Opts{DB: db, Lo: testutil.NewLogger(t)})
+	lo := logf.New(logf.Opts{})
+	mgr, err := New(testutil.NewI18n(t), Opts{DB: db, Lo: &lo})
 	if err != nil {
 		t.Fatalf("creating user manager: %v", err)
 	}
@@ -123,6 +125,16 @@ func TestResolveContactReuse(t *testing.T) {
 	}
 	if r := fetchRow(t, db, bob.ID); r.Email != "bob@example.com" {
 		t.Fatalf("reuse policy modified stored email: %+v", r)
+	}
+
+	// An unknown ext_id with an existing contact's email falls back to the email match instead of inserting a duplicate.
+	staleExt := newContact("alice@example.com", "ext-unknown", "A", "")
+	resolve(t, u, staleExt, models.ContactReuse)
+	if staleExt.ID != alice.ID {
+		t.Fatalf("expected email fallback to contact %d, got %d", alice.ID, staleExt.ID)
+	}
+	if n := countByEmail(t, db, "alice@example.com"); n != 1 {
+		t.Fatalf("unknown ext_id created a duplicate contact, got %d rows", n)
 	}
 
 	// Plain email reuse also matches a contact that has an ext_id.

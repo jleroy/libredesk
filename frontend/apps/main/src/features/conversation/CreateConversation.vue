@@ -474,6 +474,8 @@ const createConversation = form.handleSubmit(async (values) => {
     if (selectedContact.value?.external_user_id) {
       values.external_user_id = selectedContact.value.external_user_id
     }
+    // Form data is a snapshot from search; never let it overwrite the stored contact.
+    values.reuse_contact = true
     // Initiator of this conversation is always agent
     values.initiator = UserTypeAgent
     const conversation = await api.createConversation(values)
