@@ -826,22 +826,9 @@ func handleCreateConversation(r *fastglue.Request) error {
 			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 		}
 	} else {
-		// Match by external_user_id when provided - one email can map to multiple external IDs.
-		var existing umodels.User
-		if req.ExternalUserID != "" {
-			existing, err = app.user.GetByExternalID(req.ExternalUserID)
-		} else {
-			existing, err = app.user.GetContactByEmail(email)
-		}
-		if err != nil {
-			if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
-				return sendErrorEnvelope(r, err)
-			}
-			if err := app.user.CreateContact(&contact); err != nil {
-				return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
-			}
-		} else {
-			contact.ID = existing.ID
+		// Matches by external_user_id when provided - one email can map to multiple external IDs.
+		if err := app.user.GetOrCreateContact(&contact); err != nil {
+			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 		}
 	}
 

@@ -187,6 +187,12 @@ DO UPDATE SET first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first
               updated_at = now()
 RETURNING id;
 
+-- name: insert-contact-if-absent
+INSERT INTO users (email, type, first_name, last_name, "password", avatar_url, external_user_id, custom_attributes)
+VALUES ($1, 'contact', $2, $3, $4, $5, $6, $7)
+ON CONFLICT DO NOTHING
+RETURNING id;
+
 -- name: get-contact-by-email
 SELECT id, external_user_id FROM users
 WHERE email = $1 AND type = 'contact' AND deleted_at IS NULL

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,54 @@ import (
 	"github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/volatiletech/null/v9"
 )
+
+// GetOrCreateContact resolves user.ID to an existing contact, inserting one only if absent, never updating an existing row.
+func (u *Manager) GetOrCreateContact(user *models.User) error {
+	password, err := u.generatePassword()
+	if err != nil {
+		u.lo.Error("generating password", "error", err)
+		return fmt.Errorf("generating password: %w", err)
+	}
+
+	if len(user.CustomAttributes) == 0 {
+		user.CustomAttributes = []byte("{}")
+	}
+
+	user.Email = null.NewString(strings.ToLower(strings.TrimSpace(user.Email.String)), user.Email.Valid)
+
+	lookup := func() (models.User, error) {
+		if user.ExternalUserID.String != "" {
+			return u.GetByExternalID(user.ExternalUserID.String)
+		}
+		return u.GetContactByEmail(user.Email.String)
+	}
+
+	existing, err := lookup()
+	if err == nil {
+		user.ID = existing.ID
+		return nil
+	}
+	if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
+		return err
+	}
+
+	err = u.q.InsertContactIfAbsent.QueryRow(user.Email, user.FirstName, user.LastName, password, user.AvatarURL, user.ExternalUserID, user.CustomAttributes).Scan(&user.ID)
+	if err == nil {
+		return nil
+	}
+	if err != sql.ErrNoRows {
+		u.lo.Error("error inserting contact", "error", err)
+		return fmt.Errorf("insert contact: %w", err)
+	}
+
+	// No returned row means a concurrent request inserted the contact - reuse it.
+	existing, err = lookup()
+	if err != nil {
+		return err
+	}
+	user.ID = existing.ID
+	return nil
+}
 
 func (u *Manager) CreateContact(user *models.User) error {
 	password, err := u.generatePassword()
