@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net/mail"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -21,11 +21,11 @@ const (
 )
 
 var (
-	regexpNonAlNum  = regexp.MustCompile(`[^a-zA-Z0-9\-_\.]+`)
-	regexpSpaces    = regexp.MustCompile(`[\s]+`)
-	uuidV4Regex     = regexp.MustCompile(`[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[89abAB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}`)
-	regexpRefNumber = regexp.MustCompile(`#(\d+)`)
-	regexpConvUUID  = regexp.MustCompile(`(?i)\+conv-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}@`)
+	regexpUnsafeFileChars = regexp.MustCompile(`[\x00-\x1f\x7f\x{80}-\x{9f}]+`)
+	regexpSpaces          = regexp.MustCompile(`[\s]+`)
+	uuidV4Regex           = regexp.MustCompile(`[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-4[a-fA-F0-9]{3}-[89abAB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}`)
+	regexpRefNumber       = regexp.MustCompile(`#(\d+)`)
+	regexpConvUUID        = regexp.MustCompile(`(?i)\+conv-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}@`)
 
 	// markdownRenderer escapes raw HTML in the input; single newlines render as <br>.
 	markdownRenderer = goldmark.New(
@@ -57,20 +57,16 @@ func Markdown2HTML(md string) string {
 	return b.String()
 }
 
-// SanitizeFilename sanitizes the provided filename.
+// SanitizeFilename removes control characters and path separators, preserving Unicode.
 func SanitizeFilename(fName string) string {
-	// Trim whitespace.
-	name := strings.TrimSpace(fName)
-
-	// Replace whitespace and "/" with "-"
+	name := strings.TrimSpace(SanitizeUTF8(fName))
+	name = path.Base(strings.ReplaceAll(name, `\`, "/"))
 	name = regexpSpaces.ReplaceAllString(name, "-")
-
-	// Remove or replace any non-alphanumeric characters
-	name = regexpNonAlNum.ReplaceAllString(name, "")
-
-	// Convert to lowercase
-	name = strings.ToLower(name)
-	return filepath.Base(name)
+	name = regexpUnsafeFileChars.ReplaceAllString(name, "")
+	if name == "" || name == "." || name == ".." || name == "/" {
+		return "attachment"
+	}
+	return name
 }
 
 // RandomAlphanumeric generates a random alphanumeric string of length n.
