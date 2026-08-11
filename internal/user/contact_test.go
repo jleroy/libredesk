@@ -1,25 +1,13 @@
 package user
 
 import (
-	"fmt"
-	"net/url"
-	"os"
 	"sync"
 	"testing"
 
+	"github.com/abhinavxd/libredesk/internal/testutil"
 	"github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/go-i18n"
 	"github.com/volatiletech/null/v9"
-	"github.com/zerodha/logf"
-
-	_ "github.com/lib/pq"
-)
-
-const (
-	testDBDSNEnv     = "LIBREDESK_TEST_DB_DSN"
-	testDBDefaultDSN = "postgres://libredesk:libredesk@127.0.0.1:5432/libredesk?sslmode=disable&connect_timeout=3"
-	testDBName       = "libredesk_contact_test"
 )
 
 type userRow struct {
@@ -30,49 +18,10 @@ type userRow struct {
 	Type      string
 }
 
-// newTestManager provisions a fresh test database with schema.sql applied and returns a Manager on it.
 func newTestManager(t *testing.T) (*Manager, *sqlx.DB) {
 	t.Helper()
-
-	dsn := os.Getenv(testDBDSNEnv)
-	if dsn == "" {
-		dsn = testDBDefaultDSN
-	}
-	admin, err := sqlx.Connect("postgres", dsn)
-	if err != nil {
-		t.Skipf("test database unreachable, set %s or start the dev postgres: %v", testDBDSNEnv, err)
-	}
-	defer admin.Close()
-
-	admin.MustExec(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1`, testDBName)
-	admin.MustExec(fmt.Sprintf(`DROP DATABASE IF EXISTS %s`, testDBName))
-	admin.MustExec(fmt.Sprintf(`CREATE DATABASE %s`, testDBName))
-
-	u, err := url.Parse(dsn)
-	if err != nil {
-		t.Fatalf("parsing test DSN: %v", err)
-	}
-	u.Path = "/" + testDBName
-	db, err := sqlx.Connect("postgres", u.String())
-	if err != nil {
-		t.Fatalf("connecting to test database: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-
-	schema, err := os.ReadFile("../../schema.sql")
-	if err != nil {
-		t.Fatalf("reading schema.sql: %v", err)
-	}
-	if _, err := db.Exec(string(schema)); err != nil {
-		t.Fatalf("applying schema.sql: %v", err)
-	}
-
-	i18nMgr, err := i18n.NewFromFile("../../i18n/en-US.json")
-	if err != nil {
-		t.Fatalf("loading i18n: %v", err)
-	}
-	lo := logf.New(logf.Opts{})
-	mgr, err := New(i18nMgr, Opts{DB: db, Lo: &lo})
+	db := testutil.NewDB(t, "user_contact")
+	mgr, err := New(testutil.NewI18n(t), Opts{DB: db, Lo: testutil.NewLogger(t)})
 	if err != nil {
 		t.Fatalf("creating user manager: %v", err)
 	}
