@@ -471,6 +471,9 @@ const createConversation = form.handleSubmit(async (values) => {
     values.agent_id = values.agent_id ? Number(values.agent_id) : null
     // Array of attachment ids.
     values.attachments = mediaFiles.value.map((file) => file.id)
+    if (selectedContact.value?.external_user_id) {
+      values.external_user_id = selectedContact.value.external_user_id
+    }
     // Initiator of this conversation is always agent
     values.initiator = UserTypeAgent
     const conversation = await api.createConversation(values)

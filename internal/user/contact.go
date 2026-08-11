@@ -32,9 +32,16 @@ func (u *Manager) GetOrCreateContact(user *models.User) error {
 		return u.GetContactByEmail(user.Email.String)
 	}
 
+	reuse := func(existing models.User) {
+		user.ID = existing.ID
+		if existing.Email.String != "" {
+			user.Email = existing.Email
+		}
+	}
+
 	existing, err := lookup()
 	if err == nil {
-		user.ID = existing.ID
+		reuse(existing)
 		return nil
 	}
 	if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
@@ -55,7 +62,7 @@ func (u *Manager) GetOrCreateContact(user *models.User) error {
 	if err != nil {
 		return err
 	}
-	user.ID = existing.ID
+	reuse(existing)
 	return nil
 }
 

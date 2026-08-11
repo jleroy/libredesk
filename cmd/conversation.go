@@ -830,6 +830,10 @@ func handleCreateConversation(r *fastglue.Request) error {
 		if err := app.user.GetOrCreateContact(&contact); err != nil {
 			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 		}
+		// A contact matched by external ID keeps its stored email as the recipient.
+		if contact.Email.String != "" {
+			to = []string{contact.Email.String}
+		}
 	}
 
 	// Create conversation first.
