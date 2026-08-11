@@ -80,6 +80,16 @@ func insertAgent(t *testing.T, db *sqlx.DB, email, extID string) int {
 	return id
 }
 
+func insertVisitor(t *testing.T, db *sqlx.DB, email string) int {
+	t.Helper()
+	var id int
+	err := db.QueryRow(`INSERT INTO users (type, email, first_name) VALUES ('visitor', $1, 'Visitor') RETURNING id`, email).Scan(&id)
+	if err != nil {
+		t.Fatalf("inserting visitor: %v", err)
+	}
+	return id
+}
+
 func TestResolveContactReuse(t *testing.T) {
 	u, db := newTestManager(t)
 
@@ -170,6 +180,72 @@ func TestResolveContactReuse(t *testing.T) {
 	resolve(t, u, dave2, models.ContactReuse)
 	if dave2.ID == dave.ID {
 		t.Fatalf("resolved a soft-deleted contact %d", dave.ID)
+	}
+
+	stale2 := newContact("bob@example.com", "ext-unknown-2", "B", "")
+	resolve(t, u, stale2, models.ContactReuse)
+	if stale2.ID != bob.ID {
+		t.Fatalf("expected email fallback to contact %d, got %d", bob.ID, stale2.ID)
+	}
+	if r := fetchRow(t, db, bob.ID); r.ExtID != "ext-bob" {
+		t.Fatalf("email fallback modified the contact's ext_id: %+v", r)
+	}
+	if r := fetchRow(t, db, alice.ID); r.ExtID != "" {
+		t.Fatalf("earlier fallback wrote the unknown ext_id onto the contact: %+v", r)
+	}
+
+	shared := newContact("shared@example.com", "", "Plain", "")
+	resolve(t, u, shared, models.ContactSync)
+	sharedExt := newContact("shared2@example.com", "ext-shared", "Ext", "")
+	resolve(t, u, sharedExt, models.ContactSync)
+	moved := newContact("shared@example.com", "ext-shared", "Ext", "")
+	resolve(t, u, moved, models.ContactSync)
+	if moved.ID != sharedExt.ID || moved.ID == shared.ID {
+		t.Fatalf("setup: expected the ext contact to take the shared email, got %d", moved.ID)
+	}
+	for range 3 {
+		pick := newContact("shared@example.com", "", "P", "")
+		resolve(t, u, pick, models.ContactReuse)
+		if pick.ID != sharedExt.ID {
+			t.Fatalf("email match on a shared email is not deterministic: expected %d, got %d", sharedExt.ID, pick.ID)
+		}
+	}
+
+	gone := newContact("gone@example.com", "ext-gone", "Gone", "")
+	resolve(t, u, gone, models.ContactReuse)
+	db.MustExec(`UPDATE users SET deleted_at = now() WHERE id = $1`, gone.ID)
+	afterGone := newContact("alice@example.com", "ext-gone", "A", "")
+	resolve(t, u, afterGone, models.ContactReuse)
+	if afterGone.ID != alice.ID {
+		t.Fatalf("expected email fallback past the deleted ext_id owner to %d, got %d", alice.ID, afterGone.ID)
+	}
+
+	// A deleted contact's ext_id is reusable without a unique violation.
+	reborn := newContact("reborn@example.com", "ext-gone", "Reborn", "")
+	resolve(t, u, reborn, models.ContactReuse)
+	if reborn.ID == gone.ID {
+		t.Fatalf("resurrected the soft-deleted contact %d", gone.ID)
+	}
+	if r := fetchRow(t, db, reborn.ID); r.ExtID != "ext-gone" {
+		t.Fatalf("expected the freed ext_id on the new contact, got %+v", r)
+	}
+
+	anon := newContact("", "ext-anon", "Anon", "")
+	resolve(t, u, anon, models.ContactReuse)
+	anon2 := newContact("", "ext-anon", "Anon", "")
+	resolve(t, u, anon2, models.ContactReuse)
+	if anon2.ID != anon.ID {
+		t.Fatalf("email-less ext_id resolve duplicated the contact: %d vs %d", anon.ID, anon2.ID)
+	}
+
+	visitorID := insertVisitor(t, db, "visitor@example.com")
+	viaEmail := newContact("visitor@example.com", "", "V", "")
+	resolve(t, u, viaEmail, models.ContactReuse)
+	if viaEmail.ID == visitorID {
+		t.Fatalf("resolved a visitor (%d) as a contact", visitorID)
+	}
+	if r := fetchRow(t, db, viaEmail.ID); r.Type != "contact" {
+		t.Fatalf("expected a contact row, got %+v", r)
 	}
 }
 
@@ -268,6 +344,37 @@ func TestResolveContactSync(t *testing.T) {
 	}
 	if r := fetchRow(t, db, agentID); r.FirstName != "Agent" {
 		t.Fatalf("sync modified an agent row: %+v", r)
+	}
+
+	dead := newContact("dead@example.com", "", "Dead", "")
+	resolve(t, u, dead, models.ContactSync)
+	db.MustExec(`UPDATE users SET deleted_at = now() WHERE id = $1`, dead.ID)
+	fresh := newContact("dead@example.com", "", "Fresh", "")
+	resolve(t, u, fresh, models.ContactSync)
+	if fresh.ID == dead.ID {
+		t.Fatalf("sync resurrected the soft-deleted contact %d", dead.ID)
+	}
+
+	deadExt := newContact("deadext@example.com", "ext-dead", "Dead", "")
+	resolve(t, u, deadExt, models.ContactSync)
+	db.MustExec(`UPDATE users SET deleted_at = now() WHERE id = $1`, deadExt.ID)
+	freshExt := newContact("deadext2@example.com", "ext-dead", "Fresh", "")
+	resolve(t, u, freshExt, models.ContactSync)
+	if freshExt.ID == deadExt.ID {
+		t.Fatalf("sync resurrected the soft-deleted contact %d", deadExt.ID)
+	}
+	if r := fetchRow(t, db, freshExt.ID); r.ExtID != "ext-dead" || r.Email != "deadext2@example.com" {
+		t.Fatalf("expected the freed ext_id on a fresh contact, got %+v", r)
+	}
+
+	visitorID := insertVisitor(t, db, "visitor2@example.com")
+	viaEmail := newContact("visitor2@example.com", "ext-visitor", "V", "")
+	resolve(t, u, viaEmail, models.ContactSync)
+	if viaEmail.ID == visitorID {
+		t.Fatalf("resolved a visitor (%d) as a contact", visitorID)
+	}
+	if r := fetchRow(t, db, visitorID); r.ExtID != "" {
+		t.Fatalf("sync enriched a visitor row: %+v", r)
 	}
 }
 
