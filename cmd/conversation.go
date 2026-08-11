@@ -52,6 +52,7 @@ type createConversationRequest struct {
 	FirstName        string         `json:"first_name"`
 	LastName         string         `json:"last_name"`
 	ExternalUserID   string         `json:"external_user_id"`
+	ReuseContact     bool           `json:"reuse_contact"`
 	Subject          string         `json:"subject"`
 	Content          string         `json:"content"`
 	Attachments      []int          `json:"attachments"`
@@ -797,7 +798,6 @@ func handleCreateConversation(r *fastglue.Request) error {
 
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
-	// Validate the request
 	if err := validateCreateConversationRequest(req, app); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -816,17 +816,21 @@ func handleCreateConversation(r *fastglue.Request) error {
 		ExternalUserID:   null.NewString(req.ExternalUserID, req.ExternalUserID != ""),
 		CustomAttributes: json.RawMessage(`{}`),
 	}
-	// Reuse an existing contact as-is; this endpoint is gated only on conversations:write and must never rename a contact.
-	existing, err := app.user.GetContactByEmail(email)
+	canWriteContacts, err := app.authz.Enforce(user, "contacts", "write")
 	if err != nil {
-		if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
-			return sendErrorEnvelope(r, err)
-		}
-		if err := app.user.CreateContact(&contact); err != nil {
-			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
-		}
-	} else {
-		contact.ID = existing.ID
+		app.lo.Error("error checking permission", "error", err)
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+	}
+	policy := umodels.ContactReuse
+	if canWriteContacts && !req.ReuseContact {
+		policy = umodels.ContactSync
+	}
+	if err := app.user.ResolveContact(&contact, policy); err != nil {
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+	}
+	// A contact matched by external ID keeps its stored email as the recipient.
+	if policy == umodels.ContactReuse && contact.Email.String != "" {
+		to = []string{contact.Email.String}
 	}
 
 	// Create conversation first.
@@ -893,7 +897,6 @@ func handleCreateConversation(r *fastglue.Request) error {
 	return r.SendEnvelope(conversation)
 }
 
-// validateCreateConversationRequest validates the create conversation request fields.
 func validateCreateConversationRequest(req createConversationRequest, app *App) error {
 	if req.InboxID <= 0 {
 		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "`inbox_id`"), nil)

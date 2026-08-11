@@ -811,7 +811,7 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 			Email:     in.Contact.Email,
 			Type:      umodels.UserTypeContact,
 		}
-		if err := m.userStore.CreateContact(&user); err != nil {
+		if err := m.userStore.ResolveContact(&user, umodels.ContactSync); err != nil {
 			m.lo.Error("error creating contact for incoming message", "message_source_id", in.SourceID.String, "error", err)
 			return models.Message{}, fmt.Errorf("creating contact: %w", err)
 		}
@@ -912,7 +912,7 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 	conversationUUID = conversation.UUID
 	senderID = conversation.Contact.ID
 
-	// Already a contact - if same email, return as sender. If different email, let CreateContact resolve actual sender.
+	// Already a contact - if same email, return as sender. If different email, let contact resolution find the actual sender.
 	if conversation.Contact.Type == umodels.UserTypeContact {
 		if !strings.EqualFold(conversation.Contact.Email.String, in.Contact.Email.String) {
 			return 0, conversationID, conversationUUID, nil
@@ -930,7 +930,7 @@ func (m *Manager) resolveByPlusAddress(in *models.IncomingMessage) (senderID, co
 	if contactErr == nil {
 		m.lo.Debug("a contact already exists with the same email as visitor; not upgrading visitor", "conversation_uuid", conversation.UUID, "contact_email", in.Contact.Email.String, "contact_user_id", user.ID)
 		// A contact with this email already exists; don't upgrade visitor.
-		// Let CreateContact resolve the correct sender ID.
+		// Let contact resolution find the correct sender ID.
 		return 0, conversationID, conversationUUID, nil
 	}
 
