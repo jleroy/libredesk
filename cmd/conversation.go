@@ -821,19 +821,16 @@ func handleCreateConversation(r *fastglue.Request) error {
 		app.lo.Error("error checking permission", "error", err)
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 	}
+	policy := umodels.ContactReuse
 	if canWriteContacts {
-		if err := app.user.CreateContact(&contact); err != nil {
-			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
-		}
-	} else {
-		// Matches by external_user_id when provided - one email can map to multiple external IDs.
-		if err := app.user.GetOrCreateContact(&contact); err != nil {
-			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
-		}
-		// A contact matched by external ID keeps its stored email as the recipient.
-		if contact.Email.String != "" {
-			to = []string{contact.Email.String}
-		}
+		policy = umodels.ContactSync
+	}
+	if err := app.user.ResolveContact(&contact, policy); err != nil {
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+	}
+	// A contact matched by external ID keeps its stored email as the recipient.
+	if policy == umodels.ContactReuse && contact.Email.String != "" {
+		to = []string{contact.Email.String}
 	}
 
 	// Create conversation first.

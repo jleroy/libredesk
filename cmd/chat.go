@@ -795,7 +795,7 @@ func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
 			ExternalUserID:         null.NewString(claims.ExternalUserID, true),
 			CustomAttributes:       marshalCustomAttributes(claims.ContactCustomAttributes, app),
 		}
-		if err := app.user.CreateContact(&user); err != nil {
+		if err := app.user.ResolveContact(&user, umodels.ContactSync); err != nil {
 			return 0, err
 		}
 		return user.ID, nil
