@@ -243,6 +243,7 @@
               :handleFileUpload="handleFileUpload"
               @emojiSelect="handleEmojiSelect"
               :showSendButton="false"
+              :showGenerateReply="false"
             />
             <Button type="submit" :disabled="isDisabled" :isLoading="loading">
               {{ $t('globals.messages.submit') }}
