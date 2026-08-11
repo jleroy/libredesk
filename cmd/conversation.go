@@ -816,23 +816,34 @@ func handleCreateConversation(r *fastglue.Request) error {
 		ExternalUserID:   null.NewString(req.ExternalUserID, req.ExternalUserID != ""),
 		CustomAttributes: json.RawMessage(`{}`),
 	}
-	// Reuse an existing contact as-is; this endpoint is gated only on conversations:write and must never rename a contact.
-	// Match by external_user_id when provided - one email can map to multiple external IDs.
-	var existing umodels.User
-	if req.ExternalUserID != "" {
-		existing, err = app.user.GetByExternalID(req.ExternalUserID)
-	} else {
-		existing, err = app.user.GetContactByEmail(email)
-	}
+	// Callers with contacts:write may update the contact's name/email via the CreateContact upsert;
+	// others only reuse the existing contact as-is.
+	canWriteContacts, err := app.authz.Enforce(user, "contacts", "write")
 	if err != nil {
-		if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
-			return sendErrorEnvelope(r, err)
-		}
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+	}
+	if canWriteContacts {
 		if err := app.user.CreateContact(&contact); err != nil {
 			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 		}
 	} else {
-		contact.ID = existing.ID
+		// Match by external_user_id when provided - one email can map to multiple external IDs.
+		var existing umodels.User
+		if req.ExternalUserID != "" {
+			existing, err = app.user.GetByExternalID(req.ExternalUserID)
+		} else {
+			existing, err = app.user.GetContactByEmail(email)
+		}
+		if err != nil {
+			if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
+				return sendErrorEnvelope(r, err)
+			}
+			if err := app.user.CreateContact(&contact); err != nil {
+				return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+			}
+		} else {
+			contact.ID = existing.ID
+		}
 	}
 
 	// Create conversation first.
