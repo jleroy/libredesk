@@ -206,8 +206,8 @@ func (u *Manager) GetSystemUser() (models.User, error) {
 	return u.Get(0, models.SystemUserEmail, []string{models.UserTypeAgent})
 }
 
-// GetByExternalID retrieves a user by external user ID.
-func (u *Manager) GetByExternalID(externalUserID string) (models.User, error) {
+// GetContactByExternalID retrieves a contact by external user ID.
+func (u *Manager) GetContactByExternalID(externalUserID string) (models.User, error) {
 	var user models.User
 	if err := u.q.GetUserByExternalID.Get(&user, externalUserID); err != nil {
 		if err == sql.ErrNoRows {

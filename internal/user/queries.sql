@@ -381,6 +381,7 @@ LEFT JOIN roles r ON r.id = ur.role_id
 LEFT JOIN LATERAL unnest(r.permissions) AS p ON true
 WHERE u.deleted_at IS NULL
     AND u.external_user_id = $1
+    AND u.type = 'contact'
 GROUP BY u.id;
 
 -- name: get-visitor-by-email

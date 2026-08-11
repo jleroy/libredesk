@@ -21,7 +21,7 @@ func (u *Manager) GetOrCreateContact(user *models.User) error {
 
 	lookup := func() (models.User, error) {
 		if user.ExternalUserID.String != "" {
-			return u.GetByExternalID(user.ExternalUserID.String)
+			return u.GetContactByExternalID(user.ExternalUserID.String)
 		}
 		return u.GetContactByEmail(user.Email.String)
 	}
