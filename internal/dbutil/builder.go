@@ -151,6 +151,38 @@ func BuildPaginatedQuery(baseQuery string, existingArgs []any, opts PaginationOp
 	return query, args, nil
 }
 
+// BuildFilterQuery appends validated filter conditions to a base query without pagination
+// or ordering. Conditions are appended with AND, so baseQuery must already contain a WHERE
+// clause. Placeholders continue after existingArgs, letting callers combine several built
+// queries into one statement.
+func BuildFilterQuery(baseQuery string, existingArgs []any, filtersJSON string, allowedFields AllowedFields, renderers FieldRenderers, loc string) (string, []any, error) {
+	if filtersJSON == "" {
+		filtersJSON = "[]"
+	}
+
+	root, err := parseFilters(filtersJSON)
+	if err != nil {
+		return "", nil, err
+	}
+
+	loc = stringutil.NormalizeTimezone(loc)
+
+	whereClause, filterArgs, err := buildWhereClause(root, existingArgs, allowedFields, renderers, loc)
+	if err != nil {
+		return "", nil, err
+	}
+
+	query := baseQuery
+	args := existingArgs
+
+	if whereClause != "" {
+		query += " AND " + whereClause
+		args = append(args, filterArgs...)
+	}
+
+	return query, args, nil
+}
+
 // ValidateFilters parses and structurally validates a filters payload without running a query.
 func ValidateFilters(filtersJSON string, allowedFields AllowedFields, renderers FieldRenderers) error {
 	root, err := parseFilters(filtersJSON)

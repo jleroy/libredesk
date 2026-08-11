@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"mime"
 	"slices"
 	"strconv"
 	"strings"
@@ -53,7 +52,6 @@ type createConversationRequest struct {
 	FirstName        string         `json:"first_name"`
 	LastName         string         `json:"last_name"`
 	ExternalUserID   string         `json:"external_user_id"`
-	ReuseContact     bool           `json:"reuse_contact"`
 	Subject          string         `json:"subject"`
 	Content          string         `json:"content"`
 	Attachments      []int          `json:"attachments"`
@@ -265,6 +263,40 @@ func handleGetViewConversations(r *fastglue.Request) error {
 	})
 }
 
+// handleGetSidebarCounts returns open-conversation counts for inbox sidebar badges.
+func handleGetSidebarCounts(r *fastglue.Request) error {
+	var (
+		app   = r.Context.(*App)
+		auser = r.RequestCtx.UserValue("user").(amodels.User)
+	)
+
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	personalViews, err := app.view.GetUsersViews(auser.ID)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	sharedViews, err := app.view.GetSharedViewsForUser(user.Teams.IDs())
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	allViews := make([]vmodels.View, 0, len(personalViews)+len(sharedViews))
+	allViews = append(allViews, personalViews...)
+	allViews = append(allViews, sharedViews...)
+
+	counts, err := app.conversation.GetSidebarCounts(user.ID, user.Permissions, user.Teams.IDs(), allViews)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	return r.SendEnvelope(counts)
+}
+
 // handleGetTeamUnassignedConversations returns conversations assigned to a team but not to any user.
 func handleGetTeamUnassignedConversations(r *fastglue.Request) error {
 	var (
@@ -359,7 +391,7 @@ func handleDownloadConversationTranscript(r *fastglue.Request) error {
 	transcript := app.conversation.BuildTranscript(*conversation, messages, time.Now())
 	safeRef := stringutil.SanitizeFilename(conversation.ReferenceNumber)
 	filename := fmt.Sprintf("transcript-%s.txt", safeRef)
-	r.RequestCtx.Response.Header.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	r.RequestCtx.Response.Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
 	r.RequestCtx.SetContentType("text/plain; charset=utf-8")
 	r.RequestCtx.SetBody(transcript)
@@ -799,6 +831,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
+	// Validate the request
 	if err := validateCreateConversationRequest(req, app); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -817,21 +850,17 @@ func handleCreateConversation(r *fastglue.Request) error {
 		ExternalUserID:   null.NewString(req.ExternalUserID, req.ExternalUserID != ""),
 		CustomAttributes: json.RawMessage(`{}`),
 	}
-	canWriteContacts, err := app.authz.Enforce(user, "contacts", "write")
+	// Reuse an existing contact as-is; this endpoint is gated only on conversations:write and must never rename a contact.
+	existing, err := app.user.GetContactByEmail(email)
 	if err != nil {
-		app.lo.Error("error checking permission", "error", err)
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
-	}
-	policy := umodels.ContactReuse
-	if canWriteContacts && !req.ReuseContact {
-		policy = umodels.ContactSync
-	}
-	if err := app.user.ResolveContact(&contact, policy); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
-	}
-	// A contact matched by external ID keeps its stored email as the recipient.
-	if policy == umodels.ContactReuse && contact.Email.String != "" {
-		to = []string{contact.Email.String}
+		if envErr, ok := err.(envelope.Error); !ok || envErr.ErrorType != envelope.NotFoundError {
+			return sendErrorEnvelope(r, err)
+		}
+		if err := app.user.CreateContact(&contact); err != nil {
+			return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+		}
+	} else {
+		contact.ID = existing.ID
 	}
 
 	// Create conversation first.
@@ -898,6 +927,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 	return r.SendEnvelope(conversation)
 }
 
+// validateCreateConversationRequest validates the create conversation request fields.
 func validateCreateConversationRequest(req createConversationRequest, app *App) error {
 	if req.InboxID <= 0 {
 		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "`inbox_id`"), nil)

@@ -118,10 +118,18 @@ export class WebSocketClient {
           } else {
             this.convStore.refreshConversationList()
           }
+          // A conversation entering or leaving this agent's scope changes the badges.
+          this.convStore.refreshSidebarCounts()
         },
         // Property updates for conversation and message.
         [WS_EVENT.MESSAGE_UPDATE]: () => this.convStore.mergeMessageUpdate(data.data),
-        [WS_EVENT.CONVERSATION_UPDATE]: () => this.convStore.mergeConversationUpdate(data.data),
+        [WS_EVENT.CONVERSATION_UPDATE]: () => {
+          this.convStore.mergeConversationUpdate(data.data)
+          // Only a status change moves a conversation in or out of the open counts.
+          if (data.data?.status) {
+            this.convStore.refreshSidebarCounts()
+          }
+        },
         [WS_EVENT.CONTACT_UPDATE]: () => this.convStore.mergeContactUpdate(data.data),
         [WS_EVENT.TYPING]: () => {
           this.convStore.updateTypingStatus(data.data)

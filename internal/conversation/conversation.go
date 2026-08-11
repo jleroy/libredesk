@@ -310,6 +310,7 @@ type queries struct {
 	GetConversationsByContactEmailForAI *sqlx.Stmt `query:"get-conversations-by-contact-email-for-ai"`
 	GetConversationParticipants         *sqlx.Stmt `query:"get-conversation-participants"`
 	GetUserActiveConversationsCount     *sqlx.Stmt `query:"get-user-active-conversations-count"`
+	GetSidebarStandardCounts            *sqlx.Stmt `query:"get-sidebar-standard-counts"`
 	UpdateConversationWaitingSince      *sqlx.Stmt `query:"update-conversation-waiting-since"`
 	UpdateConversationReplyTimestamps   *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
 	UpdateConversationContactLastSeen   *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
@@ -1833,6 +1834,65 @@ func (c *Manager) getConversationTags(uuid string) ([]string, error) {
 	return tags, nil
 }
 
+// appendListTypeConditions returns the SQL conditions matching the given conversation
+// list types, appending any bind parameters to args. Shared by the list and count
+// queries so both stay in sync on what each list type means.
+func appendListTypeConditions(listTypes []string, viewingUserID, userID int, teamIDs []int, args *[]any) ([]string, error) {
+	conditions := make([]string, 0, len(listTypes))
+	for _, lt := range listTypes {
+		switch lt {
+		case models.AssignedConversations:
+			*args = append(*args, userID)
+			conditions = append(conditions, fmt.Sprintf("conversations.assigned_user_id = $%d", len(*args)))
+		case models.UnassignedConversations:
+			conditions = append(conditions, "conversations.assigned_user_id IS NULL AND conversations.assigned_team_id IS NULL")
+		case models.TeamUnassignedConversations:
+			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s) AND conversations.assigned_user_id IS NULL)", appendTeamIDArgs(teamIDs, args)))
+		case models.TeamAllConversations:
+			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s))", appendTeamIDArgs(teamIDs, args)))
+		case models.AllConversations:
+			// No conditions needed for all conversations.
+		case models.MentionedConversations:
+			// Filter to only conversations where user is mentioned (directly or via team)
+			*args = append(*args, viewingUserID)
+			conditions = append(conditions, fmt.Sprintf(`conversations.id IN (
+				SELECT cm.conversation_id
+				FROM conversation_mentions cm
+				WHERE cm.mentioned_user_id = $%d
+				   OR EXISTS(
+					   SELECT 1 FROM team_members tm
+					   WHERE tm.team_id = cm.mentioned_team_id AND tm.user_id = $%d
+				   )
+			)`, len(*args), len(*args)))
+		default:
+			return nil, fmt.Errorf("unknown conversation type: %s", lt)
+		}
+	}
+	return conditions, nil
+}
+
+// appendTeamIDArgs appends team IDs to args and returns their placeholder list. An empty
+// team list yields NULL so the enclosing IN () stays valid SQL and matches nothing.
+func appendTeamIDArgs(teamIDs []int, args *[]any) string {
+	if len(teamIDs) == 0 {
+		return "NULL"
+	}
+	placeholders := make([]string, len(teamIDs))
+	for i, id := range teamIDs {
+		*args = append(*args, id)
+		placeholders[i] = fmt.Sprintf("$%d", len(*args))
+	}
+	return strings.Join(placeholders, ",")
+}
+
+// listTypeWhereClause combines list type conditions into a clause appendable to a base query.
+func listTypeWhereClause(conditions []string) string {
+	if len(conditions) == 0 {
+		return ""
+	}
+	return "AND (" + strings.Join(conditions, " OR ") + ")"
+}
+
 // makeConversationsListQuery prepares a SQL query string for conversations list
 // viewingUserID is used as $1 for per-agent unread count calculation
 // $2 is includeMentions bool for conditional mentioned_message_uuid column
@@ -1861,55 +1921,13 @@ func (c *Manager) makeConversationsListQuery(viewingUserID, userID int, teamIDs 
 	}
 
 	// Prepare the conditions based on the list types.
-	conditions := []string{}
-	for _, lt := range listTypes {
-		switch lt {
-		case models.AssignedConversations:
-			conditions = append(conditions, fmt.Sprintf("conversations.assigned_user_id = $%d", len(qArgs)+1))
-			qArgs = append(qArgs, userID)
-		case models.UnassignedConversations:
-			conditions = append(conditions, "conversations.assigned_user_id IS NULL AND conversations.assigned_team_id IS NULL")
-		case models.TeamUnassignedConversations:
-			placeholders := make([]string, len(teamIDs))
-			for i := range teamIDs {
-				placeholders[i] = fmt.Sprintf("$%d", len(qArgs)+i+1)
-			}
-			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s) AND conversations.assigned_user_id IS NULL)", strings.Join(placeholders, ",")))
-			for _, id := range teamIDs {
-				qArgs = append(qArgs, id)
-			}
-		case models.TeamAllConversations:
-			placeholders := make([]string, len(teamIDs))
-			for i := range teamIDs {
-				placeholders[i] = fmt.Sprintf("$%d", len(qArgs)+i+1)
-			}
-			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s))", strings.Join(placeholders, ",")))
-			for _, id := range teamIDs {
-				qArgs = append(qArgs, id)
-			}
-		case models.AllConversations:
-			// No conditions needed for all conversations.
-		case models.MentionedConversations:
-			// Filter to only conversations where user is mentioned (directly or via team)
-			conditions = append(conditions, `conversations.id IN (
-				SELECT cm.conversation_id
-				FROM conversation_mentions cm
-				WHERE cm.mentioned_user_id = $1
-				   OR EXISTS(
-					   SELECT 1 FROM team_members tm
-					   WHERE tm.team_id = cm.mentioned_team_id AND tm.user_id = $1
-				   )
-			)`)
-		default:
-			return "", nil, fmt.Errorf("unknown conversation type: %s", lt)
-		}
+	conditions, err := appendListTypeConditions(listTypes, viewingUserID, userID, teamIDs, &qArgs)
+	if err != nil {
+		return "", nil, err
 	}
 
 	// Build the base query with list type conditions
-	var whereClause string
-	if len(conditions) > 0 {
-		whereClause = "AND (" + strings.Join(conditions, " OR ") + ")"
-	}
+	whereClause := listTypeWhereClause(conditions)
 
 	baseQuery = fmt.Sprintf(baseQuery, whereClause)
 
