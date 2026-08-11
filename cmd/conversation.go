@@ -816,8 +816,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 		ExternalUserID:   null.NewString(req.ExternalUserID, req.ExternalUserID != ""),
 		CustomAttributes: json.RawMessage(`{}`),
 	}
-	// Callers with contacts:write may update the contact's name/email via the CreateContact upsert;
-	// others only reuse the existing contact as-is.
+	// Only contacts:write callers may change a contact's name/email; others must reuse the contact untouched.
 	canWriteContacts, err := app.authz.Enforce(user, "contacts", "write")
 	if err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
