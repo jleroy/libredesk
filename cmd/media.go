@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"mime"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -262,7 +263,7 @@ func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.M
 		}
 
 		r.RequestCtx.Response.Header.Set("Content-Type", media.ContentType)
-		r.RequestCtx.Response.Header.Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, media.Filename))
+		r.RequestCtx.Response.Header.Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": media.Filename}))
 		r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
 		r.RequestCtx.Response.Header.Set("Cache-Control", fmt.Sprintf("%s, max-age=%d, immutable", cacheVisibility(media.Private), int(mediaCacheTTL.Seconds())))
 
