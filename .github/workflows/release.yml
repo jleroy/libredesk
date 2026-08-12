@@ -43,14 +43,14 @@ jobs:
           go-version: "1.25.0"
           cache: false
 
-      - name: Go build cache
-        uses: actions/cache@v4
+      - name: Restore Go build cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: release-go-${{ hashFiles('go.sum') }}-${{ github.run_id }}
-          restore-keys: release-go-${{ hashFiles('go.sum') }}-
+          key: release-go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: release-go-${{ runner.os }}-
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
