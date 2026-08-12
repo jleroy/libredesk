@@ -50,6 +50,9 @@ const (
 
 	noIndexHeader = "noindex"
 
+	// hcHostRewriteKey marks a request already rewritten to its /hc/{slug} form.
+	hcHostRewriteKey = "hc_host_rewrite"
+
 	lucideSpritePath = "/static/public/static/lucide-sprite.svg"
 
 	headerTextDark  = "#16181d"
@@ -569,8 +572,11 @@ func handleRedirectHelpCenterHome(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, nil)
 	}
+	if redirectHelpCenterCanonicalHost(r, helpCenter) {
+		return nil
+	}
 	// 302, not 301: the default locale is mutable and browsers cache permanent redirects.
-	r.RequestCtx.Redirect(helpCenterHomePath(slug, helpCenter.DefaultLocale), fasthttp.StatusFound)
+	redirectPath(r.RequestCtx, helpCenterHomePath(helpCenter, helpCenter.DefaultLocale), fasthttp.StatusFound)
 	return nil
 }
 
@@ -583,6 +589,9 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
 		return renderHelpCenterNotFound(r, nil)
+	}
+	if redirectHelpCenterCanonicalHost(r, helpCenter) {
+		return nil
 	}
 	locale, ok := resolveLocale(r, helpCenter)
 	if !ok {
@@ -599,7 +608,7 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 	var (
 		root            = helpCenterBaseURL(app, helpCenter)
 		locales         = helpCenterLocales(helpCenter)
-		pathFor         = func(l string) string { return helpCenterHomePath(helpCenter.Slug, l) }
+		pathFor         = func(l string) string { return helpCenterHomePath(helpCenter, l) }
 		metaDescription = firstNonEmpty(tree.HelpCenter.MetaDescription, tree.HelpCenter.HeaderText)
 	)
 	data := helpCenterTemplateData(app, tree.HelpCenter, locale)
@@ -633,6 +642,9 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, nil)
 	}
+	if redirectHelpCenterCanonicalHost(r, helpCenter) {
+		return nil
+	}
 	locale, ok := resolveLocale(r, helpCenter)
 	if !ok {
 		return renderHelpCenterNotFound(r, &helpCenter)
@@ -651,7 +663,7 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 	}
 	var (
 		root    = helpCenterBaseURL(app, helpCenter)
-		pathFor = func(l string) string { return collectionPath(helpCenter.Slug, l, collection.Slug) }
+		pathFor = func(l string) string { return collectionPath(helpCenter, l, collection.Slug) }
 	)
 	data := helpCenterTemplateData(app, helpCenter, locale)
 	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-collection"), map[string]interface{}{
@@ -688,6 +700,9 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, nil)
 	}
+	if redirectHelpCenterCanonicalHost(r, helpCenter) {
+		return nil
+	}
 	locale, ok := resolveLocale(r, helpCenter)
 	if !ok {
 		return renderHelpCenterNotFound(r, &helpCenter)
@@ -722,7 +737,7 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	}
 	var (
 		root            = helpCenterBaseURL(app, helpCenter)
-		pathFor         = func(l string) string { return articlePath(helpCenter.Slug, l, article.Slug) }
+		pathFor         = func(l string) string { return articlePath(helpCenter, l, article.Slug) }
 		metaDescription = firstNonEmpty(article.MetaDescription, article.Excerpt)
 		metaTitle       = firstNonEmpty(article.MetaTitle, fmt.Sprintf("%s - %s", article.Title, helpCenter.Name))
 		ogImage         = absoluteURL(root, publicAssetPaths(app, firstNonEmpty(article.MetaImageURL, helpCenter.LogoURL)))
@@ -766,6 +781,9 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 	if err != nil {
 		return renderHelpCenterNotFound(r, nil)
 	}
+	if redirectHelpCenterCanonicalHost(r, helpCenter) {
+		return nil
+	}
 	locale, ok := resolveLocale(r, helpCenter)
 	if !ok {
 		return renderHelpCenterNotFound(r, &helpCenter)
@@ -782,7 +800,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 	var (
 		data    = helpCenterTemplateData(app, helpCenter, locale)
 		lcl     = localeI18n(app, locale)
-		pathFor = func(l string) string { return searchPath(helpCenter.Slug, l) }
+		pathFor = func(l string) string { return searchPath(helpCenter, l) }
 	)
 	r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 	return app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-search"), map[string]interface{}{
@@ -809,6 +827,9 @@ func handleHelpCenterSitemap(r *fastglue.Request) error {
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.T("globals.messages.notFound"), nil, envelope.NotFoundError)
 	}
+	if redirectHelpCenterCanonicalHost(r, helpCenter) {
+		return nil
+	}
 	locale, ok := resolveLocale(r, helpCenter)
 	if !ok {
 		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.T("globals.messages.notFound"), nil, envelope.NotFoundError)
@@ -828,18 +849,18 @@ func handleHelpCenterSitemap(r *fastglue.Request) error {
 	root := helpCenterBaseURL(app, helpCenter)
 	set := urlset{Xmlns: sitemapNamespace}
 	set.URLs = append(set.URLs, sitemapURL{
-		Loc:     root + helpCenterHomePath(helpCenter.Slug, locale),
+		Loc:     root + helpCenterHomePath(helpCenter, locale),
 		LastMod: helpCenter.UpdatedAt.Format(sitemapDate),
 	})
 	for _, c := range flattenCollections(tree.Tree, nil) {
 		set.URLs = append(set.URLs, sitemapURL{
-			Loc:     root + collectionPath(helpCenter.Slug, locale, c.Slug),
+			Loc:     root + collectionPath(helpCenter, locale, c.Slug),
 			LastMod: c.UpdatedAt.Format(sitemapDate),
 		})
 	}
 	for _, a := range articles {
 		set.URLs = append(set.URLs, sitemapURL{
-			Loc:     root + articlePath(helpCenter.Slug, locale, a.Slug),
+			Loc:     root + articlePath(helpCenter, locale, a.Slug),
 			LastMod: a.UpdatedAt.Format(sitemapDate),
 		})
 	}
@@ -857,7 +878,7 @@ func handleSitemapIndex(r *fastglue.Request) error {
 	for _, hc := range helpCentersForHost(r, helpCenters) {
 		root := helpCenterBaseURL(app, hc)
 		for _, locale := range helpCenterLocales(hc) {
-			index.Sitemaps = append(index.Sitemaps, sitemapRef{Loc: fmt.Sprintf("%s%s/sitemap.xml", root, helpCenterHomePath(hc.Slug, locale))})
+			index.Sitemaps = append(index.Sitemaps, sitemapRef{Loc: fmt.Sprintf("%s%s/sitemap.xml", root, helpCenterHomePath(hc, locale))})
 		}
 	}
 	return sendXML(r, index)
@@ -876,7 +897,11 @@ func handleRobotsTxt(r *fastglue.Request) error {
 		return nil
 	}
 	// Crawlers ignore a Sitemap directive on another host, and listing one publishes the other hosts.
-	if hosted := helpCentersForHost(r, helpCenters); len(hosted) > 0 {
+	hosted := helpCentersForHost(r, helpCenters)
+	if len(hosted) > 0 && hosted[0].CustomDomain != "" {
+		fmt.Fprint(r.RequestCtx, "Disallow: /*/search\n")
+	}
+	if len(hosted) > 0 {
 		fmt.Fprintf(r.RequestCtx, "\nSitemap: %s/sitemap.xml\n", helpCenterHostRootURL(app, hosted))
 	}
 	return nil
@@ -1078,16 +1103,97 @@ func helpCenterRootURL(app *App) string {
 	return strings.TrimRight(app.consts.Load().(*constants).AppBaseURL, "/")
 }
 
-// helpCenterBaseURL returns the host a reader sees this help center on: its own public URL when
-// set, else the app root URL.
+// helpCenterBaseURL returns the origin a reader sees this help center on: its custom domain when set, else the app root URL.
 func helpCenterBaseURL(app *App, hc hcmodels.HelpCenter) string {
-	if hc.PublicURL != "" {
-		return hc.PublicURL
+	if origin := helpCenterCustomOrigin(hc); origin != "" {
+		return origin
 	}
 	return helpCenterRootURL(app)
 }
 
-// helpCentersForHost returns the help centers whose public URL is this request's host, else the app-root ones.
+// helpCenterCustomOrigin returns the origin of hc's custom domain, empty when unset or unparseable.
+func helpCenterCustomOrigin(hc hcmodels.HelpCenter) string {
+	if hc.CustomDomain == "" {
+		return ""
+	}
+	return urlOrigin(hc.CustomDomain)
+}
+
+// helpCenterByHost returns the active help center whose custom domain hostname is host.
+func helpCenterByHost(app *App, host string) (hcmodels.HelpCenter, bool) {
+	if strings.EqualFold(urlHostname(helpCenterRootURL(app)), host) {
+		return hcmodels.HelpCenter{}, false
+	}
+	helpCenters, err := app.helpcenter.GetActiveHelpCenters()
+	if err != nil {
+		return hcmodels.HelpCenter{}, false
+	}
+	for _, hc := range helpCenters {
+		if helpCenterCustomOrigin(hc) != "" && strings.EqualFold(urlHostname(hc.CustomDomain), host) {
+			return hc, true
+		}
+	}
+	return hcmodels.HelpCenter{}, false
+}
+
+// helpCenterHostNotFound serves unmatched paths on a help center's custom domain by prepending /hc/{slug} and re-running the router.
+func helpCenterHostNotFound(app *App, g *fastglue.Fastglue) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		if (ctx.IsGet() || ctx.IsHead()) && ctx.UserValue(hcHostRewriteKey) == nil {
+			if hc, ok := helpCenterByHost(app, hostWithoutPort(string(ctx.Host()))); ok {
+				// Strip the trailing slash here: the router's own trailing-slash redirect would otherwise expose the rewritten /hc/{slug} path in its Location.
+				if path := string(ctx.Path()); len(path) > 1 && strings.HasSuffix(path, "/") {
+					uri := strings.TrimRight(path, "/")
+					if uri == "" {
+						uri = "/"
+					}
+					if qs := ctx.URI().QueryString(); len(qs) > 0 {
+						uri += "?" + string(qs)
+					}
+					redirectPath(ctx, uri, fasthttp.StatusMovedPermanently)
+					return
+				}
+				ctx.SetUserValue(hcHostRewriteKey, true)
+				ctx.Request.SetRequestURI("/hc/" + hc.Slug + string(ctx.RequestURI()))
+				g.Router.Handler(ctx)
+				return
+			}
+		}
+		fastglue.NotFoundHandler(ctx)
+	}
+}
+
+// helpCenterHostHome redirects the custom-domain root to the help center's default-locale home.
+func helpCenterHostHome(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return func(r *fastglue.Request) error {
+		app := r.Context.(*App)
+		if hc, ok := helpCenterByHost(app, hostWithoutPort(string(r.RequestCtx.Host()))); ok {
+			uri := helpCenterHomePath(hc, hc.DefaultLocale)
+			if qs := r.RequestCtx.URI().QueryString(); len(qs) > 0 {
+				uri += "?" + string(qs)
+			}
+			redirectPath(r.RequestCtx, uri, fasthttp.StatusFound)
+			return nil
+		}
+		return h(r)
+	}
+}
+
+// redirectHelpCenterCanonicalHost 301s a /hc/{slug} path to its custom-domain equivalent, unless the request arrived via the host rewrite.
+func redirectHelpCenterCanonicalHost(r *fastglue.Request, hc hcmodels.HelpCenter) bool {
+	origin := helpCenterCustomOrigin(hc)
+	if origin == "" || r.RequestCtx.UserValue(hcHostRewriteKey) != nil {
+		return false
+	}
+	uri := origin + strings.TrimPrefix(string(r.RequestCtx.Path()), "/hc/"+hc.Slug)
+	if qs := r.RequestCtx.URI().QueryString(); len(qs) > 0 {
+		uri += "?" + string(qs)
+	}
+	r.RequestCtx.Redirect(uri, fasthttp.StatusMovedPermanently)
+	return true
+}
+
+// helpCentersForHost returns the help centers whose custom domain is this request's host, else the app-root ones.
 func helpCentersForHost(r *fastglue.Request, helpCenters []hcmodels.HelpCenter) []hcmodels.HelpCenter {
 	var (
 		host       = hostWithoutPort(string(r.RequestCtx.Host()))
@@ -1095,11 +1201,11 @@ func helpCentersForHost(r *fastglue.Request, helpCenters []hcmodels.HelpCenter) 
 		rootHosted []hcmodels.HelpCenter
 	)
 	for _, hc := range helpCenters {
-		if hc.PublicURL == "" {
+		if hc.CustomDomain == "" {
 			rootHosted = append(rootHosted, hc)
 			continue
 		}
-		if strings.EqualFold(urlHostname(hc.PublicURL), host) {
+		if strings.EqualFold(urlHostname(hc.CustomDomain), host) {
 			matched = append(matched, hc)
 		}
 	}
@@ -1112,8 +1218,8 @@ func helpCentersForHost(r *fastglue.Request, helpCenters []hcmodels.HelpCenter) 
 // helpCenterHostRootURL returns the origin these help centers are served on.
 func helpCenterHostRootURL(app *App, helpCenters []hcmodels.HelpCenter) string {
 	for _, hc := range helpCenters {
-		if hc.PublicURL != "" {
-			return urlOrigin(hc.PublicURL)
+		if hc.CustomDomain != "" {
+			return urlOrigin(hc.CustomDomain)
 		}
 	}
 	return helpCenterRootURL(app)
@@ -1163,20 +1269,28 @@ func absoluteURL(root, u string) string {
 	return root + "/" + strings.TrimLeft(u, "/")
 }
 
-func helpCenterHomePath(slug, locale string) string {
-	return fmt.Sprintf("/hc/%s/%s", slug, locale)
+// helpCenterPathPrefix returns the path prefix hc's pages live under: none on a custom domain, /hc/{slug} on the app host.
+func helpCenterPathPrefix(hc hcmodels.HelpCenter) string {
+	if helpCenterCustomOrigin(hc) != "" {
+		return ""
+	}
+	return "/hc/" + hc.Slug
 }
 
-func collectionPath(slug, locale, collectionSlug string) string {
-	return fmt.Sprintf("/hc/%s/%s/collections/%s", slug, locale, collectionSlug)
+func helpCenterHomePath(hc hcmodels.HelpCenter, locale string) string {
+	return fmt.Sprintf("%s/%s", helpCenterPathPrefix(hc), locale)
 }
 
-func articlePath(slug, locale, articleSlug string) string {
-	return fmt.Sprintf("/hc/%s/%s/articles/%s", slug, locale, articleSlug)
+func collectionPath(hc hcmodels.HelpCenter, locale, collectionSlug string) string {
+	return fmt.Sprintf("%s/%s/collections/%s", helpCenterPathPrefix(hc), locale, collectionSlug)
 }
 
-func searchPath(slug, locale string) string {
-	return fmt.Sprintf("/hc/%s/%s/search", slug, locale)
+func articlePath(hc hcmodels.HelpCenter, locale, articleSlug string) string {
+	return fmt.Sprintf("%s/%s/articles/%s", helpCenterPathPrefix(hc), locale, articleSlug)
+}
+
+func searchPath(hc hcmodels.HelpCenter, locale string) string {
+	return fmt.Sprintf("%s/%s/search", helpCenterPathPrefix(hc), locale)
 }
 
 // helpCenterAlternates returns the hreflang set for a page: only the locales the page
@@ -1201,7 +1315,7 @@ func helpCenterLocaleLinks(hc hcmodels.HelpCenter, translated []string, pathFor 
 	locales := helpCenterLocales(hc)
 	links := make([]localeLink, 0, len(locales))
 	for _, loc := range locales {
-		path := helpCenterHomePath(hc.Slug, loc)
+		path := helpCenterHomePath(hc, loc)
 		if slices.Contains(translated, loc) {
 			path = pathFor(loc)
 		}
@@ -1222,7 +1336,7 @@ func defaultLocalePath(hc hcmodels.HelpCenter, translated []string, pathFor func
 // homeJSONLD returns the WebSite structured data for a help center home page, including the
 // sitelinks search box target.
 func homeJSONLD(root string, hc hcmodels.HelpCenter, locale string) template.JS {
-	home := root + helpCenterHomePath(hc.Slug, locale)
+	home := root + helpCenterHomePath(hc, locale)
 	site := map[string]any{
 		"@context":   schemaOrgContext,
 		"@type":      "WebSite",
@@ -1233,7 +1347,7 @@ func homeJSONLD(root string, hc hcmodels.HelpCenter, locale string) template.JS 
 			"@type": "SearchAction",
 			"target": map[string]any{
 				"@type":       "EntryPoint",
-				"urlTemplate": root + searchPath(hc.Slug, locale) + "?q={search_term_string}",
+				"urlTemplate": root + searchPath(hc, locale) + "?q={search_term_string}",
 			},
 			"query-input": "required name=search_term_string",
 		},
@@ -1252,7 +1366,7 @@ func collectionJSONLD(root string, hc hcmodels.HelpCenter, collection hcmodels.T
 		"name":       collection.Name,
 		"url":        root + canonicalPath,
 		"inLanguage": locale,
-		"isPartOf":   map[string]any{"@type": "WebSite", "name": hc.Name, "url": root + helpCenterHomePath(hc.Slug, locale)},
+		"isPartOf":   map[string]any{"@type": "WebSite", "name": hc.Name, "url": root + helpCenterHomePath(hc, locale)},
 	}
 	if collection.Description != "" {
 		page["description"] = collection.Description
@@ -1288,7 +1402,7 @@ func articleJSONLD(root string, hc hcmodels.HelpCenter, collection hcmodels.Coll
 
 	trail := []localeLink{}
 	if collection.Name != "" {
-		trail = append(trail, localeLink{Locale: collection.Name, Path: collectionPath(hc.Slug, locale, collection.Slug)})
+		trail = append(trail, localeLink{Locale: collection.Name, Path: collectionPath(hc, locale, collection.Slug)})
 	}
 	trail = append(trail, localeLink{Locale: article.Title, Path: canonicalPath})
 	return jsonLD([]any{art, breadcrumbJSONLD(root, hc, locale, trail)})
@@ -1301,7 +1415,7 @@ func breadcrumbJSONLD(root string, hc hcmodels.HelpCenter, locale string, trail 
 		"@type":    "ListItem",
 		"position": 1,
 		"name":     hc.Name,
-		"item":     root + helpCenterHomePath(hc.Slug, locale),
+		"item":     root + helpCenterHomePath(hc, locale),
 	}}
 	for i, t := range trail {
 		items = append(items, map[string]any{
@@ -1471,6 +1585,7 @@ func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map
 		"Name":              hc.Name,
 		"Template":          pageTemplate,
 		"BaseURL":           helpCenterBaseURL(app, hc),
+		"BasePath":          helpCenterHomePath(hc, locale),
 		"PageTitle":         hc.PageTitle,
 		"HeaderText":        hc.HeaderText,
 		"LogoURL":           publicAssetPaths(app, hc.LogoURL),
@@ -1559,7 +1674,7 @@ func renderHelpCenterNotFound(r *fastglue.Request, hc *hcmodels.HelpCenter) erro
 			"Data": map[string]interface{}{
 				"Title":       lcl.T("globals.messages.pageNotFound"),
 				"NoIndex":     true,
-				"LocaleLinks": helpCenterLocaleLinks(helpCenter, nil, func(l string) string { return helpCenterHomePath(helpCenter.Slug, l) }),
+				"LocaleLinks": helpCenterLocaleLinks(helpCenter, nil, func(l string) string { return helpCenterHomePath(helpCenter, l) }),
 				"HelpCenter":  data,
 				"Tree":        sidebarTree(app, helpCenter, locale),
 			},
@@ -1738,4 +1853,15 @@ func renderHelpCenterArticlePreview(r *fastglue.Request, helpCenter hcmodels.Hel
 	}
 	r.RequestCtx.Response.Header.Set("Cache-Control", "no-store")
 	return nil
+}
+
+// redirectPath sends a path-only Location; ctx.Redirect would absolutize it to http:// behind a TLS-terminating proxy.
+// The URI round-trip is what escapes the path: a bare "/\host" Location is read as an authority by browsers.
+func redirectPath(ctx *fasthttp.RequestCtx, uri string, statusCode int) {
+	u := fasthttp.AcquireURI()
+	defer fasthttp.ReleaseURI(u)
+	u.Update(uri)
+	ctx.Response.Header.SetCanonical([]byte(fasthttp.HeaderLocation), u.RequestURI())
+	ctx.SetStatusCode(statusCode)
+	ctx.Response.SetBodyString("")
 }

@@ -1,7 +1,7 @@
 {{ define "classic-article-items" }}
 <ul class="hc-article-list">
     {{ range .Articles }}
-    <li><a href="/hc/{{ $.Slug }}/{{ $.Locale }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}{{ template "hc-arrow-icon" }}</a></li>
+    <li><a href="{{ $.Base }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}{{ template "hc-arrow-icon" }}</a></li>
     {{ end }}
 </ul>
 {{ end }}
@@ -11,7 +11,7 @@
 
 <nav class="hc-breadcrumb" aria-label="{{ .L.T "globals.terms.breadcrumb" }}">
     <ol>
-        <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a></li>
+        <li><a href="{{ .Data.HelpCenter.BasePath }}">{{ .Data.HelpCenter.Name }}</a></li>
         <li><span class="hc-current" aria-current="page">{{ .Data.Collection.Name }}</span></li>
     </ol>
 </nav>
@@ -26,20 +26,20 @@
 
 {{ if .Data.Collection.Articles }}
 <div class="hc-article-panel">
-    {{ template "classic-article-items" (map "Articles" .Data.Collection.Articles "Slug" .Data.HelpCenter.Slug "Locale" .Data.HelpCenter.CurrentLocale) }}
+    {{ template "classic-article-items" (map "Articles" .Data.Collection.Articles "Base" .Data.HelpCenter.BasePath) }}
 </div>
 {{ end }}
 
 {{ range .Data.Collection.Children }}
 <section class="hc-collection-block" aria-labelledby="hc-col-{{ .Slug }}">
-    <h2 id="hc-col-{{ .Slug }}"><a class="hc-block-head" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a></h2>
+    <h2 id="hc-col-{{ .Slug }}"><a class="hc-block-head" href="{{ $.Data.HelpCenter.BasePath }}/collections/{{ .Slug }}">{{ .Name }}</a></h2>
     {{ if .Description }}<p class="hc-block-desc">{{ .Description }}</p>{{ end }}
-    {{ if .Articles }}{{ template "classic-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
+    {{ if .Articles }}{{ template "classic-article-items" (map "Articles" .Articles "Base" $.Data.HelpCenter.BasePath) }}{{ end }}
     {{ range .Children }}
     <div class="hc-block-sub">
-        <h3><a class="hc-block-subhead" href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}">{{ .Name }}</a></h3>
+        <h3><a class="hc-block-subhead" href="{{ $.Data.HelpCenter.BasePath }}/collections/{{ .Slug }}">{{ .Name }}</a></h3>
         {{ if .Description }}<p class="hc-block-desc">{{ .Description }}</p>{{ end }}
-        {{ if .Articles }}{{ template "classic-article-items" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
+        {{ if .Articles }}{{ template "classic-article-items" (map "Articles" .Articles "Base" $.Data.HelpCenter.BasePath) }}{{ end }}
     </div>
     {{ end }}
 </section>

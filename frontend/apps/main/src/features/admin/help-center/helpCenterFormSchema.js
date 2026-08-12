@@ -48,11 +48,11 @@ export const createHelpCenterFormSchema = (t) => {
     logo_url: optionalURL,
     color: z.string().optional(),
     nav_links: linkArray,
-    public_url: z
+    custom_domain: z
       .string()
       .refine(
-        (v) => !v || /^https?:\/\/[^"'()\s\\<>;{}]+$/.test(v),
-        t('helpCenter.invalidPublicURL')
+        (v) => !v || /^https?:\/\/[^"'()\s\\<>;{}/]+$/.test(v),
+        t('helpCenter.invalidCustomDomain')
       )
       .optional(),
     custom_css: z.string().optional(),

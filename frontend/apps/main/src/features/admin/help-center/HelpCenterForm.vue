@@ -29,13 +29,13 @@
             </FormItem>
           </FormField>
 
-          <FormField v-slot="{ componentField }" name="public_url">
+          <FormField v-slot="{ componentField }" name="custom_domain">
             <FormItem>
-              <FormLabel>{{ t('helpCenter.publicURL') }}</FormLabel>
+              <FormLabel>{{ t('helpCenter.customDomain') }}</FormLabel>
               <FormControl>
                 <Input type="text" placeholder="https://help.example.com" v-bind="componentField" />
               </FormControl>
-              <FormDescription>{{ t('helpCenter.publicURLHint') }}</FormDescription>
+              <FormDescription>{{ t('helpCenter.customDomainHint') }}</FormDescription>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -727,7 +727,7 @@ const toFormValues = (hc) => ({
   name: hc?.name || '',
   slug: hc?.slug || '',
   template: hc?.template === 'docs' ? 'docs' : 'classic',
-  public_url: hc?.public_url || '',
+  custom_domain: hc?.custom_domain || '',
   page_title: hc?.page_title || '',
   header_text: hc?.header_text || '',
   meta_description: hc?.meta_description || '',

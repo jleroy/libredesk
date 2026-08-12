@@ -106,7 +106,7 @@ type HelpCenterRequest struct {
 	DefaultLocale   string          `json:"default_locale"`
 	AllowedLocales  json.RawMessage `json:"allowed_locales"`
 	Theme           json.RawMessage `json:"theme"`
-	PublicURL       string          `json:"public_url"`
+	CustomDomain    string          `json:"custom_domain"`
 	Template        string          `json:"template"`
 }
 
@@ -285,10 +285,10 @@ func (m *Manager) CreateHelpCenter(req HelpCenterRequest) (models.HelpCenter, er
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
-	if err := m.validatePublicURL(req.PublicURL); err != nil {
+	if err := m.validateCustomDomain(req.CustomDomain); err != nil {
 		return hc, err
 	}
-	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.PublicURL, req.Template); err != nil {
+	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -317,7 +317,7 @@ func (m *Manager) DraftHelpCenter(id int, req HelpCenterRequest) (models.HelpCen
 	hc.DefaultLocale = req.DefaultLocale
 	hc.AllowedLocales = req.AllowedLocales
 	hc.Theme = req.Theme
-	hc.PublicURL = req.PublicURL
+	hc.CustomDomain = req.CustomDomain
 	hc.Template = req.Template
 	if err := m.validateColor(hc.Color); err != nil {
 		return hc, err
@@ -341,10 +341,10 @@ func (m *Manager) UpdateHelpCenter(id int, req HelpCenterRequest) (models.HelpCe
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
-	if err := m.validatePublicURL(req.PublicURL); err != nil {
+	if err := m.validateCustomDomain(req.CustomDomain); err != nil {
 		return hc, err
 	}
-	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.PublicURL, req.Template); err != nil {
+	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -1383,13 +1383,14 @@ func (m *Manager) validateLocalesRetained(helpCenterID int, allowed json.RawMess
 	return nil
 }
 
-func (m *Manager) validatePublicURL(publicURL string) error {
-	if publicURL == "" {
+func (m *Manager) validateCustomDomain(domain string) error {
+	if domain == "" {
 		return nil
 	}
-	u, err := url.Parse(publicURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidPublicURL"), nil)
+	u, err := url.Parse(domain)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+		u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidCustomDomain"), nil)
 	}
 	return nil
 }
@@ -1438,7 +1439,7 @@ func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	if !slices.Contains(helpCenterTemplates, req.Template) {
 		req.Template = models.TemplateClassic
 	}
-	req.PublicURL = strings.TrimRight(strings.TrimSpace(req.PublicURL), "/")
+	req.CustomDomain = strings.TrimRight(strings.TrimSpace(req.CustomDomain), "/")
 	req.LogoURL = sanitizeAssetURL(req.LogoURL)
 	req.NavLinks = normalizeNavLinks(req.NavLinks)
 

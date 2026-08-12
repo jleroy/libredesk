@@ -7,7 +7,7 @@
 <ul class="hc-results">
     {{ range .Data.Results }}
     <li>
-        <a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}">{{ .Title }}</a>
+        <a href="{{ $.Data.HelpCenter.BasePath }}/articles/{{ .Slug }}">{{ .Title }}</a>
         {{ if .Content }}<p class="hc-snippet">{{ .Content }}</p>{{ end }}
     </li>
     {{ end }}

@@ -33,7 +33,7 @@
 
 {{ define "hc-collection-card" }}
 {{ $cards := .Theme.Cards }}
-<a class="hc-collection hc-collection-card hc-icon-{{ if $cards.IconPosition }}{{ $cards.IconPosition }}{{ else }}inline{{ end }}" href="/hc/{{ .Slug }}/{{ .Locale }}/collections/{{ .Collection.Slug }}">
+<a class="hc-collection hc-collection-card hc-icon-{{ if $cards.IconPosition }}{{ $cards.IconPosition }}{{ else }}inline{{ end }}" href="{{ .Base }}/collections/{{ .Collection.Slug }}">
     <div class="hc-card-head">
         <div class="hc-collection-icon{{ if $cards.ShowIconTile }} hc-icon-tile{{ end }}">{{ with LucideIcon .Collection.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</div>
     </div>
@@ -56,7 +56,7 @@
 {{ $layout := .HelpCenter.Theme.Layout }}
 <div class="hc-collections{{ if eq $layout.Collections "list" }} hc-layout-list{{ else if eq $layout.Columns 3 }} hc-cols-3{{ end }}">
 {{ range .Tree }}
-    {{ template "hc-collection-card" (map "Collection" . "Slug" $.HelpCenter.Slug "Locale" $.HelpCenter.CurrentLocale "Theme" $.HelpCenter.Theme "L" $.L "Heading" $.Heading) }}
+    {{ template "hc-collection-card" (map "Collection" . "Base" $.HelpCenter.BasePath "Theme" $.HelpCenter.Theme "L" $.L "Heading" $.Heading) }}
 {{ end }}
 </div>
 {{ end }}

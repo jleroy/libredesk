@@ -13,7 +13,8 @@
     var DEBOUNCE = 250;
     var MIN_CHARS = 2;
     var api = '/api/public/help-centers/' + encodeURIComponent(slug) + '/search';
-    var articleBase = '/hc/' + slug + '/' + locale + '/articles/';
+    var base = form.getAttribute('data-hc-base') || '/hc/' + slug + '/' + locale;
+    var articleBase = base + '/articles/';
 
     var panel = document.createElement('div');
     panel.className = 'hc-typeahead';

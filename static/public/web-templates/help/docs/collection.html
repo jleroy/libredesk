@@ -12,19 +12,19 @@
 </header>
 
 {{ if .Data.Collection.Articles }}
-{{ template "docs-article-rows" (map "Articles" .Data.Collection.Articles "Slug" .Data.HelpCenter.Slug "Locale" .Data.HelpCenter.CurrentLocale) }}
+{{ template "docs-article-rows" (map "Articles" .Data.Collection.Articles "Base" .Data.HelpCenter.BasePath) }}
 {{ end }}
 
 {{ range .Data.Collection.Children }}
 <section class="hcd-collection-block" aria-labelledby="hcd-col-{{ .Slug }}">
-    <h2 id="hcd-col-{{ .Slug }}"><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}"><span class="hcd-block-icon">{{ with LucideIcon .Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>{{ .Name }}</a></h2>
+    <h2 id="hcd-col-{{ .Slug }}"><a href="{{ $.Data.HelpCenter.BasePath }}/collections/{{ .Slug }}"><span class="hcd-block-icon">{{ with LucideIcon .Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>{{ .Name }}</a></h2>
     {{ if .Description }}<p class="hcd-block-desc">{{ .Description }}</p>{{ end }}
-    {{ if .Articles }}{{ template "docs-article-rows" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
+    {{ if .Articles }}{{ template "docs-article-rows" (map "Articles" .Articles "Base" $.Data.HelpCenter.BasePath) }}{{ end }}
     {{ range .Children }}
     <div class="hcd-block-sub">
-        <h3><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/collections/{{ .Slug }}"><span class="hcd-block-icon">{{ with LucideIcon .Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>{{ .Name }}</a></h3>
+        <h3><a href="{{ $.Data.HelpCenter.BasePath }}/collections/{{ .Slug }}"><span class="hcd-block-icon">{{ with LucideIcon .Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>{{ .Name }}</a></h3>
         {{ if .Description }}<p class="hcd-block-desc">{{ .Description }}</p>{{ end }}
-        {{ if .Articles }}{{ template "docs-article-rows" (map "Articles" .Articles "Slug" $.Data.HelpCenter.Slug "Locale" $.Data.HelpCenter.CurrentLocale) }}{{ end }}
+        {{ if .Articles }}{{ template "docs-article-rows" (map "Articles" .Articles "Base" $.Data.HelpCenter.BasePath) }}{{ end }}
     </div>
     {{ end }}
 </section>

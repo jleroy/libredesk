@@ -362,7 +362,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/widget/media/upload", rateLimit(widgetAuth(handleWidgetMediaUpload), "widget"))
 
 	// Frontend pages.
-	g.GET("/", notAuthPage(serveIndexPage))
+	g.GET("/", helpCenterHostHome(notAuthPage(serveIndexPage)))
 	g.GET("/widget", validateWidgetInbox(serveWidgetIndexPage))
 	g.GET("/inboxes/{all:*}", authPage(serveIndexPage))
 	g.GET("/teams/{all:*}", authPage(serveIndexPage))

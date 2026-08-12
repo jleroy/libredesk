@@ -38,7 +38,7 @@
     {{ if and .Data.Related (not .Data.HelpCenter.Theme.Article.HideRelated) }}
     <aside class="hcd-related">
         <h2>{{ .L.T "helpCenter.relatedArticles" }}</h2>
-        {{ template "docs-article-rows" (map "Articles" .Data.Related "Slug" .Data.HelpCenter.Slug "Locale" .Data.HelpCenter.CurrentLocale) }}
+        {{ template "docs-article-rows" (map "Articles" .Data.Related "Base" .Data.HelpCenter.BasePath) }}
     </aside>
     {{ end }}
 </div>

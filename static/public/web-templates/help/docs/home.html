@@ -5,7 +5,7 @@
     {{ $heroText := .Data.HelpCenter.HeaderText }}{{ if not $heroText }}{{ $heroText = .Data.HelpCenter.PageTitle }}{{ end }}
     <h1>{{ $heroText }}</h1>
     {{ if .Data.HelpCenter.TaglineHTML }}<p class="hcd-hero-tagline">{{ .Data.HelpCenter.TaglineHTML }}</p>{{ end }}
-    <a class="hcd-hero-search" href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}/search" data-hcd-search-open>
+    <a class="hcd-hero-search" href="{{ .Data.HelpCenter.BasePath }}/search" data-hcd-search-open>
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6" /><path d="m18 18-4.5-4.5" stroke-linecap="round" /></svg>
         <span>{{ .L.T "helpCenter.searchPlaceholder" }}</span>
         <span class="hcd-kbd-combo" aria-hidden="true"><kbd class="hcd-kbd hcd-kbd-mod">Ctrl</kbd><kbd class="hcd-kbd">K</kbd></span>
@@ -17,7 +17,7 @@
     {{ with .Data.HelpCenter.Theme.Layout.PopularArticlesLabel }}<h2>{{ . }}</h2>{{ end }}
     <ul>
         {{ range .Data.Popular }}
-        <li><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}"><span>{{ .Title }}</span>{{ template "hc-arrow-icon" }}</a></li>
+        <li><a href="{{ $.Data.HelpCenter.BasePath }}/articles/{{ .Slug }}"><span>{{ .Title }}</span>{{ template "hc-arrow-icon" }}</a></li>
         {{ end }}
     </ul>
 </section>

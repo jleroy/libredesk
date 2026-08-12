@@ -651,7 +651,7 @@ CREATE TABLE help_centers (
 	allowed_locales JSONB NOT NULL DEFAULT '["en"]',
 	is_active BOOLEAN NOT NULL DEFAULT true,
 	theme JSONB NOT NULL DEFAULT '{}',
-	public_url TEXT NOT NULL DEFAULT '',
+	custom_domain TEXT NOT NULL DEFAULT '',
 	template TEXT NOT NULL DEFAULT 'classic' CHECK (template IN ('docs', 'classic'))
 );
 

@@ -6,7 +6,7 @@
     {{ with .Data.HelpCenter.Theme.Layout.PopularArticlesLabel }}<h2>{{ . }}</h2>{{ end }}
     <ul>
         {{ range .Data.Popular }}
-        <li><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}"><span>{{ .Title }}</span>{{ template "hc-arrow-icon" }}</a></li>
+        <li><a href="{{ $.Data.HelpCenter.BasePath }}/articles/{{ .Slug }}"><span>{{ .Title }}</span>{{ template "hc-arrow-icon" }}</a></li>
         {{ end }}
     </ul>
 </section>

@@ -3,9 +3,9 @@
 
 <nav class="hc-breadcrumb" aria-label="{{ .L.T "globals.terms.breadcrumb" }}">
     <ol>
-        <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}">{{ .Data.HelpCenter.Name }}</a></li>
+        <li><a href="{{ .Data.HelpCenter.BasePath }}">{{ .Data.HelpCenter.Name }}</a></li>
         {{ if .Data.Collection.Name }}
-        <li><a href="/hc/{{ .Data.HelpCenter.Slug }}/{{ .Data.HelpCenter.CurrentLocale }}/collections/{{ .Data.Collection.Slug }}">{{ .Data.Collection.Name }}</a></li>
+        <li><a href="{{ .Data.HelpCenter.BasePath }}/collections/{{ .Data.Collection.Slug }}">{{ .Data.Collection.Name }}</a></li>
         {{ end }}
         <li><span class="hc-current" aria-current="page">{{ .Data.Article.Title }}</span></li>
     </ol>
@@ -48,7 +48,7 @@
     <h2>{{ $.L.T "helpCenter.relatedArticles" }}</h2>
     <ul class="hc-article-list">
         {{ range .Data.Related }}
-        <li><a href="/hc/{{ $.Data.HelpCenter.Slug }}/{{ $.Data.HelpCenter.CurrentLocale }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}</a></li>
+        <li><a href="{{ $.Data.HelpCenter.BasePath }}/articles/{{ .Slug }}">{{ template "hc-doc-icon" }}{{ .Title }}</a></li>
         {{ end }}
     </ul>
 </aside>

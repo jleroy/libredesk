@@ -328,6 +328,7 @@ func main() {
 	g := fastglue.NewGlue()
 	g.SetContext(app)
 	initHandlers(g, wsHub)
+	g.Router.NotFound = helpCenterHostNotFound(app, g)
 
 	s := &fasthttp.Server{
 		Name:                 appName,
