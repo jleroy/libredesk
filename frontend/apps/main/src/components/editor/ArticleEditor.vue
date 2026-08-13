@@ -6,6 +6,7 @@
     <Teleport :to="toolbarTarget" :disabled="!toolbarTarget">
       <div
         v-if="editor"
+        :inert="disabled"
         class="editor-toolbar sticky top-0 z-10 w-fit max-w-full rounded-xl border bg-background p-1 shadow-sm"
       >
         <EditorToolbar

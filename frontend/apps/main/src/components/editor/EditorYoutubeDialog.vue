@@ -11,6 +11,7 @@
             v-model="youtubeUrl"
             type="text"
             :placeholder="$t('placeholders.enterUrl')"
+            :aria-label="$t('placeholders.enterUrl')"
             @keydown.enter.prevent="setYoutubeVideo"
           />
           <p v-if="showError" class="text-sm text-destructive">

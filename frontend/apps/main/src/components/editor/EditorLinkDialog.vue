@@ -13,6 +13,7 @@
             v-model="linkUrl"
             type="text"
             :placeholder="$t('placeholders.enterUrl')"
+            :aria-label="$t('placeholders.enterUrl')"
             @keydown.enter.prevent="setLink"
           />
           <div v-if="allowButton" class="flex items-center gap-2">
@@ -27,7 +28,12 @@
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" @click="unsetLink" v-if="editor?.isActive('link')">
+          <Button
+            type="button"
+            variant="outline"
+            @click="unsetLink"
+            v-if="editor?.isActive('link')"
+          >
             {{ $t('actions.removeLink') }}
           </Button>
           <Button type="submit">

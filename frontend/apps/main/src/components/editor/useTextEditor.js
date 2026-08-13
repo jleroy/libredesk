@@ -79,7 +79,6 @@ export function useTextEditor({
       if (!isInternalUpdate.value && editor.value && newContent !== editor.value.getHTML()) {
         editor.value.commands.setContent(newContent || '', false)
         textContent.value = editor.value.getText()
-        editor.value.commands.focus()
       }
     },
     { immediate: true }

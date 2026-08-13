@@ -20,7 +20,13 @@
           <FormMessage />
         </FormItem>
       </FormField>
-      <Button type="button" variant="ghost" size="icon" @click="remove(index)">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        :aria-label="t('globals.terms.remove')"
+        @click="remove(index)"
+      >
         <X class="w-4 h-4" />
       </Button>
     </div>

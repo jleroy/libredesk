@@ -460,9 +460,6 @@ const handleCollectionSave = async (formData) => {
     if (editingCollection.value) {
       await api.updateCollection(props.id, editingCollection.value.id, formData)
     } else {
-      if (createCollectionParentId.value !== null) {
-        formData.parent_id = createCollectionParentId.value
-      }
       await api.createCollection(props.id, formData)
     }
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {

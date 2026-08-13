@@ -284,7 +284,7 @@ func (m *Manager) CreateHelpCenter(req HelpCenterRequest) (models.HelpCenter, er
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
-	if err := m.validateCustomDomain(req.CustomDomain); err != nil {
+	if err := m.validateCustomDomain(req.CustomDomain, 0); err != nil {
 		return hc, err
 	}
 	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
@@ -340,7 +340,7 @@ func (m *Manager) UpdateHelpCenter(id int, req HelpCenterRequest) (models.HelpCe
 	if err := m.validateColor(req.Color); err != nil {
 		return hc, err
 	}
-	if err := m.validateCustomDomain(req.CustomDomain); err != nil {
+	if err := m.validateCustomDomain(req.CustomDomain, id); err != nil {
 		return hc, err
 	}
 	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
@@ -1372,7 +1372,8 @@ func (m *Manager) validateLocalesRetained(helpCenterID int, allowed json.RawMess
 	return nil
 }
 
-func (m *Manager) validateCustomDomain(domain string) error {
+// validateCustomDomain rejects malformed domains and hostnames already claimed by another help center.
+func (m *Manager) validateCustomDomain(domain string, excludeID int) error {
 	if domain == "" {
 		return nil
 	}
@@ -1380,6 +1381,22 @@ func (m *Manager) validateCustomDomain(domain string) error {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
 		u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
 		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidCustomDomain"), nil)
+	}
+	helpCenters, err := m.GetAllHelpCenters()
+	if err != nil {
+		return err
+	}
+	for _, hc := range helpCenters {
+		if hc.ID == excludeID || hc.CustomDomain == "" {
+			continue
+		}
+		other, err := url.Parse(hc.CustomDomain)
+		if err != nil {
+			continue
+		}
+		if strings.EqualFold(other.Hostname(), u.Hostname()) {
+			return envelope.NewError(envelope.ConflictError, m.i18n.T("helpCenter.customDomainInUse"), nil)
+		}
 	}
 	return nil
 }
