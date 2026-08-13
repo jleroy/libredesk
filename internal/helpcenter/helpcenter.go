@@ -182,7 +182,6 @@ type queries struct {
 	ToggleCollectionPublished  *sqlx.Stmt `query:"toggle-collection-published"`
 	DeleteCollection           *sqlx.Stmt `query:"delete-collection"`
 
-	GetArticlesByCollection       *sqlx.Stmt `query:"get-articles-by-collection"`
 	GetArticleByID                *sqlx.Stmt `query:"get-article-by-id"`
 	InsertArticle                 *sqlx.Stmt `query:"insert-article"`
 	UpdateArticle                 *sqlx.Stmt `query:"update-article"`
@@ -604,16 +603,6 @@ func (m *Manager) removeArticleEmbeddings(ids []int) {
 			m.lo.Error("error removing article embeddings", "error", err, "id", id)
 		}
 	}
-}
-
-// GetArticlesByCollection retrieves all articles for a collection.
-func (m *Manager) GetArticlesByCollection(collectionID int) ([]models.Article, error) {
-	var articles = make([]models.Article, 0)
-	if err := m.q.GetArticlesByCollection.Select(&articles, collectionID); err != nil {
-		m.lo.Error("error fetching articles", "error", err, "collection_id", collectionID)
-		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-	return articles, nil
 }
 
 // GetArticleByID retrieves an article by ID.

@@ -132,17 +132,6 @@ RETURNING *;
 DELETE FROM article_collections
 WHERE id = $1;
 
--- name: get-articles-by-collection
-SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.author_id, a.slug, a.locale, a.title, a.content,
-    a.excerpt, a.meta_title, a.meta_description, a.meta_image_url, a.sort_order, a.status, a.view_count, a.ai_enabled,
-    TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS author_name,
-    (SELECT COUNT(*) FROM help_article_feedback f WHERE f.article_id = a.id AND f.is_helpful) AS helpful_count,
-    (SELECT COUNT(*) FROM help_article_feedback f WHERE f.article_id = a.id AND NOT f.is_helpful) AS not_helpful_count
-FROM help_articles a
-LEFT JOIN users u ON u.id = a.author_id
-WHERE a.collection_id = $1
-ORDER BY a.sort_order ASC, a.created_at DESC;
-
 -- name: get-article-by-id
 SELECT a.id, a.created_at, a.updated_at, a.collection_id, a.author_id, a.created_by, a.slug, a.locale, a.title, a.content,
     a.excerpt, a.meta_title, a.meta_description, a.meta_image_url, a.sort_order, a.status, a.view_count, a.ai_enabled,

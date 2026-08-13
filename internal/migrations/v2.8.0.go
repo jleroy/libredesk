@@ -6,7 +6,7 @@ import (
 	"github.com/knadh/stuffbin"
 )
 
-func V2_7_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
+func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS help_centers (
 			id SERIAL PRIMARY KEY,

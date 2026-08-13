@@ -520,8 +520,6 @@ const previewHelpCenter = (id, data, page) =>
 const getHelpCenterTree = (id, locale) =>
   http.get(`/api/v1/help-centers/${id}/tree`, { params: locale ? { locale } : {} })
 const getCollections = (helpCenterId) => http.get(`/api/v1/help-centers/${helpCenterId}/collections`)
-const getCollection = (helpCenterId, id) =>
-  http.get(`/api/v1/help-centers/${helpCenterId}/collections/${id}`)
 const createCollection = (helpCenterId, data) =>
   http.post(`/api/v1/help-centers/${helpCenterId}/collections`, data)
 const updateCollection = (helpCenterId, id, data) =>
@@ -534,7 +532,6 @@ const updateCollectionSortOrders = (helpCenterId, data) =>
 const moveArticleToCollection = (id, data) => http.put(`/api/v1/articles/${id}/collection`, data)
 const updateArticleSortOrders = (collectionId, data) =>
   http.put(`/api/v1/collections/${collectionId}/article-sort-order`, data)
-const getArticles = (collectionId) => http.get(`/api/v1/collections/${collectionId}/articles`)
 const getArticle = (collectionId, id) =>
   http.get(`/api/v1/collections/${collectionId}/articles/${id}`)
 const createArticle = (collectionId, data) =>
@@ -771,7 +768,6 @@ export default {
   previewHelpCenter,
   getHelpCenterTree,
   getCollections,
-  getCollection,
   createCollection,
   updateCollection,
   deleteCollection,
@@ -779,7 +775,6 @@ export default {
   updateCollectionSortOrders,
   updateArticleSortOrders,
   moveArticleToCollection,
-  getArticles,
   getArticle,
   createArticle,
   updateArticle,

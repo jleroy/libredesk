@@ -292,22 +292,6 @@ func handleGetCollections(r *fastglue.Request) error {
 	return r.SendEnvelope(collections)
 }
 
-// handleGetCollection returns a collection by ID.
-func handleGetCollection(r *fastglue.Request) error {
-	var (
-		app   = r.Context.(*App)
-		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
-	)
-	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
-	}
-	collection, err := app.helpcenter.GetCollectionByID(id)
-	if err != nil {
-		return sendErrorEnvelope(r, err)
-	}
-	return r.SendEnvelope(collection)
-}
-
 // handleCreateCollection creates a new collection.
 func handleCreateCollection(r *fastglue.Request) error {
 	var (
@@ -408,22 +392,6 @@ func handleDeleteCollection(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	return r.SendEnvelope(true)
-}
-
-// handleGetArticles returns all articles for a collection.
-func handleGetArticles(r *fastglue.Request) error {
-	var (
-		app             = r.Context.(*App)
-		collectionID, _ = strconv.Atoi(r.RequestCtx.UserValue("col_id").(string))
-	)
-	if collectionID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`collection_id`"), nil, envelope.InputError)
-	}
-	articles, err := app.helpcenter.GetArticlesByCollection(collectionID)
-	if err != nil {
-		return sendErrorEnvelope(r, err)
-	}
-	return r.SendEnvelope(articles)
 }
 
 // handleGetArticle returns an article by ID.
