@@ -8,6 +8,39 @@ import (
 
 func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	if _, err := db.Exec(`
+		CREATE OR REPLACE FUNCTION help_article_search_config(locale TEXT)
+		RETURNS regconfig AS $$
+			SELECT CASE split_part(locale, '-', 1)
+				WHEN 'ar' THEN 'arabic'
+				WHEN 'da' THEN 'danish'
+				WHEN 'nl' THEN 'dutch'
+				WHEN 'en' THEN 'english'
+				WHEN 'fi' THEN 'finnish'
+				WHEN 'fr' THEN 'french'
+				WHEN 'de' THEN 'german'
+				WHEN 'el' THEN 'greek'
+				WHEN 'hu' THEN 'hungarian'
+				WHEN 'id' THEN 'indonesian'
+				WHEN 'ga' THEN 'irish'
+				WHEN 'it' THEN 'italian'
+				WHEN 'lt' THEN 'lithuanian'
+				WHEN 'ne' THEN 'nepali'
+				WHEN 'no' THEN 'norwegian'
+				WHEN 'pt' THEN 'portuguese'
+				WHEN 'ro' THEN 'romanian'
+				WHEN 'ru' THEN 'russian'
+				WHEN 'es' THEN 'spanish'
+				WHEN 'sv' THEN 'swedish'
+				WHEN 'ta' THEN 'tamil'
+				WHEN 'tr' THEN 'turkish'
+				ELSE 'simple'
+			END::regconfig;
+		$$ LANGUAGE sql IMMUTABLE;
+	`); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS help_centers (
 			id SERIAL PRIMARY KEY,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -26,36 +59,12 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			allowed_locales JSONB NOT NULL DEFAULT '["en"]',
 			is_active BOOLEAN NOT NULL DEFAULT true,
 			theme JSONB NOT NULL DEFAULT '{}',
-			custom_domain TEXT NOT NULL DEFAULT ''
+			custom_domain TEXT NOT NULL DEFAULT '',
+			template TEXT NOT NULL DEFAULT 'classic',
+			CONSTRAINT constraint_help_centers_on_template CHECK (template IN ('docs', 'classic'))
 		);
 	`); err != nil {
 		return err
-	}
-	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS allowed_locales JSONB NOT NULL DEFAULT '["en"]';`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS theme JSONB NOT NULL DEFAULT '{}';`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS meta_description TEXT NOT NULL DEFAULT '';`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS custom_domain TEXT NOT NULL DEFAULT '';`); err != nil {
-		return err
-	}
-	// The named drop-and-add also applies the CHECK to installs whose earlier build added the column without it.
-	for _, stmt := range []string{
-		`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS template TEXT NOT NULL DEFAULT 'classic'`,
-		`ALTER TABLE help_centers DROP CONSTRAINT IF EXISTS help_centers_template_check`,
-		`ALTER TABLE help_centers DROP CONSTRAINT IF EXISTS constraint_help_centers_on_template`,
-		`ALTER TABLE help_centers ADD CONSTRAINT constraint_help_centers_on_template CHECK (template IN ('docs', 'classic'))`,
-	} {
-		if _, err := db.Exec(stmt); err != nil {
-			return err
-		}
 	}
 
 	if _, err := db.Exec(`
@@ -73,19 +82,10 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			sort_order INTEGER NOT NULL DEFAULT 0,
 			is_published BOOLEAN NOT NULL DEFAULT false
 		);
+		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_article_collections_on_help_center_slug_locale ON article_collections(help_center_id, slug, locale);
+		CREATE INDEX IF NOT EXISTS index_article_collections_on_help_center_id ON article_collections(help_center_id);
+		CREATE INDEX IF NOT EXISTS index_article_collections_on_parent_id ON article_collections(parent_id);
 	`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`ALTER TABLE article_collections ADD COLUMN IF NOT EXISTS icon TEXT NOT NULL DEFAULT '';`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS index_unique_article_collections_on_help_center_slug_locale ON article_collections(help_center_id, slug, locale);`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_article_collections_on_help_center_id ON article_collections(help_center_id);`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_article_collections_on_parent_id ON article_collections(parent_id);`); err != nil {
 		return err
 	}
 
@@ -96,6 +96,7 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			collection_id INTEGER NOT NULL REFERENCES article_collections(id) ON DELETE CASCADE,
 			author_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
+			created_by BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
 			slug TEXT NOT NULL,
 			locale TEXT NOT NULL DEFAULT 'en',
 			title TEXT NOT NULL,
@@ -109,40 +110,21 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			view_count INTEGER NOT NULL DEFAULT 0,
 			ai_enabled BOOLEAN NOT NULL DEFAULT false,
 			embedded_fingerprint TEXT NOT NULL DEFAULT '',
+			-- left() caps the indexed body below the 1MB tsvector limit so oversized articles still save.
+			search_tsv TSVECTOR GENERATED ALWAYS AS (
+				setweight(to_tsvector(help_article_search_config(locale), title), 'A') ||
+				setweight(to_tsvector(help_article_search_config(locale), excerpt), 'B') ||
+				setweight(to_tsvector(help_article_search_config(locale), left(content, 100000)), 'C')
+			) STORED,
 			CONSTRAINT constraint_help_articles_on_status CHECK (status IN ('draft', 'published', 'archived'))
 		);
+		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_help_articles_on_collection_slug_locale ON help_articles(collection_id, slug, locale);
+		CREATE INDEX IF NOT EXISTS index_help_articles_on_collection_id ON help_articles(collection_id);
+		CREATE INDEX IF NOT EXISTS index_help_articles_on_author_id ON help_articles(author_id);
+		CREATE INDEX IF NOT EXISTS index_help_articles_on_title_trgm ON help_articles USING gin (title gin_trgm_ops);
+		CREATE INDEX IF NOT EXISTS index_help_articles_on_content_trgm ON help_articles USING gin (content gin_trgm_ops);
+		CREATE INDEX IF NOT EXISTS index_help_articles_on_search_tsv ON help_articles USING gin (search_tsv);
 	`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS index_unique_help_articles_on_collection_slug_locale ON help_articles(collection_id, slug, locale);`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_articles_on_collection_id ON help_articles(collection_id);`); err != nil {
-		return err
-	}
-
-	// Idempotent upgrades for installs that ran an earlier build of this migration.
-	for _, stmt := range []string{
-		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS author_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL`,
-		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS created_by BIGINT NULL REFERENCES users(id) ON DELETE SET NULL`,
-		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS excerpt TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS meta_title TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS meta_description TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE help_articles ADD COLUMN IF NOT EXISTS meta_image_url TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE help_articles DROP CONSTRAINT IF EXISTS constraint_help_articles_on_status`,
-		`ALTER TABLE help_articles ADD CONSTRAINT constraint_help_articles_on_status CHECK (status IN ('draft', 'published', 'archived'))`,
-	} {
-		if _, err := db.Exec(stmt); err != nil {
-			return err
-		}
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_articles_on_author_id ON help_articles(author_id);`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_articles_on_title_trgm ON help_articles USING gin (title gin_trgm_ops);`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_articles_on_content_trgm ON help_articles USING gin (content gin_trgm_ops);`); err != nil {
 		return err
 	}
 
@@ -153,10 +135,8 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			article_id INTEGER NOT NULL REFERENCES help_articles(id) ON DELETE CASCADE,
 			is_helpful BOOLEAN NOT NULL
 		);
+		CREATE INDEX IF NOT EXISTS index_help_article_feedback_on_article_id ON help_article_feedback(article_id);
 	`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_article_feedback_on_article_id ON help_article_feedback(article_id);`); err != nil {
 		return err
 	}
 
@@ -168,10 +148,8 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 			query TEXT NOT NULL,
 			results_count INTEGER NOT NULL DEFAULT 0
 		);
+		CREATE INDEX IF NOT EXISTS index_help_search_queries_on_help_center_id ON help_search_queries(help_center_id);
 	`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS index_help_search_queries_on_help_center_id ON help_search_queries(help_center_id);`); err != nil {
 		return err
 	}
 

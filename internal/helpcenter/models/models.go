@@ -179,6 +179,12 @@ type SearchTermStat struct {
 	LastSearch string `db:"last_search" json:"last_search"`
 }
 
+// Locale is a selectable help center language.
+type Locale struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
 // Insights bundles the help center analytics shown to admins.
 type Insights struct {
 	TopSearches    []SearchTermStat `json:"top_searches"`

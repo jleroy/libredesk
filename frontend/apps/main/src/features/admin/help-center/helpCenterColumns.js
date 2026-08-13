@@ -41,7 +41,7 @@ export const createHelpCenterColumns = (t, { onOpen, onEdit, onDelete, onToggle 
         'div',
         { class: 'text-center' },
         h(Badge, { variant: row.getValue('is_active') ? 'success' : 'secondary' }, () =>
-          row.getValue('is_active') ? t('globals.terms.active') : t('helpCenter.paused')
+          row.getValue('is_active') ? t('globals.terms.active') : t('globals.terms.paused')
         )
       )
   },

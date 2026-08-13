@@ -46,6 +46,36 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to pick the text search configuration for a help article locale.
+CREATE OR REPLACE FUNCTION help_article_search_config(locale TEXT)
+RETURNS regconfig AS $$
+    SELECT CASE split_part(locale, '-', 1)
+        WHEN 'ar' THEN 'arabic'
+        WHEN 'da' THEN 'danish'
+        WHEN 'nl' THEN 'dutch'
+        WHEN 'en' THEN 'english'
+        WHEN 'fi' THEN 'finnish'
+        WHEN 'fr' THEN 'french'
+        WHEN 'de' THEN 'german'
+        WHEN 'el' THEN 'greek'
+        WHEN 'hu' THEN 'hungarian'
+        WHEN 'id' THEN 'indonesian'
+        WHEN 'ga' THEN 'irish'
+        WHEN 'it' THEN 'italian'
+        WHEN 'lt' THEN 'lithuanian'
+        WHEN 'ne' THEN 'nepali'
+        WHEN 'no' THEN 'norwegian'
+        WHEN 'pt' THEN 'portuguese'
+        WHEN 'ro' THEN 'romanian'
+        WHEN 'ru' THEN 'russian'
+        WHEN 'es' THEN 'spanish'
+        WHEN 'sv' THEN 'swedish'
+        WHEN 'ta' THEN 'tamil'
+        WHEN 'tr' THEN 'turkish'
+        ELSE 'simple'
+    END::regconfig;
+$$ LANGUAGE sql IMMUTABLE;
+
 DROP TABLE IF EXISTS sla_policies CASCADE;
 CREATE TABLE sla_policies (
 	id SERIAL PRIMARY KEY,
@@ -696,6 +726,12 @@ CREATE TABLE help_articles (
 	view_count INTEGER NOT NULL DEFAULT 0,
 	ai_enabled BOOLEAN NOT NULL DEFAULT false,
 	embedded_fingerprint TEXT NOT NULL DEFAULT '',
+	-- left() caps the indexed body below the 1MB tsvector limit so oversized articles still save.
+	search_tsv TSVECTOR GENERATED ALWAYS AS (
+		setweight(to_tsvector(help_article_search_config(locale), title), 'A') ||
+		setweight(to_tsvector(help_article_search_config(locale), excerpt), 'B') ||
+		setweight(to_tsvector(help_article_search_config(locale), left(content, 100000)), 'C')
+	) STORED,
 	CONSTRAINT constraint_help_articles_on_status CHECK (status IN ('draft', 'published', 'archived'))
 );
 CREATE UNIQUE INDEX index_unique_help_articles_on_collection_slug_locale ON help_articles(collection_id, slug, locale);
@@ -703,6 +739,7 @@ CREATE INDEX index_help_articles_on_collection_id ON help_articles(collection_id
 CREATE INDEX index_help_articles_on_author_id ON help_articles(author_id);
 CREATE INDEX index_help_articles_on_title_trgm ON help_articles USING gin (title gin_trgm_ops);
 CREATE INDEX index_help_articles_on_content_trgm ON help_articles USING gin (content gin_trgm_ops);
+CREATE INDEX index_help_articles_on_search_tsv ON help_articles USING gin (search_tsv);
 
 DROP TABLE IF EXISTS help_article_feedback CASCADE;
 CREATE TABLE help_article_feedback (

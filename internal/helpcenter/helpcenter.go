@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/abhinavxd/libredesk/internal/dbutil"
@@ -64,9 +65,6 @@ var (
 
 	// slugRe matches the charset stringutil.GenerateSlug emits; anything else breaks /hc/ URLs.
 	slugRe = regexp.MustCompile(fmt.Sprintf(`^[a-z0-9_-]{1,%d}$`, maxSlugLen))
-
-	// localeRe matches BCP-47 style codes, e.g. "en", "en-US"; the code becomes a /hc/ path segment.
-	localeRe = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$`)
 
 	ilikeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
@@ -925,15 +923,17 @@ func (m *Manager) GetPublishedCollectionLocales(helpCenterSlug, collectionSlug s
 	return locales, nil
 }
 
-// SearchPublishedArticles searches published articles in a help center, content trimmed to an excerpt, filtered to locale (empty = all).
+// SearchPublishedArticles searches published articles in a help center, content trimmed to an excerpt, filtered to locale.
 func (m *Manager) SearchPublishedArticles(helpCenterSlug, query, locale string, limit int) ([]models.Article, error) {
 	var articles = make([]models.Article, 0)
 	query = strings.TrimSpace(query)
 	if utf8.RuneCountInString(query) < minSearchQueryLen {
 		return articles, nil
 	}
-	query = ilikeEscaper.Replace(truncateRunes(query, maxSearchQueryLen))
-	if err := m.q.SearchPublishedArticles.Select(&articles, helpCenterSlug, query, limit, locale); err != nil {
+	query = truncateRunes(query, maxSearchQueryLen)
+	tsQuery := prefixTSQuery(query)
+	query = ilikeEscaper.Replace(query)
+	if err := m.q.SearchPublishedArticles.Select(&articles, helpCenterSlug, query, limit, locale, tsQuery); err != nil {
 		m.lo.Error("error searching published articles", "error", err, "help_center_slug", helpCenterSlug)
 		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -1333,10 +1333,10 @@ func (m *Manager) validateHelpCenterSlug(slug string) error {
 	return nil
 }
 
-// validateLocales rejects language codes that aren't valid BCP-47 style codes.
+// validateLocales rejects language codes outside the supported set.
 func (m *Manager) validateLocales(defaultLocale string, allowed json.RawMessage) error {
 	for _, l := range append(parseLocales(allowed), defaultLocale) {
-		if !localeRe.MatchString(strings.TrimSpace(l)) {
+		if _, ok := supportedLocales[strings.TrimSpace(l)]; !ok {
 			return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidLocale"), nil)
 		}
 	}
@@ -1630,6 +1630,17 @@ func buildArticleSanitizer() *bluemonday.Policy {
 	// unrestricted policy wins, since any matching policy passes.
 	p.AllowAttrs("alt").OnElements("img")
 	return p
+}
+
+// prefixTSQuery builds an AND-ed prefix tsquery from the reader's search terms.
+func prefixTSQuery(query string) string {
+	var terms []string
+	for _, word := range strings.FieldsFunc(query, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		terms = append(terms, word+":*")
+	}
+	return strings.Join(terms, " & ")
 }
 
 // buildInlineTextSanitizer returns the HTML sanitization policy for short theme text fields.

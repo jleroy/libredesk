@@ -507,6 +507,7 @@ const getCopilotMessages = (conversationUUID) =>
 const clearCopilotMessages = (conversationUUID) =>
   http.delete('/api/v1/ai/copilot/messages', { params: { conversation_uuid: conversationUUID } })
 const getHelpCenters = () => http.get('/api/v1/help-centers')
+const getHelpCenterLocales = () => http.get('/api/v1/help-centers/locales')
 const getHelpCenter = (id) => http.get(`/api/v1/help-centers/${id}`)
 const createHelpCenter = (data) => http.post('/api/v1/help-centers', data)
 const updateHelpCenter = (id, data) => http.put(`/api/v1/help-centers/${id}`, data)
@@ -760,6 +761,7 @@ export default {
   updateAISnippet,
   deleteAISnippet,
   getHelpCenters,
+  getHelpCenterLocales,
   getHelpCenter,
   createHelpCenter,
   updateHelpCenter,

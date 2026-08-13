@@ -290,6 +290,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 
 	// Help centers.
 	g.GET("/api/v1/help-centers", perm(handleGetHelpCenters, "help_center:manage"))
+	g.GET("/api/v1/help-centers/locales", perm(handleGetHelpCenterLocales, "help_center:manage"))
 	g.GET("/api/v1/help-centers/{id}", perm(handleGetHelpCenter, "help_center:manage"))
 	g.GET("/api/v1/help-centers/{id}/tree", perm(handleGetHelpCenterTree, "help_center:manage"))
 	g.POST("/api/v1/help-centers", perm(handleCreateHelpCenter, "help_center:manage"))

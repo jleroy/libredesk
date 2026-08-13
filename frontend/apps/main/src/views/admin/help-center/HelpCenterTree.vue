@@ -7,7 +7,7 @@
           <div class="flex items-center gap-3">
             <CustomBreadcrumb :links="breadcrumbLinks" />
             <Badge v-if="helpCenter && !helpCenter.is_active" variant="secondary">
-              {{ t('helpCenter.paused') }}
+              {{ t('globals.terms.paused') }}
             </Badge>
           </div>
 

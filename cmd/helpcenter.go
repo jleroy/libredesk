@@ -115,6 +115,11 @@ type previewTOCItem struct {
 	Title string
 }
 
+// handleGetHelpCenterLocales returns the locales a help center can be authored in.
+func handleGetHelpCenterLocales(r *fastglue.Request) error {
+	return r.SendEnvelope(helpcenter.SupportedLocales())
+}
+
 // handleGetHelpCenters returns all help centers.
 func handleGetHelpCenters(r *fastglue.Request) error {
 	app := r.Context.(*App)

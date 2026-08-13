@@ -99,11 +99,10 @@
               <FormField v-slot="{ componentField }" :name="`allowed_locales[${index}]`">
                 <FormItem class="flex-1">
                   <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="en"
-                      list="hc-locale-suggestions"
+                    <SelectComboBox
                       v-bind="componentField"
+                      :items="localeItems"
+                      :placeholder="t('placeholders.selectLanguage')"
                     />
                   </FormControl>
                   <FormMessage />
@@ -123,11 +122,6 @@
             <Button type="button" variant="outline" size="sm" @click="pushLocale('')">
               {{ t('globals.messages.add') }}
             </Button>
-            <datalist id="hc-locale-suggestions">
-              <option v-for="lang in availableLanguages" :key="lang.code" :value="lang.code">
-                {{ lang.name }}
-              </option>
-            </datalist>
           </div>
 
           <FormField v-slot="{ componentField }" name="default_locale">
@@ -140,7 +134,7 @@
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem v-for="loc in localeOptions" :key="loc" :value="loc">{{
-                      loc
+                      localeLabel(loc)
                     }}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -668,6 +662,7 @@ import { X } from 'lucide-vue-next'
 import { Tabs, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
 import CollapsibleSection from './CollapsibleSection.vue'
 import LinkListField from './LinkListField.vue'
+import SelectComboBox from '@/components/combobox/SelectCombobox.vue'
 import { createHelpCenterFormSchema } from './helpCenterFormSchema.js'
 import api from '@/api'
 import { useI18n } from 'vue-i18n'
@@ -814,16 +809,22 @@ const {
 
 const isClassic = computed(() => form.values.template === 'classic')
 
-const availableLanguages = ref([])
+const supportedLocales = ref([])
 
 onMounted(async () => {
   try {
-    const { data } = await api.getAvailableLanguages()
-    availableLanguages.value = data.data || []
+    const { data } = await api.getHelpCenterLocales()
+    supportedLocales.value = data.data || []
   } catch {
-    availableLanguages.value = []
+    supportedLocales.value = []
   }
 })
+
+const localeItems = computed(() =>
+  supportedLocales.value.map((l) => ({ label: `${l.name} (${l.code})`, value: l.code }))
+)
+
+const localeLabel = (code) => localeItems.value.find((i) => i.value === code)?.label ?? code
 
 const cleanLocales = (locales) => (locales || []).map((l) => (l || '').trim()).filter(Boolean)
 
