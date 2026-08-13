@@ -69,7 +69,8 @@ WHERE model_type = 'help_articles'
 UPDATE media
 SET model_id = $1, updated_at = NOW()
 WHERE model_type = 'help_articles'
-  AND uuid = ANY($2::uuid[]);
+  AND uuid = ANY($2::uuid[])
+  AND (model_id IS NULL OR model_id = 0 OR model_id = $1);
 
 -- name: unlink-help-article-media
 UPDATE media

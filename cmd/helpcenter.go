@@ -1059,6 +1059,7 @@ func sendXML(r *fastglue.Request, v any) error {
 		return sendErrorEnvelope(r, err)
 	}
 	r.RequestCtx.SetContentType("application/xml; charset=utf-8")
+	r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterCacheControl)
 	fmt.Fprint(r.RequestCtx, xml.Header)
 	r.RequestCtx.Write(out)
 	return nil

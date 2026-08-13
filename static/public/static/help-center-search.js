@@ -113,6 +113,7 @@
     input.addEventListener('input', function () {
         var q = input.value.trim();
         clearTimeout(timer);
+        seq++;
         // A term the reader abandoned mid-session still belongs in the log.
         if (pending && q.indexOf(pending) !== 0) flush();
         if (q.length < MIN_CHARS) {

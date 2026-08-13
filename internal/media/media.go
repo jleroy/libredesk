@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -413,6 +414,11 @@ func (m *Manager) detectContentType(sourceContentType string, content io.ReadSee
 	// Set default if empty
 	if sourceContentType == "" {
 		sourceContentType = "application/octet-stream"
+	}
+
+	// Handle "image/svg+xml; charset=utf-8", keep just the type.
+	if mediaType, _, err := mime.ParseMediaType(sourceContentType); err == nil && mediaType != "" {
+		sourceContentType = mediaType
 	}
 
 	// Trust source unless it's a generic/useless type

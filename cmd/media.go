@@ -265,6 +265,10 @@ func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.M
 		r.RequestCtx.Response.Header.Set("Content-Type", media.ContentType)
 		r.RequestCtx.Response.Header.Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": media.Filename}))
 		r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
+		// Sandbox SVGs.
+		if media.ContentType == "image/svg+xml" {
+			r.RequestCtx.Response.Header.Set("Content-Security-Policy", "sandbox")
+		}
 		r.RequestCtx.Response.Header.Set("Cache-Control", fmt.Sprintf("%s, max-age=%d, immutable", cacheVisibility(media.Private), int(mediaCacheTTL.Seconds())))
 
 		fasthttp.ServeFile(r.RequestCtx, filepath.Join(ko.String("upload.fs.upload_path"), uuid))
