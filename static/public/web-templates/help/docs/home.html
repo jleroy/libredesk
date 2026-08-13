@@ -6,7 +6,7 @@
     <h1>{{ $heroText }}</h1>
     {{ if .Data.HelpCenter.TaglineHTML }}<p class="hcd-hero-tagline">{{ .Data.HelpCenter.TaglineHTML }}</p>{{ end }}
     <a class="hcd-hero-search" href="{{ .Data.HelpCenter.BasePath }}/search" data-hcd-search-open>
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6" /><path d="m18 18-4.5-4.5" stroke-linecap="round" /></svg>
+        {{ template "hc-search-icon" }}
         <span>{{ .L.T "helpCenter.searchPlaceholder" }}</span>
         <span class="hcd-kbd-combo" aria-hidden="true"><kbd class="hcd-kbd hcd-kbd-mod">Ctrl</kbd><kbd class="hcd-kbd">K</kbd></span>
     </a>

@@ -26,6 +26,29 @@
                 </div>
 {{ end }}
 
+{{ define "hc-search-icon" }}<svg{{ with . }} class="{{ . }}"{{ end }} viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6" /><path d="m18 18-4.5-4.5" stroke-linecap="round" /></svg>{{ end }}
+
+{{ define "hc-article-toc" }}
+{{ if not .Data.HelpCenter.Theme.Article.HideToc }}
+<nav class="hc-toc{{ if .Data.TOC }} hc-toc-open{{ end }}" id="hc-toc" aria-label="{{ .L.T "helpCenter.onThisPage" }}"{{ if not .Data.TOC }} hidden{{ end }}>
+    <button class="hc-toc-title" type="button" id="hc-toc-toggle" aria-expanded="{{ if .Data.TOC }}true{{ else }}false{{ end }}" aria-controls="hc-toc-list">
+        {{ .L.T "helpCenter.onThisPage" }}
+        <svg class="hc-toc-caret" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <ul id="hc-toc-list">{{ range .Data.TOC }}<li><a href="#{{ .ID }}">{{ .Title }}</a></li>{{ end }}</ul>
+</nav>
+{{ end }}
+{{ end }}
+
+{{ define "hc-helpful" }}
+<div class="hc-helpful" id="hc-helpful" role="group" aria-labelledby="hc-helpful-q" data-endpoint="/api/public/help-centers/{{ .Data.HelpCenter.Slug }}/articles/{{ .Data.Article.Slug }}/feedback?locale={{ .Data.Article.Locale }}">
+    <span class="hc-helpful-q" id="hc-helpful-q">{{ .L.T "helpCenter.wasHelpful" }}</span>
+    <button type="button" data-helpful="true">{{ .L.T "globals.messages.yes" }}</button>
+    <button type="button" data-helpful="false">{{ .L.T "globals.messages.no" }}</button>
+    <span class="hc-helpful-thanks" hidden>{{ .L.T "helpCenter.feedbackThanks" }}</span>
+</div>
+{{ end }}
+
 {{ define "hc-doc-icon" }}<svg class="hc-doc" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5L12.5 5v9.5h-8.5z" stroke-linejoin="round"/><path d="M8.5 1.5V5h4" stroke-linejoin="round"/></svg>{{ end }}
 {{ define "hc-arrow-icon" }}<svg class="hc-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ end }}
 

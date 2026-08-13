@@ -11,7 +11,7 @@ import (
 )
 
 // Bump whenever ChunkHTMLContent changes the text it emits for unchanged input; it feeds reindex fingerprints.
-const ChunkerVersion = 2
+const ChunkerVersion = 3
 
 var (
 	sentenceRegex     = regexp.MustCompile(`[.!?]+[\s]+`)

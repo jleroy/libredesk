@@ -12,7 +12,7 @@ func prepareHTMLForEmbedding(htmlContent string) string {
 	if err != nil {
 		return htmlContent
 	}
-	inlineLinkHrefs(doc)
+	inlineAnchorMarkdown(doc)
 	flattenTables(doc)
 
 	var b strings.Builder
@@ -20,20 +20,6 @@ func prepareHTMLForEmbedding(htmlContent string) string {
 		return htmlContent
 	}
 	return b.String()
-}
-
-// inlineLinkHrefs appends each link's destination after its text so the flattened text keeps the URL.
-func inlineLinkHrefs(n *html.Node) {
-	if n.Type == html.ElementNode && n.Data == "a" {
-		href := strings.TrimSpace(attrValue(n, "href"))
-		text := strings.TrimSpace(nodeText(n))
-		if href != "" && !strings.HasPrefix(href, "#") && !strings.HasPrefix(href, "cid:") && text != href {
-			n.AppendChild(&html.Node{Type: html.TextNode, Data: " (" + href + ")"})
-		}
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		inlineLinkHrefs(c)
-	}
 }
 
 // flattenTables turns each table into a <pre> of one header-labelled line per row, which also keeps it unsplittable.

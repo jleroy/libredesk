@@ -14,7 +14,7 @@
                 </a>
             </div>
             <a class="hcd-search-btn" href="{{ .Data.HelpCenter.BasePath }}/search" data-hcd-search-open>
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6" /><path d="m18 18-4.5-4.5" stroke-linecap="round" /></svg>
+                {{ template "hc-search-icon" }}
                 <span class="hcd-search-btn-label">{{ .L.T "globals.terms.search" }}</span>
                 <span class="hcd-kbd-combo" aria-hidden="true"><kbd class="hcd-kbd hcd-kbd-mod">Ctrl</kbd><kbd class="hcd-kbd">K</kbd></span>
             </a>
@@ -33,7 +33,7 @@
         <div class="hcd-search-backdrop" data-hcd-search-close></div>
         <div class="hcd-search-panel" role="dialog" aria-modal="true" aria-label="{{ .L.T "globals.terms.search" }}">
             <form class="hc-search" action="{{ .Data.HelpCenter.BasePath }}/search" method="GET" role="search" data-hc-base="{{ .Data.HelpCenter.BasePath }}" data-hc-slug="{{ .Data.HelpCenter.Slug }}" data-hc-locale="{{ .Data.HelpCenter.CurrentLocale }}" data-hc-empty="{{ .L.T "helpCenter.noResults" }}" data-hc-results-one="{{ .L.Tc "helpCenter.resultsCount" 1 }}" data-hc-results="{{ .L.Tc "helpCenter.resultsCount" 2 }}">
-                <svg class="hc-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6" /><path d="m18 18-4.5-4.5" stroke-linecap="round" /></svg>
+                {{ template "hc-search-icon" "hc-search-icon" }}
                 <input type="search" name="q" value="" placeholder="{{ .L.T "helpCenter.searchPlaceholder" }}" aria-label="{{ .L.T "helpCenter.searchPlaceholder" }}" autocomplete="off" />
                 <button type="submit" class="hc-sr-only">{{ .L.T "globals.terms.search" }}</button>
             </form>
