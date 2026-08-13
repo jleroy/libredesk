@@ -740,6 +740,7 @@
   "editor.callout.warning": "Warning callout",
   "editor.callout.danger": "Danger callout",
   "editor.callout.remove": "Remove callout",
+  "editor.codeBlock.remove": "Remove code block",
   "editor.collapsibleSummary": "Summary",
   "editor.editLinkUrl": "Edit link URL",
   "editor.heading": "Heading {level}",

@@ -151,7 +151,45 @@
       <TooltipContent>{{ $t('editor.tooltip.link') }}</TooltipContent>
     </Tooltip>
     <template v-if="showArticleTools">
-      <Tooltip>
+      <DropdownMenu v-if="editor?.isActive('codeBlock')">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <DropdownMenuTrigger as-child>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                class="bg-secondary flex items-center"
+                :aria-label="$t('editor.tooltip.codeBlock')"
+              >
+                <Code size="14" />
+                <span class="ml-1 text-xs">{{ getCurrentLanguageLabel() }}</span>
+                <ChevronDown class="w-3 h-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{{ $t('editor.tooltip.codeBlock') }}</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent>
+          <DropdownMenuItem
+            class="text-destructive"
+            @select="editor?.chain().focus().toggleCodeBlock().run()"
+          >
+            {{ $t('editor.codeBlock.remove') }}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <div class="max-h-64 overflow-y-auto">
+            <DropdownMenuItem
+              v-for="language in codeBlockLanguages"
+              :key="language.label"
+              @select="setCodeBlockLanguage(language.value)"
+            >
+              {{ language.label }}
+            </DropdownMenuItem>
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Tooltip v-else>
         <TooltipTrigger as-child>
           <Button
             type="button"
@@ -159,7 +197,6 @@
             variant="ghost"
             :aria-label="$t('editor.tooltip.codeBlock')"
             @click.prevent="editor?.chain().focus().toggleCodeBlock().run()"
-            :class="{ 'bg-secondary': editor?.isActive('codeBlock') }"
           >
             <Code size="14" />
           </Button>
@@ -319,9 +356,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@shared-ui/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
+import { codeBlockLanguages } from './codeLanguages'
 
 const props = defineProps({
   editor: { type: Object, default: null },
@@ -340,6 +379,14 @@ const alignments = [
 
 const setHeading = (level) => props.editor?.chain().focus().toggleHeading({ level }).run()
 const setParagraph = () => props.editor?.chain().focus().setParagraph().run()
+
+const setCodeBlockLanguage = (language) =>
+  props.editor?.chain().focus().updateAttributes('codeBlock', { language }).run()
+
+const getCurrentLanguageLabel = () => {
+  const language = props.editor?.getAttributes('codeBlock').language
+  return codeBlockLanguages.find((l) => l.value === language)?.label || language
+}
 
 const getCurrentHeadingText = () => {
   if (!props.editor) return 'P'

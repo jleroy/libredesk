@@ -61,6 +61,7 @@ export const createHelpCenterColumns = (t, { onOpen, onEdit, onDelete, onToggle 
         { class: 'relative' },
         h(HelpCenterDropdown, {
           helpCenter: row.original,
+          onOpen: (hc) => onOpen?.(hc),
           onEdit: (hc) => onEdit?.(hc),
           onDelete: (hc) => onDelete?.(hc),
           onToggle: (hc) => onToggle?.(hc)

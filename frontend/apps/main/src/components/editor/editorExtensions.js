@@ -1,4 +1,7 @@
 import StarterKit from '@tiptap/starter-kit'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import { createLowlight } from 'lowlight'
+import { codeGrammars } from './codeLanguages'
 import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
 import Mention from '@tiptap/extension-mention'
@@ -14,6 +17,8 @@ import { Callout } from './extensions/Callout'
 import { Details, DetailsSummary, DetailsContent } from './extensions/Collapsible'
 import { TrailingNode } from './extensions/TrailingNode'
 import mentionSuggestion from './mentionSuggestion'
+
+const lowlight = createLowlight(codeGrammars)
 
 // Inline table styling so it survives email clients that strip <style>.
 const CustomTable = Table.extend({
@@ -106,8 +111,16 @@ const CustomMention = Mention.extend({
   }
 })
 
-const sharedExtensions = ({ getPlaceholder, imageInline = false, headingLevels }) => [
-  StarterKit.configure(headingLevels ? { heading: { levels: headingLevels } } : {}),
+const sharedExtensions = ({
+  getPlaceholder,
+  imageInline = false,
+  headingLevels,
+  starterKit = {}
+}) => [
+  StarterKit.configure({
+    ...(headingLevels ? { heading: { levels: headingLevels } } : {}),
+    ...starterKit
+  }),
   Underline,
   ResizableImage.configure({
     inline: imageInline,
@@ -137,7 +150,13 @@ export function buildConversationExtensions({ getPlaceholder }) {
 export function buildArticleExtensions({ getPlaceholder, embedTitle, defaultSummary }) {
   return [
     // The article title is the page's h1, so the body starts at h2.
-    ...sharedExtensions({ getPlaceholder, imageInline: true, headingLevels: [2, 3, 4] }),
+    ...sharedExtensions({
+      getPlaceholder,
+      imageInline: true,
+      headingLevels: [2, 3, 4],
+      starterKit: { codeBlock: false }
+    }),
+    CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
     Table.configure({ resizable: false }),
     TableRow,
     TableCell,

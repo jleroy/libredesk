@@ -7,6 +7,9 @@
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent>
+      <DropdownMenuItem @click="emit('open', props.helpCenter)">{{
+        $t('globals.terms.article', 2)
+      }}</DropdownMenuItem>
       <DropdownMenuItem @click="emit('edit', props.helpCenter)">{{
         $t('globals.messages.edit')
       }}</DropdownMenuItem>
@@ -74,7 +77,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'toggle'])
+const emit = defineEmits(['open', 'edit', 'delete', 'toggle'])
 
 function visitSite() {
   const rootUrl = appSettingsStore.settings?.['app.root_url'] || window.location.origin

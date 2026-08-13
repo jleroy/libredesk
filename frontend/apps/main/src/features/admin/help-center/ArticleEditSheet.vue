@@ -337,6 +337,7 @@ import {
 import { createArticleFormSchema } from './articleFormSchema.js'
 import { useI18n } from 'vue-i18n'
 import Editor from '@main/components/editor/ArticleEditor.vue'
+import { highlightCodeBlocks } from '@main/components/editor/highlightCodeBlocks'
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import api from '@/api'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
@@ -516,6 +517,10 @@ const fetchArticle = async () => {
 }
 
 const onSubmit = form.handleSubmit(async (values) => {
-  props.submitForm({ ...values, author_id: values.author_id ? Number(values.author_id) : null })
+  props.submitForm({
+    ...values,
+    content: highlightCodeBlocks(values.content),
+    author_id: values.author_id ? Number(values.author_id) : null
+  })
 })
 </script>

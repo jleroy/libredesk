@@ -104,6 +104,40 @@
         }
     }
 
+    if (prose && navigator.clipboard) {
+        var copyIcon = '{{ LucideIcon "copy" }}';
+        var copiedIcon = '{{ LucideIcon "check" }}';
+        var copyLabel = '{{ .L.T "globals.terms.copy" }}';
+        var copiedLabel = '{{ .L.T "globals.messages.copied" }}';
+        prose.querySelectorAll('pre').forEach(function (pre) {
+            var code = pre.querySelector('code');
+            if (!code) return;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'hc-copy';
+            btn.innerHTML = copyIcon;
+            btn.setAttribute('aria-label', copyLabel);
+            btn.title = copyLabel;
+            var reset;
+            btn.addEventListener('click', function () {
+                navigator.clipboard.writeText(code.innerText).then(function () {
+                    btn.innerHTML = copiedIcon;
+                    btn.setAttribute('data-copied', '');
+                    btn.setAttribute('aria-label', copiedLabel);
+                    btn.title = copiedLabel;
+                    clearTimeout(reset);
+                    reset = setTimeout(function () {
+                        btn.innerHTML = copyIcon;
+                        btn.removeAttribute('data-copied');
+                        btn.setAttribute('aria-label', copyLabel);
+                        btn.title = copyLabel;
+                    }, 1500);
+                }).catch(function () {});
+            });
+            pre.appendChild(btn);
+        });
+    }
+
     var box = document.getElementById('hc-helpful');
     if (box) {
         var key = 'hc-feedback:' + box.dataset.endpoint;
