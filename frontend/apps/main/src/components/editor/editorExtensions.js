@@ -21,14 +21,20 @@ import mentionSuggestion from './mentionSuggestion'
 const lowlight = createLowlight(codeGrammars)
 
 // Inline table styling so it survives email clients that strip <style>.
+const tableStyle =
+  'border: 1px solid #dee2e6 !important; width: 100%; margin:0; table-layout: fixed; border-collapse: collapse; position:relative; border-radius: 0.25rem;'
+const tableCellStyle =
+  'border: 1px solid #dee2e6 !important; box-sizing: border-box !important; min-width: 1em !important; padding: 6px 8px !important; vertical-align: top !important;'
+const tableHeaderStyle =
+  'background-color: #f8f9fa !important; color: #212529 !important; font-weight: bold !important; text-align: left !important; border: 1px solid #dee2e6 !important; padding: 6px 8px !important;'
+
 const CustomTable = Table.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
       style: {
-        parseHTML: (element) =>
-          (element.getAttribute('style') || '') +
-          '; border: 1px solid #dee2e6 !important; width: 100%; margin:0; table-layout: fixed; border-collapse: collapse; position:relative; border-radius: 0.25rem;'
+        default: tableStyle,
+        parseHTML: (element) => (element.getAttribute('style') || '') + '; ' + tableStyle
       }
     }
   }
@@ -39,9 +45,8 @@ const CustomTableCell = TableCell.extend({
     return {
       ...this.parent?.(),
       style: {
-        parseHTML: (element) =>
-          (element.getAttribute('style') || '') +
-          '; border: 1px solid #dee2e6 !important; box-sizing: border-box !important; min-width: 1em !important; padding: 6px 8px !important; vertical-align: top !important;'
+        default: tableCellStyle,
+        parseHTML: (element) => (element.getAttribute('style') || '') + '; ' + tableCellStyle
       }
     }
   }
@@ -52,9 +57,8 @@ const CustomTableHeader = TableHeader.extend({
     return {
       ...this.parent?.(),
       style: {
-        parseHTML: (element) =>
-          (element.getAttribute('style') || '') +
-          '; background-color: #f8f9fa !important; color: #212529 !important; font-weight: bold !important; text-align: left !important; border: 1px solid #dee2e6 !important; padding: 6px 8px !important;'
+        default: tableHeaderStyle,
+        parseHTML: (element) => (element.getAttribute('style') || '') + '; ' + tableHeaderStyle
       }
     }
   }

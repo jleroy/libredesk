@@ -1175,6 +1175,7 @@
   "helpCenter.invalidSlug": "This slug is not allowed. Use a different slug.",
   "helpCenter.invalidStatus": "Article status must be draft, published, or archived.",
   "helpCenter.invalidLocale": "Invalid language code. Use a code like en or en-US.",
+  "helpCenter.defaultLocaleNotAllowed": "The default language is not in the help center's languages. Add it to the list or pick another default.",
   "helpCenter.localeNotSupported": "This language is not one of the help center's supported languages. Content saved in it will not appear on the public site. Add the language to the help center first.",
   "helpCenter.localeInUse": "Language {locale} still has collections or articles. Removing it would hide them from the public site with no way to reach them. Move or delete that content first.",
   "helpCenter.invalidURL": "Enter a full URL starting with https:// or a path starting with /.",

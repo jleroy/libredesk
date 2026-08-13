@@ -113,7 +113,7 @@
                 type="button"
                 variant="ghost"
                 size="icon"
-                :aria-label="t('globals.terms.remove')"
+                :aria-label="`${t('globals.terms.remove')} ${field.value || ''}`"
                 :disabled="localeFields.length <= 1"
                 @click="removeLocale(index)"
               >
@@ -222,30 +222,28 @@
               </FormItem>
             </FormField>
 
-            <FormField
-              v-if="isClassic"
-              v-slot="{ componentField }"
-              name="theme.header.background_type"
-            >
-              <FormItem>
-                <FormLabel>{{ t('helpCenter.styling.headerBackground') }}</FormLabel>
-                <FormControl>
-                  <Select v-bind="componentField">
-                    <SelectTrigger>
-                      <SelectValue :placeholder="t('helpCenter.styling.bgDefault')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="default">{{
-                        t('helpCenter.styling.bgDefault')
-                      }}</SelectItem>
-                      <SelectItem value="solid">{{ t('helpCenter.styling.bgSolid') }}</SelectItem>
-                      <SelectItem value="gradient">{{ t('globals.terms.gradient') }}</SelectItem>
-                      <SelectItem value="image">{{ t('globals.terms.image') }}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-              </FormItem>
-            </FormField>
+            <div v-show="isClassic">
+              <FormField v-slot="{ componentField }" name="theme.header.background_type">
+                <FormItem>
+                  <FormLabel>{{ t('helpCenter.styling.headerBackground') }}</FormLabel>
+                  <FormControl>
+                    <Select v-bind="componentField">
+                      <SelectTrigger>
+                        <SelectValue :placeholder="t('helpCenter.styling.bgDefault')" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">{{
+                          t('helpCenter.styling.bgDefault')
+                        }}</SelectItem>
+                        <SelectItem value="solid">{{ t('helpCenter.styling.bgSolid') }}</SelectItem>
+                        <SelectItem value="gradient">{{ t('globals.terms.gradient') }}</SelectItem>
+                        <SelectItem value="image">{{ t('globals.terms.image') }}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              </FormField>
+            </div>
 
             <div v-show="isClassic && form.values.theme?.header?.background_type === 'solid'">
               <FormField v-slot="{ componentField }" name="theme.header.background_color">
@@ -297,16 +295,18 @@
               </FormField>
             </div>
 
-            <FormField v-if="isClassic" v-slot="{ componentField }" name="theme.header.text_color">
-              <FormItem>
-                <FormLabel>{{ t('globals.terms.textColor') }}</FormLabel>
-                <FormControl>
-                  <Input type="text" placeholder="#ffffff" v-bind="componentField" />
-                </FormControl>
-                <FormDescription>{{ t('helpCenter.styling.textColorHint') }}</FormDescription>
-                <FormMessage />
-              </FormItem>
-            </FormField>
+            <div v-show="isClassic">
+              <FormField v-slot="{ componentField }" name="theme.header.text_color">
+                <FormItem>
+                  <FormLabel>{{ t('globals.terms.textColor') }}</FormLabel>
+                  <FormControl>
+                    <Input type="text" placeholder="#ffffff" v-bind="componentField" />
+                  </FormControl>
+                  <FormDescription>{{ t('helpCenter.styling.textColorHint') }}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection

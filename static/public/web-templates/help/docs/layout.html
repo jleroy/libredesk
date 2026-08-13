@@ -60,25 +60,29 @@
 {{ end }}
 
 {{ define "docs-nav-group" }}
-<details class="hcd-nav-group{{ if .Root }} hcd-nav-root{{ end }}"{{ if eq .ActiveCollection .Node.Slug }} open{{ end }}>
-    <summary class="hcd-nav-summary">
+<div class="hcd-nav-group{{ if .Root }} hcd-nav-root{{ end }}"{{ if eq .ActiveCollection .Node.Slug }} data-open{{ end }}>
+    <div class="hcd-nav-summary">
         <a class="hcd-nav-head" {{ if and (eq .ActiveCollection .Node.Slug) (not .ActiveArticle) }}aria-current="page" {{ end }}href="{{ .Base }}/collections/{{ .Node.Slug }}">
             {{ if .Root }}<span class="hcd-nav-icon">{{ with LucideIcon .Node.Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>{{ end }}
             <span>{{ .Node.Name }}</span>
         </a>
-        <svg class="hcd-nav-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </summary>
-    {{ if .Node.Articles }}
-    <ul class="hcd-nav-list">
-        {{ range .Node.Articles }}
-        <li><a {{ if eq $.ActiveArticle .Slug }}aria-current="page" {{ end }}href="{{ $.Base }}/articles/{{ .Slug }}">{{ .Title }}</a></li>
+        <button type="button" class="hcd-nav-toggle" aria-label="{{ .Node.Name }}" aria-expanded="{{ if eq .ActiveCollection .Node.Slug }}true{{ else }}false{{ end }}">
+            <svg class="hcd-nav-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+    </div>
+    <div class="hcd-nav-body">
+        {{ if .Node.Articles }}
+        <ul class="hcd-nav-list">
+            {{ range .Node.Articles }}
+            <li><a {{ if eq $.ActiveArticle .Slug }}aria-current="page" {{ end }}href="{{ $.Base }}/articles/{{ .Slug }}">{{ .Title }}</a></li>
+            {{ end }}
+        </ul>
         {{ end }}
-    </ul>
-    {{ end }}
-    {{ range .Node.Children }}
-    {{ template "docs-nav-group" (map "Node" . "Root" false "Base" $.Base "ActiveCollection" $.ActiveCollection "ActiveArticle" $.ActiveArticle) }}
-    {{ end }}
-</details>
+        {{ range .Node.Children }}
+        {{ template "docs-nav-group" (map "Node" . "Root" false "Base" $.Base "ActiveCollection" $.ActiveCollection "ActiveArticle" $.ActiveArticle) }}
+        {{ end }}
+    </div>
+</div>
 {{ end }}
 
 {{ define "docs-footer" }}
@@ -163,9 +167,20 @@
             if (backdrop) backdrop.addEventListener('click', closeSidebar);
             document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSidebar(); });
         }
+        var setOpen = function (group, open) {
+            group.toggleAttribute('data-open', open);
+            var btn = group.querySelector(':scope > .hcd-nav-summary > .hcd-nav-toggle');
+            if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+        document.querySelectorAll('.hcd-nav-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var group = btn.closest('.hcd-nav-group');
+                setOpen(group, !group.hasAttribute('data-open'));
+            });
+        });
         var current = document.querySelector('.hcd-nav [aria-current="page"]');
         if (current) {
-            for (var d = current.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+            for (var g = current.closest('.hcd-nav-group'); g; g = g.parentElement && g.parentElement.closest('.hcd-nav-group')) setOpen(g, true);
             if (current.scrollIntoView) current.scrollIntoView({ block: 'center' });
         }
     })();

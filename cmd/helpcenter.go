@@ -442,7 +442,9 @@ func handleCreateArticle(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	app.media.LinkHelpArticleMedia(article.ID, article.Content)
+	if err := app.media.LinkHelpArticleMedia(article.ID, article.Content); err != nil {
+		app.lo.Error("error linking help article media", "article_id", article.ID, "error", err)
+	}
 	return r.SendEnvelope(article)
 }
 
@@ -1033,7 +1035,9 @@ func handleUpdateArticle(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	app.media.LinkHelpArticleMedia(article.ID, article.Content)
+	if err := app.media.LinkHelpArticleMedia(article.ID, article.Content); err != nil {
+		app.lo.Error("error linking help article media", "article_id", article.ID, "error", err)
+	}
 	return r.SendEnvelope(article)
 }
 

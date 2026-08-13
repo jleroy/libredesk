@@ -50,6 +50,9 @@
         >
           {{ t('globals.messages.noResultsFound') }}
         </p>
+        <p v-if="loadError" class="py-4 text-center text-sm text-muted-foreground">
+          {{ t('globals.messages.somethingWentWrong') }}
+        </p>
       </div>
       <Button
         v-if="model"
@@ -79,12 +82,13 @@ const model = defineModel({ type: String, default: '' })
 const open = ref(false)
 const search = ref('')
 const iconNames = ref([])
+const loadError = ref(false)
 
 onMounted(async () => {
   try {
     iconNames.value = await loadLucideSprite()
   } catch {
-    iconNames.value = []
+    loadError.value = true
   }
 })
 

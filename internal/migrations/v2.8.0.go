@@ -46,8 +46,16 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS custom_domain TEXT NOT NULL DEFAULT '';`); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS template TEXT NOT NULL DEFAULT 'classic' CHECK (template IN ('docs', 'classic'));`); err != nil {
-		return err
+	// The named drop-and-add also applies the CHECK to installs whose earlier build added the column without it.
+	for _, stmt := range []string{
+		`ALTER TABLE help_centers ADD COLUMN IF NOT EXISTS template TEXT NOT NULL DEFAULT 'classic'`,
+		`ALTER TABLE help_centers DROP CONSTRAINT IF EXISTS help_centers_template_check`,
+		`ALTER TABLE help_centers DROP CONSTRAINT IF EXISTS constraint_help_centers_on_template`,
+		`ALTER TABLE help_centers ADD CONSTRAINT constraint_help_centers_on_template CHECK (template IN ('docs', 'classic'))`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
 	}
 
 	if _, err := db.Exec(`

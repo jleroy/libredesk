@@ -652,7 +652,8 @@ CREATE TABLE help_centers (
 	is_active BOOLEAN NOT NULL DEFAULT true,
 	theme JSONB NOT NULL DEFAULT '{}',
 	custom_domain TEXT NOT NULL DEFAULT '',
-	template TEXT NOT NULL DEFAULT 'classic' CHECK (template IN ('docs', 'classic'))
+	template TEXT NOT NULL DEFAULT 'classic',
+	CONSTRAINT constraint_help_centers_on_template CHECK (template IN ('docs', 'classic'))
 );
 
 DROP TABLE IF EXISTS article_collections CASCADE;

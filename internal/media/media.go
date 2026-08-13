@@ -190,7 +190,7 @@ func (m *Manager) Get(id int, uuid string) (models.Media, error) {
 
 // PublicURL returns the stable unsigned app URL for a public media file.
 func (m *Manager) PublicURL(uuid string) string {
-	return m.rootURL() + PublicURI + "/" + uuid
+	return strings.TrimRight(m.rootURL(), "/") + PublicURI + "/" + uuid
 }
 
 // LinkHelpArticleMedia links media referenced in the article content and unlinks the rest.

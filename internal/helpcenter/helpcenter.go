@@ -442,7 +442,7 @@ func (m *Manager) CreateCollection(helpCenterID int, req CollectionRequest) (mod
 			return collection, err
 		}
 	}
-	slug, err := m.uniqueCollectionSlug(helpCenterID, req.Slug, req.Locale)
+	slug, err := m.uniqueCollectionSlug(tx, helpCenterID, req.Slug, req.Locale)
 	if err != nil {
 		return collection, err
 	}
@@ -1286,11 +1286,11 @@ func (m *Manager) validateArticleAuthor(authorID *int64) error {
 }
 
 // uniqueCollectionSlug appends a numeric suffix until the slug is unique within the help center.
-func (m *Manager) uniqueCollectionSlug(helpCenterID int, slug, locale string) (string, error) {
+func (m *Manager) uniqueCollectionSlug(tx *sqlx.Tx, helpCenterID int, slug, locale string) (string, error) {
 	candidate := slug
 	for i := 2; ; i++ {
 		var exists bool
-		if err := m.q.CollectionSlugExists.Get(&exists, helpCenterID, candidate, locale); err != nil {
+		if err := tx.Stmtx(m.q.CollectionSlugExists).Get(&exists, helpCenterID, candidate, locale); err != nil {
 			m.lo.Error("error checking collection slug uniqueness", "error", err, "slug", candidate)
 			return "", envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 		}

@@ -152,7 +152,7 @@ RETURNING *;
 -- name: update-article
 UPDATE help_articles
 SET collection_id = COALESCE($9, collection_id), slug = $2, locale = $3, title = $4, content = $5, sort_order = $6, status = $7, ai_enabled = $8,
-    excerpt = $10, meta_title = $11, meta_description = $12, meta_image_url = $13, author_id = COALESCE($14, author_id), updated_at = NOW()
+    excerpt = $10, meta_title = $11, meta_description = $12, meta_image_url = $13, author_id = $14, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
