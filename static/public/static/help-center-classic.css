@@ -365,10 +365,9 @@ article.hc-article .hc-meta-byline { display: flex; align-items: center; gap: .6
 
 /* Was this helpful */
 .hc-helpful {
-    margin: 3rem auto 0; padding: 1.1rem 1.25rem;
-    display: flex; width: fit-content; max-width: var(--hc-article-width);
-    align-items: center; justify-content: center; gap: .9rem; flex-wrap: wrap;
-    background: var(--hc-bg); border: 1px solid var(--hc-border); border-radius: var(--hc-radius); box-shadow: var(--hc-shadow);
+    margin: 3rem 0 0; padding: 1.1rem 1.25rem;
+    display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+    background: var(--hc-bg); border: 1px solid var(--hc-border); border-radius: var(--hc-radius);
 }
 .hc-helpful [hidden] { display: none; }
 .hc-helpful .hc-helpful-q { font-size: 1rem; font-weight: 650; }
