@@ -7,22 +7,30 @@
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent>
-      <DropdownMenuItem @click="emit('open', props.helpCenter)">{{
-        $t('globals.terms.article', 2)
-      }}</DropdownMenuItem>
-      <DropdownMenuItem @click="emit('edit', props.helpCenter)">{{
-        $t('globals.messages.edit')
-      }}</DropdownMenuItem>
-      <DropdownMenuItem @click="visitSite">{{ $t('helpCenter.visitSite') }}</DropdownMenuItem>
-      <DropdownMenuItem @click="emit('toggle', props.helpCenter)">{{
-        props.helpCenter.is_active ? $t('helpCenter.pause') : $t('helpCenter.resume')
-      }}</DropdownMenuItem>
+      <DropdownMenuItem @click="emit('open', props.helpCenter)">
+        <FileText class="mr-2 h-4 w-4" />
+        {{ $t('globals.terms.article', 2) }}
+      </DropdownMenuItem>
+      <DropdownMenuItem @click="emit('edit', props.helpCenter)">
+        <Pencil class="mr-2 h-4 w-4" />
+        {{ $t('globals.messages.edit') }}
+      </DropdownMenuItem>
+      <DropdownMenuItem @click="visitSite">
+        <ExternalLink class="mr-2 h-4 w-4" />
+        {{ $t('helpCenter.visitSite') }}
+      </DropdownMenuItem>
+      <DropdownMenuItem @click="emit('toggle', props.helpCenter)">
+        <component :is="props.helpCenter.is_active ? PowerOff : Power" class="mr-2 h-4 w-4" />
+        {{ props.helpCenter.is_active ? $t('helpCenter.pause') : $t('helpCenter.resume') }}
+      </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem
         @click="() => (alertOpen = true)"
         class="text-destructive focus:text-destructive"
-        >{{ $t('globals.messages.delete') }}</DropdownMenuItem
       >
+        <Trash class="mr-2 h-4 w-4" />
+        {{ $t('globals.messages.delete') }}
+      </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 
@@ -46,7 +54,15 @@
 
 <script setup>
 import { ref } from 'vue'
-import { MoreHorizontal } from 'lucide-vue-next'
+import {
+  ExternalLink,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Power,
+  PowerOff,
+  Trash
+} from 'lucide-vue-next'
 import {
   DropdownMenu,
   DropdownMenuContent,
