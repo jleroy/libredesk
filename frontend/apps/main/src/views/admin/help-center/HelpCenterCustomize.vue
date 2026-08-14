@@ -108,6 +108,7 @@ import HelpCenterForm from '@main/features/admin/help-center/HelpCenterForm.vue'
 import { useEmitter } from '@/composables/useEmitter.js'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
+import { useAppSettingsStore } from '@/stores/appSettings'
 import api from '@/api'
 
 const props = defineProps({
@@ -120,13 +121,16 @@ const props = defineProps({
 const { t } = useI18n()
 const router = useRouter()
 const emitter = useEmitter()
+const appSettingsStore = useAppSettingsStore()
 
 const loading = ref(true)
 const loadFailed = ref(false)
 const isSubmitting = ref(false)
 const helpCenter = ref(null)
 const previewFrame = ref(null)
-const origin = window.location.origin
+const origin = computed(() =>
+  (appSettingsStore.settings?.['app.root_url'] || window.location.origin).replace(/\/$/, '')
+)
 const previewPage = ref('landing')
 const previewDevice = ref('desktop')
 const previewBox = ref(null)
@@ -145,11 +149,11 @@ const helpCenterPath = (values) => `/hc/${values.slug || ''}/${values.default_lo
 const previewURL = computed(() => {
   const path = helpCenterPath(lastFormValues.value || helpCenter.value || {})
   return previewPage.value === 'article'
-    ? `${origin}${path}/articles/sample-article`
-    : `${origin}${path}`
+    ? `${origin.value}${path}/articles/sample-article`
+    : `${origin.value}${path}`
 })
 // Uses the saved slug, not the form: an unsaved slug has no live page yet.
-const previewLiveURL = computed(() => `${origin}${helpCenterPath(helpCenter.value || {})}`)
+const previewLiveURL = computed(() => `${origin.value}${helpCenterPath(helpCenter.value || {})}`)
 const boxSize = ref({ width: 0, height: 0 })
 
 // The preview pane is narrower than a real desktop viewport, so the frame is rendered at the
