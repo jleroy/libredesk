@@ -92,8 +92,8 @@ export function useTextEditor({
     editor.value?.destroy()
   })
 
-  const focus = () => {
-    editor.value?.commands.focus()
+  const focus = (position) => {
+    editor.value?.commands.focus(position)
   }
 
   return { editor, insertImages, extractMentions, focus }

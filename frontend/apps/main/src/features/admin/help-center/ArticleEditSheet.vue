@@ -489,7 +489,7 @@ watch(
     isLoadingArticle.value = false
     form.resetForm({ values: toFormValues() })
     await nextTick()
-    if (form.values.content) editorRef.value?.focus()
+    if (form.values.content) editorRef.value?.focus('end')
     else titleInput.value?.$el?.focus()
   },
   { immediate: true }
