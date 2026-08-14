@@ -152,7 +152,7 @@
     </button>
 
     <Badge v-if="item.status !== 'published'" variant="secondary" class="flex-shrink-0 font-normal">
-      {{ getArticleStatusLabel(item.status) }}
+      {{ t('globals.terms.draft') }}
     </Badge>
 
     <span class="hover-actions flex-shrink-0">
@@ -294,9 +294,6 @@ const moveChildCollection = ({ item, direction }) => {
 const selectItem = () => {
   emit('select', props.item)
 }
-
-const getArticleStatusLabel = (status) =>
-  status === 'archived' ? t('globals.terms.archived') : t('globals.terms.draft')
 </script>
 
 <style scoped>

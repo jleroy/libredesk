@@ -103,9 +103,6 @@
                           <SelectItem value="published">{{
                             t('globals.terms.published')
                           }}</SelectItem>
-                          <SelectItem value="archived">{{
-                            t('globals.terms.archived')
-                          }}</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>

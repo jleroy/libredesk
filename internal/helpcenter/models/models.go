@@ -8,7 +8,6 @@ import (
 const (
 	ArticleStatusDraft     = "draft"
 	ArticleStatusPublished = "published"
-	ArticleStatusArchived  = "archived"
 
 	TemplateDocs    = "docs"
 	TemplateClassic = "classic"

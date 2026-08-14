@@ -732,7 +732,7 @@ CREATE TABLE help_articles (
 		setweight(to_tsvector(help_article_search_config(locale), excerpt), 'B') ||
 		setweight(to_tsvector(help_article_search_config(locale), left(content, 100000)), 'C')
 	) STORED,
-	CONSTRAINT constraint_help_articles_on_status CHECK (status IN ('draft', 'published', 'archived'))
+	CONSTRAINT constraint_help_articles_on_status CHECK (status IN ('draft', 'published'))
 );
 CREATE UNIQUE INDEX index_unique_help_articles_on_collection_slug_locale ON help_articles(collection_id, slug, locale);
 CREATE INDEX index_help_articles_on_collection_id ON help_articles(collection_id);

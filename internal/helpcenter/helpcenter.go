@@ -1599,7 +1599,7 @@ func normalizeLocales(locales []string, defaultLocale string) []string {
 }
 
 func isValidArticleStatus(status string) bool {
-	return status == models.ArticleStatusDraft || status == models.ArticleStatusPublished || status == models.ArticleStatusArchived
+	return status == models.ArticleStatusDraft || status == models.ArticleStatusPublished
 }
 
 func truncateRunes(s string, limit int) string {

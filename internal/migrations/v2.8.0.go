@@ -116,7 +116,7 @@ func V2_8_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 				setweight(to_tsvector(help_article_search_config(locale), excerpt), 'B') ||
 				setweight(to_tsvector(help_article_search_config(locale), left(content, 100000)), 'C')
 			) STORED,
-			CONSTRAINT constraint_help_articles_on_status CHECK (status IN ('draft', 'published', 'archived'))
+			CONSTRAINT constraint_help_articles_on_status CHECK (status IN ('draft', 'published'))
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS index_unique_help_articles_on_collection_slug_locale ON help_articles(collection_id, slug, locale);
 		CREATE INDEX IF NOT EXISTS index_help_articles_on_collection_id ON help_articles(collection_id);

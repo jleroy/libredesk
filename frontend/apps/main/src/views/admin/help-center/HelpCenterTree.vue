@@ -466,7 +466,7 @@ const handleCollectionSave = async (formData) => {
       description: t('globals.messages.savedSuccessfully')
     })
     closeEditSheet()
-    if (!followSavedLocale(formData.locale)) fetchTree()
+    if (!followSavedLocale(formData.locale)) fetchTree({ silent: true })
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
@@ -508,7 +508,7 @@ const handleArticleSave = async (formData) => {
       description: t('globals.messages.savedSuccessfully')
     })
     closeEditSheet()
-    if (!followSavedLocale(formData.locale)) fetchTree()
+    if (!followSavedLocale(formData.locale)) fetchTree({ silent: true })
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
@@ -549,7 +549,7 @@ const confirmDelete = async () => {
 
     showDeleteDialog.value = false
     deletingItem.value = null
-    fetchTree()
+    fetchTree({ silent: true })
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
@@ -625,20 +625,21 @@ const reorderArticles = async ({ collectionId, ids }) => {
 const toggleStatus = async (item) => {
   try {
     if (item.type === 'collection') {
+      item.is_published = !item.is_published
       await api.toggleCollection(item.id)
     } else {
-      const newStatus = item.status === 'published' ? 'draft' : 'published'
-      await api.updateArticleStatus(item.id, { status: newStatus })
+      item.status = item.status === 'published' ? 'draft' : 'published'
+      await api.updateArticleStatus(item.id, { status: item.status })
     }
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       description: t('globals.messages.savedSuccessfully')
     })
-    fetchTree()
   } catch (error) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
       variant: 'destructive',
       description: handleHTTPError(error).message
     })
   }
+  fetchTree({ silent: true })
 }
 </script>
