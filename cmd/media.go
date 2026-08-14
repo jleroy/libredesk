@@ -181,18 +181,19 @@ func handleServeMedia(r *fastglue.Request) error {
 	media, err := getMediaByUUID(app, uuid)
 	if err != nil {
 		// Anonymous probes must not distinguish missing media from existing private media.
-		if authMethod == "public" {
+		if authMethod == authMethodPublic {
 			return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.T("auth.invalidOrExpiredSession"), nil, envelope.UnauthorizedError)
 		}
 		return sendErrorEnvelope(r, err)
 	}
 
+	// Public serve as is.
 	if !media.Private {
 		return serveMediaFile(r, app, uuid, &media)
 	}
 
 	// If accessed via signed URL, skip permission checks and serve file directly.
-	if authMethod == "signed_url" {
+	if authMethod == authMethodSignedURL {
 		return serveMediaFile(r, app, uuid, &media)
 	}
 
@@ -277,7 +278,6 @@ func serveMediaFile(r *fastglue.Request, app *App, uuid string, media *mmodels.M
 		if forceDownload {
 			url = app.media.GetURLForDownload(uuid, media.Filename)
 		}
-		// The presigned target is an expiring credential; a cached redirect would leak it and 403 later.
 		r.RequestCtx.Response.Header.Set("Cache-Control", "no-store")
 		r.RequestCtx.Redirect(url, http.StatusFound)
 	}

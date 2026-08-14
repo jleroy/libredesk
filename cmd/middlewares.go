@@ -14,6 +14,13 @@ import (
 	"github.com/zerodha/simplesessions/v3"
 )
 
+const (
+	authMethodAPIKey    = "api_key"
+	authMethodSession   = "session"
+	authMethodSignedURL = "signed_url"
+	authMethodPublic    = "public"
+)
+
 // authenticateUser handles both API key and session-based authentication
 // Returns the authenticated user or an error
 // For session-based auth, CSRF is checked for POST/PUT/DELETE requests
@@ -27,13 +34,13 @@ func authenticateUser(r *fastglue.Request, app *App) (models.User, error) {
 		if err != nil {
 			return user, err
 		}
-		r.RequestCtx.SetUserValue("auth_method", "api_key")
+		r.RequestCtx.SetUserValue("auth_method", authMethodAPIKey)
 		return user, nil
 	}
 
 	// Session-based authentication - Check CSRF first.
 	method := string(r.RequestCtx.Method())
-	if method == "POST" || method == "PUT" || method == "DELETE" {
+	if method == http.MethodPost || method == http.MethodPut || method == http.MethodDelete {
 		cookieToken := string(r.RequestCtx.Request.Header.Cookie("csrf_token"))
 		hdrToken := string(r.RequestCtx.Request.Header.Peek("X-CSRFTOKEN"))
 
@@ -47,7 +54,9 @@ func authenticateUser(r *fastglue.Request, app *App) (models.User, error) {
 	// Validate session and fetch user.
 	sessUser, err := app.auth.ValidateSession(r)
 	if err != nil || sessUser.ID <= 0 {
-		app.lo.Error("error validating session", "error", err)
+		if err != nil && err != simplesessions.ErrInvalidSession {
+			app.lo.Error("error validating session", "error", err)
+		}
 		return user, envelope.NewError(envelope.GeneralError, app.i18n.T("auth.invalidOrExpiredSession"), nil)
 	}
 
@@ -65,7 +74,7 @@ func authenticateUser(r *fastglue.Request, app *App) (models.User, error) {
 		return user, envelope.NewError(envelope.PermissionError, app.i18n.T("user.accountDisabled"), nil)
 	}
 
-	r.RequestCtx.SetUserValue("auth_method", "session")
+	r.RequestCtx.SetUserValue("auth_method", authMethodSession)
 	return user, nil
 }
 
@@ -246,19 +255,17 @@ func authOrSignedURL(handler fastglue.FastRequestHandler) fastglue.FastRequestHa
 		// First, try to authenticate normally.
 		user, err := authenticateUser(r, app)
 		if err == nil && user.ID > 0 {
-			// User is authenticated, set user context and proceed.
 			r.RequestCtx.SetUserValue("user", amodels.User{
 				ID:        user.ID,
 				Email:     user.Email.String,
 				FirstName: user.FirstName,
 				LastName:  user.LastName,
 			})
-			r.RequestCtx.SetUserValue("auth_method", "session")
+			r.RequestCtx.SetUserValue("auth_method", authMethodSession)
 			return handler(r)
 		}
 
-		// Authentication failed, check for signed URL.
-		// Parse signature and expiry from query params.
+		// Authentication failed, check for signed URL, parse signature and expiry from query params.
 		validator := app.media.SignedURLValidator()
 		sig := string(r.RequestCtx.QueryArgs().Peek("sig"))
 		expStr := string(r.RequestCtx.QueryArgs().Peek("exp"))
@@ -269,14 +276,13 @@ func authOrSignedURL(handler fastglue.FastRequestHandler) fastglue.FastRequestHa
 			if err := app.rateLimit.Check(r.RequestCtx, "media"); err != nil {
 				return err
 			}
-			r.RequestCtx.SetUserValue("auth_method", "public")
+			r.RequestCtx.SetUserValue("auth_method", authMethodPublic)
 			return handler(r)
 		}
 
 		exp, err := strconv.ParseInt(expStr, 10, 64)
 		if err != nil {
-			return r.SendErrorEnvelope(http.StatusBadRequest,
-				app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.InputError)
+			return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.InputError)
 		}
 
 		// Get the UUID from the route.
@@ -287,12 +293,11 @@ func authOrSignedURL(handler fastglue.FastRequestHandler) fastglue.FastRequestHa
 
 		// Validate signature.
 		if !validator(signatureUUID, sig, exp) {
-			return r.SendErrorEnvelope(http.StatusForbidden,
-				app.i18n.T("media.invalidOrExpiredURL"), nil, envelope.PermissionError)
+			return r.SendErrorEnvelope(http.StatusForbidden, app.i18n.T("media.invalidOrExpiredURL"), nil, envelope.PermissionError)
 		}
 
 		// Mark as signed URL access (no user context).
-		r.RequestCtx.SetUserValue("auth_method", "signed_url")
+		r.RequestCtx.SetUserValue("auth_method", authMethodSignedURL)
 		return handler(r)
 	}
 }
