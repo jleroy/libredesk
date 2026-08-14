@@ -1681,6 +1681,8 @@ func validateHelpCenter(r *fastglue.Request, req *helpcenter.HelpCenterRequest) 
 	if req.PageTitle == "" {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`page_title`"), nil, envelope.InputError)
 	}
+	req.LogoURL = publicAssetPaths(app, req.LogoURL)
+	req.Theme = json.RawMessage(publicAssetPaths(app, string(req.Theme)))
 	return nil
 }
 
@@ -1700,6 +1702,8 @@ func validateArticle(r *fastglue.Request, req *helpcenter.ArticleRequest) error 
 	if req.Content == "" {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`content`"), nil, envelope.InputError)
 	}
+	req.Content = publicAssetPaths(app, req.Content)
+	req.MetaImageURL = publicAssetPaths(app, req.MetaImageURL)
 	return nil
 }
 

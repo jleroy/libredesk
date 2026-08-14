@@ -7,7 +7,7 @@ import (
 
 // RunSearchLogCleaner deletes stale search log rows on start and then once a day.
 func (m *Manager) RunSearchLogCleaner(ctx context.Context) {
-	startDelay := time.NewTimer(10 * time.Second)
+	startDelay := time.NewTimer(60 * time.Second)
 	defer startDelay.Stop()
 	select {
 	case <-ctx.Done():

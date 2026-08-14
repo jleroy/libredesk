@@ -359,6 +359,11 @@ func (m *Manager) Delete(name string) error {
 
 // DeleteUnlinkedMedia is a blocking function that periodically deletes media files that are not linked to any conversation message or help article.
 func (m *Manager) DeleteUnlinkedMedia(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(60 * time.Second):
+	}
 	m.deleteUnlinked()
 	for {
 		select {
