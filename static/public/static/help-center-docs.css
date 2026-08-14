@@ -230,10 +230,12 @@ body.hcd::after {
 .hcd-nav-summary:hover .hcd-nav-head { color: var(--hc-accent-ink); }
 .hcd-nav-toggle {
     display: flex; align-items: center; flex: none;
-    margin-inline-start: auto; padding: .35rem .55rem;
+    margin-inline-start: auto; margin-inline-end: .2rem; padding: .3rem .45rem;
     background: none; border: 0; cursor: pointer;
-    border-radius: var(--hc-radius-sm);
+    border-radius: calc(var(--hc-radius-sm) - 2px);
 }
+.hcd-nav-toggle:hover { background: var(--hc-accent-tint-2); }
+.hcd-nav-toggle:hover .hcd-nav-caret { color: var(--hc-accent-ink); }
 .hcd-nav-group:not([data-open]) > .hcd-nav-body { display: none; }
 .hcd-nav-caret {
     flex: none; width: .85rem; height: .85rem;
@@ -354,18 +356,30 @@ main#hc-main > .hcd-collections-section { max-width: calc(var(--hcd-content-w) +
     color: var(--hc-muted); font-size: .87rem; line-height: 1.5;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden;
 }
-.hcd-collection-block { margin-top: 2.25rem; }
+.hcd-collection-block { margin-top: 2.25rem; border-top: 1px solid var(--hc-border); padding-top: 1.75rem; }
 .hcd-collection-block > h2 { margin: 0 0 .2rem; font-size: 1.2rem; font-weight: 700; letter-spacing: -.012em; }
 .hcd-collection-block > h2 a { color: var(--hc-ink); }
 .hcd-block-icon { display: inline-flex; vertical-align: -.15em; margin-inline-end: .45rem; }
 .hcd-block-icon svg { width: 1.05rem; height: 1.05rem; color: var(--hc-accent-ink); }
-.hcd-block-sub .hcd-block-icon svg { width: .95rem; height: .95rem; }
 .hcd-collection-block > h2 a:hover { color: var(--hc-accent-ink); text-decoration: none; }
 .hcd-block-desc { color: var(--hc-muted); font-size: .9rem; margin: 0 0 .3rem; }
-.hcd-block-sub { margin-top: 1.25rem; }
-.hcd-block-sub h3 { margin: 0 0 .2rem; font-size: 1rem; font-weight: 650; }
-.hcd-block-sub h3 a { color: var(--hc-ink); }
-.hcd-block-sub h3 a:hover { color: var(--hc-accent-ink); text-decoration: none; }
+
+/* Sub-collections render as navigable folder rows, not inlined sections. */
+.hcd-folder-rows { list-style: none; margin: 0; padding: 0; }
+.hcd-folder-rows li + li { border-top: 1px solid var(--hc-border); }
+.hcd-article-rows + .hcd-folder-rows { border-top: 1px solid var(--hc-border); }
+.hcd-folder-rows a {
+    display: flex; align-items: flex-start; gap: .7rem;
+    padding: .8rem .15rem; color: var(--hc-ink);
+}
+.hcd-folder-rows a:hover { text-decoration: none; }
+.hcd-folder-rows a:hover .hcd-row-title { color: var(--hc-accent-ink); }
+.hcd-folder-icon { flex: none; display: inline-flex; margin-top: .3rem; }
+.hcd-folder-icon svg { width: 1rem; height: 1rem; color: var(--hc-accent-ink); }
+.hcd-row-count { flex: none; margin-inline-start: auto; margin-top: .3rem; color: var(--hc-faint); font-size: .82rem; white-space: nowrap; }
+.hcd-folder-rows .hc-arrow { flex: none; margin-top: .35rem; width: .85rem; height: .85rem; color: var(--hc-faint); transition: transform .15s, color .15s; }
+.hcd-folder-rows a:hover .hc-arrow { color: var(--hc-accent-ink); transform: translateX(2px); }
+[dir="rtl"] .hcd-folder-rows a:hover .hc-arrow { transform: translateX(-2px) rotate(180deg); }
 
 /* ---- Article ---- */
 .hcd-article h1 { margin: .25rem 0 .5rem; }

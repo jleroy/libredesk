@@ -150,7 +150,9 @@
         <SheetTitle>{{ t('helpCenter.insights') }}</SheetTitle>
       </SheetHeader>
 
-      <div class="mt-6 space-y-8">
+      <Spinner v-if="insightsLoading" class="mt-6" />
+
+      <div v-else class="mt-6 space-y-8">
         <div>
           <h3 class="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             {{ t('helpCenter.topSearches') }}
@@ -307,6 +309,7 @@ const allowedLocales = computed(() =>
 
 const showDeleteDialog = ref(false)
 const showInsights = ref(false)
+const insightsLoading = ref(false)
 const insights = ref({ top_searches: [], no_result_searches: [] })
 const showArticleEditSheet = ref(false)
 const showCollectionEditSheet = ref(false)
@@ -479,6 +482,8 @@ const handleCollectionSave = async (formData) => {
 
 const openInsights = async () => {
   showInsights.value = true
+  insightsLoading.value = true
+  insights.value = { top_searches: [], no_result_searches: [] }
   try {
     const { data } = await api.getHelpCenterInsights(props.id)
     insights.value = data.data || { top_searches: [], no_result_searches: [] }
@@ -487,6 +492,8 @@ const openInsights = async () => {
       variant: 'destructive',
       description: handleHTTPError(error).message
     })
+  } finally {
+    insightsLoading.value = false
   }
 }
 
@@ -559,7 +566,7 @@ const confirmDelete = async () => {
 }
 
 const collapsedIds = useStorage(`helpCenterTreeCollapsed:${props.id}`, [])
-const allExpanded = ref(collapsedIds.value.length === 0)
+const allExpanded = computed(() => collapsedIds.value.length === 0)
 const expandSignal = ref({ open: allExpanded.value, n: 0 })
 
 provide('helpCenterTreeExpand', expandSignal)
@@ -578,9 +585,9 @@ const collectionIds = (collections) =>
 // Collapsed rows unmount their children, so the store is written here for the whole tree
 // rather than left to each row to record itself.
 const toggleExpandAll = () => {
-  allExpanded.value = !allExpanded.value
-  collapsedIds.value = allExpanded.value ? [] : collectionIds(treeData.value)
-  expandSignal.value = { open: allExpanded.value, n: expandSignal.value.n + 1 }
+  const open = !allExpanded.value
+  collapsedIds.value = open ? [] : collectionIds(treeData.value)
+  expandSignal.value = { open, n: expandSignal.value.n + 1 }
 }
 
 const orderMap = (ids) => Object.fromEntries(ids.map((itemId, index) => [itemId, index]))

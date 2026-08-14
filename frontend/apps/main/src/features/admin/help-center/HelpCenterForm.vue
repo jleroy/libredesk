@@ -148,7 +148,7 @@
         <div v-show="activeTab === 'appearance'">
           <CollapsibleSection
             :title="t('helpCenter.styling.brand')"
-            :open="openSections.brand"
+            :open="openSection === 'brand'"
             @toggle="toggleSection('brand')"
           >
             <FormField v-slot="{ componentField }" name="logo_url">
@@ -188,7 +188,7 @@
 
           <CollapsibleSection
             :title="t('helpCenter.styling.header')"
-            :open="openSections.header"
+            :open="openSection === 'header'"
             @toggle="toggleSection('header')"
           >
             <FormField v-slot="{ componentField }" name="header_text">
@@ -205,11 +205,7 @@
               <FormItem>
                 <FormLabel>{{ t('helpCenter.styling.tagline') }}</FormLabel>
                 <FormControl>
-                  <Textarea
-                    :rows="2"
-                    :placeholder="t('helpCenter.styling.taglineHint')"
-                    v-bind="componentField"
-                  />
+                  <Textarea :rows="2" v-bind="componentField" />
                 </FormControl>
                 <FormDescription>{{ t('helpCenter.styling.inlineMarkdownHint') }}</FormDescription>
                 <FormMessage />
@@ -305,7 +301,7 @@
 
           <CollapsibleSection
             :title="t('globals.terms.announcement')"
-            :open="openSections.announcement"
+            :open="openSection === 'announcement'"
             @toggle="toggleSection('announcement')"
           >
             <FormField v-slot="{ componentField }" name="theme.announcement.text">
@@ -346,7 +342,7 @@
 
           <CollapsibleSection
             :title="t('helpCenter.styling.landingPage')"
-            :open="openSections.landing"
+            :open="openSection === 'landing'"
             @toggle="toggleSection('landing')"
           >
             <FormField v-slot="{ componentField }" name="theme.layout.collections">
@@ -476,7 +472,7 @@
 
           <CollapsibleSection
             :title="t('helpCenter.styling.articlePage')"
-            :open="openSections.article"
+            :open="openSection === 'article'"
             @toggle="toggleSection('article')"
           >
             <FormField v-slot="{ value, handleChange }" name="theme.article.hide_toc">
@@ -513,7 +509,7 @@
 
           <CollapsibleSection
             :title="t('globals.terms.footer')"
-            :open="openSections.footer"
+            :open="openSection === 'footer'"
             @toggle="toggleSection('footer')"
           >
             <div class="flex gap-4">
@@ -586,7 +582,7 @@
 
           <CollapsibleSection
             :title="t('helpCenter.styling.customCode')"
-            :open="openSections.code"
+            :open="openSection === 'code'"
             @toggle="toggleSection('code')"
           >
             <FormField v-slot="{ componentField }" name="custom_css">
@@ -782,18 +778,10 @@ const toFormValues = (hc) => ({
 
 const formEl = ref(null)
 const activeTab = ref('general')
-const openSections = ref({
-  brand: true,
-  header: false,
-  announcement: false,
-  landing: false,
-  article: false,
-  footer: false,
-  code: false
-})
+const openSection = ref('brand')
 
 const toggleSection = (key) => {
-  openSections.value[key] = !openSections.value[key]
+  openSection.value = openSection.value === key ? null : key
 }
 
 const form = useForm({
@@ -860,7 +848,7 @@ const onSubmit = form.handleSubmit(
       FIELD_LOCATION.find(([prefix]) => firstKey === prefix || firstKey.startsWith(prefix))
     if (match) {
       activeTab.value = match[1]
-      openSections.value[match[2]] = true
+      openSection.value = match[2]
     } else if (firstKey) {
       activeTab.value = 'general'
     }

@@ -21,6 +21,7 @@
                 <FormItem>
                   <FormControl>
                     <Input
+                      ref="nameInput"
                       type="text"
                       :placeholder="t('globals.terms.name')"
                       v-bind="componentField"
@@ -35,6 +36,7 @@
                 <FormItem class="flex-1 flex flex-col min-h-0">
                   <FormControl class="flex-1 min-h-0">
                     <Textarea
+                      ref="descriptionInput"
                       :placeholder="t('globals.terms.description')"
                       v-bind="componentField"
                       class="h-full border-0 px-0 py-2 shadow-none focus-visible:ring-0 resize-none placeholder:text-muted-foreground/60"
@@ -174,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@shared-ui/components/ui/button'
@@ -249,6 +251,8 @@ const emitter = useEmitter()
 const MAX_DEPTH = 3
 
 const availableParents = ref([])
+const nameInput = ref(null)
+const descriptionInput = ref(null)
 
 const submitLabel = computed(() =>
   props.collection ? t('globals.messages.update') : t('globals.messages.create')
@@ -296,6 +300,9 @@ watch(
     if (!props.isOpen) return
     await fetchAvailableParents()
     form.resetForm({ values: toFormValues() })
+    await nextTick()
+    if (form.values.description) descriptionInput.value?.$el?.focus()
+    else nameInput.value?.$el?.focus()
   },
   { immediate: true }
 )

@@ -25,6 +25,7 @@
                 <FormItem>
                   <FormControl>
                     <Input
+                      ref="titleInput"
                       type="text"
                       :placeholder="t('globals.terms.title')"
                       v-bind="componentField"
@@ -40,6 +41,8 @@
                   <FormControl class="flex-1 min-h-0">
                     <div class="flex-1 flex flex-col min-h-0">
                       <Editor
+                        ref="editorRef"
+                        :auto-focus="false"
                         v-model:textContent="editorText"
                         :htmlContent="componentField.modelValue"
                         @update:htmlContent="(value) => componentField.onChange(value)"
@@ -306,7 +309,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@shared-ui/components/ui/button'
@@ -397,6 +400,8 @@ const isLoadingArticle = ref(false)
 const availableCollections = ref([])
 const editorText = ref('')
 const toolbarSlot = ref(null)
+const titleInput = ref(null)
+const editorRef = ref(null)
 // The tree omits article bodies, so the full row is loaded when the sheet opens.
 const loadedArticle = ref(null)
 
@@ -483,6 +488,9 @@ watch(
     loadedArticle.value = article
     isLoadingArticle.value = false
     form.resetForm({ values: toFormValues() })
+    await nextTick()
+    if (form.values.content) editorRef.value?.focus()
+    else titleInput.value?.$el?.focus()
   },
   { immediate: true }
 )

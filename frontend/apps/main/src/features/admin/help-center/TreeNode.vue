@@ -4,19 +4,22 @@
       <div
         class="group tree-node tree-node--collection"
         :class="{ 'tree-node--selected': isSelected }"
-        @click="selectItem"
+        :style="indentStyle"
       >
         <GripVertical
-          class="drag-handle h-4 w-4 flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+          class="drag-handle -m-1 h-4 w-4 flex-shrink-0 cursor-grab p-1 text-muted-foreground opacity-0 group-hover:opacity-100 box-content"
           aria-hidden="true"
           @click.stop
         />
 
         <CollapsibleTrigger as-child @click.stop>
-          <ChevronRight
-            class="h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform hover:text-foreground"
-            :class="{ 'rotate-90': isOpen }"
-          />
+          <button
+            type="button"
+            class="-m-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            :aria-label="isOpen ? t('globals.terms.collapse') : t('globals.terms.expand')"
+          >
+            <ChevronRight class="h-4 w-4 transition-transform" :class="{ 'rotate-90': isOpen }" />
+          </button>
         </CollapsibleTrigger>
 
         <Folder class="h-4 w-4 flex-shrink-0 text-primary" />
@@ -26,7 +29,7 @@
             <button
               type="button"
               class="tree-node-title truncate text-sm font-medium text-foreground"
-              @click.stop="selectItem"
+              @click="selectItem"
             >
               {{ item.name }}
             </button>
@@ -46,6 +49,9 @@
         <span class="hover-actions flex-shrink-0">
           <TreeDropdown
             :item="item"
+            :can-create-collection="depth < 2"
+            :is-first="isFirst"
+            :is-last="isLast"
             @create-collection="$emit('create-collection', item.id)"
             @create-article="$emit('create-article', item)"
             @edit="$emit('edit', $event)"
@@ -57,20 +63,15 @@
       </div>
 
       <CollapsibleContent>
-        <p
-          v-if="!childCollections.length && !articles.length"
-          class="border-t px-4 py-2.5 text-sm text-muted-foreground"
-          :style="indentStyle"
-        >
-          {{ $t('globals.messages.empty', { name: $t('globals.terms.collection') }) }}
-        </p>
-
         <Draggable
           v-model="articles"
-          class="divide-y border-t empty:hidden"
+          class="divide-y border-t empty:border-t-0"
+          :class="{ 'empty:h-8': articleDragging }"
           item-key="id"
           handle=".drag-handle"
           group="help-center-articles"
+          @start="articleDragging = true"
+          @end="articleDragging = false"
           :force-fallback="true"
           fallback-on-body
           :fallback-tolerance="3"
@@ -79,11 +80,23 @@
           ghost-class="tree-node--ghost"
           @change="onArticleChange"
         >
-          <template #item="{ element }">
+          <template #header>
+            <p
+              v-if="!childCollections.length && !articles.length"
+              class="px-4 py-2.5 text-sm text-muted-foreground"
+              :style="childIndentStyle"
+            >
+              {{ $t('globals.messages.empty', { name: $t('globals.terms.collection') }) }}
+            </p>
+          </template>
+
+          <template #item="{ element, index }">
             <TreeNode
               :item="{ ...element, type: 'article' }"
               :selected-item="selectedItem"
               :depth="depth + 1"
+              :is-first="index === 0"
+              :is-last="index === articles.length - 1"
               @select="$emit('select', $event)"
               @edit="$emit('edit', $event)"
               @delete="$emit('delete', $event)"
@@ -106,11 +119,13 @@
           ghost-class="tree-node--ghost"
           @end="emitCollectionOrder"
         >
-          <template #item="{ element }">
+          <template #item="{ element, index }">
             <TreeNode
               :item="{ ...element, type: 'collection' }"
               :selected-item="selectedItem"
               :depth="depth + 1"
+              :is-first="index === 0"
+              :is-last="index === childCollections.length - 1"
               @select="$emit('select', $event)"
               @create-collection="$emit('create-collection', $event)"
               @create-article="$emit('create-article', $event)"
@@ -133,23 +148,24 @@
     class="group tree-node"
     :class="{ 'tree-node--selected': isSelected }"
     :style="indentStyle"
-    @click="selectItem"
   >
     <GripVertical
-      class="drag-handle h-4 w-4 flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+      class="drag-handle -m-1 h-4 w-4 flex-shrink-0 cursor-grab p-1 text-muted-foreground opacity-0 group-hover:opacity-100 box-content"
       aria-hidden="true"
       @click.stop
     />
 
     <FileText class="h-4 w-4 flex-shrink-0 text-muted-foreground" />
 
-    <button
-      type="button"
-      class="tree-node-title min-w-0 flex-1 truncate text-sm text-foreground"
-      @click.stop="selectItem"
-    >
-      {{ item.title }}
-    </button>
+    <div class="min-w-0 flex-1">
+      <button
+        type="button"
+        class="tree-node-title max-w-full truncate text-sm text-foreground"
+        @click="selectItem"
+      >
+        {{ item.title }}
+      </button>
+    </div>
 
     <Badge v-if="item.status !== 'published'" variant="secondary" class="flex-shrink-0 font-normal">
       {{ t('globals.terms.draft') }}
@@ -158,6 +174,8 @@
     <span class="hover-actions flex-shrink-0">
       <TreeDropdown
         :item="item"
+        :is-first="isFirst"
+        :is-last="isLast"
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
         @toggle-status="$emit('toggle-status', $event)"
@@ -195,6 +213,14 @@ const props = defineProps({
   depth: {
     type: Number,
     default: 0
+  },
+  isFirst: {
+    type: Boolean,
+    default: false
+  },
+  isLast: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -213,6 +239,7 @@ const emit = defineEmits([
 
 const collapsedStore = inject('helpCenterTreeCollapsed', null)
 const expandSignal = inject('helpCenterTreeExpand', null)
+const articleDragging = inject('helpCenterArticleDragging', ref(false))
 
 const isOpen = ref(!collapsedStore?.isCollapsed(props.item.id))
 
@@ -233,6 +260,7 @@ const isSelected = computed(() => {
 })
 
 const indentStyle = computed(() => ({ paddingLeft: `${0.75 + props.depth * 1.5}rem` }))
+const childIndentStyle = computed(() => ({ paddingLeft: `${0.75 + (props.depth + 1) * 1.5}rem` }))
 
 const childCollections = ref([])
 const articles = ref([])
@@ -298,7 +326,7 @@ const selectItem = () => {
 
 <style scoped>
 .tree-node {
-  @apply flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-muted/50;
+  @apply flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50;
 }
 
 .tree-node-title {

@@ -13,10 +13,12 @@
     ghost-class="tree-node--ghost"
     @end="emitCollectionOrder"
   >
-    <template #item="{ element }">
+    <template #item="{ element, index }">
       <TreeNode
         :item="element"
         :selected-item="selectedItem"
+        :is-first="index === 0"
+        :is-last="index === collections.length - 1"
         @select="$emit('select', $event)"
         @create-collection="$emit('create-collection', $event)"
         @create-article="$emit('create-article', $event)"
@@ -33,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { provide, ref, watch } from 'vue'
 import Draggable from 'vuedraggable'
 import TreeNode from './TreeNode.vue'
 import { moveWithin } from './treeReorder.js'
@@ -62,6 +64,10 @@ const emit = defineEmits([
 ])
 
 const collections = ref([])
+
+// Empty article drop-zones only need height while an article drag is in flight.
+const articleDragging = ref(false)
+provide('helpCenterArticleDragging', articleDragging)
 
 watch(
   () => props.data,

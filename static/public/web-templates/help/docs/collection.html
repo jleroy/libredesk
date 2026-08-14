@@ -20,12 +20,22 @@
     <h2 id="hcd-col-{{ .Slug }}"><a href="{{ $.Data.HelpCenter.BasePath }}/collections/{{ .Slug }}"><span class="hcd-block-icon">{{ with LucideIcon .Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>{{ .Name }}</a></h2>
     {{ if .Description }}<p class="hcd-block-desc">{{ .Description }}</p>{{ end }}
     {{ if .Articles }}{{ template "docs-article-rows" (map "Articles" .Articles "Base" $.Data.HelpCenter.BasePath) }}{{ end }}
-    {{ range .Children }}
-    <div class="hcd-block-sub">
-        <h3><a href="{{ $.Data.HelpCenter.BasePath }}/collections/{{ .Slug }}"><span class="hcd-block-icon">{{ with LucideIcon .Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>{{ .Name }}</a></h3>
-        {{ if .Description }}<p class="hcd-block-desc">{{ .Description }}</p>{{ end }}
-        {{ if .Articles }}{{ template "docs-article-rows" (map "Articles" .Articles "Base" $.Data.HelpCenter.BasePath) }}{{ end }}
-    </div>
+    {{ if .Children }}
+    <ul class="hcd-folder-rows">
+        {{ range .Children }}
+        <li>
+            <a href="{{ $.Data.HelpCenter.BasePath }}/collections/{{ .Slug }}">
+                <span class="hcd-folder-icon">{{ with LucideIcon .Icon }}{{ . }}{{ else }}{{ LucideIcon "folder" }}{{ end }}</span>
+                <span class="hcd-row-body">
+                    <span class="hcd-row-title">{{ .Name }}</span>
+                    {{ if .Description }}<span class="hcd-row-excerpt">{{ .Description }}</span>{{ end }}
+                </span>
+                <span class="hcd-row-count">{{ len .Articles }} {{ $.L.Tc "globals.terms.article" (len .Articles) }}</span>
+                {{ template "hc-arrow-icon" }}
+            </a>
+        </li>
+        {{ end }}
+    </ul>
     {{ end }}
 </section>
 {{ end }}

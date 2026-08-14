@@ -15,7 +15,7 @@
 
       <template v-if="item.type === 'collection'">
         <DropdownMenuSeparator />
-        <DropdownMenuItem @click="emit('create-collection', item.id)">
+        <DropdownMenuItem v-if="canCreateCollection" @click="emit('create-collection', item.id)">
           <FolderPlus class="mr-2 h-4 w-4" />
           {{ t('helpCenter.newCollection') }}
         </DropdownMenuItem>
@@ -25,16 +25,18 @@
         </DropdownMenuItem>
       </template>
 
-      <DropdownMenuSeparator />
+      <template v-if="!(isFirst && isLast)">
+        <DropdownMenuSeparator />
 
-      <DropdownMenuItem @click="emit('move', { item, direction: -1 })">
-        <ArrowUp class="mr-2 h-4 w-4" />
-        {{ t('globals.messages.moveUp') }}
-      </DropdownMenuItem>
-      <DropdownMenuItem @click="emit('move', { item, direction: 1 })">
-        <ArrowDown class="mr-2 h-4 w-4" />
-        {{ t('globals.messages.moveDown') }}
-      </DropdownMenuItem>
+        <DropdownMenuItem v-if="!isFirst" @click="emit('move', { item, direction: -1 })">
+          <ArrowUp class="mr-2 h-4 w-4" />
+          {{ t('globals.messages.moveUp') }}
+        </DropdownMenuItem>
+        <DropdownMenuItem v-if="!isLast" @click="emit('move', { item, direction: 1 })">
+          <ArrowDown class="mr-2 h-4 w-4" />
+          {{ t('globals.messages.moveDown') }}
+        </DropdownMenuItem>
+      </template>
 
       <DropdownMenuSeparator />
 
@@ -96,6 +98,18 @@ defineProps({
   item: {
     type: Object,
     required: true
+  },
+  canCreateCollection: {
+    type: Boolean,
+    default: true
+  },
+  isFirst: {
+    type: Boolean,
+    default: false
+  },
+  isLast: {
+    type: Boolean,
+    default: false
   }
 })
 
