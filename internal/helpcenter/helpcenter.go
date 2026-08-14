@@ -74,6 +74,8 @@ var (
 
 	textAlignRe = regexp.MustCompile(`^(left|center|right|justify)$`)
 
+	blankLineRe = regexp.MustCompile(`\n{2,}`)
+
 	// articleSanitizer strips unsafe HTML from article content since it renders raw on public pages.
 	articleSanitizer = buildArticleSanitizer()
 
@@ -1420,9 +1422,13 @@ func (m *Manager) validateHelpCenterServesLocale(helpCenterID int, locale string
 	return nil
 }
 
-// SanitizeInlineHTML strips unsafe HTML from theme text fields that render raw on public pages.
-func SanitizeInlineHTML(s string) string {
-	return inlineTextSanitizer.Sanitize(s)
+// RenderInlineMarkdown renders theme text fields as inline HTML, stripping anything unsafe.
+func RenderInlineMarkdown(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return ""
+	}
+	html := stringutil.Markdown2HTML(blankLineRe.ReplaceAllString(s, "\n"))
+	return strings.TrimSpace(inlineTextSanitizer.Sanitize(html))
 }
 
 // GenerateSlug derives a slug from a title, bounded to what validateSlug accepts.
@@ -1650,6 +1656,6 @@ func buildInlineTextSanitizer() *bluemonday.Policy {
 	p.AllowAttrs("href").OnElements("a")
 	p.AddTargetBlankToFullyQualifiedLinks(true)
 	p.RequireNoFollowOnFullyQualifiedLinks(true)
-	p.AllowElements("b", "strong", "i", "em", "u", "s", "br", "span", "code")
+	p.AllowElements("b", "strong", "i", "em", "u", "s", "del", "ins", "mark", "small", "sub", "sup", "br", "span", "code")
 	return p
 }

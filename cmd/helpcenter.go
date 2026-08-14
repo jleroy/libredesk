@@ -1577,9 +1577,9 @@ func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map
 		"Theme":             theme,
 		"ThemeCSS":          buildThemeCSSVars(theme),
 		"AnnouncementKey":   announcementKey(hc.Slug, theme.Announcement),
-		"TaglineHTML":       template.HTML(helpcenter.SanitizeInlineHTML(theme.Tagline)),
-		"FooterTaglineHTML": template.HTML(helpcenter.SanitizeInlineHTML(theme.Footer.Tagline)),
-		"AnnouncementHTML":  template.HTML(helpcenter.SanitizeInlineHTML(theme.Announcement.Text)),
+		"TaglineHTML":       template.HTML(helpcenter.RenderInlineMarkdown(theme.Tagline)),
+		"FooterTaglineHTML": template.HTML(helpcenter.RenderInlineMarkdown(theme.Footer.Tagline)),
+		"AnnouncementHTML":  template.HTML(helpcenter.RenderInlineMarkdown(theme.Announcement.Text)),
 		"CustomCSS":         template.CSS(hc.CustomCSS),
 		"CustomJS":          template.JS(hc.CustomJS),
 	}

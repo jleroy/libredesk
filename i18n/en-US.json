@@ -1223,7 +1223,7 @@
   "helpCenter.styling.bgSolid": "Solid color",
   "helpCenter.styling.textColorHint": "Leave blank to use the default.",
   "helpCenter.styling.footerTagline": "Footer tagline",
-  "helpCenter.styling.inlineHtmlHint": "Basic HTML is allowed, like links and bold text.",
+  "helpCenter.styling.inlineMarkdownHint": "Markdown is supported, e.g. **bold**, *italic* and [links](https://example.com).",
   "helpCenter.styling.footerTaglineHint": "A company slogan or contact info",
   "helpCenter.styling.footerLinks": "Footer links",
   "helpCenter.styling.socialLinks": "Social links",

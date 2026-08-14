@@ -205,13 +205,13 @@
               <FormItem>
                 <FormLabel>{{ t('helpCenter.styling.tagline') }}</FormLabel>
                 <FormControl>
-                  <Input
-                    type="text"
+                  <Textarea
+                    :rows="2"
                     :placeholder="t('helpCenter.styling.taglineHint')"
                     v-bind="componentField"
                   />
                 </FormControl>
-                <FormDescription>{{ t('helpCenter.styling.inlineHtmlHint') }}</FormDescription>
+                <FormDescription>{{ t('helpCenter.styling.inlineMarkdownHint') }}</FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
@@ -316,7 +316,7 @@
                 </FormControl>
                 <FormDescription
                   >{{ t('helpCenter.styling.announcementHint') }}
-                  {{ t('helpCenter.styling.inlineHtmlHint') }}</FormDescription
+                  {{ t('helpCenter.styling.inlineMarkdownHint') }}</FormDescription
                 >
                 <FormMessage />
               </FormItem>
@@ -541,13 +541,13 @@
               <FormItem>
                 <FormLabel>{{ t('helpCenter.styling.footerTagline') }}</FormLabel>
                 <FormControl>
-                  <Input
-                    type="text"
+                  <Textarea
+                    :rows="2"
                     :placeholder="t('helpCenter.styling.footerTaglineHint')"
                     v-bind="componentField"
                   />
                 </FormControl>
-                <FormDescription>{{ t('helpCenter.styling.inlineHtmlHint') }}</FormDescription>
+                <FormDescription>{{ t('helpCenter.styling.inlineMarkdownHint') }}</FormDescription>
                 <FormMessage />
               </FormItem>
             </FormField>
