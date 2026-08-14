@@ -96,11 +96,7 @@ type HelpCenterRequest struct {
 	Name            string          `json:"name"`
 	Slug            string          `json:"slug"`
 	PageTitle       string          `json:"page_title"`
-	HeaderText      string          `json:"header_text"`
 	MetaDescription string          `json:"meta_description"`
-	LogoURL         string          `json:"logo_url"`
-	Color           string          `json:"color"`
-	NavLinks        json.RawMessage `json:"nav_links"`
 	CustomCSS       string          `json:"custom_css"`
 	CustomJS        string          `json:"custom_js"`
 	DefaultLocale   string          `json:"default_locale"`
@@ -281,13 +277,10 @@ func (m *Manager) CreateHelpCenter(req HelpCenterRequest) (models.HelpCenter, er
 	if err := m.validateLocales(req.DefaultLocale, req.AllowedLocales); err != nil {
 		return hc, err
 	}
-	if err := m.validateColor(req.Color); err != nil {
-		return hc, err
-	}
 	if err := m.validateCustomDomain(req.CustomDomain, 0); err != nil {
 		return hc, err
 	}
-	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
+	if err := m.q.InsertHelpCenter.Get(&hc, req.Name, req.Slug, req.PageTitle, req.MetaDescription, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -306,11 +299,7 @@ func (m *Manager) DraftHelpCenter(id int, req HelpCenterRequest) (models.HelpCen
 	req = normalizeHelpCenterRequest(req)
 	hc.Name = req.Name
 	hc.PageTitle = req.PageTitle
-	hc.HeaderText = req.HeaderText
 	hc.MetaDescription = req.MetaDescription
-	hc.LogoURL = req.LogoURL
-	hc.Color = req.Color
-	hc.NavLinks = req.NavLinks
 	hc.CustomCSS = req.CustomCSS
 	hc.CustomJS = req.CustomJS
 	hc.DefaultLocale = req.DefaultLocale
@@ -318,9 +307,6 @@ func (m *Manager) DraftHelpCenter(id int, req HelpCenterRequest) (models.HelpCen
 	hc.Theme = req.Theme
 	hc.CustomDomain = req.CustomDomain
 	hc.Template = req.Template
-	if err := m.validateColor(hc.Color); err != nil {
-		return hc, err
-	}
 	return hc, nil
 }
 
@@ -337,13 +323,10 @@ func (m *Manager) UpdateHelpCenter(id int, req HelpCenterRequest) (models.HelpCe
 	if err := m.validateLocalesRetained(id, req.AllowedLocales); err != nil {
 		return hc, err
 	}
-	if err := m.validateColor(req.Color); err != nil {
-		return hc, err
-	}
 	if err := m.validateCustomDomain(req.CustomDomain, id); err != nil {
 		return hc, err
 	}
-	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.HeaderText, req.MetaDescription, req.LogoURL, req.Color, req.NavLinks, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
+	if err := m.q.UpdateHelpCenter.Get(&hc, id, req.Name, req.Slug, req.PageTitle, req.MetaDescription, req.CustomCSS, req.CustomJS, req.DefaultLocale, req.AllowedLocales, req.Theme, req.CustomDomain, req.Template); err != nil {
 		if dbutil.IsUniqueViolationError(err) {
 			return hc, envelope.NewError(envelope.ConflictError, m.i18n.T("globals.messages.errorAlreadyExists"), nil)
 		}
@@ -1403,13 +1386,6 @@ func (m *Manager) validateCustomDomain(domain string, excludeID int) error {
 	return nil
 }
 
-func (m *Manager) validateColor(color string) error {
-	if !hexColorRe.MatchString(color) {
-		return envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidColor"), nil)
-	}
-	return nil
-}
-
 // validateHelpCenterServesLocale rejects a locale the help center doesn't list.
 func (m *Manager) validateHelpCenterServesLocale(helpCenterID int, locale string) error {
 	hc, err := m.GetHelpCenterByID(helpCenterID)
@@ -1445,15 +1421,10 @@ func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	if req.DefaultLocale == "" {
 		req.DefaultLocale = defaultLocale
 	}
-	if req.Color == "" {
-		req.Color = defaultAccentColor
-	}
 	if !slices.Contains(helpCenterTemplates, req.Template) {
 		req.Template = models.TemplateClassic
 	}
 	req.CustomDomain = strings.TrimRight(strings.TrimSpace(req.CustomDomain), "/")
-	req.LogoURL = sanitizeAssetURL(req.LogoURL)
-	req.NavLinks = normalizeNavLinks(req.NavLinks)
 
 	locales := normalizeLocales(parseLocales(req.AllowedLocales), req.DefaultLocale)
 	if b, err := json.Marshal(locales); err == nil {
@@ -1461,23 +1432,6 @@ func normalizeHelpCenterRequest(req HelpCenterRequest) HelpCenterRequest {
 	}
 	req.Theme = normalizeTheme(req.Theme)
 	return req
-}
-
-// normalizeNavLinks drops header links that aren't absolute or root-relative. Invalid JSON collapses to '[]'.
-func normalizeNavLinks(raw json.RawMessage) json.RawMessage {
-	empty := json.RawMessage("[]")
-	if len(raw) == 0 {
-		return empty
-	}
-	var links []models.NavLink
-	if err := json.Unmarshal(raw, &links); err != nil {
-		return empty
-	}
-	b, err := json.Marshal(sanitizeNavLinks(links))
-	if err != nil {
-		return empty
-	}
-	return b
 }
 
 // normalizeTheme drops any theme color that isn't a valid hex code before it can reach
@@ -1490,6 +1444,13 @@ func normalizeTheme(raw json.RawMessage) json.RawMessage {
 	if err := json.Unmarshal(raw, &t); err != nil {
 		return json.RawMessage("{}")
 	}
+	t.Color = sanitizeHexColor(t.Color)
+	if t.Color == "" {
+		t.Color = defaultAccentColor
+	}
+	t.LogoURL = sanitizeAssetURL(t.LogoURL)
+	t.NavLinks = sanitizeNavLinks(t.NavLinks)
+	t.Header.Heading = strings.TrimSpace(t.Header.Heading)
 	t.Header.BackgroundColor = sanitizeHexColor(t.Header.BackgroundColor)
 	t.Header.GradientFrom = sanitizeHexColor(t.Header.GradientFrom)
 	t.Header.GradientTo = sanitizeHexColor(t.Header.GradientTo)

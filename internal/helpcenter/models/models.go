@@ -20,11 +20,7 @@ type HelpCenter struct {
 	Name            string          `db:"name" json:"name"`
 	Slug            string          `db:"slug" json:"slug"`
 	PageTitle       string          `db:"page_title" json:"page_title"`
-	HeaderText      string          `db:"header_text" json:"header_text"`
 	MetaDescription string          `db:"meta_description" json:"meta_description"`
-	LogoURL         string          `db:"logo_url" json:"logo_url"`
-	Color           string          `db:"color" json:"color"`
-	NavLinks        json.RawMessage `db:"nav_links" json:"nav_links"`
 	CustomCSS       string          `db:"custom_css" json:"custom_css"`
 	CustomJS        string          `db:"custom_js" json:"custom_js"`
 	DefaultLocale   string          `db:"default_locale" json:"default_locale"`
@@ -37,6 +33,9 @@ type HelpCenter struct {
 
 // Theme holds the customizable branding for a help center's public pages.
 type Theme struct {
+	Color        string            `json:"color"`
+	LogoURL      string            `json:"logo_url"`
+	NavLinks     []NavLink         `json:"nav_links"`
 	Favicon      string            `json:"favicon"`
 	Tagline      string            `json:"tagline"`
 	Header       HeaderTheme       `json:"header"`
@@ -57,6 +56,7 @@ type AnnouncementTheme struct {
 }
 
 type HeaderTheme struct {
+	Heading         string `json:"heading"`
 	BackgroundType  string `json:"background_type"` // "solid" | "gradient" | "image"
 	BackgroundColor string `json:"background_color"`
 	GradientFrom    string `json:"gradient_from"`
@@ -194,6 +194,7 @@ type Insights struct {
 // DefaultTheme enables the show-flags for elements that must keep rendering when a stored theme predates the flag.
 func DefaultTheme() Theme {
 	return Theme{
+		Color:   "#1f93ff",
 		Layout:  LayoutTheme{ShowPopularArticles: true},
 		Cards:   CardTheme{ShowIconTile: true},
 		Article: ArticleTheme{ShowAuthor: true},

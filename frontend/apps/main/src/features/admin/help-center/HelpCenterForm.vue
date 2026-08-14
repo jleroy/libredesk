@@ -84,7 +84,7 @@
             </FormItem>
           </FormField>
 
-          <LinkListField name="nav_links" :label="t('helpCenter.navLinks')" />
+          <LinkListField name="theme.nav_links" :label="t('helpCenter.navLinks')" />
 
           <div class="space-y-2">
             <Label>{{ t('helpCenter.supportedLanguages') }}</Label>
@@ -151,7 +151,7 @@
             :open="openSection === 'brand'"
             @toggle="toggleSection('brand')"
           >
-            <FormField v-slot="{ componentField }" name="logo_url">
+            <FormField v-slot="{ componentField }" name="theme.logo_url">
               <FormItem>
                 <FormLabel>{{ t('globals.terms.logoUrl') }}</FormLabel>
                 <FormControl>
@@ -161,7 +161,7 @@
               </FormItem>
             </FormField>
 
-            <FormField v-slot="{ componentField }" name="color">
+            <FormField v-slot="{ componentField }" name="theme.color">
               <FormItem>
                 <FormLabel>{{ t('globals.terms.primaryColor') }}</FormLabel>
                 <FormControl>
@@ -191,7 +191,7 @@
             :open="openSection === 'header'"
             @toggle="toggleSection('header')"
           >
-            <FormField v-slot="{ componentField }" name="header_text">
+            <FormField v-slot="{ componentField }" name="theme.header.heading">
               <FormItem>
                 <FormLabel>{{ t('helpCenter.headerText') }}</FormLabel>
                 <FormControl>
@@ -666,12 +666,12 @@ import { useI18n } from 'vue-i18n'
 // Field path prefix -> [tab, section] to reveal when that field errors on submit.
 const FIELD_LOCATION = [
   ['theme.header', 'appearance', 'header'],
-  ['header_text', 'appearance', 'header'],
   ['theme.tagline', 'appearance', 'header'],
   ['theme.announcement', 'appearance', 'announcement'],
-  ['logo_url', 'appearance', 'brand'],
-  ['color', 'appearance', 'brand'],
+  ['theme.logo_url', 'appearance', 'brand'],
+  ['theme.color', 'appearance', 'brand'],
   ['theme.favicon', 'appearance', 'brand'],
+  ['theme.nav_links', 'general', ''],
   ['theme.layout', 'appearance', 'landing'],
   ['theme.cards', 'appearance', 'landing'],
   ['theme.article', 'appearance', 'article'],
@@ -720,20 +720,20 @@ const toFormValues = (hc) => ({
   template: hc?.template === 'docs' ? 'docs' : 'classic',
   custom_domain: hc?.custom_domain || '',
   page_title: hc?.page_title || '',
-  header_text: hc?.header_text || '',
   meta_description: hc?.meta_description || '',
-  logo_url: hc?.logo_url || '',
-  color: hc?.color || '#1f93ff',
-  nav_links: Array.isArray(hc?.nav_links) ? hc.nav_links : [],
   custom_css: hc?.custom_css || '',
   custom_js: hc?.custom_js || '',
   default_locale: hc?.default_locale || 'en',
   allowed_locales:
     Array.isArray(hc?.allowed_locales) && hc.allowed_locales.length ? hc.allowed_locales : ['en'],
   theme: {
+    color: hc?.theme?.color || '#1f93ff',
+    logo_url: hc?.theme?.logo_url || '',
+    nav_links: Array.isArray(hc?.theme?.nav_links) ? hc.theme.nav_links : [],
     favicon: hc?.theme?.favicon || '',
     tagline: hc?.theme?.tagline || '',
     header: {
+      heading: hc?.theme?.header?.heading || '',
       background_type: hc?.theme?.header?.background_type || 'default',
       background_color: hc?.theme?.header?.background_color || '#1f93ff',
       gradient_from: hc?.theme?.header?.gradient_from || '#1f93ff',
@@ -829,7 +829,6 @@ watch(localeOptions, (locales) => {
 const toPayload = (values) => {
   const payload = JSON.parse(JSON.stringify(values))
   const allowed = cleanLocales(payload.allowed_locales)
-  payload.nav_links = payload.nav_links || []
   payload.allowed_locales = allowed.length ? allowed : ['en']
   if (payload.theme?.layout) {
     payload.theme.layout.columns = Number(payload.theme.layout.columns) || 2

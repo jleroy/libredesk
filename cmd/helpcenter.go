@@ -584,7 +584,8 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 		root            = helpCenterBaseURL(app, helpCenter)
 		locales         = helpCenterLocales(helpCenter)
 		pathFor         = func(l string) string { return helpCenterHomePath(helpCenter, l) }
-		metaDescription = firstNonEmpty(tree.HelpCenter.MetaDescription, tree.HelpCenter.HeaderText)
+		theme           = helpCenterTheme(tree.HelpCenter)
+		metaDescription = firstNonEmpty(tree.HelpCenter.MetaDescription, theme.Header.Heading)
 	)
 	data := helpCenterTemplateData(app, tree.HelpCenter, locale)
 	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-center"), map[string]interface{}{
@@ -594,7 +595,7 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 			"MetaDescription": metaDescription,
 			"CanonicalPath":   pathFor(locale),
 			"LandingHero":     true,
-			"OGImage":         absoluteURL(root, publicAssetPaths(app, tree.HelpCenter.LogoURL)),
+			"OGImage":         absoluteURL(root, publicAssetPaths(app, theme.LogoURL)),
 			"Alternates":      helpCenterAlternates(helpCenter, locales, pathFor),
 			"XDefaultPath":    defaultLocalePath(helpCenter, locales, pathFor),
 			"LocaleLinks":     helpCenterLocaleLinks(helpCenter, locales, pathFor),
@@ -647,7 +648,7 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 			"Title":            fmt.Sprintf("%s - %s", collection.Name, helpCenter.Name),
 			"MetaDescription":  collection.Description,
 			"CanonicalPath":    pathFor(locale),
-			"OGImage":          absoluteURL(root, publicAssetPaths(app, helpCenter.LogoURL)),
+			"OGImage":          absoluteURL(root, publicAssetPaths(app, helpCenterTheme(helpCenter).LogoURL)),
 			"Alternates":       helpCenterAlternates(helpCenter, translated, pathFor),
 			"XDefaultPath":     defaultLocalePath(helpCenter, translated, pathFor),
 			"LocaleLinks":      helpCenterLocaleLinks(helpCenter, translated, pathFor),
@@ -715,7 +716,7 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 		pathFor         = func(l string) string { return articlePath(helpCenter, l, article.Slug) }
 		metaDescription = firstNonEmpty(article.MetaDescription, article.Excerpt)
 		metaTitle       = firstNonEmpty(article.MetaTitle, fmt.Sprintf("%s - %s", article.Title, helpCenter.Name))
-		ogImage         = absoluteURL(root, publicAssetPaths(app, firstNonEmpty(article.MetaImageURL, helpCenter.LogoURL)))
+		ogImage         = absoluteURL(root, publicAssetPaths(app, firstNonEmpty(article.MetaImageURL, helpCenterTheme(helpCenter).LogoURL)))
 	)
 	data := helpCenterTemplateData(app, helpCenter, locale)
 	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-article"), map[string]interface{}{
@@ -1330,7 +1331,7 @@ func homeJSONLD(root string, hc hcmodels.HelpCenter, locale string) template.JS 
 			"query-input": "required name=search_term_string",
 		},
 	}
-	if d := firstNonEmpty(hc.MetaDescription, hc.HeaderText); d != "" {
+	if d := firstNonEmpty(hc.MetaDescription, helpCenterTheme(hc).Header.Heading); d != "" {
 		site["description"] = d
 	}
 	return jsonLD([]any{site})
@@ -1545,12 +1546,6 @@ func sidebarTree(app *App, hc hcmodels.HelpCenter, locale string) []hcmodels.Tre
 
 // helpCenterTemplateData shapes a help center row for the public templates.
 func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map[string]interface{} {
-	navLinks := []hcmodels.NavLink{}
-	if len(hc.NavLinks) > 0 {
-		if err := json.Unmarshal(hc.NavLinks, &navLinks); err != nil {
-			navLinks = nil
-		}
-	}
 	theme := helpCenterTheme(hc)
 	theme.Favicon = publicAssetPaths(app, theme.Favicon)
 	theme.Header.BackgroundImage = publicAssetPaths(app, theme.Header.BackgroundImage)
@@ -1565,15 +1560,15 @@ func helpCenterTemplateData(app *App, hc hcmodels.HelpCenter, locale string) map
 		"BaseURL":           helpCenterBaseURL(app, hc),
 		"BasePath":          helpCenterHomePath(hc, locale),
 		"PageTitle":         hc.PageTitle,
-		"HeaderText":        hc.HeaderText,
-		"LogoURL":           publicAssetPaths(app, hc.LogoURL),
-		"Color":             hc.Color,
+		"HeaderText":        theme.Header.Heading,
+		"LogoURL":           publicAssetPaths(app, theme.LogoURL),
+		"Color":             theme.Color,
 		"DefaultLocale":     hc.DefaultLocale,
 		"CurrentLocale":     locale,
 		"OGLocale":          strings.ReplaceAll(locale, "-", "_"),
 		"Dir":               localeDir(locale),
 		"AvailableLocales":  helpCenterLocales(hc),
-		"NavLinks":          navLinks,
+		"NavLinks":          theme.NavLinks,
 		"Theme":             theme,
 		"ThemeCSS":          buildThemeCSSVars(theme),
 		"AnnouncementKey":   announcementKey(hc.Slug, theme.Announcement),
@@ -1681,7 +1676,6 @@ func validateHelpCenter(r *fastglue.Request, req *helpcenter.HelpCenterRequest) 
 	if req.PageTitle == "" {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`page_title`"), nil, envelope.InputError)
 	}
-	req.LogoURL = publicAssetPaths(app, req.LogoURL)
 	req.Theme = json.RawMessage(publicAssetPaths(app, string(req.Theme)))
 	return nil
 }

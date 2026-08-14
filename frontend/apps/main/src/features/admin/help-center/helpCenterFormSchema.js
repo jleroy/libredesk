@@ -49,11 +49,7 @@ const createBaseSchema = (t) => {
       .regex(/^[a-z0-9_-]+$/, t('helpCenter.invalidSlug')),
     page_title: z.string().min(1, t('globals.messages.required')),
     template: z.enum(['docs', 'classic']).default('classic'),
-    header_text: z.string().optional(),
     meta_description: z.string().optional(),
-    logo_url: optionalURL,
-    color: z.string().optional(),
-    nav_links: linkArray,
     custom_domain: z
       .string()
       .refine(
@@ -79,10 +75,14 @@ const createBaseSchema = (t) => {
       .default(['en']),
     theme: z
       .object({
+        color: z.string().optional(),
+        logo_url: optionalURL,
+        nav_links: linkArray,
         favicon: optionalURL,
         tagline: z.string().optional(),
         header: z
           .object({
+            heading: z.string().optional(),
             background_type: z.string().optional(),
             background_color: optionalHexColor,
             gradient_from: optionalHexColor,
