@@ -1257,6 +1257,9 @@ func helpCenterPathPrefix(hc hcmodels.HelpCenter) string {
 }
 
 func helpCenterHomePath(hc hcmodels.HelpCenter, locale string) string {
+	if locale == "" {
+		locale = hc.DefaultLocale
+	}
 	return fmt.Sprintf("%s/%s", helpCenterPathPrefix(hc), locale)
 }
 

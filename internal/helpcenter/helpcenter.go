@@ -722,25 +722,7 @@ func (m *Manager) UpdateArticle(id int, req ArticleRequest) (models.Article, err
 // taken in the target collection's help center.
 func (m *Manager) MoveArticle(id, collectionID int) (models.Article, error) {
 	var article models.Article
-	existing, err := m.GetArticleByID(id)
-	if err != nil {
-		return article, err
-	}
-	source, err := m.GetCollectionByID(existing.CollectionID)
-	if err != nil {
-		return article, err
-	}
-	target, err := m.GetCollectionByID(collectionID)
-	if err != nil {
-		return article, err
-	}
-	if target.HelpCenterID != source.HelpCenterID {
-		return article, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidCollection"), nil)
-	}
-	if target.Locale != existing.Locale {
-		return article, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.collectionLocaleMismatch"), nil)
-	}
-	// The slug check and write hold the same help center row lock as CreateArticle.
+	// The checks, slug check and write hold the same help center row lock as CreateArticle.
 	tx, err := m.db.Beginx()
 	if err != nil {
 		m.lo.Error("error starting transaction", "error", err)
@@ -749,6 +731,29 @@ func (m *Manager) MoveArticle(id, collectionID int) (models.Article, error) {
 	defer tx.Rollback()
 	if err := m.lockHelpCenterByCollection(tx, collectionID); err != nil {
 		return article, err
+	}
+	var existing models.Article
+	if err := tx.Stmtx(m.q.GetArticleByID).Get(&existing, id); err != nil {
+		if err == sql.ErrNoRows {
+			return article, envelope.NewError(envelope.NotFoundError, m.i18n.T("globals.messages.notFound"), nil)
+		}
+		m.lo.Error("error fetching article", "error", err, "id", id)
+		return article, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	get := m.lockedCollectionGetter(tx)
+	source, err := get(existing.CollectionID)
+	if err != nil {
+		return article, err
+	}
+	target, err := get(collectionID)
+	if err != nil {
+		return article, err
+	}
+	if target.HelpCenterID != source.HelpCenterID {
+		return article, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.invalidCollection"), nil)
+	}
+	if target.Locale != existing.Locale {
+		return article, envelope.NewError(envelope.InputError, m.i18n.T("helpCenter.collectionLocaleMismatch"), nil)
 	}
 	var slugTaken bool
 	if err := tx.Stmtx(m.q.OtherArticleSlugExists).Get(&slugTaken, collectionID, existing.Slug, existing.Locale, id); err != nil {
@@ -1074,21 +1079,24 @@ func (m *Manager) scanTree(rows *sql.Rows) ([]models.TreeCollection, error) {
 		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	var buildTree func(parentID *int) []models.TreeCollection
-	buildTree = func(parentID *int) []models.TreeCollection {
+	var buildTree func(parentID *int, depth int) []models.TreeCollection
+	buildTree = func(parentID *int, depth int) []models.TreeCollection {
 		children := make([]models.TreeCollection, 0)
+		if depth > maxCollectionDepth {
+			return children
+		}
 		for _, id := range rootOrder {
 			col := collections[id]
 			matches := (col.ParentID == nil && parentID == nil) ||
 				(col.ParentID != nil && parentID != nil && *col.ParentID == *parentID)
 			if matches {
-				col.Children = buildTree(&col.ID)
+				col.Children = buildTree(&col.ID, depth+1)
 				children = append(children, *col)
 			}
 		}
 		return children
 	}
-	tree := buildTree(nil)
+	tree := buildTree(nil, 1)
 
 	var fillCounts func(cols []models.TreeCollection) int
 	fillCounts = func(cols []models.TreeCollection) int {
