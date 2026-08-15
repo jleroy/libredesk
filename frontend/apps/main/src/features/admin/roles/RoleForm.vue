@@ -30,7 +30,7 @@
         <div
           v-for="entity in permissions"
           :key="entity.name"
-          class="rounded border border-border bg-card"
+          class="rounded-md border border-border bg-card"
         >
           <div class="border-b border-border bg-muted/30 px-5 py-3">
             <h4 class="font-medium text-card-foreground">{{ entity.name }}</h4>
@@ -175,6 +175,7 @@ const permissions = ref([
       { name: perms.BUSINESS_HOURS_MANAGE, label: t('admin.role.businessHours.manage') },
       { name: perms.SLA_MANAGE, label: t('admin.role.sla.manage') },
       { name: perms.AI_MANAGE, label: t('admin.role.ai.manage') },
+      { name: perms.HELP_CENTER_MANAGE, label: t('admin.role.helpCenter.manage') },
       { name: perms.CUSTOM_ATTRIBUTES_MANAGE, label: t('admin.role.customAttributes.manage') },
       { name: perms.ACTIVITY_LOGS_MANAGE, label: t('admin.role.activityLog.manage') },
       { name: perms.WEBHOOKS_MANAGE, label: t('admin.role.webhooks.manage') },
@@ -230,7 +231,7 @@ const handleChange = (value, perm) => {
 watch(
   () => props.initialValues,
   (newValues) => {
-    form.setValues(newValues)
+    form.setValues(newValues, false)
     selectedPermissions.value = newValues.permissions || []
   },
   { deep: true, immediate: true }

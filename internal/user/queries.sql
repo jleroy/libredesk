@@ -1,7 +1,8 @@
 -- name: get-users-compact
 SELECT COUNT(*) OVER() as total, users.id, users.avatar_url, users.type, users.created_at, users.updated_at, users.first_name, users.last_name, users.email, users.enabled, users.external_user_id, users.availability_status
 FROM users
-WHERE users.email != 'System' AND users.deleted_at IS NULL AND type = ANY($1)
+-- email != 'System' also drops NULL-email users (anonymous visitors); AI assistants have no email and must still be listed.
+WHERE (users.email != 'System' OR users.type = 'ai_assistant') AND users.deleted_at IS NULL AND type = ANY($1)
 
 -- name: soft-delete-agent
 WITH soft_delete AS (
@@ -21,7 +22,7 @@ delete_user_roles AS (
     WHERE user_id IN (SELECT id FROM soft_delete)
     RETURNING 1
 )
-SELECT 1;
+SELECT count(*) FROM soft_delete;
 
 -- name: get-user
 SELECT
@@ -184,6 +185,12 @@ ON CONFLICT (email) WHERE type = 'contact' AND deleted_at IS NULL AND external_u
 DO UPDATE SET first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
               last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), users.last_name),
               updated_at = now()
+RETURNING id;
+
+-- name: insert-contact-if-absent
+INSERT INTO users (email, type, first_name, last_name, "password", avatar_url, external_user_id, custom_attributes)
+VALUES ($1, 'contact', $2, $3, $4, $5, $6, $7)
+ON CONFLICT DO NOTHING
 RETURNING id;
 
 -- name: get-contact-by-email
@@ -374,6 +381,7 @@ LEFT JOIN roles r ON r.id = ur.role_id
 LEFT JOIN LATERAL unnest(r.permissions) AS p ON true
 WHERE u.deleted_at IS NULL
     AND u.external_user_id = $1
+    AND u.type = 'contact'
 GROUP BY u.id;
 
 -- name: get-visitor-by-email

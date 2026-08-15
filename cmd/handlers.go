@@ -194,6 +194,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.DELETE("/api/v1/roles/{id}", perm(handleDeleteRole, "roles:manage"))
 
 	// Webhooks.
+	g.GET("/api/v1/webhooks/compact", auth(handleGetWebhooksCompact))
 	g.GET("/api/v1/webhooks", perm(handleGetWebhooks, "webhooks:manage"))
 	g.GET("/api/v1/webhooks/{id}", perm(handleGetWebhook, "webhooks:manage"))
 	g.POST("/api/v1/webhooks", perm(handleCreateWebhook, "webhooks:manage"))
@@ -244,7 +245,81 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// AI completions.
 	g.GET("/api/v1/ai/prompts", auth(handleGetAIPrompts))
 	g.POST("/api/v1/ai/completion", auth(handleAICompletion))
-	g.PUT("/api/v1/ai/provider", perm(handleUpdateAIProvider, "ai:manage"))
+
+	// AI provider config (completion / embedding).
+	g.GET("/api/v1/ai/config/{type}", perm(handleGetAIConfig, "ai:manage"))
+	g.PUT("/api/v1/ai/config/{type}", perm(handleUpdateAIConfig, "ai:manage"))
+	g.POST("/api/v1/ai/config/{type}/test", perm(handleTestAIConfig, "ai:manage"))
+
+	// AI custom tools.
+	g.GET("/api/v1/ai/tools", perm(handleGetAITools, "ai:manage"))
+	g.GET("/api/v1/ai/tools/{id}", perm(handleGetAITool, "ai:manage"))
+	g.POST("/api/v1/ai/tools", perm(handleCreateAITool, "ai:manage"))
+	g.PUT("/api/v1/ai/tools/{id}", perm(handleUpdateAITool, "ai:manage"))
+	g.DELETE("/api/v1/ai/tools/{id}", perm(handleDeleteAITool, "ai:manage"))
+
+	// AI knowledge base snippets.
+	g.GET("/api/v1/ai/snippets", perm(handleGetAISnippets, "ai:manage"))
+	g.POST("/api/v1/ai/snippets", perm(handleCreateAISnippet, "ai:manage"))
+	g.POST("/api/v1/ai/snippets/import-url", perm(handleImportAISnippetFromURL, "ai:manage"))
+	g.PUT("/api/v1/ai/snippets/{id}", perm(handleUpdateAISnippet, "ai:manage"))
+	g.DELETE("/api/v1/ai/snippets/{id}", perm(handleDeleteAISnippet, "ai:manage"))
+
+	// AI assistant: reply drafting + copilot chat.
+	g.POST("/api/v1/ai/generate-reply", auth(handleAIGenerateReply))
+	g.POST("/api/v1/ai/summarize", perm(handleAISummarizeConversation, "messages:write"))
+	g.POST("/api/v1/ai/suggest-tags", auth(handleAISuggestTags))
+	g.POST("/api/v1/ai/copilot", auth(handleAICopilot))
+	g.GET("/api/v1/ai/copilot/messages", auth(handleGetCopilotMessages))
+	g.DELETE("/api/v1/ai/copilot/messages", auth(handleClearCopilotMessages))
+
+	// Autonomous AI agents (assistants).
+	g.GET("/api/v1/ai/assistants/compact", auth(handleGetAIAssistantsCompact))
+	g.GET("/api/v1/ai/assistants", perm(handleGetAIAssistants, "ai:manage"))
+	g.GET("/api/v1/ai/assistants/{id}", perm(handleGetAIAssistant, "ai:manage"))
+	g.POST("/api/v1/ai/assistants", perm(handleCreateAIAssistant, "ai:manage"))
+	g.PUT("/api/v1/ai/assistants/{id}", perm(handleUpdateAIAssistant, "ai:manage"))
+	g.DELETE("/api/v1/ai/assistants/{id}", perm(handleDeleteAIAssistant, "ai:manage"))
+	g.POST("/api/v1/ai/assistants/{id}/preview", perm(handleAIAssistantPreview, "ai:manage"))
+	g.GET("/api/v1/ai/assistants/{id}/stats", perm(handleGetAIAssistantStats, "ai:manage"))
+
+	// AI FAQ learning: review queue for suggestions mined from resolved conversations + on/off setting.
+	g.GET("/api/v1/ai/faq-suggestions", perm(handleGetAIFaqSuggestions, "ai:manage"))
+	g.POST("/api/v1/ai/faq-suggestions/{id}/approve", perm(handleApproveAIFaqSuggestion, "ai:manage"))
+	g.POST("/api/v1/ai/faq-suggestions/{id}/reject", perm(handleRejectAIFaqSuggestion, "ai:manage"))
+	g.GET("/api/v1/ai/faq-learning", perm(handleGetAIFaqLearning, "ai:manage"))
+	g.PUT("/api/v1/ai/faq-learning", perm(handleUpdateAIFaqLearning, "ai:manage"))
+
+	// Help centers.
+	g.GET("/api/v1/help-centers", perm(handleGetHelpCenters, "help_center:manage"))
+	g.GET("/api/v1/help-centers/locales", perm(handleGetHelpCenterLocales, "help_center:manage"))
+	g.GET("/api/v1/help-centers/{id}", perm(handleGetHelpCenter, "help_center:manage"))
+	g.GET("/api/v1/help-centers/{id}/tree", perm(handleGetHelpCenterTree, "help_center:manage"))
+	g.POST("/api/v1/help-centers", perm(handleCreateHelpCenter, "help_center:manage"))
+	g.PUT("/api/v1/help-centers/{id}", perm(handleUpdateHelpCenter, "help_center:manage"))
+	g.POST("/api/v1/help-centers/{id}/preview", perm(handleHelpCenterPreview, "help_center:manage"))
+	g.PUT("/api/v1/help-centers/{id}/toggle", perm(handleToggleHelpCenterActive, "help_center:manage"))
+	g.DELETE("/api/v1/help-centers/{id}", perm(handleDeleteHelpCenter, "help_center:manage"))
+	g.GET("/api/v1/help-centers/{hc_id}/collections", perm(handleGetCollections, "help_center:manage"))
+	g.POST("/api/v1/help-centers/{hc_id}/collections", perm(handleCreateCollection, "help_center:manage"))
+	g.PUT("/api/v1/help-centers/{hc_id}/collections/{id}", perm(handleUpdateCollection, "help_center:manage"))
+	g.DELETE("/api/v1/help-centers/{hc_id}/collections/{id}", perm(handleDeleteCollection, "help_center:manage"))
+	g.PUT("/api/v1/help-centers/{hc_id}/collection-sort-order", perm(handleUpdateCollectionSortOrders, "help_center:manage"))
+	g.PUT("/api/v1/collections/{id}/toggle", perm(handleToggleCollection, "help_center:manage"))
+	g.PUT("/api/v1/collections/{col_id}/article-sort-order", perm(handleUpdateArticleSortOrders, "help_center:manage"))
+	g.GET("/api/v1/collections/{col_id}/articles/{id}", perm(handleGetArticle, "help_center:manage"))
+	g.POST("/api/v1/collections/{col_id}/articles", perm(handleCreateArticle, "help_center:manage"))
+	g.DELETE("/api/v1/collections/{col_id}/articles/{id}", perm(handleDeleteArticle, "help_center:manage"))
+	g.PUT("/api/v1/articles/{id}", perm(handleUpdateArticle, "help_center:manage"))
+	g.PUT("/api/v1/articles/{id}/collection", perm(handleMoveArticle, "help_center:manage"))
+	g.PUT("/api/v1/articles/{id}/status", perm(handleUpdateArticleStatus, "help_center:manage"))
+	g.GET("/api/v1/help-centers/{id}/insights", perm(handleGetHelpCenterInsights, "help_center:manage"))
+
+	// Public help center JSON API.
+	g.GET("/api/public/help-centers/{slug}/tree", rateLimit(handleGetPublicHelpCenterTree, "public"))
+	g.GET("/api/public/help-centers/{slug}/articles/{article_slug}", rateLimit(handleGetPublicHelpCenterArticle, "public"))
+	g.GET("/api/public/help-centers/{slug}/search", rateLimit(handlePublicHelpCenterSearch, "public"))
+	g.POST("/api/public/help-centers/{slug}/articles/{article_slug}/feedback", rateLimit(handleHelpCenterArticleFeedback, "public"))
 
 	// Custom attributes.
 	g.GET("/api/v1/custom-attributes", auth(handleGetCustomAttributes))
@@ -287,8 +362,14 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/widget/chat/conversations/{uuid}/message", rateLimit(widgetAuth(handleChatSendMessage), "widget"))
 	g.POST("/api/v1/widget/media/upload", rateLimit(widgetAuth(handleWidgetMediaUpload), "widget"))
 
+	// getAndHead registers both methods: uptime checkers and link validators probe with HEAD.
+	getAndHead := func(path string, h fastglue.FastRequestHandler) {
+		g.GET(path, h)
+		g.HEAD(path, h)
+	}
+
 	// Frontend pages.
-	g.GET("/", notAuthPage(serveIndexPage))
+	getAndHead("/", helpCenterHostHome(notAuthPage(serveIndexPage)))
 	g.GET("/widget", validateWidgetInbox(serveWidgetIndexPage))
 	g.GET("/inboxes/{all:*}", authPage(serveIndexPage))
 	g.GET("/teams/{all:*}", authPage(serveIndexPage))
@@ -309,6 +390,15 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/static/public/{all:*}", serveStaticFiles)
 
 	// Public pages.
+	getAndHead("/robots.txt", rateLimit(handleRobotsTxt, "public"))
+	getAndHead("/sitemap.xml", rateLimit(handleSitemapIndex, "public"))
+	getAndHead("/hc/{slug}", rateLimit(handleRedirectHelpCenterHome, "public"))
+	getAndHead("/hc/{slug}/{locale}", rateLimit(handleShowHelpCenterHome, "public"))
+	getAndHead("/hc/{slug}/{locale}/sitemap.xml", rateLimit(handleHelpCenterSitemap, "public"))
+	getAndHead("/hc/{slug}/{locale}/search", rateLimit(handleHelpCenterSearch, "public"))
+	getAndHead("/hc/{slug}/{locale}/collections/{collection_slug}", rateLimit(handleShowHelpCenterCollection, "public"))
+	getAndHead("/hc/{slug}/{locale}/articles/{article_slug}", rateLimit(handleShowHelpCenterArticle, "public"))
+
 	g.GET("/csat/{uuid}", rateLimit(handleShowCSAT, "public"))
 	g.GET("/csat/{uuid}/widget", rateLimit(handleShowCSATWidget, "public"))
 	g.POST("/csat/{uuid}", rateLimit(handleUpdateCSATResponse, "public"))
