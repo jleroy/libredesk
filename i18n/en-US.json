@@ -1194,6 +1194,7 @@
   "helpCenter.metaTitle": "Meta title",
   "helpCenter.metaTitleHint": "Title shown in search engines and browser tabs. Leave blank to use the article title.",
   "helpCenter.notFoundText": "This page doesn't exist or may have moved. Search above, or go back to the help center home.",
+  "helpCenter.errorText": "The page couldn't be loaded due to a temporary problem. Try again in a moment, or go back to the help center home.",
   "helpCenter.backToHelpCenter": "Back to help center",
   "helpCenter.noResultSearches": "Searches with no results",
   "helpCenter.noSearchData": "No searches recorded yet.",

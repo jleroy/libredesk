@@ -545,7 +545,7 @@ func handleRedirectHelpCenterHome(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, nil)
+		return renderHelpCenterPageError(r, nil, err)
 	}
 	if redirectHelpCenterCanonicalHost(r, helpCenter) {
 		return nil
@@ -563,7 +563,7 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, nil)
+		return renderHelpCenterPageError(r, nil, err)
 	}
 	if redirectHelpCenterCanonicalHost(r, helpCenter) {
 		return nil
@@ -574,7 +574,7 @@ func handleShowHelpCenterHome(r *fastglue.Request) error {
 	}
 	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
 	if err != nil {
-		return renderHelpCenterNotFound(r, &helpCenter)
+		return renderHelpCenterPageError(r, &helpCenter, err)
 	}
 	popular, err := app.helpcenter.GetPopularArticles(slug, locale, popularArticlesLimit)
 	if err != nil {
@@ -616,7 +616,7 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, nil)
+		return renderHelpCenterPageError(r, nil, err)
 	}
 	if redirectHelpCenterCanonicalHost(r, helpCenter) {
 		return nil
@@ -627,7 +627,7 @@ func handleShowHelpCenterCollection(r *fastglue.Request) error {
 	}
 	tree, err := app.helpcenter.GetPublicTree(helpCenter, locale)
 	if err != nil {
-		return renderHelpCenterNotFound(r, &helpCenter)
+		return renderHelpCenterPageError(r, &helpCenter, err)
 	}
 	collection := findCollectionNode(tree.Tree, collectionSlug)
 	if collection == nil {
@@ -674,7 +674,7 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	}
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, nil)
+		return renderHelpCenterPageError(r, nil, err)
 	}
 	if redirectHelpCenterCanonicalHost(r, helpCenter) {
 		return nil
@@ -685,7 +685,7 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	}
 	article, err := app.helpcenter.GetPublishedArticle(slug, articleSlug, locale)
 	if err != nil {
-		return renderHelpCenterNotFound(r, &helpCenter)
+		return renderHelpCenterPageError(r, &helpCenter, err)
 	}
 	// The JSON-LD embeds the author too, not just the byline.
 	hideArticleAuthor(helpCenterTheme(helpCenter), &article)
@@ -755,7 +755,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return renderHelpCenterNotFound(r, nil)
+		return renderHelpCenterPageError(r, nil, err)
 	}
 	if redirectHelpCenterCanonicalHost(r, helpCenter) {
 		return nil
@@ -769,7 +769,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 		articles, err = app.helpcenter.SearchPublishedArticles(slug, query, locale, publicSearchLimit)
 		if err != nil {
 			articles = nil
-		} else {
+		} else if !isCrawler(r) {
 			app.helpcenter.LogSearch(helpCenter.ID, query, len(articles))
 		}
 	}
@@ -839,6 +839,10 @@ func handleHelpCenterSitemap(r *fastglue.Request) error {
 			Loc:     root + articlePath(helpCenter, locale, a.Slug),
 			LastMod: a.UpdatedAt.Format(sitemapDate),
 		})
+	}
+	if len(set.URLs) > sitemapURLLimit {
+		app.lo.Warn("help center sitemap truncated to the URL limit", "help_center_slug", slug, "locale", locale, "limit", sitemapURLLimit)
+		set.URLs = set.URLs[:sitemapURLLimit]
 	}
 	return sendXML(r, set)
 }
@@ -1071,9 +1075,9 @@ func sendXML(r *fastglue.Request, v any) error {
 	return nil
 }
 
-// isCrawler reports whether the request came from a bot rather than a reader.
+// isCrawler reports whether the request came from a bot rather than a reader; HEAD probes never count as readers.
 func isCrawler(r *fastglue.Request) bool {
-	return crawlerUARe.Match(r.RequestCtx.Request.Header.UserAgent())
+	return r.RequestCtx.IsHead() || crawlerUARe.Match(r.RequestCtx.Request.Header.UserAgent())
 }
 
 // helpCenterRootURL returns the app root URL without its trailing slash. Canonical URLs,
@@ -1098,9 +1102,14 @@ func helpCenterCustomOrigin(hc hcmodels.HelpCenter) string {
 	return urlOrigin(hc.CustomDomain)
 }
 
+// isRootHost reports whether host is the app root URL's hostname.
+func isRootHost(app *App, host string) bool {
+	return strings.EqualFold(urlHostname(helpCenterRootURL(app)), host)
+}
+
 // helpCenterByHost returns the active help center whose custom domain hostname is host.
 func helpCenterByHost(app *App, host string) (hcmodels.HelpCenter, bool) {
-	if strings.EqualFold(urlHostname(helpCenterRootURL(app)), host) {
+	if isRootHost(app, host) {
 		return hcmodels.HelpCenter{}, false
 	}
 	helpCenters, err := app.helpcenter.GetActiveHelpCenters()
@@ -1119,7 +1128,15 @@ func helpCenterByHost(app *App, host string) (hcmodels.HelpCenter, bool) {
 func helpCenterHostNotFound(app *App, g *fastglue.Fastglue) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
 		if (ctx.IsGet() || ctx.IsHead()) && ctx.UserValue(hcHostRewriteKey) == nil {
-			if hc, ok := helpCenterByHost(app, hostWithoutPort(string(ctx.Host()))); ok {
+			host := hostWithoutPort(string(ctx.Host()))
+			// The custom-domain lookup below hits the DB; throttle it like every registered public route.
+			if !isRootHost(app, host) {
+				if app.rateLimit.Check(ctx, "public") != nil {
+					return
+				}
+				ctx.SetUserValue(rateLimitPaidKey, "public")
+			}
+			if hc, ok := helpCenterByHost(app, host); ok {
 				// Strip the trailing slash here: the router's own trailing-slash redirect would otherwise expose the rewritten /hc/{slug} path in its Location.
 				if path := string(ctx.Path()); len(path) > 1 && strings.HasSuffix(path, "/") {
 					uri := strings.TrimRight(path, "/")
@@ -1146,13 +1163,20 @@ func helpCenterHostNotFound(app *App, g *fastglue.Fastglue) fasthttp.RequestHand
 func helpCenterHostHome(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
-		if hc, ok := helpCenterByHost(app, hostWithoutPort(string(r.RequestCtx.Host()))); ok {
-			uri := helpCenterHomePath(hc, hc.DefaultLocale)
-			if qs := r.RequestCtx.URI().QueryString(); len(qs) > 0 {
-				uri += "?" + string(qs)
+		host := hostWithoutPort(string(r.RequestCtx.Host()))
+		if !isRootHost(app, host) {
+			// The custom-domain lookup below hits the DB; throttle it like every registered public route.
+			if app.rateLimit.Check(r.RequestCtx, "public") != nil {
+				return nil
 			}
-			redirectPath(r.RequestCtx, uri, fasthttp.StatusFound)
-			return nil
+			if hc, ok := helpCenterByHost(app, host); ok {
+				uri := helpCenterHomePath(hc, hc.DefaultLocale)
+				if qs := r.RequestCtx.URI().QueryString(); len(qs) > 0 {
+					uri += "?" + string(qs)
+				}
+				redirectPath(r.RequestCtx, uri, fasthttp.StatusFound)
+				return nil
+			}
 		}
 		return h(r)
 	}
@@ -1635,7 +1659,23 @@ func buildThemeCSSVars(t hcmodels.Theme) template.CSS {
 // renderHelpCenterNotFound renders the help center's themed 404, falling back to the
 // generic error page when the help center is nil.
 func renderHelpCenterNotFound(r *fastglue.Request, hc *hcmodels.HelpCenter) error {
+	return renderHelpCenterStatusPage(r, hc, fasthttp.StatusNotFound)
+}
+
+// renderHelpCenterPageError renders the themed 404 for missing pages and a themed 500 for everything else.
+func renderHelpCenterPageError(r *fastglue.Request, hc *hcmodels.HelpCenter, err error) error {
+	if e, ok := err.(envelope.Error); ok && e.ErrorType == envelope.NotFoundError {
+		return renderHelpCenterNotFound(r, hc)
+	}
+	return renderHelpCenterStatusPage(r, hc, fasthttp.StatusInternalServerError)
+}
+
+func renderHelpCenterStatusPage(r *fastglue.Request, hc *hcmodels.HelpCenter, status int) error {
 	app := r.Context.(*App)
+	headingKey, textKey := "globals.messages.pageNotFound", "helpCenter.notFoundText"
+	if status == fasthttp.StatusInternalServerError {
+		headingKey, textKey = "globals.messages.somethingWentWrong", "helpCenter.errorText"
+	}
 	if hc != nil {
 		helpCenter := *hc
 		locale, ok := resolveLocale(r, helpCenter)
@@ -1648,24 +1688,27 @@ func renderHelpCenterNotFound(r *fastglue.Request, hc *hcmodels.HelpCenter) erro
 		rerr := app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-notfound"), map[string]interface{}{
 			"L": lcl,
 			"Data": map[string]interface{}{
-				"Title":       lcl.T("globals.messages.pageNotFound"),
+				"Title":       lcl.T(headingKey),
 				"NoIndex":     true,
+				"ErrorCode":   strconv.Itoa(status),
+				"ErrorTitle":  lcl.T(headingKey),
+				"ErrorText":   lcl.T(textKey),
 				"LocaleLinks": helpCenterLocaleLinks(helpCenter, nil, func(l string) string { return helpCenterHomePath(helpCenter, l) }),
 				"HelpCenter":  data,
 				"Tree":        sidebarTree(app, helpCenter, locale),
 			},
 		})
-		r.RequestCtx.SetStatusCode(fasthttp.StatusNotFound)
+		r.RequestCtx.SetStatusCode(status)
 		return rerr
 	}
-	err := app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
+	rerr := app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
 		"Data": map[string]interface{}{
-			"Title":        app.i18n.T("globals.messages.pageNotFound"),
-			"ErrorMessage": app.i18n.T("globals.messages.pageNotFound"),
+			"Title":        app.i18n.T(headingKey),
+			"ErrorMessage": app.i18n.T(headingKey),
 		},
 	})
-	r.RequestCtx.SetStatusCode(fasthttp.StatusNotFound)
-	return err
+	r.RequestCtx.SetStatusCode(status)
+	return rerr
 }
 
 func validateHelpCenter(r *fastglue.Request, req *helpcenter.HelpCenterRequest) error {

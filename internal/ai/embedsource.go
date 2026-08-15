@@ -74,6 +74,12 @@ func (m *Manager) reindexItemWith(ctx context.Context, src embedSource, item emb
 		return
 	}
 
+	// Unchanged content on the same model is already embedded; don't pay the provider again.
+	fingerprint := itemFingerprint(item, baseURL, model, dimensions)
+	if item.Fingerprint == fingerprint {
+		return
+	}
+
 	indexed, err := m.embedSource(ctx, src.sourceType(), item.ID, item.Title, item.Content)
 	if err != nil {
 		m.lo.Error("error indexing content", "error", err, "source_type", src.sourceType(), "id", item.ID)
@@ -89,7 +95,7 @@ func (m *Manager) reindexItemWith(ctx context.Context, src embedSource, item emb
 		m.lo.Error("error indexing content", "error", err, "source_type", src.sourceType(), "id", item.ID)
 		return
 	}
-	src.setFingerprint(item.ID, itemFingerprint(item, baseURL, model, dimensions))
+	src.setFingerprint(item.ID, fingerprint)
 }
 
 // reconcileSource re-embeds every row whose stored fingerprint no longer matches its content and the active model.

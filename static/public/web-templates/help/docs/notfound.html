@@ -2,9 +2,9 @@
 {{ template "docs-header" . }}
 
 <section class="hcd-notfound">
-    <p class="hcd-code">404</p>
-    <h1>{{ .L.T "globals.messages.pageNotFound" }}</h1>
-    <p>{{ .L.T "helpCenter.notFoundText" }}</p>
+    <p class="hcd-code">{{ .Data.ErrorCode }}</p>
+    <h1>{{ .Data.ErrorTitle }}</h1>
+    <p>{{ .Data.ErrorText }}</p>
     <a class="hcd-notfound-search" href="{{ .Data.HelpCenter.BasePath }}/search" data-hcd-search-open>
         {{ template "hc-search-icon" }}
         <span>{{ .L.T "helpCenter.searchPlaceholder" }}</span>

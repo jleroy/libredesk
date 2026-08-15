@@ -19,6 +19,9 @@ const (
 	authMethodSession   = "session"
 	authMethodSignedURL = "signed_url"
 	authMethodPublic    = "public"
+
+	// rateLimitPaidKey holds the rule name a request was already charged for upstream of the router.
+	rateLimitPaidKey = "rate_limit_paid"
 )
 
 // authenticateUser handles both API key and session-based authentication
@@ -239,8 +242,10 @@ func notAuthPage(handler fastglue.FastRequestHandler) fastglue.FastRequestHandle
 func rateLimit(handler fastglue.FastRequestHandler, ruleName string) fastglue.FastRequestHandler {
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
-		if err := app.rateLimit.Check(r.RequestCtx, ruleName); err != nil {
-			return err
+		if r.RequestCtx.UserValue(rateLimitPaidKey) != ruleName {
+			if err := app.rateLimit.Check(r.RequestCtx, ruleName); err != nil {
+				return err
+			}
 		}
 		return handler(r)
 	}

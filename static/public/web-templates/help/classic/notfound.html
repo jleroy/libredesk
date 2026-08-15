@@ -2,9 +2,9 @@
 {{ template "classic-header" . }}
 
 <section class="hc-notfound">
-    <p class="hc-code">404</p>
-    <h1>{{ $.L.T "globals.messages.pageNotFound" }}</h1>
-    <p>{{ $.L.T "helpCenter.notFoundText" }}</p>
+    <p class="hc-code">{{ .Data.ErrorCode }}</p>
+    <h1>{{ .Data.ErrorTitle }}</h1>
+    <p>{{ .Data.ErrorText }}</p>
     <a class="hc-back" href="{{ .Data.HelpCenter.BasePath }}">{{ $.L.T "helpCenter.backToHelpCenter" }}</a>
 </section>
 

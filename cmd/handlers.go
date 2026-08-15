@@ -360,8 +360,14 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.POST("/api/v1/widget/chat/conversations/{uuid}/message", rateLimit(widgetAuth(handleChatSendMessage), "widget"))
 	g.POST("/api/v1/widget/media/upload", rateLimit(widgetAuth(handleWidgetMediaUpload), "widget"))
 
+	// getAndHead registers both methods: uptime checkers and link validators probe with HEAD.
+	getAndHead := func(path string, h fastglue.FastRequestHandler) {
+		g.GET(path, h)
+		g.HEAD(path, h)
+	}
+
 	// Frontend pages.
-	g.GET("/", helpCenterHostHome(notAuthPage(serveIndexPage)))
+	getAndHead("/", helpCenterHostHome(notAuthPage(serveIndexPage)))
 	g.GET("/widget", validateWidgetInbox(serveWidgetIndexPage))
 	g.GET("/inboxes/{all:*}", authPage(serveIndexPage))
 	g.GET("/teams/{all:*}", authPage(serveIndexPage))
@@ -382,14 +388,14 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/static/public/{all:*}", serveStaticFiles)
 
 	// Public pages.
-	g.GET("/robots.txt", rateLimit(handleRobotsTxt, "public"))
-	g.GET("/sitemap.xml", rateLimit(handleSitemapIndex, "public"))
-	g.GET("/hc/{slug}", rateLimit(handleRedirectHelpCenterHome, "public"))
-	g.GET("/hc/{slug}/{locale}", rateLimit(handleShowHelpCenterHome, "public"))
-	g.GET("/hc/{slug}/{locale}/sitemap.xml", rateLimit(handleHelpCenterSitemap, "public"))
-	g.GET("/hc/{slug}/{locale}/search", rateLimit(handleHelpCenterSearch, "public"))
-	g.GET("/hc/{slug}/{locale}/collections/{collection_slug}", rateLimit(handleShowHelpCenterCollection, "public"))
-	g.GET("/hc/{slug}/{locale}/articles/{article_slug}", rateLimit(handleShowHelpCenterArticle, "public"))
+	getAndHead("/robots.txt", rateLimit(handleRobotsTxt, "public"))
+	getAndHead("/sitemap.xml", rateLimit(handleSitemapIndex, "public"))
+	getAndHead("/hc/{slug}", rateLimit(handleRedirectHelpCenterHome, "public"))
+	getAndHead("/hc/{slug}/{locale}", rateLimit(handleShowHelpCenterHome, "public"))
+	getAndHead("/hc/{slug}/{locale}/sitemap.xml", rateLimit(handleHelpCenterSitemap, "public"))
+	getAndHead("/hc/{slug}/{locale}/search", rateLimit(handleHelpCenterSearch, "public"))
+	getAndHead("/hc/{slug}/{locale}/collections/{collection_slug}", rateLimit(handleShowHelpCenterCollection, "public"))
+	getAndHead("/hc/{slug}/{locale}/articles/{article_slug}", rateLimit(handleShowHelpCenterArticle, "public"))
 
 	g.GET("/csat/{uuid}", rateLimit(handleShowCSAT, "public"))
 	g.GET("/csat/{uuid}/widget", rateLimit(handleShowCSATWidget, "public"))
