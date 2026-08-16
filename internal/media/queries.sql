@@ -56,7 +56,7 @@ FROM media
 WHERE model_type = 'messages'
   AND (
     ((model_id IS NULL OR model_id = 0) AND created_at < NOW() - INTERVAL '7 days')
-    OR (model_id > 0 AND NOT EXISTS (SELECT 1 FROM conversation_messages cm WHERE cm.id = media.model_id))
+    OR (model_id > 0 AND created_at < NOW() - INTERVAL '24 hours' AND NOT EXISTS (SELECT 1 FROM conversation_messages cm WHERE cm.id = media.model_id))
   );
 
 -- name: get-unlinked-help-article-media
