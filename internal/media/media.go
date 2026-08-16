@@ -393,18 +393,17 @@ func (m *Manager) deleteUnlinkedRows(stmt *sqlx.Stmt) error {
 		return err
 	}
 	for _, mm := range media {
-		m.lo.Debug("deleting media not linked to any message", "media_id", mm.ID)
+		m.lo.Info("deleting unlinked media", "media_id", mm.ID, "uuid", mm.UUID, "filename", mm.Filename, "model_type", mm.Model.String, "model_id", mm.ModelID.Int)
 		if err := m.Delete(mm.UUID); err != nil {
-			m.lo.Error("error deleting unlinked media", "error", err)
+			m.lo.Error("error deleting unlinked media", "media_id", mm.ID, "model_type", mm.Model.String, "model_id", mm.ModelID.Int, "error", err)
 			continue
 		}
 
 		// If it's an image, also delete the `thumb_uuid` image from store.
 		if strings.HasPrefix(mm.ContentType, "image/") {
 			thumbUUID := image.ThumbPrefix + mm.UUID
-			m.lo.Debug("deleting thumbnail for unlinked media", "thumb_uuid", thumbUUID)
 			if err := m.Delete(thumbUUID); err != nil {
-				m.lo.Error("error deleting thumbnail for unlinked media", "error", err)
+				m.lo.Error("error deleting thumbnail for unlinked media", "media_id", mm.ID, "thumb_uuid", thumbUUID, "error", err)
 			}
 		}
 	}
