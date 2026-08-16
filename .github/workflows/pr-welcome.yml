@@ -11,10 +11,10 @@ jobs:
   welcome:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/first-interaction@v1
+      - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          pr-message: |
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_message: |
             Thanks for opening your first pull request in Libredesk.
 
             Please give [CONTRIBUTING.md](https://github.com/abhinavxd/libredesk/blob/main/CONTRIBUTING.md) a read if you haven't already, it covers the setup, code style and the checks this PR needs to pass. A maintainer will review this soon.
