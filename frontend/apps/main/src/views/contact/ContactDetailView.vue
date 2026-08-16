@@ -31,6 +31,10 @@
                     : $t('contact.type.contact')
                 }}
               </Badge>
+              <Badge v-if="!contact.enabled" variant="destructive" class="gap-1">
+                <ShieldOffIcon size="12" />
+                {{ t('globals.terms.blocked') }}
+              </Badge>
               <DropdownMenu v-if="canOpenActionsMenu">
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" class="h-7 w-7">
@@ -54,7 +58,7 @@
                     @click="exportContact"
                   >
                     <DownloadIcon class="mr-2" size="15" />
-                    {{ t('contact.exportData') }}
+                    {{ t('globals.messages.exportData') }}
                   </DropdownMenuItem>
                   <template v-if="userStore.can('contacts:delete')">
                     <DropdownMenuSeparator />
@@ -83,7 +87,6 @@
               {{ $t('globals.terms.createdOn') }}
               {{ contact.created_at ? format(new Date(contact.created_at), 'PPP') : 'N/A' }}
             </div>
-
           </div>
 
           <div class="mt-12 space-y-10">
@@ -95,46 +98,45 @@
 
       <Spinner v-if="formLoading" />
 
-      <Dialog :open="showBlockConfirmation" @update:open="showBlockConfirmation = $event">
-        <DialogContent class="sm:max-w-md">
-          <DialogHeader class="gap-y-3">
-            <DialogTitle>
+      <AlertDialog :open="showBlockConfirmation" @update:open="(v) => (showBlockConfirmation = v)">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
               {{ contact?.enabled ? t('contact.blockContact') : t('contact.unblockContact') }}
-            </DialogTitle>
-            <DialogDescription>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
               {{ contact?.enabled ? t('contact.blockConfirm') : t('contact.unblockConfirm') }}
-            </DialogDescription>
-          </DialogHeader>
-          <div class="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" @click="showBlockConfirmation = false">
-              {{ t('globals.messages.cancel') }}
-            </Button>
-            <Button
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{{ t('globals.messages.cancel') }}</AlertDialogCancel>
+            <AlertDialogAction
               :variant="contact?.enabled ? 'destructive' : 'default'"
               @click="confirmToggleBlock"
             >
               {{ contact?.enabled ? t('globals.messages.block') : t('globals.messages.unblock') }}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      <Dialog :open="showDeleteConfirmation" @update:open="showDeleteConfirmation = $event">
-        <DialogContent class="sm:max-w-md">
-          <DialogHeader class="gap-y-3">
-            <DialogTitle>{{ t('contact.deleteContact') }}</DialogTitle>
-            <DialogDescription>{{ t('contact.deleteConfirm') }}</DialogDescription>
-          </DialogHeader>
-          <div class="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" @click="showDeleteConfirmation = false">
-              {{ t('globals.messages.cancel') }}
-            </Button>
-            <Button variant="destructive" @click="confirmDelete">
+      <AlertDialog
+        :open="showDeleteConfirmation"
+        @update:open="(v) => (showDeleteConfirmation = v)"
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{{ t('contact.deleteContact') }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ t('contact.deleteConfirm') }}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{{ t('globals.messages.cancel') }}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" @click="confirmDelete">
               {{ t('globals.messages.delete') }}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   </ContactDetail>
 </template>
@@ -150,12 +152,15 @@ import { AvatarUpload } from '@shared-ui/components/ui/avatar'
 import { Button } from '@shared-ui/components/ui/button'
 import { Badge } from '@shared-ui/components/ui/badge'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription
-} from '@shared-ui/components/ui/dialog'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@shared-ui/components/ui/alert-dialog'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -163,7 +168,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator
 } from '@shared-ui/components/ui/dropdown-menu'
-import { useUserStore } from '../../stores/user'
+import { useUserStore } from '@/stores/user'
 import {
   ShieldOffIcon,
   ShieldCheckIcon,
@@ -174,12 +179,12 @@ import {
   MoreVerticalIcon
 } from 'lucide-vue-next'
 import ContactDetail from '@/layouts/contact/ContactDetail.vue'
-import api from '../../api'
+import api from '@/api'
 import ContactForm from '@/features/contact/ContactForm.vue'
 import ContactNotes from '@/features/contact/ContactNotes.vue'
-import { createFormSchema } from '../../features/contact/formSchema.js'
-import { useEmitter } from '../../composables/useEmitter'
-import { EMITTER_EVENTS } from '../../constants/emitterEvents'
+import { createFormSchema } from '@/features/contact/formSchema.js'
+import { useEmitter } from '@/composables/useEmitter'
+import { EMITTER_EVENTS } from '@/constants/emitterEvents'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { downloadBlobResponse, parseBlobError } from '@shared-ui/utils/file'
 import { CustomBreadcrumb } from '@shared-ui/components/ui/breadcrumb'
@@ -256,7 +261,7 @@ async function confirmDelete() {
   try {
     formLoading.value = true
     await api.deleteContact(contact.value.id)
-    emitToast(t('contact.deletedSuccessfully'))
+    emitToast(t('globals.messages.deletedSuccessfully'))
     router.push({ name: 'contacts' })
   } catch (err) {
     showError(err)
