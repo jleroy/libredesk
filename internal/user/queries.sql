@@ -481,6 +481,16 @@ SELECT jsonb_build_object(
                 ) ORDER BY m.created_at), '[]'::jsonb)
                 FROM conversation_messages m
                 WHERE m.conversation_id = c.id AND m.private = false AND m.type IN ('incoming', 'outgoing')
+            ),
+            'csat_responses', (
+                SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                    'created_at', cr.created_at,
+                    'rating', cr.rating,
+                    'feedback', cr.feedback,
+                    'response_timestamp', cr.response_timestamp
+                ) ORDER BY cr.created_at), '[]'::jsonb)
+                FROM csat_responses cr
+                WHERE cr.conversation_id = c.id AND cr.response_timestamp IS NOT NULL
             )
         ) ORDER BY c.created_at), '[]'::jsonb)
         FROM conversations c

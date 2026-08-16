@@ -32,7 +32,8 @@ export function downloadBlobResponse (response, filename) {
     document.body.appendChild(link)
     link.click()
     link.remove()
-    URL.revokeObjectURL(url)
+    // Revoking in the same tick cancels the in-flight download in Firefox/Safari.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 // Blob error bodies (from responseType: 'blob' requests) hide the JSON envelope; parse it in place so the HTTP error handler can read it.

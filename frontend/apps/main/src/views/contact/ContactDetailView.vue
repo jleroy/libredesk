@@ -31,7 +31,7 @@
                     : $t('contact.type.contact')
                 }}
               </Badge>
-              <DropdownMenu>
+              <DropdownMenu v-if="canOpenActionsMenu">
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" class="h-7 w-7">
                     <MoreVerticalIcon class="h-4 w-4" />
@@ -198,6 +198,13 @@ const userStore = useUserStore()
 const form = useForm({
   validationSchema: toTypedSchema(createFormSchema(t))
 })
+
+const canOpenActionsMenu = computed(
+  () =>
+    userStore.can('contacts:block') ||
+    userStore.can('contacts:export') ||
+    userStore.can('contacts:delete')
+)
 
 const breadcrumbLinks = [
   { path: 'contacts', label: t('globals.terms.contact', 2) },

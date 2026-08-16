@@ -58,7 +58,7 @@ func (u *Manager) DeleteContact(id int) error {
 	return nil
 }
 
-// ExportContactData returns all stored personal data for a contact as JSON.
+// ExportContactData returns a contact's profile, non-private conversation messages, and CSAT responses as JSON.
 func (u *Manager) ExportContactData(id int) ([]byte, error) {
 	var data []byte
 	if err := u.q.ExportContactData.Get(&data, id); err != nil {
