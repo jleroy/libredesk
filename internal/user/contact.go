@@ -45,6 +45,29 @@ func (u *Manager) UpdateContact(id int, user models.User) error {
 	return nil
 }
 
+// DeleteContact permanently deletes a contact or visitor; conversations, messages, and notes are removed by DB cascades.
+func (u *Manager) DeleteContact(id int) error {
+	res, err := u.q.DeleteContact.Exec(id)
+	if err != nil {
+		u.lo.Error("error deleting contact", "contact_id", id, "error", err)
+		return envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return envelope.NewError(envelope.NotFoundError, u.i18n.T("validation.notFoundUser"), nil)
+	}
+	return nil
+}
+
+// ExportContactData returns a contact's profile, non-private conversation messages, and CSAT responses as JSON.
+func (u *Manager) ExportContactData(id int) ([]byte, error) {
+	var data []byte
+	if err := u.q.ExportContactData.Get(&data, id); err != nil {
+		u.lo.Error("error exporting contact data", "contact_id", id, "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return data, nil
+}
+
 func (u *Manager) GetContacts(page, pageSize int, order, orderBy string, filtersJSON, location string) ([]models.UserCompact, error) {
 	if pageSize > maxListPageSize {
 		pageSize = maxListPageSize
