@@ -156,7 +156,6 @@ const demoCredentials = {
 }
 
 const oidcErrorKeys = {
-  oidc_provider_error: 'auth.oidcProviderError',
   oidc_invalid_client: 'auth.oidcInvalidClient',
   oidc_access_denied: 'auth.oidcAccessDenied',
   oidc_session_expired: 'auth.oidcSessionExpired',

@@ -18,7 +18,6 @@ import (
 const (
 	oidcErrLoginFailed     = "oidc_login_failed"
 	oidcErrSessionExpired  = "oidc_session_expired"
-	oidcErrProvider        = "oidc_provider_error"
 	oidcErrInvalidClient   = "oidc_invalid_client"
 	oidcErrAccessDenied    = "oidc_access_denied"
 	oidcErrNoAccount       = "oidc_no_account"
@@ -96,7 +95,7 @@ func handleOIDCCallback(r *fastglue.Request) error {
 			return redirectLoginError(r, oidcErrAccessDenied, nextStr)
 		}
 		app.lo.Error("oidc provider returned an error on callback", "provider_id", providerID, "oauth_error", oauthErr, "description", desc)
-		return redirectLoginError(r, oidcErrProvider, nextStr)
+		return redirectLoginError(r, oidcErrLoginFailed, nextStr)
 	}
 
 	// Compare the state from the session with the state from the query.
@@ -115,7 +114,7 @@ func handleOIDCCallback(r *fastglue.Request) error {
 		if errors.Is(err, auth_.ErrOIDCInvalidClient) {
 			return redirectLoginError(r, oidcErrInvalidClient, nextStr)
 		}
-		return redirectLoginError(r, oidcErrProvider, nextStr)
+		return redirectLoginError(r, oidcErrLoginFailed, nextStr)
 	}
 
 	email := strings.ToLower(strings.TrimSpace(claims.Email))
