@@ -16,6 +16,7 @@ export default defineConfig(({ mode, command }) => {
   const apiTarget = process.env.LD_API_TARGET || 'http://127.0.0.1:9000'
   const wsTarget = process.env.LD_WS_TARGET || 'ws://127.0.0.1:9000'
   const mainPort = process.env.LD_DEV_PORT ? Number(process.env.LD_DEV_PORT) : 8000
+  const widgetPort = process.env.LD_WIDGET_DEV_PORT ? Number(process.env.LD_WIDGET_DEV_PORT) : 8001
 
   // Load shared tailwind config but scope content to current app only,
   // so each app's CSS bundle doesn't include unused classes from the other.
@@ -48,7 +49,7 @@ export default defineConfig(({ mode, command }) => {
       fs: {
         allow: [path.resolve(__dirname), path.resolve(__dirname, '../static/public/static')],
       },
-      port: isWidget ? 8001 : mainPort,
+      port: isWidget ? widgetPort : mainPort,
       proxy: {
         '/api': {
           target: apiTarget,
