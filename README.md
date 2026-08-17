@@ -61,6 +61,14 @@ And more — checkout [libredesk.io](https://libredesk.io) or try the [live demo
 
 ## Installation
 
+### Railway
+
+Deploys libredesk along with Postgres and Redis.
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/libredesk?referralCode=4gdm5b&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+__________________
+
 ### Docker
 
 The latest image is available on DockerHub at [`libredesk/libredesk:latest`](https://hub.docker.com/r/libredesk/libredesk/tags?page=1&ordering=last_updated&name=latest)
