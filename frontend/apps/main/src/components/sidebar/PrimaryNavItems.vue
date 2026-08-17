@@ -24,6 +24,7 @@ import { useStorage } from '@vueuse/core'
 import { Inbox, Shield, FileLineChart, BookUser } from 'lucide-vue-next'
 import { SidebarMenuButton, SidebarMenuItem } from '@shared-ui/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
+import { useIsMobile } from '@shared-ui/composables'
 import { useUserStore } from '@main/stores/user'
 
 defineProps({
@@ -34,8 +35,15 @@ defineProps({
 const route = useRoute()
 const { t } = useI18n()
 const userStore = useUserStore()
+const isMobile = useIsMobile()
 
 const lastInboxPath = useStorage('lastInboxPath', '')
+
+const inboxTarget = computed(() => {
+  if (!lastInboxPath.value) return { name: 'inboxes' }
+  if (!isMobile.value) return lastInboxPath.value
+  return lastInboxPath.value.replace(/\/conversation\/[^/]+$/, '') || { name: 'inboxes' }
+})
 
 const items = computed(() =>
   [
@@ -43,7 +51,7 @@ const items = computed(() =>
       key: 'inboxes',
       icon: Inbox,
       label: t('globals.terms.inbox', 2),
-      to: lastInboxPath.value || { name: 'inboxes' },
+      to: inboxTarget.value,
       isActive: route.path.startsWith('/inboxes'),
       show: true
     },
