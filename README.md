@@ -61,9 +61,9 @@ And more — checkout [libredesk.io](https://libredesk.io) or try the [live demo
 
 ## Installation
 
-### Railway
+### Railway (1-click deploy)
 
-Deploys libredesk along with Postgres and Redis.
+The fastest way to get a libredesk instance running. Railway provisions the app, Postgres, and Redis for you.
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/libredesk?referralCode=4gdm5b&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
