@@ -1,7 +1,7 @@
 <template>
   <div>
     <Dialog v-model:open="dialogOpen">
-      <DialogContent class="max-w-5xl w-full h-[90vh] flex flex-col" >
+      <DialogContent class="max-w-5xl h-[90vh] flex flex-col" >
         <DialogHeader>
           <DialogTitle>
             {{ $t('conversation.newConversation') }}
@@ -197,7 +197,7 @@
                     <Editor
                       v-model:htmlContent="componentField.modelValue"
                       @update:htmlContent="(value) => componentField.onChange(value)"
-                      :placeholder="t('editor.hint.newLineCtrlK')"
+                      :placeholder="isCramped ? t('globals.terms.typeMessage') : t('editor.hint.newLineCtrlK')"
                       :insertContent="insertContent"
                       :autoFocus="false"
                       :enableInlineImages="true"
@@ -305,6 +305,7 @@ import { UserTypeAgent } from '@/constants/user'
 import { IdCard } from 'lucide-vue-next'
 import api from '@/api'
 import { hasPendingInlineUpload } from '@main/composables/useInlineImageUpload'
+import { useIsComposerCramped } from '@main/composables/useIsComposerCramped'
 
 const dialogOpen = defineModel({
   required: false,
@@ -316,6 +317,7 @@ const { t } = useI18n()
 const uStore = useUsersStore()
 const teamStore = useTeamStore()
 const emitter = useEmitter()
+const isCramped = useIsComposerCramped()
 const loading = ref(false)
 const searchResults = ref([])
 const emailQuery = ref('')

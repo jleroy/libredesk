@@ -7,7 +7,7 @@
       ref="emojiPickerRef"
       :native="true"
       @select="onSelectEmoji"
-      class="absolute bottom-14 left-14"
+      class="absolute bottom-14 left-0 md:left-14 z-20"
       v-if="isEmojiPickerVisible"
     />
     <div class="flex justify-items-start gap-2">
@@ -22,7 +22,7 @@
       /> -->
       <!-- Editor buttons -->
       <Toggle
-        class="px-2 py-2 border-0"
+        class="px-2 py-2 max-md:min-h-11 max-md:min-w-11 border-0"
         variant="outline"
         @click="triggerFileUpload"
         :pressed="false"
@@ -30,7 +30,7 @@
         <Paperclip class="h-4 w-4" />
       </Toggle>
       <Toggle
-        class="px-2 py-2 border-0"
+        class="px-2 py-2 max-md:min-h-11 max-md:min-w-11 border-0"
         variant="outline"
         @click="toggleEmojiPicker"
         :pressed="isEmojiPickerVisible"
@@ -39,7 +39,7 @@
       </Toggle>
       <Toggle
         v-if="showGenerateReply"
-        class="px-2 py-2 border-0"
+        class="px-2 py-2 max-md:min-h-11 max-md:min-w-11 border-0"
         variant="outline"
         :pressed="false"
         :disabled="isGenerating"
@@ -52,7 +52,7 @@
     </div>
     <div class="flex items-center">
       <Button
-        class="h-8 px-4 rounded-r-none"
+        class="h-8 max-md:h-11 px-4 rounded-r-none"
         @click="handleSend"
         :disabled="!enableSend"
         :isLoading="isSending"
@@ -63,7 +63,7 @@
       <DropdownMenu v-if="showSendButton">
         <DropdownMenuTrigger as-child>
           <Button
-            class="h-8 px-2 rounded-l-none border-l border-primary-foreground/30 [&[data-state=open]>svg]:rotate-180"
+            class="h-8 max-md:h-11 px-2 rounded-l-none border-l border-primary-foreground/30 [&[data-state=open]>svg]:rotate-180"
             :disabled="!enableSend"
           >
             <ChevronDownIcon class="text-primary-foreground transition-transform" />
