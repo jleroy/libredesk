@@ -123,10 +123,8 @@
         <div class="header">
             {{ if ne LogoURL "" }}
                 <img src="{{ LogoURL }}" alt="{{ SiteName }}" style="max-height: 25px; width: auto;">
-            {{ else if ne SiteName "" }}
-                <span style="font-size: 18px; font-weight: 700; color: #09090b;">{{ SiteName }}</span>
             {{ else }}
-                <span style="font-size: 18px; font-weight: 700; color: #09090b;">libredesk</span>
+                <img src="{{ RootURL }}/images/logo.png" alt="{{ SiteName }}" style="max-height: 25px; width: auto;">
             {{ end }}
         </div>
 {{ end }}

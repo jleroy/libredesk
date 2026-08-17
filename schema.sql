@@ -969,7 +969,7 @@ INSERT INTO settings ("key", value)
 VALUES
     ('app.lang', '"en-US"'::jsonb),
     ('app.root_url', '"http://localhost:9000"'::jsonb),
-    ('app.logo_url', '"http://localhost:9000/logo.png"'::jsonb),
+    ('app.logo_url', '""'::jsonb),
     ('app.site_name', '"libredesk"'::jsonb),
     ('app.favicon_url', '"http://localhost:9000/favicon.ico"'::jsonb),
     ('app.max_file_upload_size', '20'::jsonb),
