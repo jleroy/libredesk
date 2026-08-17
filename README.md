@@ -4,13 +4,13 @@
 <picture>
   <source
     media="(prefers-color-scheme: dark)"
-    srcset="https://s3.ap-south-1.amazonaws.com/libredesk.io/libredesk_white.png?q=1">
+    srcset="https://s3.ap-south-1.amazonaws.com/libredesk.io/libredesk_white.png?v=2">
   <source
     media="(prefers-color-scheme: light)"
-    srcset="https://s3.ap-south-1.amazonaws.com/libredesk.io/libredesk_black.png">
+    srcset="https://s3.ap-south-1.amazonaws.com/libredesk.io/libredesk_black.png?v=3">
   <img
     alt="LibreDesk"
-    src="https://s3.ap-south-1.amazonaws.com/libredesk.io/libredesk_white.png"
+    src="https://s3.ap-south-1.amazonaws.com/libredesk.io/libredesk_white.png?v=4"
     width="250">
 </picture>
 
