@@ -248,9 +248,6 @@ const teamInboxOpen = useStorage('teamInboxOpen', true)
 const viewInboxOpen = useStorage('viewInboxOpen', true)
 const sharedViewInboxOpen = useStorage('sharedViewInboxOpen', true)
 
-// Track which view is being hovered for ellipsis menu visibility
-const hoveredViewId = ref(null)
-
 // Track delete confirmation dialog state
 const isDeleteOpen = ref(false)
 const viewToDelete = ref(null)
@@ -570,8 +567,7 @@ const viewToDelete = ref(null)
                     <SidebarMenuSub>
                       <SidebarMenuSubItem
                         v-for="view in userViews" :key="view.id"
-                        @mouseenter="hoveredViewId = view.id"
-                        @mouseleave="hoveredViewId = null"
+                        class="group/view-item"
                       >
                         <SidebarMenuButton
                           size="sm"
@@ -583,12 +579,7 @@ const viewToDelete = ref(null)
                         <DropdownMenu>
                           <DropdownMenuTrigger as-child>
                             <SidebarMenuAction
-                              :class="[
-                                'mr-3 max-md:size-9',
-                                'md:opacity-0',
-                                'data-[state=open]:opacity-100',
-                                { 'md:opacity-100': hoveredViewId === view.id }
-                              ]"
+                              class="mr-3 can-hover:opacity-0 can-hover:group-hover/view-item:opacity-100 data-[state=open]:opacity-100"
                               @click.prevent
                             >
                               <EllipsisVertical />
