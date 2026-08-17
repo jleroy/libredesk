@@ -25,8 +25,6 @@
         <ChevronsUpDown class="ml-auto size-4" />
       </SidebarMenuButton>
     </DropdownMenuTrigger>
-    <!-- In the mobile drawer the trigger sits at the left edge, so a menu
-         opening to the right would run off-screen. -->
     <DropdownMenuContent
       class="min-w-56"
       :side="isMobile ? 'bottom' : 'right'"
@@ -129,8 +127,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/av
 import StatusDot from '@shared-ui/components/StatusDot.vue'
 import { Switch } from '@shared-ui/components/ui/switch'
 import { ChevronsUpDown, CircleUserRound, Keyboard, LogOut } from 'lucide-vue-next'
-import { useUserStore } from '../../stores/user'
-import { useIsMobile } from '../../composables/useIsMobile'
+import { useUserStore } from '@main/stores/user'
+import { useIsMobile } from '@shared-ui/composables'
 import { useRouter } from 'vue-router'
 import KeyboardShortcutsDialog from '../KeyboardShortcutsDialog.vue'
 

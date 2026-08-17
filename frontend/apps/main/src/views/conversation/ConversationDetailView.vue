@@ -22,10 +22,7 @@
       <ResizableHandle />
 
       <!-- Sidebar Panel (collapsible) -->
-      <!-- default-size must match collapsed-size when the sidebar is persisted
-           closed, so the panel mounts collapsed. Collapsing after mount does
-           not work: the group has already normalised the two default sizes and
-           laid out, so the sidebar keeps a share of the width. -->
+      <!-- Mounting collapsed needs default-size to equal collapsed-size. -->
       <ResizablePanel
         ref="sidebarPanelRef"
         :default-size="sidebarOpen ? panelSizes[1] : 0"
@@ -42,8 +39,6 @@
       </ResizablePanel>
     </ResizablePanelGroup>
 
-    <!-- Mobile: the contact sidebar has no intrinsic width (it is sized
-         entirely by its ResizablePanel), so it becomes a Sheet instead. -->
     <template v-else-if="showContent">
       <div
         class="h-full transition-opacity duration-200"
@@ -53,15 +48,18 @@
         <Conversation />
       </div>
 
-      <Sheet :open="mobileSidebarOpen" @update:open="mobileSidebarOpen = $event">
-        <SheetContent side="right" class="w-[85vw] max-w-sm p-0 overflow-y-auto">
+      <Sheet :open="sheetSidebarOpen" @update:open="sheetSidebarOpen = $event">
+        <SheetContent
+          side="right"
+          class="w-[85vw] max-w-sm p-0 overflow-y-auto [&>button]:hidden"
+          :aria-describedby="undefined"
+        >
+          <SheetTitle class="sr-only">{{ $t('globals.terms.contact') }}</SheetTitle>
           <ConversationSideBar />
         </SheetContent>
       </Sheet>
     </template>
 
-    <!-- Toggle button when sidebar is collapsed. Desktop only: on mobile the
-         same emitter event opens the Sheet from the conversation header. -->
     <button
       v-if="showContent && !isMobile && !sidebarOpen"
       @click="toggleSidebar"
@@ -82,9 +80,11 @@ import { useEmitter } from '@main/composables/useEmitter'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import Conversation from '@main/features/conversation/Conversation.vue'
 import ConversationSideBar from '@main/features/conversation/sidebar/ConversationSideBar.vue'
-import { useIsMobile } from '@main/composables/useIsMobile'
-import { Sheet, SheetContent } from '@shared-ui/components/ui/sheet'
+import { useIsMobile } from '@shared-ui/composables'
+import { Sheet, SheetContent, SheetTitle } from '@shared-ui/components/ui/sheet'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@shared-ui/components/ui/resizable'
+
+const SIDEBAR_DEFAULT_SIZE = 30
 
 const props = defineProps({
   uuid: String
@@ -95,11 +95,9 @@ const route = useRoute()
 const emitter = useEmitter()
 const isMobile = useIsMobile()
 const sidebarPanelRef = ref(null)
-// Desktop-only state. The mobile Sheet starts closed on every conversation and
-// never reads the persisted desktop percentages.
 const sidebarOpen = useStorage('conversationSidebarOpen', true)
 const panelSizes = useStorage('conversationDetailPanelSizes', [70, 30])
-const mobileSidebarOpen = ref(false)
+const sheetSidebarOpen = ref(false)
 
 const showContent = computed(
   () => conversationStore.current || conversationStore.conversation.loading
@@ -111,17 +109,16 @@ const isLoading = computed(
 
 const isDimmed = computed(() => conversationStore.conversation.loading)
 
-// collapse()/expand() are splitter-specific, so mobile needs a parallel path
-// off the same CONVERSATION_SIDEBAR_TOGGLE event.
 const toggleSidebar = () => {
   if (isMobile.value) {
-    mobileSidebarOpen.value = !mobileSidebarOpen.value
+    sheetSidebarOpen.value = !sheetSidebarOpen.value
     return
   }
   if (sidebarOpen.value) {
     sidebarPanelRef.value?.collapse()
   } else {
-    sidebarPanelRef.value?.expand()
+    // resize() also expands; expand() alone lands on min-size for a panel mounted at 0.
+    sidebarPanelRef.value?.resize(panelSizes.value[1] || SIDEBAR_DEFAULT_SIZE)
   }
 }
 
@@ -134,7 +131,8 @@ const onSidebarExpand = () => {
 }
 
 const onLayoutChange = (sizes) => {
-  if (sidebarOpen.value && sizes.length === 2) {
+  // The collapse animation emits [100, 0] before @collapse flips sidebarOpen.
+  if (sidebarOpen.value && sizes.length === 2 && sizes[1] > 0) {
     panelSizes.value = sizes
   }
 }
@@ -178,8 +176,7 @@ onMounted(() => {
 watch(
   () => props.uuid,
   (newUUID, oldUUID) => {
-    // Never carry the previous conversation's open contact Sheet across.
-    mobileSidebarOpen.value = false
+    sheetSidebarOpen.value = false
     if (!newUUID || newUUID === oldUUID) return
     const canTransition = oldUUID && !route.query.scrollTo && typeof document.startViewTransition === 'function'
     if (!canTransition) {

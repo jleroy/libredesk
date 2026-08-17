@@ -15,6 +15,12 @@ const props = defineProps({
 });
 
 const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+
+// A tap on the entry for the current route navigates nowhere, so a route watcher alone would leave the drawer open.
+function closeOnNavItemTap (event) {
+  const item = event.target.closest('a[href], [data-sidebar="menu-button"]');
+  if (item && !item.hasAttribute('aria-expanded')) setOpenMobile(false);
+}
 </script>
 
 <template>
@@ -46,7 +52,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
         '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
       }"
     >
-      <div class="flex h-full w-full flex-col">
+      <div class="flex h-full w-full flex-col" @click="closeOnNavItemTap">
         <slot />
       </div>
     </SheetContent>

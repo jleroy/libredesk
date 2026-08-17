@@ -1,5 +1,6 @@
 <script setup>
-import { useEventListener, useMediaQuery, useVModel } from '@vueuse/core';
+import { useEventListener, useVModel } from '@vueuse/core';
+import { useIsMobile } from '@shared-ui/composables';
 import { TooltipProvider } from 'reka-ui';
 import { computed, ref } from 'vue';
 import { cn } from '../../../lib/utils';
@@ -20,10 +21,7 @@ const props = defineProps({
 
 const emits = defineEmits(['update:open']);
 
-// 767px, not 768px, so this is the exact complement of Tailwind's `md:`
-// (min-width: 768px). At exactly 768px the desktop branch below renders and
-// `md:` classes apply, which previously disagreed by one pixel.
-const isMobile = useMediaQuery('(max-width: 767px)');
+const isMobile = useIsMobile();
 const openMobile = ref(false);
 
 const open = useVModel(props, 'open', emits, {

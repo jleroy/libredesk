@@ -51,10 +51,6 @@
         <div v-else class="w-8 flex-shrink-0" />
       </template>
 
-      <!-- Bubble Wrapper with max 80% width -->
-      <!-- 80% of a 390px viewport leaves ~220px of usable content box once the
-           avatar column and gutters are taken out, so give the bubble the full
-           width on phones and keep the desktop proportion from `md:` up. -->
       <div
         class="w-full md:w-4/5"
         :class="{ 'flex justify-end items-center gap-2': isOutgoing }"
@@ -63,7 +59,7 @@
         <!-- Delete note menu (private notes, appears on hover, left of bubble) -->
         <div
           v-if="isPrivateMessage && !isDeleted"
-          class="flex-shrink-0 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:!opacity-100"
+          class="flex-shrink-0 transition-opacity duration-200 can-hover:opacity-0 can-hover:group-hover:opacity-100 focus-within:!opacity-100"
         >
           <DropdownMenu>
             <DropdownMenuTrigger as-child>

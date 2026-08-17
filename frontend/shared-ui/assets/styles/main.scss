@@ -31,6 +31,13 @@
     @apply bg-background text-foreground;
   }
 
+  button,
+  a,
+  [role='button'] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   ::selection {
     background: hsl(var(--foreground) / 0.15);
     color: hsl(var(--foreground));
@@ -238,14 +245,15 @@
 }
 
 .message-bubble {
-  // No min-width on phones: a 30% floor on a 390px viewport forces short
-  // messages wider than their content while leaving long ones nothing to gain.
+  // A 30% floor on a 390px viewport forces short messages wider than their content.
   @apply flex flex-col px-4 pt-2 pb-3 w-fit md:min-w-[30%] max-w-full border overflow-x-auto rounded-xl shadow-sm;
 
-  // break-word, not break-all: break-all splits ordinary words mid-character,
-  // which is unreadable at phone widths. break-word only breaks words that
-  // cannot fit on a line of their own, which is the case this was guarding.
-  overflow-wrap: break-word;
+  // break-all splits ordinary words mid-character, unreadable at phone widths.
+  overflow-wrap: break-all;
+
+  @media (max-width: 767px) {
+    overflow-wrap: break-word;
+  }
 
   * {
     max-width: 100%;
@@ -387,8 +395,7 @@
   --v3-group-image-filter: invert(1) !important;
 }
 
-// The picker is ~350px wide by default, which overflows off-screen right on a
-// 390px viewport. Clamp it to the available width on phones.
+// The picker's ~350px default overflows off-screen right on a 390px viewport.
 @media (max-width: 767px) {
   .v3-emoji-picker {
     width: min(20rem, calc(100vw - 2rem)) !important;

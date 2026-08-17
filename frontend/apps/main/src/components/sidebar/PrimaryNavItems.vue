@@ -1,34 +1,19 @@
 <template>
-  <!-- Icon rail: icon only, name in a tooltip. Desktop. -->
-  <template v-if="variant === 'rail'">
-    <SidebarMenuItem v-for="item in items" :key="item.key">
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <SidebarMenuButton asChild :isActive="item.isActive">
-            <router-link :to="item.to">
-              <component :is="item.icon" />
-            </router-link>
-          </SidebarMenuButton>
-        </TooltipTrigger>
-        <TooltipContent side="right">
-          <p>{{ item.label }}</p>
-        </TooltipContent>
-      </Tooltip>
-    </SidebarMenuItem>
-  </template>
-
-  <!-- Drawer: icon and label side by side. Mobile, where there is no rail and
-       no hover to reveal a tooltip. -->
-  <template v-else>
-    <SidebarMenuItem v-for="item in items" :key="item.key">
-      <SidebarMenuButton asChild :isActive="item.isActive">
-        <router-link :to="item.to">
-          <component :is="item.icon" />
-          <span>{{ item.label }}</span>
-        </router-link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  </template>
+  <SidebarMenuItem v-for="item in items" :key="item.key">
+    <Tooltip>
+      <TooltipTrigger as-child>
+        <SidebarMenuButton asChild :isActive="item.isActive">
+          <router-link :to="item.to">
+            <component :is="item.icon" />
+            <span v-if="variant === 'drawer'">{{ item.label }}</span>
+          </router-link>
+        </SidebarMenuButton>
+      </TooltipTrigger>
+      <TooltipContent v-if="variant === 'rail'" side="right">
+        <p>{{ item.label }}</p>
+      </TooltipContent>
+    </Tooltip>
+  </SidebarMenuItem>
 </template>
 
 <script setup>
@@ -42,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/u
 import { useUserStore } from '@main/stores/user'
 
 defineProps({
-  // 'rail' renders the desktop icon rail, 'drawer' the mobile navigation drawer.
+  // 'rail' (desktop icon rail) or 'drawer' (mobile nav drawer).
   variant: { type: String, default: 'rail' }
 })
 
@@ -50,7 +35,6 @@ const route = useRoute()
 const { t } = useI18n()
 const userStore = useUserStore()
 
-// Same key as App.vue, so the rail and the drawer restore the same last inbox.
 const lastInboxPath = useStorage('lastInboxPath', '')
 
 const items = computed(() =>

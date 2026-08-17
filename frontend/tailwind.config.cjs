@@ -1,5 +1,9 @@
 const animate = require("tailwindcss-animate")
 const typography = require("@tailwindcss/typography")
+const plugin = require("tailwindcss/plugin")
+
+// Controls that are revealed on hover need a second path on touch, which has no hover.
+const canHover = plugin(({ addVariant }) => addVariant("can-hover", "@media (hover: hover)"))
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -218,5 +222,5 @@ module.exports = {
       }
     }
   },
-  plugins: [animate, typography],
+  plugins: [animate, typography, canHover],
 }

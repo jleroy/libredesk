@@ -3,26 +3,22 @@
     <!-- Header -->
     <div class="h-12 flex-shrink-0 px-2 border-b flex items-center justify-between gap-2">
       <div class="flex items-center gap-1 min-w-0">
-        <!-- Mobile is single-pane, so the list is only reachable by going
-             back. On desktop the list is always visible alongside. -->
         <Button
           v-if="isMobile"
           variant="ghost"
-          class="w-8 h-8 p-0 shrink-0 -ml-1"
+          class="w-11 h-11 md:w-8 md:h-8 p-0 shrink-0 -ml-2 md:-ml-1"
           :aria-label="t('globals.messages.back')"
           @click="goBackToList"
         >
-          <ChevronLeft class="w-5 h-5" />
+          <ChevronLeft class="w-4 h-4" />
         </Button>
         <span class="truncate">{{ conversationStore.currentContactName }}</span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <!-- Opens the contact sidebar, which is a Sheet on mobile. Desktop has
-             its own re-open tab on the panel edge. -->
         <Button
           v-if="isMobile"
           variant="ghost"
-          class="w-8 h-8 p-0"
+          class="w-11 h-11 md:w-8 md:h-8 p-0"
           :aria-label="t('globals.terms.contact')"
           @click="emitter.emit(EMITTER_EVENTS.CONVERSATION_SIDEBAR_TOGGLE)"
         >
@@ -43,7 +39,7 @@
           <DropdownMenuTrigger>
             <div
               v-if="conversationStore.current?.status"
-              class="flex items-center space-x-1 cursor-pointer bg-primary px-2 py-1 rounded-md text-sm"
+              class="flex items-center space-x-1 cursor-pointer bg-primary px-3 py-3 md:px-2 md:py-1 rounded-md text-sm"
             >
               <span class="text-primary-foreground font-medium inline-block">
                 {{ conversationStore.current?.status }}
@@ -62,7 +58,7 @@
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <Button variant="ghost" class="w-8 h-8 p-0">
+            <Button variant="ghost" class="w-11 h-11 md:w-8 md:h-8 p-0">
               <MoreHorizontal class="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -96,7 +92,7 @@ import { useConversationStore } from '../../stores/conversation'
 import { useUserStore } from '@main/stores/user'
 import { Clock, MoreHorizontal, ChevronLeft, PanelRight } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
-import { useIsMobile } from '@main/composables/useIsMobile'
+import { useIsMobile } from '@shared-ui/composables'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,11 +118,13 @@ const route = useRoute()
 const router = useRouter()
 const isMobile = useIsMobile()
 
-// Each detail route is `<list route name>-conversation`, so the parent list
-// route is the same name without that suffix, with the same params.
+// Each detail route is `<list route name>-conversation`.
 const goBackToList = () => {
   const listName = String(route.name).replace(/-conversation$/, '')
-  router.push({ name: listName, params: route.params })
+  const { uuid, ...params } = route.params
+  const target = router.resolve({ name: listName, params })
+  if (window.history.state?.back?.split('?')[0] === target.path) router.back()
+  else router.push(target)
 }
 
 const isSnoozed = computed(

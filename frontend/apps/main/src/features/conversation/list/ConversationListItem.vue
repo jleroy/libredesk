@@ -28,26 +28,21 @@
                 </AvatarFallback>
               </Avatar>
             </div>
-            <!-- Selection gates every bulk action, and a hover-only target is
-                 unreachable on touch. On touch the overlay is always live, so
-                 tapping the avatar selects; the checkbox itself only becomes
-                 visible once selection is under way, leaving the avatar
-                 readable until then. -->
+            <!-- Stays mounted for the keyboard tab stop, but must not swallow taps: touch cannot lift the hover gate. -->
             <div
               v-if="canBulkAct"
-              class="absolute inset-0 items-center justify-center flex"
-              :class="showCheckbox ? '' : '[@media(hover:hover)]:hidden [@media(hover:hover)]:group-hover:flex'"
+              class="absolute inset-0 flex items-center justify-center"
+              :class="
+                showCheckbox
+                  ? ''
+                  : 'opacity-0 pointer-events-none focus-within:opacity-100 focus-within:pointer-events-auto can-hover:group-hover:opacity-100 can-hover:group-hover:pointer-events-auto'
+              "
               @click.prevent.stop="handleCheckboxClick"
             >
               <Checkbox
                 :checked="isItemSelected"
                 :aria-label="t('conversation.bulkActions.selectConversation')"
                 class="w-5 h-5"
-                :class="
-                  showCheckbox
-                    ? ''
-                    : 'opacity-0 focus-visible:opacity-100 [@media(hover:hover)]:opacity-100'
-                "
               />
             </div>
           </div>
@@ -290,7 +285,7 @@ const showCheckbox = computed(() => {
 const avatarOpacityClass = computed(() => {
   if (showCheckbox.value) return 'opacity-0'
   // Only fade the avatar for the checkbox on devices that can actually hover.
-  if (canBulkAct.value) return 'opacity-100 [@media(hover:hover)]:group-hover:opacity-0'
+  if (canBulkAct.value) return 'opacity-100 can-hover:group-hover:opacity-0'
   return 'opacity-100'
 })
 

@@ -107,7 +107,7 @@ import {
   AlertDialogTitle
 } from '@shared-ui/components/ui/alert-dialog'
 import MobileDrawerNav from './MobileDrawerNav.vue'
-import CloseDrawerOnNavigate from './CloseDrawerOnNavigate.vue'
+import MobileDrawerFooter from './MobileDrawerFooter.vue'
 import { filterNavItems } from '@main/utils/nav-permissions'
 import { permissions } from '@main/constants/permissions'
 import { useStorage } from '@vueuse/core'
@@ -115,6 +115,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@main/stores/user'
 import { useConversationStore } from '@main/stores/conversation'
+import { useIsMobile } from '@shared-ui/composables'
 
 defineProps({
   userTeams: { type: Array, default: () => [] },
@@ -126,6 +127,7 @@ const conversationStore = useConversationStore()
 const settingsStore = useAppSettingsStore()
 const route = useRoute()
 const router = useRouter()
+const isMobile = useIsMobile()
 const { t } = useI18n()
 const emit = defineEmits(['createView', 'editView', 'deleteView', 'createConversation'])
 
@@ -158,9 +160,13 @@ const handleDeleteView = () => {
   }
 }
 
-// Navigation methods with conversation retention
+const keepConversationOpen = () =>
+  !isMobile.value &&
+  conversationStore.isConversationOpen &&
+  Boolean(conversationStore.conversation.data?.uuid)
+
 const navigateToInbox = (type) => {
-  if (conversationStore.isConversationOpen && conversationStore.conversation.data?.uuid) {
+  if (keepConversationOpen()) {
     router.push({
       name: 'inbox-conversation',
       params: {
@@ -177,7 +183,7 @@ const navigateToInbox = (type) => {
 }
 
 const navigateToTeamInbox = (teamID) => {
-  if (conversationStore.isConversationOpen && conversationStore.conversation.data?.uuid) {
+  if (keepConversationOpen()) {
     router.push({
       name: 'team-inbox-conversation',
       params: {
@@ -194,7 +200,7 @@ const navigateToTeamInbox = (teamID) => {
 }
 
 const navigateToViewInbox = (viewID) => {
-  if (conversationStore.isConversationOpen && conversationStore.conversation.data?.uuid) {
+  if (keepConversationOpen()) {
     router.push({
       name: 'view-inbox-conversation',
       params: {
@@ -254,7 +260,6 @@ const viewToDelete = ref(null)
     :default-open="sidebarOpen"
     v-on:update:open="sidebarOpen = $event"
   >
-    <CloseDrawerOnNavigate />
     <!-- Contacts sidebar -->
     <template
       v-if="route.matched.some((record) => record.name && record.name.startsWith('contact'))"
@@ -286,6 +291,7 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+        <MobileDrawerFooter />
       </Sidebar>
     </template>
 
@@ -323,6 +329,7 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+        <MobileDrawerFooter />
       </Sidebar>
     </template>
 
@@ -397,6 +404,7 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+        <MobileDrawerFooter />
       </Sidebar>
     </template>
 
@@ -432,6 +440,7 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+        <MobileDrawerFooter />
       </Sidebar>
     </template>
 
@@ -569,28 +578,29 @@ const viewToDelete = ref(null)
                         >
                           <span class="flex-1 truncate" :title="view.name">{{ view.name }}</span>
                         </SidebarMenuButton>
-                        <SidebarMenuAction
-                          :class="[
-                            'mr-3',
-                            'md:opacity-0',
-                            'data-[state=open]:opacity-100',
-                            { 'md:opacity-100': hoveredViewId === view.id }
-                          ]"
-                        >
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild @click.prevent>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger as-child>
+                            <SidebarMenuAction
+                              :class="[
+                                'mr-3 max-md:size-9',
+                                'md:opacity-0',
+                                'data-[state=open]:opacity-100',
+                                { 'md:opacity-100': hoveredViewId === view.id }
+                              ]"
+                              @click.prevent
+                            >
                               <EllipsisVertical />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem @click="() => editView(view)">
-                                <span>{{ t('globals.messages.edit') }}</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem @click="() => openDeleteConfirmation(view)">
-                                <span>{{ t('globals.messages.delete') }}</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </SidebarMenuAction>
+                            </SidebarMenuAction>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem @click="() => editView(view)">
+                              <span>{{ t('globals.messages.edit') }}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem @click="() => openDeleteConfirmation(view)">
+                              <span>{{ t('globals.messages.delete') }}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
@@ -636,6 +646,7 @@ const viewToDelete = ref(null)
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+        <MobileDrawerFooter />
       </Sidebar>
     </template>
 

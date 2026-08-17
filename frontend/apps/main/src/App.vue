@@ -1,8 +1,5 @@
 <template>
-  <div class="flex w-full h-screen text-foreground bg-canvas p-1 md:p-1.5">
-    <!-- Icon rail. Desktop only: on mobile these items move into the single
-         navigation drawer rendered by the secondary Sidebar, so there is one
-         drawer to open rather than two nested ones. -->
+  <div class="flex w-full h-dvh text-foreground bg-canvas p-1 md:p-1.5">
     <SidebarProvider v-if="!isMobile" style="--sidebar-width: 3rem" class="w-auto z-50">
       <ShadcnSidebar collapsible="none" class="border border-sidebar-border rounded-lg overflow-hidden">
         <SidebarContent>
@@ -112,7 +109,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/u
 import SidebarNavUser from '@main/components/sidebar/SidebarNavUser.vue'
 import NotificationBell from '@main/components/sidebar/NotificationBell.vue'
 import PrimaryNavItems from '@main/components/sidebar/PrimaryNavItems.vue'
-import { useIsMobile } from './composables/useIsMobile'
+import { useIsMobile } from '@shared-ui/composables'
 import api from '@main/api'
 
 const route = useRoute()
