@@ -215,7 +215,7 @@
             <div v-show="isClassic">
               <FormField v-slot="{ componentField }" name="theme.header.background_type">
                 <FormItem>
-                  <FormLabel>{{ t('helpCenter.styling.headerBackground') }}</FormLabel>
+                  <FormLabel>{{ t('globals.terms.background') }}</FormLabel>
                   <FormControl>
                     <Select v-bind="componentField">
                       <SelectTrigger>
@@ -271,7 +271,7 @@
             <div v-show="isClassic && form.values.theme?.header?.background_type === 'image'">
               <FormField v-slot="{ componentField }" name="theme.header.background_image">
                 <FormItem>
-                  <FormLabel>{{ t('helpCenter.styling.headerImage') }}</FormLabel>
+                  <FormLabel>{{ t('globals.messages.backgroundImageUrl') }}</FormLabel>
                   <FormControl>
                     <Input
                       type="text"
@@ -535,7 +535,7 @@
 
             <FormField v-slot="{ componentField }" name="theme.footer.tagline">
               <FormItem>
-                <FormLabel>{{ t('helpCenter.styling.footerTagline') }}</FormLabel>
+                <FormLabel>{{ t('helpCenter.styling.tagline') }}</FormLabel>
                 <FormControl>
                   <Textarea
                     :rows="2"
@@ -548,7 +548,7 @@
               </FormItem>
             </FormField>
 
-            <LinkListField name="theme.footer_links" :label="t('helpCenter.styling.footerLinks')" />
+            <LinkListField name="theme.footer_links" :label="t('globals.terms.link', 2)" />
 
             <LinkListField
               name="theme.social_links"
