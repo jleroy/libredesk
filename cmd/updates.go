@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
 	"time"
@@ -17,8 +16,6 @@ import (
 
 const updateCheckURL = "https://updates.libredesk.io/updates.json"
 
-// updateCheckTimeout bounds a single update check so a hung or blackholing
-// endpoint cannot block the checker loop forever (see #445).
 const updateCheckTimeout = 10 * time.Second
 
 type AppUpdate struct {
@@ -49,8 +46,10 @@ func checkUpdates(curVersion string, interval time.Duration, app *App) {
 	// Strip -* suffix.
 	curVersion = reSemver.ReplaceAllString(curVersion, "")
 
+	client := &http.Client{Timeout: updateCheckTimeout}
+
 	fnCheck := func() {
-		out, err := fetchAppUpdate(&http.Client{Timeout: updateCheckTimeout}, updateCheckURL)
+		out, err := fetchAppUpdate(client, updateCheckURL)
 		if err != nil {
 			app.lo.Error("error checking for app updates", "err", err)
 			return
@@ -84,10 +83,6 @@ func checkUpdates(curVersion string, interval time.Duration, app *App) {
 	}
 }
 
-// fetchAppUpdate fetches and parses the update manifest using the given client.
-// The response body is always closed, including on the non-200 and read-error
-// paths that previously leaked it (see #445). The caller supplies the client so
-// a timeout can be enforced (and so this can be tested against a stub server).
 func fetchAppUpdate(client *http.Client, url string) (*AppUpdate, error) {
 	resp, err := client.Get(url)
 	if err != nil {
@@ -96,17 +91,12 @@ func fetchAppUpdate(client *http.Client, url string) (*AppUpdate, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("non-ok status code checking for app updates: %d", resp.StatusCode)
-	}
-
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	var out AppUpdate
-	if err := json.Unmarshal(b, &out); err != nil {
-		return nil, fmt.Errorf("error unmarshalling response body: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
 	}
 
 	return &out, nil
