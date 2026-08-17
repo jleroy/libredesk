@@ -141,14 +141,14 @@
           type="button"
           size="sm"
           variant="ghost"
-          :aria-label="$t('editor.tooltip.link')"
+          :aria-label="$t('globals.terms.link')"
           @click.prevent="emit('openLink')"
           :class="{ 'bg-secondary': editor?.isActive('link') }"
         >
           <LinkIcon size="14" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{{ $t('editor.tooltip.link') }}</TooltipContent>
+      <TooltipContent>{{ $t('globals.terms.link') }}</TooltipContent>
     </Tooltip>
     <template v-if="showArticleTools">
       <DropdownMenu v-if="editor?.isActive('codeBlock')">

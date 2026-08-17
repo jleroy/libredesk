@@ -548,7 +548,7 @@
               </FormItem>
             </FormField>
 
-            <LinkListField name="theme.footer_links" :label="t('helpCenter.styling.footerLinks')" />
+            <LinkListField name="theme.footer_links" :label="t('globals.terms.link', 2)" />
 
             <LinkListField
               name="theme.social_links"
