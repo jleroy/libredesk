@@ -22,10 +22,9 @@
       <ResizableHandle />
 
       <!-- Sidebar Panel (collapsible) -->
-      <!-- Mounting collapsed needs default-size to equal collapsed-size. -->
       <ResizablePanel
         ref="sidebarPanelRef"
-        :default-size="sidebarOpen ? panelSizes[1] : 0"
+        :default-size="panelSizes[1]"
         :min-size="15"
         :max-size="40"
         :collapsible="true"
@@ -84,8 +83,6 @@ import { useIsMobile } from '@shared-ui/composables'
 import { Sheet, SheetContent, SheetTitle } from '@shared-ui/components/ui/sheet'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@shared-ui/components/ui/resizable'
 
-const SIDEBAR_DEFAULT_SIZE = 30
-
 const props = defineProps({
   uuid: String
 })
@@ -117,8 +114,7 @@ const toggleSidebar = () => {
   if (sidebarOpen.value) {
     sidebarPanelRef.value?.collapse()
   } else {
-    // resize() also expands; expand() alone lands on min-size for a panel mounted at 0.
-    sidebarPanelRef.value?.resize(panelSizes.value[1] || SIDEBAR_DEFAULT_SIZE)
+    sidebarPanelRef.value?.expand()
   }
 }
 
@@ -131,8 +127,7 @@ const onSidebarExpand = () => {
 }
 
 const onLayoutChange = (sizes) => {
-  // The collapse animation emits [100, 0] before @collapse flips sidebarOpen.
-  if (sidebarOpen.value && sizes.length === 2 && sizes[1] > 0) {
+  if (sidebarOpen.value && sizes.length === 2) {
     panelSizes.value = sizes
   }
 }

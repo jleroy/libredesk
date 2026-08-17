@@ -28,15 +28,10 @@
                 </AvatarFallback>
               </Avatar>
             </div>
-            <!-- Stays mounted for the keyboard tab stop, but must not swallow taps: touch cannot lift the hover gate. -->
             <div
               v-if="canBulkAct"
-              class="absolute inset-0 flex items-center justify-center"
-              :class="
-                showCheckbox
-                  ? ''
-                  : 'opacity-0 pointer-events-none focus-within:opacity-100 focus-within:pointer-events-auto can-hover:group-hover:opacity-100 can-hover:group-hover:pointer-events-auto'
-              "
+              class="absolute inset-0 items-center justify-center"
+              :class="showCheckbox ? 'flex' : 'hidden can-hover:group-hover:flex'"
               @click.prevent.stop="handleCheckboxClick"
             >
               <Checkbox
