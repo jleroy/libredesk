@@ -306,7 +306,6 @@ const processSend = async (skipContactEmailCheck = false, skipMissingTagsCheck =
 
   const html = htmlContent.value
   if (hasPendingInlineUpload(html)) return
-  isEditorFullscreen.value = false
   const hasContent = hasTextContent.value || hasInlineImage(html) || mediaFiles.value.length > 0
   const convUUID = conversationStore.current.uuid
   const isPrivate = messageType.value === 'private_note'
@@ -353,6 +352,7 @@ const processSend = async (skipContactEmailCheck = false, skipMissingTagsCheck =
       }
     }
   }
+  isEditorFullscreen.value = false
   let tempUUID = null
 
   // Add pending message to cache for instant display.

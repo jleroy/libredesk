@@ -150,7 +150,7 @@
       </router-link>
     </ContextMenuTrigger>
     <ContextMenuContent>
-      <!-- Touch has no hover, so long press is the only way to reach the first checkbox. -->
+      <!-- Long press is the only way to reach the first checkbox on touch. -->
       <ContextMenuItem v-if="canBulkAct && !showCheckbox" @click="handleSelect">
         <SquareCheck class="w-4 h-4 mr-2" />
         {{ $t('conversation.bulkActions.selectConversation') }}
@@ -284,7 +284,6 @@ const showCheckbox = computed(() => {
 
 const avatarOpacityClass = computed(() => {
   if (showCheckbox.value) return 'opacity-0'
-  // Only fade the avatar for the checkbox on devices that can actually hover.
   if (canBulkAct.value) return 'opacity-100 can-hover:group-hover:opacity-0'
   return 'opacity-100'
 })

@@ -59,7 +59,7 @@
         <!-- Delete note menu (private notes, appears on hover, left of bubble) -->
         <div
           v-if="isPrivateMessage && !isDeleted"
-          class="flex-shrink-0 transition-opacity duration-200 can-hover:opacity-0 can-hover:group-hover:opacity-100"
+          class="flex-shrink-0 transition-opacity duration-200 can-hover:opacity-0 can-hover:group-hover:opacity-100 focus-within:!opacity-100"
         >
           <DropdownMenu>
             <DropdownMenuTrigger as-child>

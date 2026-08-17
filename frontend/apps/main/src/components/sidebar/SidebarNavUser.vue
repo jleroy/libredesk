@@ -130,7 +130,7 @@ import { ChevronsUpDown, CircleUserRound, Keyboard, LogOut } from 'lucide-vue-ne
 import { useUserStore } from '@main/stores/user'
 import { useIsMobile } from '@shared-ui/composables'
 import { useRouter } from 'vue-router'
-import KeyboardShortcutsDialog from '../KeyboardShortcutsDialog.vue'
+import KeyboardShortcutsDialog from '@main/components/KeyboardShortcutsDialog.vue'
 
 import { useColorMode } from '@vueuse/core'
 import { ref } from 'vue'

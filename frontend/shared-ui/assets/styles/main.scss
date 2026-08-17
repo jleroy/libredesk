@@ -245,11 +245,7 @@
 }
 
 .message-bubble {
-  // A 30% floor on a 390px viewport forces short messages wider than their content.
   @apply flex flex-col px-4 pt-2 pb-3 w-fit md:min-w-[30%] max-w-full border overflow-x-auto rounded-xl shadow-sm;
-
-  // break-all splits ordinary words mid-character, unreadable at phone widths.
-  overflow-wrap: break-all;
 
   @media (max-width: 767px) {
     overflow-wrap: break-word;

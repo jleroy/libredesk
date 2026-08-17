@@ -4,7 +4,6 @@
       v-if="isLoading"
       class="conv-progress absolute inset-x-0 top-0 h-0.5 z-50 pointer-events-none"
     />
-    <!-- Desktop: thread and contact sidebar side by side in a splitter. -->
     <ResizablePanelGroup
       v-if="showContent && !isMobile"
       direction="horizontal"
