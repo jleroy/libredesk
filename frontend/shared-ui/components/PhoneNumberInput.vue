@@ -39,7 +39,7 @@
 
         <div class="flex-1 min-w-0">
           <FormField v-slot="{ componentField: phoneField }" :name="phoneNumberName">
-            <FormItem class="relative">
+            <FormItem>
               <FormControl>
                 <Input
                   type="tel"
@@ -49,7 +49,7 @@
                   inputmode="tel"
                 />
               </FormControl>
-              <FormMessage class="absolute top-full mt-1 text-sm" />
+              <FormMessage class="mt-1 text-sm" />
             </FormItem>
           </FormField>
         </div>

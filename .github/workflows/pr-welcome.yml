@@ -14,6 +14,9 @@ jobs:
       - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+          # v3 requires this input even though this workflow only runs on pull_request_target.
+          issue_message: |
+            Thanks for opening your first issue in Libredesk. A maintainer will take a look soon.
           pr_message: |
             Thanks for opening your first pull request in Libredesk.
 
