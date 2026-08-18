@@ -1742,7 +1742,7 @@ func validateArticle(app *App, req *helpcenter.ArticleRequest) error {
 	if req.Title == "" {
 		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`title`"), nil)
 	}
-	if req.Content == "" {
+	if strings.TrimSpace(req.Content) == "" {
 		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`content`"), nil)
 	}
 	req.Content = publicAssetPaths(app, req.Content)
