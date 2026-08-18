@@ -13,6 +13,13 @@ encryption_key = "your-32-char-random-string-here!"
 # Only the files you provide will be replaced; the rest use built-in defaults.
 # static_dir = "/path/to/custom/static"
 
+# Go pprof profiling endpoints, exposed on a separate HTTP server.
+# Keep this disabled unless you are actively debugging performance and never expose
+# the address publicly, the endpoints leak internals and allow expensive profiles.
+[app.pprof]
+enabled = false
+address = "127.0.0.1:6060"
+
 # HTTP server.
 [app.server]
 # Address to bind the HTTP server to.
