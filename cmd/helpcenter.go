@@ -155,8 +155,8 @@ func handleCreateHelpCenter(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
 	}
-	if err := validateHelpCenter(r, &req); err != nil {
-		return err
+	if err := validateHelpCenter(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	helpCenter, err := app.helpcenter.CreateHelpCenter(req)
 	if err != nil {
@@ -178,8 +178,8 @@ func handleUpdateHelpCenter(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
 	}
-	if err := validateHelpCenter(r, &req); err != nil {
-		return err
+	if err := validateHelpCenter(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	helpCenter, err := app.helpcenter.UpdateHelpCenter(id, req)
 	if err != nil {
@@ -310,8 +310,8 @@ func handleCreateCollection(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
 	}
-	if err := validateCollection(r, &req); err != nil {
-		return err
+	if err := validateCollection(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	req.Slug = helpcenter.GenerateSlug(req.Name)
 	collection, err := app.helpcenter.CreateCollection(helpCenterID, req)
@@ -334,8 +334,8 @@ func handleUpdateCollection(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
 	}
-	if err := validateCollection(r, &req); err != nil {
-		return err
+	if err := validateCollection(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	existing, err := app.helpcenter.GetCollectionByID(id)
 	if err != nil {
@@ -428,8 +428,8 @@ func handleCreateArticle(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
 	}
-	if err := validateArticle(r, &req); err != nil {
-		return err
+	if err := validateArticle(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	req.Slug = helpcenter.GenerateSlug(req.Title)
 	req.CollectionID = nil
@@ -1017,8 +1017,8 @@ func handleUpdateArticle(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
 	}
-	if err := validateArticle(r, &req); err != nil {
-		return err
+	if err := validateArticle(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 	existing, err := app.helpcenter.GetArticleByID(id)
 	if err != nil {
@@ -1711,36 +1711,39 @@ func renderHelpCenterStatusPage(r *fastglue.Request, hc *hcmodels.HelpCenter, st
 	return rerr
 }
 
-func validateHelpCenter(r *fastglue.Request, req *helpcenter.HelpCenterRequest) error {
-	app := r.Context.(*App)
+func validateHelpCenter(app *App, req *helpcenter.HelpCenterRequest) error {
+	req.Name = strings.TrimSpace(req.Name)
+	req.Slug = strings.TrimSpace(req.Slug)
+	req.PageTitle = strings.TrimSpace(req.PageTitle)
+	req.MetaDescription = strings.TrimSpace(req.MetaDescription)
 	if req.Name == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`name`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`name`"), nil)
 	}
 	if req.Slug == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`slug`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`slug`"), nil)
 	}
 	if req.PageTitle == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`page_title`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`page_title`"), nil)
 	}
 	req.Theme = json.RawMessage(publicAssetPaths(app, string(req.Theme)))
 	return nil
 }
 
-func validateCollection(r *fastglue.Request, req *helpcenter.CollectionRequest) error {
-	app := r.Context.(*App)
+func validateCollection(app *App, req *helpcenter.CollectionRequest) error {
+	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`name`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`name`"), nil)
 	}
 	return nil
 }
 
-func validateArticle(r *fastglue.Request, req *helpcenter.ArticleRequest) error {
-	app := r.Context.(*App)
+func validateArticle(app *App, req *helpcenter.ArticleRequest) error {
+	req.Title = strings.TrimSpace(req.Title)
 	if req.Title == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`title`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`title`"), nil)
 	}
 	if req.Content == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`content`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`content`"), nil)
 	}
 	req.Content = publicAssetPaths(app, req.Content)
 	req.MetaImageURL = publicAssetPaths(app, req.MetaImageURL)

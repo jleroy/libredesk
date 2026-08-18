@@ -101,7 +101,7 @@
                   <FormControl>
                     <SelectComboBox
                       v-bind="componentField"
-                      :items="localeItems"
+                      :items="localeItemsFor(index)"
                       :placeholder="t('placeholders.selectLanguage')"
                     />
                   </FormControl>
@@ -816,7 +816,17 @@ const localeLabel = (code) => localeItems.value.find((i) => i.value === code)?.l
 
 const cleanLocales = (locales) => (locales || []).map((l) => (l || '').trim()).filter(Boolean)
 
-const localeOptions = computed(() => cleanLocales(form.values.allowed_locales))
+const pickedLocales = computed(() => new Set(cleanLocales(form.values.allowed_locales)))
+
+// A language already picked in another row is hidden; the row keeps its own value.
+const localeItemsFor = (index) => {
+  const own = (form.values.allowed_locales?.[index] || '').trim()
+  return localeItems.value.filter(
+    (item) => item.value === own || !pickedLocales.value.has(item.value)
+  )
+}
+
+const localeOptions = computed(() => [...pickedLocales.value])
 
 // The backend forces the default language back into the supported list, so the select is
 // moved to a language that is actually still listed instead of showing a stale one.
@@ -852,7 +862,7 @@ const onSubmit = form.handleSubmit(
       activeTab.value = 'general'
     }
     await nextTick()
-    formEl.value?.querySelector('[role="alert"]')?.scrollIntoView({ block: 'center' })
+    formEl.value?.querySelector('[role="alert"]')?.scrollIntoView({ block: 'nearest' })
   }
 )
 

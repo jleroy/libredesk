@@ -836,7 +836,6 @@ func (c *Manager) afterUserAssignedHooks(uuid string, assigneeID int, actor umod
 
 // UpdateConversationTeamAssignee sets the assignee of a conversation to a specific team and sets the assigned user id to NULL.
 func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor umodels.User) error {
-	// Store previously assigned team ID to apply SLA policy if team has changed.
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		return err
@@ -848,9 +847,9 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Assignment successful, any errors now are non-critical and can be ignored by returning nil.
+	// Assignment succeeded, errors after this point are non-critical and must not skip the remaining side effects.
 	if err := c.RecordAssigneeTeamChange(uuid, teamID, actor); err != nil {
-		return nil
+		c.lo.Error("error recording team assignee change", "uuid", uuid, "error", err)
 	}
 
 	// Team changed?
@@ -858,27 +857,22 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 		// Remove assigned user if team has changed.
 		c.RemoveConversationAssignee(uuid, models.AssigneeTypeUser, actor)
 
-		// Apply SLA policy if this new team has a SLA policy.
-		team, err := c.teamStore.Get(teamID)
+		updatedConversation, err := c.GetConversation(0, uuid, "")
 		if err != nil {
-			return nil
-		}
-		// Fetch the conversation again to get the updated details.
-		conversation, err := c.GetConversation(0, uuid, "")
-		if err != nil {
-			return nil
-		}
-		if team.SLAPolicyID.Int > 0 {
-			systemUser, err := c.userStore.GetSystemUser()
-			if err != nil {
-				return nil
+			c.lo.Error("error fetching conversation after team assignment", "uuid", uuid, "error", err)
+		} else {
+			if team, err := c.teamStore.Get(teamID); err != nil {
+				c.lo.Error("error fetching team for SLA policy", "team_id", teamID, "error", err)
+			} else if team.SLAPolicyID.Int > 0 {
+				if systemUser, err := c.userStore.GetSystemUser(); err != nil {
+					c.lo.Error("error fetching system user to apply team SLA policy", "error", err)
+				} else if err := c.ApplySLA(updatedConversation, team.SLAPolicyID.Int, systemUser); err != nil {
+					c.lo.Error("error applying team SLA policy", "uuid", uuid, "sla_policy_id", team.SLAPolicyID.Int, "error", err)
+				}
 			}
-			if err := c.ApplySLA(conversation, team.SLAPolicyID.Int, systemUser); err != nil {
-				return nil
-			}
-		}
 
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, previousValues, actor)
+			c.automation.EvaluateConversationUpdateRules(updatedConversation, amodels.EventConversationTeamAssigned, previousValues, actor)
+		}
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -1536,47 +1530,75 @@ func (m *Manager) notifyAutomation(subject, message string, entries []string, co
 		userIDs = userIDs[:amodels.MaxNotifyRecipients]
 	}
 
-	notification := notifier.Notification{
+	var (
+		recipientIDs []int
+		emails       []notifier.EmailNotification
+	)
+	for _, id := range userIDs {
+		recipient, err := m.userStore.GetAgent(id, "")
+		if err != nil {
+			m.lo.Error("notify: error fetching agent for email", "user_id", id, "error", err)
+			continue
+		}
+		recipientIDs = append(recipientIDs, id)
+
+		var email notifier.EmailNotification
+		if recipient.Email.String != "" {
+			content, err := m.template.RenderEmailWithTemplate(
+				map[string]any{
+					"Conversation": map[string]any{
+						"ReferenceNumber": conv.ReferenceNumber,
+						"Subject":         conv.Subject.String,
+						"Priority":        conv.Priority.String,
+						"UUID":            conv.UUID,
+					},
+					"Recipient": map[string]any{
+						"FirstName": recipient.FirstName,
+						"LastName":  recipient.LastName,
+						"FullName":  recipient.FullName(),
+						"Email":     recipient.Email.String,
+					},
+					"Contact": map[string]any{
+						"FirstName": conv.Contact.FirstName,
+						"LastName":  conv.Contact.LastName,
+						"FullName":  conv.Contact.FullName(),
+						"Email":     conv.Contact.Email.String,
+					},
+					// Automated messages do not have an author.
+					"Author": map[string]any{
+						"FirstName": "",
+						"LastName":  "",
+						"FullName":  "",
+						"Email":     "",
+					},
+					"Message": message,
+				},
+				automationNotifyEmailContent)
+			if err != nil {
+				m.lo.Error("error rendering automation notify email", "conversation_uuid", conv.UUID, "error", err)
+			} else {
+				email = notifier.EmailNotification{
+					Recipients: []string{recipient.Email.String},
+					Subject:    subject,
+					Content:    content,
+				}
+			}
+		}
+		emails = append(emails, email)
+	}
+
+	if len(recipientIDs) == 0 {
+		return nil
+	}
+
+	m.dispatcher.SendWithEmails(notifier.Notification{
 		Type:             nmodels.NotificationTypeMention,
-		RecipientIDs:     userIDs,
+		RecipientIDs:     recipientIDs,
 		Title:            subject,
 		Body:             null.StringFrom(message),
 		ConversationID:   null.IntFrom(conv.ID),
 		ConversationUUID: conv.UUID,
-	}
-
-	content, err := m.template.RenderEmailWithTemplate(
-		map[string]any{
-			"Conversation": map[string]any{
-				"ReferenceNumber": conv.ReferenceNumber,
-				"UUID":            conv.UUID,
-			},
-			"Message": message,
-		},
-		automationNotifyEmailContent)
-	if err != nil {
-		m.lo.Error("error rendering automation notify email", "conversation_uuid", conv.UUID, "error", err)
-	} else {
-		emails := make([]string, 0, len(userIDs))
-		for _, id := range userIDs {
-			agent, err := m.userStore.GetAgent(id, "")
-			if err != nil {
-				m.lo.Error("notify: error fetching agent for email", "user_id", id, "error", err)
-				continue
-			}
-			if agent.Email.String == "" {
-				continue
-			}
-			emails = append(emails, agent.Email.String)
-		}
-		notification.Email = &notifier.EmailNotification{
-			Recipients: emails,
-			Subject:    notification.Title,
-			Content:    content,
-		}
-	}
-
-	m.dispatcher.Send(notification)
+	}, emails)
 	return nil
 }
 
