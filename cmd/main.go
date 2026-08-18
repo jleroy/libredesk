@@ -203,6 +203,8 @@ func main() {
 
 	validateConfig(ko)
 
+	startPprof()
+
 	// Fallback for config typo. Logs a warning but continues to work with the incorrect key.
 	// Uses 'message.message_outgoing_scan_interval' (correct key) as default key, falls back to the common typo.
 	msgOutgoingScanIntervalKey := "message.message_outgoing_scan_interval"
