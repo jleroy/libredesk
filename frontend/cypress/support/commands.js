@@ -58,12 +58,16 @@ Cypress.Commands.add('selectOption', (triggerLabel, optionText) => {
 // Pass failOnStatusCode: false to assert on error responses.
 Cypress.Commands.add('api', (method, path, body, options = {}) => {
   return cy.getCookie('csrf_token').then((cookie) => {
+    const { headers, ...rest } = options
     return cy.request({
       method,
       url: path,
       body,
-      headers: cookie ? { 'X-CSRFTOKEN': cookie.value } : {},
-      ...options
+      ...rest,
+      headers: {
+        ...(cookie ? { 'X-CSRFTOKEN': cookie.value } : {}),
+        ...headers
+      }
     })
   })
 })
