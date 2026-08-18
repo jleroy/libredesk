@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/pprof"
+	"runtime"
 
 	"github.com/abhinavxd/libredesk/internal/colorlog"
 )
@@ -16,6 +17,13 @@ func startPprof() {
 	addr := ko.String("app.pprof.address")
 	if addr == "" {
 		addr = "127.0.0.1:6060"
+	}
+
+	if rate := ko.Int("app.pprof.block_profile_rate"); rate > 0 {
+		runtime.SetBlockProfileRate(rate)
+	}
+	if frac := ko.Int("app.pprof.mutex_profile_fraction"); frac > 0 {
+		runtime.SetMutexProfileFraction(frac)
 	}
 
 	mux := http.NewServeMux()
