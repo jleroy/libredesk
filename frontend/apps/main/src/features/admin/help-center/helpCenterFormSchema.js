@@ -5,6 +5,9 @@ const MAX_NAME = 200
 const MAX_PAGE_TITLE = 200
 const MAX_META_DESCRIPTION = 500
 
+// The backend counts runes, so emoji must not cost two characters here.
+const withinLength = (max) => (v) => Array.from(v || '').length <= max
+
 const localeRe = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/
 
 // Mirrors assetURLRe on the backend, which also discards protocol-relative URLs.
@@ -62,7 +65,7 @@ const createBaseSchema = (t) => {
     name: z
       .string()
       .min(1, t('globals.messages.required'))
-      .max(MAX_NAME, t('globals.messages.maxLength', { max: MAX_NAME })),
+      .refine(withinLength(MAX_NAME), t('globals.messages.maxLength', { max: MAX_NAME })),
     slug: z
       .string()
       .min(1, t('globals.messages.required'))
@@ -71,11 +74,17 @@ const createBaseSchema = (t) => {
     page_title: z
       .string()
       .min(1, t('globals.messages.required'))
-      .max(MAX_PAGE_TITLE, t('globals.messages.maxLength', { max: MAX_PAGE_TITLE })),
+      .refine(
+        withinLength(MAX_PAGE_TITLE),
+        t('globals.messages.maxLength', { max: MAX_PAGE_TITLE })
+      ),
     template: z.enum(['docs', 'classic']).default('classic'),
     meta_description: z
       .string()
-      .max(MAX_META_DESCRIPTION, t('globals.messages.maxLength', { max: MAX_META_DESCRIPTION }))
+      .refine(
+        withinLength(MAX_META_DESCRIPTION),
+        t('globals.messages.maxLength', { max: MAX_META_DESCRIPTION })
+      )
       .optional(),
     custom_domain: z
       .string()
