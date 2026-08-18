@@ -818,7 +818,6 @@ const cleanLocales = (locales) => (locales || []).map((l) => (l || '').trim()).f
 
 const pickedLocales = computed(() => new Set(cleanLocales(form.values.allowed_locales)))
 
-// A language already picked in another row is hidden; the row keeps its own value.
 const localeItemsFor = (index) => {
   const own = (form.values.allowed_locales?.[index] || '').trim()
   return localeItems.value.filter(

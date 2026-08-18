@@ -5,8 +5,8 @@ const MAX_NAME = 200
 const MAX_PAGE_TITLE = 200
 const MAX_META_DESCRIPTION = 500
 
-// The backend counts runes, so emoji must not cost two characters here.
-const withinLength = (max) => (v) => Array.from(v || '').length <= max
+// The backend trims then counts runes, so trim here too and emoji must not cost two characters.
+const withinLength = (max) => (v) => Array.from((v || '').trim()).length <= max
 
 const localeRe = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/
 
