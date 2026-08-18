@@ -1184,7 +1184,7 @@
   "helpCenter.invalidCollection": "That collection belongs to another help center. Pick a collection in this help center.",
   "helpCenter.invalidSlug": "This slug is not allowed. Use a different slug.",
   "helpCenter.invalidStatus": "Article status must be draft or published.",
-  "helpCenter.invalidTheme": "These appearance settings could not be read. The help center was left unchanged. Reload the page and try again.",
+  "helpCenter.invalidTheme": "These appearance settings could not be read. Reload the page and try again.",
   "helpCenter.announcementTextRequired": "The announcement needs text. A link on its own is not shown.",
   "helpCenter.invalidLocale": "Invalid language code. Use a code like en or en-US.",
   "helpCenter.defaultLocaleNotAllowed": "The default language is not in the help center's languages. Add it to the list or pick another default.",
