@@ -334,7 +334,7 @@ func handleChatUpdateLastSeen(r *fastglue.Request) error {
 
 	_, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		return err
+		return sendErrorEnvelope(r, err)
 	}
 
 	if err := app.conversation.UpdateConversationContactLastSeen(conversation.UUID); err != nil {
@@ -476,7 +476,7 @@ func handleChatGetConversation(r *fastglue.Request) error {
 
 	_, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		return err
+		return sendErrorEnvelope(r, err)
 	}
 
 	// Build conversation response with messages and attachments.
@@ -540,7 +540,7 @@ func handleChatSendMessage(r *fastglue.Request) error {
 
 	senderID, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		return err
+		return sendErrorEnvelope(r, err)
 	}
 
 	if err := canReply(r, conversation); err != nil {
@@ -586,7 +586,7 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 
 	senderID, conversation, err := getContactConversation(r, conversationUUID)
 	if err != nil {
-		return err
+		return sendErrorEnvelope(r, err)
 	}
 
 	if err := canReply(r, conversation); err != nil {
@@ -714,24 +714,24 @@ func getContactConversation(r *fastglue.Request, conversationUUID string) (int, 
 	contactID, err := getWidgetContactID(r)
 	if err != nil {
 		app.lo.Error("error getting contact ID from middleware context", "error", err)
-		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+		return 0, cmodels.Conversation{}, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	inbox, err := getWidgetInbox(r)
 	if err != nil {
 		app.lo.Error("error getting inbox from middleware context", "error", err)
-		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+		return 0, cmodels.Conversation{}, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	conversation, err := app.conversation.GetConversation(0, conversationUUID, "")
 	if err != nil {
 		app.lo.Error("error fetching conversation", "conversation_uuid", conversationUUID, "error", err)
-		return 0, cmodels.Conversation{}, sendErrorEnvelope(r, err)
+		return 0, cmodels.Conversation{}, err
 	}
 
 	if conversation.ContactID != contactID || conversation.InboxID != inbox.ID {
 		app.lo.Error("unauthorized access to conversation", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID, "session_inbox_id", inbox.ID, "conversation_inbox_id", conversation.InboxID)
-		return 0, cmodels.Conversation{}, r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
+		return 0, cmodels.Conversation{}, envelope.NewError(envelope.PermissionError, app.i18n.T("status.deniedPermission"), nil)
 	}
 
 	return contactID, conversation, nil

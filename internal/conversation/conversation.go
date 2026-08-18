@@ -836,7 +836,6 @@ func (c *Manager) afterUserAssignedHooks(uuid string, assigneeID int, actor umod
 
 // UpdateConversationTeamAssignee sets the assignee of a conversation to a specific team and sets the assigned user id to NULL.
 func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor umodels.User) error {
-	// Store previously assigned team ID to apply SLA policy if team has changed.
 	conversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
 		return err
@@ -848,37 +847,25 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Assignment successful, any errors now are non-critical and can be ignored by returning nil.
+	// Assignment succeeded, errors after this point are non-critical and must not skip the remaining side effects.
 	if err := c.RecordAssigneeTeamChange(uuid, teamID, actor); err != nil {
-		return nil
+		c.lo.Error("error recording team assignee change", "uuid", uuid, "error", err)
 	}
 
 	// Team changed?
 	if previousAssignedTeamID != teamID {
 		// Remove assigned user if team has changed.
-		c.RemoveConversationAssignee(uuid, models.AssigneeTypeUser, actor)
-
-		// Apply SLA policy if this new team has a SLA policy.
-		team, err := c.teamStore.Get(teamID)
-		if err != nil {
-			return nil
-		}
-		// Fetch the conversation again to get the updated details.
-		conversation, err := c.GetConversation(0, uuid, "")
-		if err != nil {
-			return nil
-		}
-		if team.SLAPolicyID.Int > 0 {
-			systemUser, err := c.userStore.GetSystemUser()
-			if err != nil {
-				return nil
-			}
-			if err := c.ApplySLA(conversation, team.SLAPolicyID.Int, systemUser); err != nil {
-				return nil
-			}
+		if err := c.RemoveConversationAssignee(uuid, models.AssigneeTypeUser, actor); err != nil {
+			c.lo.Error("error removing conversation assignee after team change", "uuid", uuid, "error", err)
 		}
 
-		c.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationTeamAssigned, previousValues, actor)
+		updatedConversation, err := c.GetConversation(0, uuid, "")
+		if err != nil {
+			c.lo.Error("error fetching conversation after team assignment", "uuid", uuid, "error", err)
+		} else {
+			c.applyTeamSLA(updatedConversation, teamID)
+			c.automation.EvaluateConversationUpdateRules(updatedConversation, amodels.EventConversationTeamAssigned, previousValues, actor)
+		}
 	}
 
 	// Broadcast conversation update to widget clients.
@@ -887,6 +874,26 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 	})
 
 	return nil
+}
+
+// applyTeamSLA applies the team's SLA policy to the conversation if the team has one, logging failures.
+func (c *Manager) applyTeamSLA(conversation models.Conversation, teamID int) {
+	team, err := c.teamStore.Get(teamID)
+	if err != nil {
+		c.lo.Error("error fetching team for SLA policy", "team_id", teamID, "error", err)
+		return
+	}
+	if team.SLAPolicyID.Int <= 0 {
+		return
+	}
+	systemUser, err := c.userStore.GetSystemUser()
+	if err != nil {
+		c.lo.Error("error fetching system user to apply team SLA policy", "error", err)
+		return
+	}
+	if err := c.ApplySLA(conversation, team.SLAPolicyID.Int, systemUser); err != nil {
+		c.lo.Error("error applying team SLA policy", "uuid", conversation.UUID, "sla_policy_id", team.SLAPolicyID.Int, "error", err)
+	}
 }
 
 // broadcastReassignment broadcasts a reassignment to agents, given the conversation's prior list item.
@@ -1292,66 +1299,46 @@ func (m *Manager) NotifyMention(conversationUUID string, message models.Message,
 	// Don't notify the person who made the mention.
 	delete(recipientIDMap, mentionedByUserID)
 
-	// Build recipient list and personalized emails.
-	var recipientIDs []int
-	var emails []notifier.EmailNotification
-
+	userIDs := make([]int, 0, len(recipientIDMap))
 	for userID := range recipientIDMap {
-		recipient, err := m.userStore.GetAgent(userID, "")
-		if err != nil {
-			m.lo.Error("error fetching recipient for mention notification", "user_id", userID, "error", err)
-			continue
-		}
-
-		recipientIDs = append(recipientIDs, userID)
-
-		// Render personalized email for this recipient.
-		var email notifier.EmailNotification
-		if recipient.Email.String != "" {
-			content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplMentioned,
-				map[string]any{
-					"Conversation": map[string]any{
-						"ReferenceNumber": conversation.ReferenceNumber,
-						"Subject":         conversation.Subject.String,
-						"Priority":        conversation.Priority.String,
-						"UUID":            conversation.UUID,
-					},
-					"Recipient": map[string]any{
-						"FirstName": recipient.FirstName,
-						"LastName":  recipient.LastName,
-						"FullName":  recipient.FullName(),
-						"Email":     recipient.Email.String,
-					},
-					"Message": map[string]any{
-						"UUID":    message.UUID,
-						"Content": message.Content,
-					},
-					"MentionedBy": map[string]any{
-						"FirstName": author.FirstName,
-						"LastName":  author.LastName,
-						"FullName":  author.FullName(),
-						"Email":     author.Email.String,
-					},
-					// Automated messages do not have an author.
-					"Author": map[string]any{
-						"FirstName": "",
-						"LastName":  "",
-						"FullName":  "",
-						"Email":     "",
-					},
-				})
-			if err != nil {
-				m.lo.Error("error rendering mention notification template", "conversation_uuid", conversationUUID, "error", err)
-			} else {
-				email = notifier.EmailNotification{
-					Recipients: []string{recipient.Email.String},
-					Subject:    subject,
-					Content:    content,
-				}
-			}
-		}
-		emails = append(emails, email)
+		userIDs = append(userIDs, userID)
 	}
+
+	recipientIDs, emails := m.buildRecipientEmails(userIDs, func(recipient umodels.User) (string, string, error) {
+		content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplMentioned,
+			map[string]any{
+				"Conversation": map[string]any{
+					"ReferenceNumber": conversation.ReferenceNumber,
+					"Subject":         conversation.Subject.String,
+					"Priority":        conversation.Priority.String,
+					"UUID":            conversation.UUID,
+				},
+				"Recipient": map[string]any{
+					"FirstName": recipient.FirstName,
+					"LastName":  recipient.LastName,
+					"FullName":  recipient.FullName(),
+					"Email":     recipient.Email.String,
+				},
+				"Message": map[string]any{
+					"UUID":    message.UUID,
+					"Content": message.Content,
+				},
+				"MentionedBy": map[string]any{
+					"FirstName": author.FirstName,
+					"LastName":  author.LastName,
+					"FullName":  author.FullName(),
+					"Email":     author.Email.String,
+				},
+				// Automated messages do not have an author.
+				"Author": map[string]any{
+					"FirstName": "",
+					"LastName":  "",
+					"FullName":  "",
+					"Email":     "",
+				},
+			})
+		return subject, content, err
+	})
 
 	if len(recipientIDs) == 0 {
 		return
@@ -1536,48 +1523,83 @@ func (m *Manager) notifyAutomation(subject, message string, entries []string, co
 		userIDs = userIDs[:amodels.MaxNotifyRecipients]
 	}
 
-	notification := notifier.Notification{
+	recipientIDs, emails := m.buildRecipientEmails(userIDs, func(recipient umodels.User) (string, string, error) {
+		content, err := m.template.RenderEmailWithTemplate(
+			map[string]any{
+				"Conversation": map[string]any{
+					"ReferenceNumber": conv.ReferenceNumber,
+					"Subject":         conv.Subject.String,
+					"Priority":        conv.Priority.String,
+					"UUID":            conv.UUID,
+				},
+				"Recipient": map[string]any{
+					"FirstName": recipient.FirstName,
+					"LastName":  recipient.LastName,
+					"FullName":  recipient.FullName(),
+					"Email":     recipient.Email.String,
+				},
+				"Contact": map[string]any{
+					"FirstName": conv.Contact.FirstName,
+					"LastName":  conv.Contact.LastName,
+					"FullName":  conv.Contact.FullName(),
+					"Email":     conv.Contact.Email.String,
+				},
+				// Automated messages do not have an author.
+				"Author": map[string]any{
+					"FirstName": "",
+					"LastName":  "",
+					"FullName":  "",
+					"Email":     "",
+				},
+				"Message": message,
+			},
+			automationNotifyEmailContent)
+		return subject, content, err
+	})
+
+	m.dispatcher.SendWithEmails(notifier.Notification{
 		Type:             nmodels.NotificationTypeMention,
-		RecipientIDs:     userIDs,
+		RecipientIDs:     recipientIDs,
 		Title:            subject,
 		Body:             null.StringFrom(message),
 		ConversationID:   null.IntFrom(conv.ID),
 		ConversationUUID: conv.UUID,
-	}
-
-	content, err := m.template.RenderEmailWithTemplate(
-		map[string]any{
-			"Conversation": map[string]any{
-				"ReferenceNumber": conv.ReferenceNumber,
-				"UUID":            conv.UUID,
-			},
-			"Message": message,
-		},
-		automationNotifyEmailContent)
-	if err != nil {
-		m.lo.Error("error rendering automation notify email", "conversation_uuid", conv.UUID, "error", err)
-	} else {
-		emails := make([]string, 0, len(userIDs))
-		for _, id := range userIDs {
-			agent, err := m.userStore.GetAgent(id, "")
-			if err != nil {
-				m.lo.Error("notify: error fetching agent for email", "user_id", id, "error", err)
-				continue
-			}
-			if agent.Email.String == "" {
-				continue
-			}
-			emails = append(emails, agent.Email.String)
-		}
-		notification.Email = &notifier.EmailNotification{
-			Recipients: emails,
-			Subject:    notification.Title,
-			Content:    content,
-		}
-	}
-
-	m.dispatcher.Send(notification)
+	}, emails)
 	return nil
+}
+
+// buildRecipientEmails fetches each recipient and renders their email, returning emails index-aligned with recipient IDs; on fetch or render failure the in-app notification still goes out with a zero-value email.
+func (m *Manager) buildRecipientEmails(userIDs []int, render func(recipient umodels.User) (subject, content string, err error)) ([]int, []notifier.EmailNotification) {
+	var (
+		recipientIDs []int
+		emails       []notifier.EmailNotification
+	)
+	for _, id := range userIDs {
+		recipientIDs = append(recipientIDs, id)
+
+		recipient, err := m.userStore.GetAgentCachedOrLoad(id)
+		if err != nil {
+			m.lo.Error("error fetching agent for email notification", "user_id", id, "error", err)
+			emails = append(emails, notifier.EmailNotification{})
+			continue
+		}
+
+		var email notifier.EmailNotification
+		if recipient.Email.String != "" {
+			subject, content, err := render(recipient)
+			if err != nil {
+				m.lo.Error("error rendering email notification", "user_id", id, "error", err)
+			} else {
+				email = notifier.EmailNotification{
+					Recipients: []string{recipient.Email.String},
+					Subject:    subject,
+					Content:    content,
+				}
+			}
+		}
+		emails = append(emails, email)
+	}
+	return recipientIDs, emails
 }
 
 func (m *Manager) resolveNotifyRecipients(entries []string, conv models.Conversation) []int {

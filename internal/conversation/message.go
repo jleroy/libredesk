@@ -1400,9 +1400,6 @@ func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConv
 		m.lo.Error("error fetching conversation for incoming message hooks", "conversation_uuid", conversationUUID, "error", err)
 	} else {
 		// Trigger automations on incoming message event.
-		if previousValues == nil {
-			previousValues = amodels.PreviousValues(conversation)
-		}
 		m.automation.EvaluateConversationUpdateRules(conversation, amodels.EventConversationMessageIncoming, previousValues, umodels.User{ID: conversation.ContactID})
 
 		// If assigned to an AI assistant, let it respond to this inbound customer message.

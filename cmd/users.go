@@ -196,9 +196,8 @@ func handleCreateAgent(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 
-	// Validate agent request
-	if err := validateAgentRequest(r, &req); err != nil {
-		return err
+	if err := validateAgentRequest(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 
 	agent, err := app.user.CreateAgent(req.FirstName, req.LastName, req.Email, req.Roles)
@@ -263,9 +262,8 @@ func handleUpdateAgent(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 
-	// Validate agent request
-	if err := validateAgentRequest(r, &req); err != nil {
-		return err
+	if err := validateAgentRequest(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 
 	agent, err := app.user.GetAgent(id, "")
@@ -612,26 +610,24 @@ func handleRevokeAPIKey(r *fastglue.Request) error {
 	return r.SendEnvelope(true)
 }
 
-// validateAgentRequest validates common agent request fields and normalizes the email
-func validateAgentRequest(r *fastglue.Request, req *agentReq) error {
-	var app = r.Context.(*App)
-
-	// Normalize email
+func validateAgentRequest(app *App, req *agentReq) error {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.FirstName = strings.TrimSpace(req.FirstName)
+	req.LastName = strings.TrimSpace(req.LastName)
 	if req.Email == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`email`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`email`"), nil)
 	}
 
 	if !stringutil.ValidEmail(req.Email) {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("validation.invalidEmail"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidEmail"), nil)
 	}
 
 	if req.Roles == nil {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`role`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`role`"), nil)
 	}
 
 	if req.FirstName == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`first_name`"), nil, envelope.InputError)
+		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`first_name`"), nil)
 	}
 
 	return nil
