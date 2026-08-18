@@ -855,7 +855,9 @@ func (c *Manager) UpdateConversationTeamAssignee(uuid string, teamID int, actor 
 	// Team changed?
 	if previousAssignedTeamID != teamID {
 		// Remove assigned user if team has changed.
-		c.RemoveConversationAssignee(uuid, models.AssigneeTypeUser, actor)
+		if err := c.RemoveConversationAssignee(uuid, models.AssigneeTypeUser, actor); err != nil {
+			c.lo.Error("error removing conversation assignee after team change", "uuid", uuid, "error", err)
+		}
 
 		updatedConversation, err := c.GetConversation(0, uuid, "")
 		if err != nil {
