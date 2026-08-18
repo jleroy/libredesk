@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"runtime"
@@ -33,10 +34,16 @@ func startPprof() {
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		colorlog.Red("error starting pprof server: %v", err)
+		return
+	}
+	colorlog.Green("pprof server started at %s", addr)
+
 	go func() {
-		colorlog.Green("pprof server started at %s", addr)
-		if err := http.ListenAndServe(addr, mux); err != nil {
-			colorlog.Red("error starting pprof server: %v", err)
+		if err := http.Serve(ln, mux); err != nil {
+			colorlog.Red("pprof server stopped: %v", err)
 		}
 	}()
 }
