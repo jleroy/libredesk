@@ -303,6 +303,7 @@ const attachmentCount = computed(() => mediaFiles.value.length + uploadingFiles.
 
 const processSend = async (skipContactEmailCheck = false, skipMissingTagsCheck = false, statusToSet = null) => {
   let hasMessageSendingErrored = false
+  isEditorFullscreen.value = false
 
   const html = htmlContent.value
   if (hasPendingInlineUpload(html)) return
@@ -352,7 +353,6 @@ const processSend = async (skipContactEmailCheck = false, skipMissingTagsCheck =
       }
     }
   }
-  isEditorFullscreen.value = false
   let tempUUID = null
 
   // Add pending message to cache for instant display.
