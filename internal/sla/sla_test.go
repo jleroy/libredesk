@@ -536,6 +536,9 @@ func TestSendNotificationSkipsResolvedConversation(t *testing.T) {
 	if err := m.q.GetScheduledSLANotifications.Select(&pending); err != nil {
 		t.Fatalf("fetching scheduled notifications: %v", err)
 	}
+	if len(pending) != 1 {
+		t.Fatalf("expected one due notification, got %d", len(pending))
+	}
 	if err := m.SendNotification(pending[0]); err != nil {
 		t.Fatalf("SendNotification: %v", err)
 	}
