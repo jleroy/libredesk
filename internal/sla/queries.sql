@@ -139,18 +139,31 @@ AND c.id = $1;
 
 -- name: close-settled-applied-slas
 -- A metric with no deadline configured counts as settled.
-UPDATE applied_slas
-SET
-  status = CASE
-     WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
-     WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
-     ELSE 'partially_met'::applied_sla_status
-  END,
-  updated_at = NOW()
-WHERE id = ANY($1)
-  AND status = 'pending'::applied_sla_status
-  AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
-  AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL);
+WITH closed AS (
+  UPDATE applied_slas
+  SET
+    status = CASE
+       WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
+       WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
+       ELSE 'partially_met'::applied_sla_status
+    END,
+    updated_at = NOW()
+  WHERE status = 'pending'::applied_sla_status
+    AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
+    AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
+  RETURNING id, conversation_id
+)
+UPDATE conversations c
+SET next_sla_deadline_at = CASE
+    WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
+    WHEN c.first_reply_at IS NOT NULL AND c.resolved_at IS NULL AND a.resolution_deadline_at IS NOT NULL THEN a.resolution_deadline_at
+    WHEN c.first_reply_at IS NULL AND c.resolved_at IS NULL AND a.first_response_deadline_at IS NOT NULL THEN a.first_response_deadline_at
+    WHEN a.first_response_deadline_at IS NOT NULL AND a.resolution_deadline_at IS NOT NULL THEN LEAST(a.first_response_deadline_at, a.resolution_deadline_at)
+    ELSE NULL
+END
+FROM applied_slas a
+JOIN closed cl ON cl.id = a.id
+WHERE a.conversation_id = c.id;
 
 -- name: insert-scheduled-sla-notification
 INSERT INTO scheduled_sla_notifications (

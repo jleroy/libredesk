@@ -853,7 +853,6 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 		return err
 	}
 	m.lo.Info("evaluating pending SLAs", "count", len(pendingSLAs))
-	evaluatedIDs := make([]int, 0, len(pendingSLAs))
 	for _, sla := range pendingSLAs {
 		select {
 		case <-ctx.Done():
@@ -861,12 +860,10 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 		default:
 			if err := m.evaluateSLA(sla); err != nil {
 				m.lo.Error("error evaluating SLA", "error", err)
-				continue
 			}
-			evaluatedIDs = append(evaluatedIDs, sla.ID)
 		}
 	}
-	if _, err := m.q.CloseSettledAppliedSLAs.ExecContext(ctx, pq.Array(evaluatedIDs)); err != nil {
+	if _, err := m.q.CloseSettledAppliedSLAs.ExecContext(ctx); err != nil {
 		m.lo.Error("error closing settled SLAs", "error", err)
 		return err
 	}
