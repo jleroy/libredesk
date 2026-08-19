@@ -31,6 +31,7 @@ RETURNING *;
 DELETE FROM sla_policies WHERE id = $1;
 
 -- name: apply-sla
+-- Close the old pending SLA that already recorded an outcome, labeling it from its timestamps.
 WITH closed AS (
   UPDATE applied_slas
   SET
@@ -46,22 +47,26 @@ WITH closed AS (
          OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
   RETURNING id
 ),
+-- Cancel unmet events of every previous SLA on this conversation so the old policy stops breaching.
 superseded_events AS (
   DELETE FROM sla_events
   WHERE status = 'pending'
     AND applied_sla_id IN (SELECT id FROM applied_slas WHERE conversation_id = $1)
 ),
+-- Cancel unsent notifications the same way so agents don't get emails for dead deadlines.
 superseded_notifications AS (
   DELETE FROM scheduled_sla_notifications
   WHERE processed_at IS NULL
     AND applied_sla_id IN (SELECT id FROM applied_slas WHERE conversation_id = $1)
 ),
+-- Delete the old pending SLA outright if it never recorded anything; there's no history worth keeping.
 deleted AS (
   DELETE FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'
     AND first_response_met_at IS NULL AND first_response_breached_at IS NULL
     AND resolution_met_at IS NULL AND resolution_breached_at IS NULL
   RETURNING id
 ),
+-- Insert the new pending SLA.
 new_sla AS (
   INSERT INTO applied_slas (
     conversation_id,
@@ -74,7 +79,7 @@ new_sla AS (
   WHERE (SELECT COUNT(*) FROM closed) IS NOT NULL AND (SELECT COUNT(*) FROM deleted) IS NOT NULL
   RETURNING conversation_id, id
 )
--- update the conversation with the new SLA policy and next SLA deadline.
+-- Stamp the conversation with the new policy and its earliest deadline.
 UPDATE conversations c
 SET
    sla_policy_id = $2,
@@ -144,6 +149,7 @@ WHERE a.conversation_id = c.id
 AND c.id = $1;
 
 -- name: close-settled-applied-slas
+-- Close every pending SLA whose configured metrics all have an outcome; a metric with no deadline counts as done.
 WITH closed AS (
   UPDATE applied_slas
   SET
@@ -160,6 +166,7 @@ WITH closed AS (
     AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
   RETURNING id, conversation_id
 )
+-- Recompute the deadline shown on each conversation whose SLA just closed, in the same statement so a failure can't leave it stale.
 UPDATE conversations c
 SET next_sla_deadline_at = CASE
     WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
