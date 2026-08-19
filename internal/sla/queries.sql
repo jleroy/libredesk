@@ -142,7 +142,6 @@ WHERE a.conversation_id = c.id
 AND c.id = $1;
 
 -- name: close-settled-applied-slas
--- A metric with no deadline configured counts as settled.
 WITH closed AS (
   UPDATE applied_slas
   SET
@@ -153,6 +152,8 @@ WITH closed AS (
     END,
     updated_at = NOW()
   WHERE status = 'pending'::applied_sla_status
+    -- Next-response-only rows have both deadlines NULL; leave them pending or the sweep wipes their live next-response deadline.
+    AND (first_response_deadline_at IS NOT NULL OR resolution_deadline_at IS NOT NULL)
     AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
     AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
   RETURNING id, conversation_id
