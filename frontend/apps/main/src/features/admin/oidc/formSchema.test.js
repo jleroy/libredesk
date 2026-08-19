@@ -80,8 +80,7 @@ describe('OIDC Form Schema', () => {
     })
 
     // Defaults
-    // Schema defect: .default(true).optional() makes the default unreachable, so enabled parses to undefined.
-    test.skip('enabled defaults to true', () => {
+    test('enabled defaults to true', () => {
         expect(schema.parse(validForm).enabled).toBe(true)
     })
 

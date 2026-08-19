@@ -72,8 +72,7 @@ describe('Webhooks Form Schema', () => {
     })
 
     // Optional fields
-    // Schema defect: .default(true).optional() makes the default unreachable, so is_active parses to undefined.
-    test.skip('is_active defaults to true', () => {
+    test('is_active defaults to true', () => {
         expect(schema.parse(validForm).is_active).toBe(true)
     })
 

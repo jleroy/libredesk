@@ -40,7 +40,7 @@ describe('API: contacts', () => {
         // Dummy host: contact-initiated messages are stored, never sent.
         smtp: [{
           host: '127.0.0.1',
-          port: 1125,
+          port: Number(Cypress.env('SMTP_PORT') || 1025),
           username: '',
           password: '',
           auth_protocol: 'none',

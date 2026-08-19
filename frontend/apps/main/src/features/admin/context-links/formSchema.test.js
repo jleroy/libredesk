@@ -69,8 +69,7 @@ describe('Context Links Form Schema', () => {
         expect(() => schema.parse({ ...validForm, secret: '' })).not.toThrow()
     })
 
-    // Schema defect: .default(true).optional() makes the default unreachable, so is_active parses to undefined.
-    test.skip('is_active defaults to true', () => {
+    test('is_active defaults to true', () => {
         expect(schema.parse(validForm).is_active).toBe(true)
     })
 

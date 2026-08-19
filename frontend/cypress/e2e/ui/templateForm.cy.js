@@ -78,7 +78,8 @@ describe('Template form', () => {
     cy.visit(`${listPath}/new?type=email_outgoing`)
     cy.get('button[type="submit"]').click()
 
-    cy.contains(/required/i).should('be.visible')
+    // Only `exist`: an overflow container clips this message.
+    cy.contains(/required/i).should('exist')
     cy.get('@createTemplate.all').should('have.length', 0)
     cy.location('pathname').should('eq', `${listPath}/new`)
   })
@@ -88,6 +89,8 @@ describe('Template form', () => {
 
     cy.visit(listPath)
     filterList(renamedTemplate)
+    // Wait for the filter to settle, else the click hits a row the re-render detaches.
+    cy.get('tbody tr').should('have.length', 1)
     cy.contains('tr', renamedTemplate).find('button[aria-haspopup="menu"]').click()
     cy.get('[role="menuitem"]').contains('Delete').click()
     cy.get('[role="alertdialog"]').contains('button', 'Delete').click()

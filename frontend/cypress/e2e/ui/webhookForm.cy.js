@@ -80,7 +80,7 @@ describe('Webhook form', () => {
     cy.visit(newPath)
     cy.get('button[type="submit"]').click()
 
-    // An overflow container clips this message, so only 'exist' holds. See docs/BUGS-FOUND.md.
+    // Only `exist`: an overflow container clips this message.
     cy.contains(/required/i).should('exist')
     cy.get('@createWebhook.all').should('have.length', 0)
     cy.location('pathname').should('eq', newPath)

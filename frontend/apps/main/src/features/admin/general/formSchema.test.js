@@ -105,8 +105,7 @@ describe('General Form Schema', () => {
     })
 
     // Optional fields
-    // Schema defect: .default([]).optional() makes the default unreachable, so the field parses to undefined.
-    test.skip('allowed_file_upload_extensions defaults to empty array', () => {
+    test('allowed_file_upload_extensions defaults to empty array', () => {
         expect(schema.parse(validForm).allowed_file_upload_extensions).toEqual([])
     })
 

@@ -60,6 +60,8 @@ jobs:
           cp config.sample.toml config.toml
           sed -i 's/host = "db"/host = "127.0.0.1"/' config.toml
           sed -i 's/address = "redis:6379"/address = "localhost:6379"/' config.toml
+          # upload.fs.upload_path is not created by the app, so attachment uploads 500 without it
+          mkdir -p uploads
 
       - name: Run unit tests for frontend
         run: cd frontend && pnpm test:run
@@ -77,7 +79,7 @@ jobs:
           ./libredesk --upgrade --yes --config ./config.toml
           ./libredesk --config ./config.toml &
           for i in $(seq 1 60); do
-            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:9000/ || true)" = "200" ]; then
+            if [ "$(curl --connect-timeout 1 --max-time 2 -s -o /dev/null -w '%{http_code}' http://localhost:9000/ || true)" = "200" ]; then
               echo "app is up"; break
             fi
             if [ "$i" = "60" ]; then echo "app did not start"; exit 1; fi

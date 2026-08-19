@@ -21,7 +21,7 @@ describe('API: conversations', () => {
       // Dummy host: nothing in this spec sends mail, contact-initiated messages are stored only.
       smtp: [{
         host: '127.0.0.1',
-        port: 1125,
+        port: Number(Cypress.env('SMTP_PORT') || 1025),
         username: '',
         password: '',
         auth_protocol: 'none',
