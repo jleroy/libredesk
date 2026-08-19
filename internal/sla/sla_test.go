@@ -200,6 +200,23 @@ func TestEvaluateSingleMetricPolicy(t *testing.T) {
 	}
 }
 
+func TestEvaluateResolutionOnlyPolicy(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "res-only", "", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	db.MustExec(`UPDATE conversations SET resolved_at = NOW() WHERE id = $1`, conv)
+
+	if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAs: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	if row.Status != "met" || !row.ResMetAt.Valid || row.FRMetAt.Valid {
+		t.Fatalf("expected resolution-only sla closed as met, got %+v", row)
+	}
+}
+
 func TestSweepSkipsNextResponseOnlyPolicy(t *testing.T) {
 	m, db := newTestManager(t)
 	policy := insertPolicy(t, db, "nr-only", "", "", "30m")
