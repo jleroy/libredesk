@@ -132,26 +132,23 @@ SET next_sla_deadline_at = CASE
     -- If the conversation is in a resolved-category status, clear the deadline
     WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
 
-    -- If an external timestamp ($2) is provided (e.g. next_response), use the earliest of $2.
-    WHEN $2::TIMESTAMPTZ IS NOT NULL THEN LEAST(
+    -- Earliest obligation still open: the caller-provided timestamp ($2, e.g. a fresh next-response deadline), each fr/res deadline not yet judged, and any live next-response countdown. Judged metrics contribute nothing; LEAST ignores NULLs.
+    ELSE LEAST(
         $2::TIMESTAMPTZ,
-        CASE
-            WHEN c.first_reply_at IS NOT NULL AND c.resolved_at IS NULL AND a.resolution_deadline_at IS NOT NULL THEN a.resolution_deadline_at
-            WHEN c.first_reply_at IS NULL AND c.resolved_at IS NULL AND a.first_response_deadline_at IS NOT NULL THEN a.first_response_deadline_at
-            WHEN a.first_response_deadline_at IS NOT NULL AND a.resolution_deadline_at IS NOT NULL THEN LEAST(a.first_response_deadline_at, a.resolution_deadline_at)
-            ELSE NULL
-        END
+        CASE WHEN a.first_response_met_at IS NULL AND a.first_response_breached_at IS NULL THEN a.first_response_deadline_at END,
+        CASE WHEN a.resolution_met_at IS NULL AND a.resolution_breached_at IS NULL THEN a.resolution_deadline_at END,
+        (SELECT MIN(e.deadline_at) FROM sla_events e
+         JOIN applied_slas a2 ON a2.id = e.applied_sla_id
+         WHERE a2.conversation_id = c.id AND e.status = 'pending' AND e.met_at IS NULL AND e.breached_at IS NULL)
     )
-
-    -- No $2,
-    ELSE CASE
-        WHEN c.first_reply_at IS NOT NULL AND c.resolved_at IS NULL AND a.resolution_deadline_at IS NOT NULL THEN a.resolution_deadline_at
-        WHEN c.first_reply_at IS NULL AND c.resolved_at IS NULL AND a.first_response_deadline_at IS NOT NULL THEN a.first_response_deadline_at
-        WHEN a.first_response_deadline_at IS NOT NULL AND a.resolution_deadline_at IS NOT NULL THEN LEAST(a.first_response_deadline_at, a.resolution_deadline_at)
-        ELSE NULL
-    END
 END
-FROM applied_slas a
+-- History rows accumulate per conversation; deadlines must come from the latest (current) SLA, not an arbitrary row.
+FROM (
+    SELECT DISTINCT ON (conversation_id) *
+    FROM applied_slas
+    WHERE conversation_id = $1
+    ORDER BY conversation_id, created_at DESC, id DESC
+) a
 WHERE a.conversation_id = c.id
 AND c.id = $1;
 
@@ -177,10 +174,10 @@ WITH closed AS (
 UPDATE conversations c
 SET next_sla_deadline_at = CASE
     WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
-    WHEN c.first_reply_at IS NOT NULL AND c.resolved_at IS NULL AND a.resolution_deadline_at IS NOT NULL THEN a.resolution_deadline_at
-    WHEN c.first_reply_at IS NULL AND c.resolved_at IS NULL AND a.first_response_deadline_at IS NOT NULL THEN a.first_response_deadline_at
-    WHEN a.first_response_deadline_at IS NOT NULL AND a.resolution_deadline_at IS NOT NULL THEN LEAST(a.first_response_deadline_at, a.resolution_deadline_at)
-    ELSE NULL
+    -- The closed row's fr/res are all judged, so the only obligation left is a live next-response countdown.
+    ELSE (SELECT MIN(e.deadline_at) FROM sla_events e
+          JOIN applied_slas a2 ON a2.id = e.applied_sla_id
+          WHERE a2.conversation_id = c.id AND e.status = 'pending' AND e.met_at IS NULL AND e.breached_at IS NULL)
 END
 FROM applied_slas a
 JOIN closed cl ON cl.id = a.id

@@ -482,7 +482,6 @@ func TestSweepRepairsConversationDeadline(t *testing.T) {
 	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
 	conv := insertConversation(t, db, "c1")
 	applySLA(t, m, conv, policy)
-	frDeadline := fetchApplied(t, db, conv)[0].FRDeadline.Time
 	db.MustExec(`UPDATE applied_slas SET first_response_met_at = NOW(), resolution_met_at = NOW() WHERE conversation_id = $1`, conv)
 	db.MustExec(`UPDATE conversations SET next_sla_deadline_at = NOW() + INTERVAL '10 days' WHERE id = $1`, conv)
 
@@ -493,9 +492,8 @@ func TestSweepRepairsConversationDeadline(t *testing.T) {
 	if fetchApplied(t, db, conv)[0].Status != "met" {
 		t.Fatal("expected sla closed")
 	}
-	d := conversationDeadline(t, db, conv)
-	if !d.Valid || d.Time.Sub(frDeadline).Abs() > time.Millisecond {
-		t.Fatalf("expected sweep to repair conversation deadline to %v, got %v", frDeadline, d)
+	if d := conversationDeadline(t, db, conv); d.Valid {
+		t.Fatalf("expected sweep to clear the stale deadline (nothing left due), got %v", d)
 	}
 }
 
@@ -671,6 +669,55 @@ func TestMetButUntickedEventSurvivesReapply(t *testing.T) {
 	}
 	if status := queryStr(t, db, `SELECT status FROM sla_events WHERE applied_sla_id = $1`, oldID); status != "met" {
 		t.Fatalf("expected surviving event flipped to met by next tick, got %s", status)
+	}
+}
+
+func TestSweepKeepsLiveNextResponseCountdown(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "30m")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	appliedID := fetchApplied(t, db, conv)[0].ID
+
+	nrDeadline, err := m.CreateNextResponseSLAEvent(conv, appliedID, policy, 0)
+	if err != nil {
+		t.Fatalf("CreateNextResponseSLAEvent: %v", err)
+	}
+	db.MustExec(`UPDATE applied_slas SET first_response_deadline_at = NOW() - INTERVAL '2h', resolution_deadline_at = NOW() - INTERVAL '1h' WHERE id = $1`, appliedID)
+
+	if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAs: %v", err)
+	}
+
+	if row := fetchApplied(t, db, conv)[0]; row.Status != "breached" {
+		t.Fatalf("expected row closed breached, got %+v", row)
+	}
+	d := conversationDeadline(t, db, conv)
+	if !d.Valid || d.Time.Sub(nrDeadline).Abs() > time.Millisecond {
+		t.Fatalf("expected live next-response countdown kept as conversation deadline, got %v want %v", d, nrDeadline)
+	}
+}
+
+func TestDeadlineRecomputeUsesLatestSLA(t *testing.T) {
+	m, db := newTestManager(t)
+	p1 := insertPolicy(t, db, "p1", "1h", "2h", "")
+	p2 := insertPolicy(t, db, "p2", "10h", "20h", "")
+	conv := insertConversation(t, db, "c1")
+
+	applySLA(t, m, conv, p1)
+	db.MustExec(`UPDATE applied_slas SET first_response_met_at = NOW() WHERE conversation_id = $1`, conv)
+	applySLA(t, m, conv, p2)
+	rows := fetchApplied(t, db, conv)
+	if len(rows) != 2 {
+		t.Fatalf("expected history plus current row, got %+v", rows)
+	}
+
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv, nil); err != nil {
+		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
+	}
+	d := conversationDeadline(t, db, conv)
+	if !d.Valid || d.Time.Sub(rows[1].FRDeadline.Time).Abs() > time.Millisecond {
+		t.Fatalf("expected deadline from the latest sla %v, got %v", rows[1].FRDeadline.Time, d)
 	}
 }
 
