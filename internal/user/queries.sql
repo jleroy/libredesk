@@ -341,8 +341,8 @@ WHERE id = $1;
 
 -- name: update-api-secret-hash
 UPDATE users
-SET api_secret = $2, updated_at = now()
-WHERE id = $1;
+SET api_secret = $3, updated_at = now()
+WHERE id = $1 AND api_secret = $2;
 
 -- name: update-api-key-last-used
 UPDATE users

@@ -462,8 +462,9 @@ func (u *Manager) ValidateAPIKey(apiKey, apiSecret string) (models.User, error) 
 		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(apiSecret)); err != nil {
 			return user, envelope.NewError(envelope.UnauthorizedError, u.i18n.T("validation.invalidCredential"), nil)
 		}
-		// Legacy bcrypt hashes are upgraded in place on first successful use.
-		if _, err := u.q.UpdateAPISecretHash.Exec(user.ID, hashAPISecret(apiSecret)); err != nil {
+		// Legacy bcrypt hashes are upgraded in place on first successful use. Matching on the hash
+		// just verified keeps a rotation that landed meanwhile from being overwritten.
+		if _, err := u.q.UpdateAPISecretHash.Exec(user.ID, storedHash, hashAPISecret(apiSecret)); err != nil {
 			u.lo.Error("failed to upgrade API secret hash", "error", err, "user_id", user.ID)
 		}
 	} else if subtle.ConstantTimeCompare([]byte(storedHash), []byte(hashAPISecret(apiSecret))) != 1 {
