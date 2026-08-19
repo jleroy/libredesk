@@ -1,6 +1,4 @@
-// Clicks through the macro admin form: create, reopen for edit, change the
-// visibility, reject an empty submit, delete. The steps run in order and share
-// the id of the macro created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const macroName = `Cypress Macro ${stamp}`
@@ -98,8 +96,7 @@ describe('Macro form', () => {
     cy.get('input[name="name"]').type(macroName)
     cy.get('button[type="submit"]').click()
 
-    // The error renders under the fixed-height editor box, which clips it, so
-    // assert it exists rather than that it is visible.
+    // The fixed-height editor box clips the error, so assert it exists rather than is visible.
     cy.contains('Either message content or actions are required').should('exist')
     cy.get('@createMacro.all').should('have.length', 0)
     cy.location('pathname').should('eq', newPath)

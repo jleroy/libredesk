@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/webhooks. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: webhooks', () => {
   const stamp = Date.now()
   const name = `api-webhook-${stamp}`
@@ -40,8 +37,7 @@ describe('API: webhooks', () => {
     })
   })
 
-  // BUG: an event outside the webhook_event enum blows up in Postgres and
-  // surfaces as a 500 GeneralException instead of a 400 InputException.
+  // An event outside the webhook_event enum surfaces as a 500 GeneralException, not a 400.
   it.skip('rejects a create with an unknown event', () => {
     cy.api('POST', '/api/v1/webhooks', {
       name: `${name}-badevent`, url, events: ['no.such.event']
@@ -149,7 +145,7 @@ describe('API: webhooks', () => {
       })
   })
 
-  // BUG: updating a missing row returns 500 GeneralException, not a 404.
+  // Updating a missing row returns 500 GeneralException, not a 404.
   it.skip('404s when updating a webhook that does not exist', () => {
     cy.api('PUT', '/api/v1/webhooks/99999999', {
       name: 'ghost', url: 'https://example.com', events: ['conversation.created']
@@ -159,8 +155,7 @@ describe('API: webhooks', () => {
     })
   })
 
-  // Deleting a missing webhook returns 200. Idempotent delete is defensible, so
-  // this stays skipped until the API settles on 404 or 200 across all resources.
+  // Deleting a missing webhook returns 200, skipped until the API settles on 404 vs 200.
   it.skip('404s when deleting a webhook that does not exist', () => {
     cy.api('DELETE', '/api/v1/webhooks/99999999', null, { failOnStatusCode: false })
       .its('status')

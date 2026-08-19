@@ -1,7 +1,4 @@
-// Clicks through the live chat inbox admin form: create across its tabs, reopen
-// for edit and check every tab repopulates, change a field, reject an invalid
-// submit, delete. The steps run in order and share the id of the inbox created
-// by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const inboxName = `Cypress Livechat ${stamp}`
@@ -21,8 +18,7 @@ const listPath = '/admin/inboxes'
 
 const filterList = (text) => cy.get('input[placeholder="Search"]').clear().type(text)
 
-// Every tab panel stays in the DOM and is only hidden, so a field is reachable
-// exactly when its tab is open.
+// Tab panels stay in the DOM and are only hidden, so a field is reachable when its tab is open.
 const openTab = (label) => cy.get('[role="tab"]').contains(label).click()
 
 const openNewForm = () => {

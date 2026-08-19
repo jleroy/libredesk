@@ -66,7 +66,6 @@ describe('Email Inbox Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name and from
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -85,7 +84,6 @@ describe('Email Inbox Form Schema', () => {
         expect(() => schema.parse({ ...validForm, from: '' })).toThrow()
     })
 
-    // From name template
     test('from_name_template defaults to empty string', () => {
         expect(schema.parse(validForm).from_name_template).toBe('')
     })
@@ -108,7 +106,6 @@ describe('Email Inbox Form Schema', () => {
         expect(() => schema.parse({ ...validForm, from_name_template: 'Support team' })).not.toThrow()
     })
 
-    // Reply to
     test('reply_to optional', () => {
         expect(() => schema.parse(validForm)).not.toThrow()
     })
@@ -121,7 +118,6 @@ describe('Email Inbox Form Schema', () => {
         expect(() => schema.parse({ ...validForm, reply_to: 'reply@' })).toThrow()
     })
 
-    // Auth type
     test('auth_type missing', () => {
         const { auth_type, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -135,7 +131,6 @@ describe('Email Inbox Form Schema', () => {
         expect(() => schema.parse({ ...validForm, auth_type: 'oauth2' })).not.toThrow()
     })
 
-    // IMAP
     test('imap block missing', () => {
         const { imap, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -193,7 +188,6 @@ describe('Email Inbox Form Schema', () => {
         expect(() => schema.parse(withImap({ tls_skip_verify: true }))).not.toThrow()
     })
 
-    // SMTP
     test('smtp block missing', () => {
         const { smtp, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()

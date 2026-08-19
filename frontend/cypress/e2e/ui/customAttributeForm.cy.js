@@ -1,7 +1,4 @@
-// Clicks through the custom attribute admin form, which is a dialog on the list
-// page rather than its own route: create, reopen for edit, change a field,
-// reject an empty submit, delete. The steps run in order and share the record
-// created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const attributeName = `Cypress Attr ${stamp}`
@@ -24,8 +21,7 @@ const openEditDialog = () => {
 
 const filterList = (text) => cy.get('input[placeholder="Search"]').clear().type(text)
 
-// A radix Select renders a hidden native select next to its trigger, and its
-// options render in a portal outside the dialog.
+// A radix Select renders a hidden native select next to its trigger, options go in a portal.
 const pickOption = (field, optionText) => {
   cy.get(`select[name="${field}"]`).siblings('button[role="combobox"]').click()
   cy.get('[role="option"]').contains(optionText).click()

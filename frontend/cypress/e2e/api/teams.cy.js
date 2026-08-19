@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/teams. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: teams', () => {
   const stamp = Date.now()
   const name = `api-team-${stamp}`
@@ -92,7 +89,7 @@ describe('API: teams', () => {
     })
   })
 
-  // BUG: an empty name is accepted and a nameless team is created.
+  // An empty name is accepted and a nameless team is created.
   it.skip('rejects a create with an empty name', () => {
     cy.api('POST', '/api/v1/teams', {
       name: '', timezone: 'Asia/Kolkata', conversation_assignment_type: 'Round robin'
@@ -102,7 +99,7 @@ describe('API: teams', () => {
     })
   })
 
-  // BUG: a missing timezone is accepted and stored as an empty string.
+  // A missing timezone is accepted and stored as an empty string.
   it.skip('rejects a create with no timezone', () => {
     cy.api('POST', '/api/v1/teams', {
       name: `notz-${stamp}`, conversation_assignment_type: 'Round robin'
@@ -112,7 +109,7 @@ describe('API: teams', () => {
     })
   })
 
-  // BUG: any string is accepted as a timezone, no IANA zone check.
+  // Any string is accepted as a timezone, no IANA zone check.
   it.skip('rejects a create with an unknown timezone', () => {
     cy.api('POST', '/api/v1/teams', {
       name: `badtz-${stamp}`, timezone: 'Not/AZone', conversation_assignment_type: 'Round robin'
@@ -122,7 +119,7 @@ describe('API: teams', () => {
     })
   })
 
-  // BUG: an assignment type outside the enum returns 500 GeneralException.
+  // An assignment type outside the enum returns 500 GeneralException.
   it.skip('rejects a create with an unknown conversation assignment type', () => {
     cy.api('POST', '/api/v1/teams', {
       name: `badassign-${stamp}`, timezone: 'Asia/Kolkata', conversation_assignment_type: 'Nonsense'
@@ -132,7 +129,7 @@ describe('API: teams', () => {
     })
   })
 
-  // BUG: a name over the column length returns 500 GeneralException.
+  // A name over the column length returns 500 GeneralException.
   it.skip('rejects a create with an over long name', () => {
     cy.api('POST', '/api/v1/teams', {
       name: 't'.repeat(200), timezone: 'Asia/Kolkata', conversation_assignment_type: 'Round robin'
@@ -142,7 +139,7 @@ describe('API: teams', () => {
     })
   })
 
-  // BUG: a duplicate name returns 500 GeneralException.
+  // A duplicate name returns 500 GeneralException.
   it.skip('rejects a duplicate name', () => {
     cy.api('POST', '/api/v1/teams', {
       name: renamed, timezone: 'Asia/Kolkata', conversation_assignment_type: 'Round robin'
@@ -152,7 +149,7 @@ describe('API: teams', () => {
     })
   })
 
-  // BUG: updating a team that does not exist returns 500 GeneralException.
+  // Updating a team that does not exist returns 500 GeneralException.
   it.skip('404s on an update to a team that does not exist', () => {
     cy.api('PUT', '/api/v1/teams/99999999', {
       name: 'nope', timezone: 'Asia/Kolkata', conversation_assignment_type: 'Manual'
@@ -162,8 +159,7 @@ describe('API: teams', () => {
     })
   })
 
-  // Deleting a missing team returns 200. Idempotent delete is defensible, so
-  // this stays skipped until the API settles on 404 or 200 across all resources.
+  // Deleting a missing team returns 200, skipped until the API settles on 404 vs 200.
   it.skip('404s on a delete of a team that does not exist', () => {
     cy.api('DELETE', '/api/v1/teams/99999999', null, { failOnStatusCode: false }).then(({ status, body }) => {
       expect(status).to.eq(404)

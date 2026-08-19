@@ -1,6 +1,4 @@
-// Clicks through the AI snippet dialog: create, reopen for edit, change a
-// field, reject an empty submit, delete. The steps run in order and share the
-// id of the snippet created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const snippetTitle = `Cypress Snippet ${stamp}`

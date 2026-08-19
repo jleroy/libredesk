@@ -135,8 +135,7 @@ func (u *Manager) UpdateAgent(id int, firstName, lastName, email string, roles [
 	}
 
 	// Update user in the database.
-	// COALESCE in the query preserves the stored status only on NULL; an empty
-	// string would reach the enum cast and error.
+	// COALESCE preserves the stored status only on NULL, an empty string hits the enum cast.
 	availability := null.String{}
 	if availabilityStatus != "" {
 		availability = null.StringFrom(availabilityStatus)

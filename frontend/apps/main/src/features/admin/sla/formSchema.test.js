@@ -33,7 +33,6 @@ describe('SLA Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -55,7 +54,6 @@ describe('SLA Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'a'.repeat(255) })).not.toThrow()
     })
 
-    // Description
     test('description too long', () => {
         expect(() => schema.parse({ ...validForm, description: 'a'.repeat(256) })).toThrow()
     })
@@ -68,7 +66,6 @@ describe('SLA Form Schema', () => {
         expect(schema.parse({ ...validForm, description: null }).description).toBe('')
     })
 
-    // SLA times
     test('at least one sla time required', () => {
         expect(() => schema.parse({ name: 'Priority SLA' })).toThrow()
     })
@@ -87,7 +84,6 @@ describe('SLA Form Schema', () => {
         expect(() => schema.parse({ ...validForm, first_response_time: '30' })).toThrow()
     })
 
-    // Notifications
     test('notifications defaults to empty array', () => {
         expect(schema.parse(validForm).notifications).toEqual([])
     })

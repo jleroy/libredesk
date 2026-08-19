@@ -1,7 +1,4 @@
-// Clicks through the automation rule form: create a rule with one condition
-// and one action, reopen it and check the nested rows repopulate, add and
-// remove a condition row, change a field, reject an empty submit, delete. The
-// steps run in order and share the id of the rule created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const ruleName = `Cypress Rule ${stamp}`
@@ -12,8 +9,7 @@ const noteBody = `Private note from the automation form spec ${stamp}`
 const newPath = '/admin/automations/new'
 const listPath = '/admin/automations'
 
-// The condition and action rows are not vee-validate fields, so they carry no
-// name attribute; each row is reached through its own wrapper instead.
+// Condition and action rows are not vee-validate fields, so they have no name attribute.
 const conditionRows = () => cy.get('div.flex.space-x-5.items-start')
 const actionRows = () => cy.get('div.flex.items-start.justify-between.gap-5')
 

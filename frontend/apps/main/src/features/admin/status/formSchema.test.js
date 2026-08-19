@@ -14,7 +14,6 @@ describe('Status Form Schema', () => {
         expect(() => schema.parse(validForm)).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -40,7 +39,6 @@ describe('Status Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 42 })).toThrow()
     })
 
-    // Category
     test('category missing', () => {
         const { category, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()

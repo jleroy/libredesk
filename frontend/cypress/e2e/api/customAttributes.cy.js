@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/custom-attributes. No browser: these assert what
-// the API really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: custom attributes', () => {
   const stamp = Date.now()
   const key = `api_attr_${stamp}`
@@ -77,8 +74,7 @@ describe('API: custom attributes', () => {
     })
   })
 
-  // BUG: an omitted values array reaches Postgres as NULL and 500s on the
-  // NOT NULL column instead of defaulting to an empty array.
+  // An omitted values array reaches Postgres as NULL and 500s on the NOT NULL column.
   it.skip('defaults values to an empty array when omitted', () => {
     create({
       name: 'X', description: 'd', applies_to: 'conversation', key: `${key}_noval`, data_type: 'text'
@@ -89,7 +85,7 @@ describe('API: custom attributes', () => {
     })
   })
 
-  // BUG: data_type is a free-text column with no validation, so garbage is stored.
+  // Data_type is a free-text column with no validation, so garbage is stored.
   it.skip('rejects an unknown data type', () => {
     create({
       name: 'X', description: 'd', applies_to: 'conversation', key: `${key}_baddt`, data_type: 'nonsense', values: []
@@ -99,7 +95,7 @@ describe('API: custom attributes', () => {
     })
   })
 
-  // BUG: applies_to is a free-text column with no validation, so garbage is stored.
+  // Applies_to is a free-text column with no validation, so garbage is stored.
   it.skip('rejects an unknown applies_to', () => {
     create({
       name: 'X', description: 'd', applies_to: 'nonsense', key: `${key}_badat`, data_type: 'text', values: []
@@ -269,8 +265,7 @@ describe('API: custom attributes', () => {
       })
   })
 
-  // Deleting a missing attribute returns 200. Idempotent delete is defensible, so
-  // this stays skipped until the API settles on 404 or 200 across all resources.
+  // Deleting a missing attribute returns 200, skipped until the API settles on 404 vs 200.
   it.skip('404s when deleting an attribute that does not exist', () => {
     cy.api('DELETE', '/api/v1/custom-attributes/99999999', null, { failOnStatusCode: false })
       .its('status')

@@ -1,9 +1,4 @@
-// Opens every page listed in the app's own navigation and reports the ones that
-// break. A page that blanks out after a shared-component change is caught here
-// with no per-page knowledge of forms or fields.
-//
-// The href list is read from the navigation source at runtime, so adding a nav
-// entry extends this spec automatically.
+// The href list is read from the navigation source at runtime, so a new nav entry extends this spec.
 
 const NAV_SOURCE = 'apps/main/src/constants/navigation.js'
 
@@ -14,8 +9,7 @@ describe('Every navigable page loads', () => {
   const failures = []
   let current = null
 
-  // Record the page that threw and keep going, so one broken page does not hide
-  // the state of every page after it.
+  // Record the page that threw and keep going, so one broken page does not hide the rest.
   Cypress.on('uncaught:exception', (err) => {
     failures.push(`${current}: ${err.message.split('\n')[0]}`)
     return false

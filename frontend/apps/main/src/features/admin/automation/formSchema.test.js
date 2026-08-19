@@ -24,7 +24,6 @@ describe('Automation Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -38,7 +37,6 @@ describe('Automation Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 123 })).toThrow()
     })
 
-    // Type
     test('type missing', () => {
         const { type, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -48,7 +46,6 @@ describe('Automation Form Schema', () => {
         expect(() => schema.parse({ ...validForm, type: 1 })).toThrow()
     })
 
-    // Events
     test('conversation_update without events', () => {
         expect(() => schema.parse({ ...validForm, type: 'conversation_update' })).toThrow()
     })
@@ -70,7 +67,6 @@ describe('Automation Form Schema', () => {
         expect(() => schema.parse({ ...validForm, events: 'status_change' })).toThrow()
     })
 
-    // Defaults
     test('description defaults to empty string', () => {
         expect(schema.parse(validForm).description).toBe('')
     })

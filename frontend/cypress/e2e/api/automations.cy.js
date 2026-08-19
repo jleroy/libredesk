@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/automations/rules. No browser: these assert what
-// the API really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: automation rules', () => {
   const stamp = Date.now()
   const name = `api-rule-${stamp}`
@@ -46,8 +43,7 @@ describe('API: automation rules', () => {
     })
   })
 
-  // BUG: handleCreateAutomationRule runs no validation at all, so a nameless
-  // rule is stored happily.
+  // HandleCreateAutomationRule runs no validation, a nameless rule is stored happily.
   it.skip('rejects a create with no name', () => {
     cy.api('POST', '/api/v1/automations/rules', ruleBody({ name: '' }), {
       failOnStatusCode: false
@@ -75,8 +71,7 @@ describe('API: automation rules', () => {
     })
   })
 
-  // BUG: insert-rule never passes enabled, so the column falls back to its
-  // TRUE default and a rule asked to start disabled starts enabled.
+  // Insert-rule never passes enabled, so a rule asked to start disabled starts enabled.
   it.skip('honours enabled on create', () => {
     cy.api('POST', '/api/v1/automations/rules', ruleBody({
       name: `${name}-disabled`, enabled: false
@@ -229,16 +224,14 @@ describe('API: automation rules', () => {
       .should('be.gte', 400)
   })
 
-  // BUG: update-rule is an upsert keyed on the id in the URL, so a PUT to a
-  // missing id silently creates a rule with that id.
+  // Update-rule is an upsert on the URL id, so a PUT to a missing id silently creates it.
   it.skip('fails when updating a rule that does not exist', () => {
     cy.api('PUT', '/api/v1/automations/rules/98765432', ruleBody({ name: 'ghost' }), {
       failOnStatusCode: false
     }).its('status').should('be.gte', 400)
   })
 
-  // Deleting a missing rule returns 200. Idempotent delete is defensible, so
-  // this stays skipped until the API settles on 404 or 200 across all resources.
+  // Deleting a missing rule returns 200, skipped until the API settles on 404 vs 200.
   it.skip('fails when deleting a rule that does not exist', () => {
     cy.api('DELETE', '/api/v1/automations/rules/99999999', null, { failOnStatusCode: false })
       .its('status')

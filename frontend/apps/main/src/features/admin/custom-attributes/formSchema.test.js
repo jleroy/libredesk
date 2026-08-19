@@ -35,7 +35,6 @@ describe('Custom Attributes Form Schema', () => {
         expect(() => schema.parse({ ...validForm, applies_to: 'conversation' })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -57,7 +56,6 @@ describe('Custom Attributes Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'a'.repeat(140) })).not.toThrow()
     })
 
-    // Key
     test('key missing', () => {
         const { key, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -91,7 +89,6 @@ describe('Custom Attributes Form Schema', () => {
         expect(() => schema.parse({ ...validForm, key: 'account_tier_2' })).not.toThrow()
     })
 
-    // Description
     test('description missing', () => {
         const { description, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -129,7 +126,6 @@ describe('Custom Attributes Form Schema', () => {
         }
     })
 
-    // Values
     test('values required for list type', () => {
         expect(() => schema.parse({ ...validForm, data_type: 'list' })).toThrow()
     })
@@ -142,7 +138,6 @@ describe('Custom Attributes Form Schema', () => {
         expect(schema.parse(validForm).values).toEqual([])
     })
 
-    // Optional fields
     test('id optional', () => {
         expect(() => schema.parse({ ...validForm, id: 3 })).not.toThrow()
     })

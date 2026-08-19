@@ -1,6 +1,4 @@
-// Clicks through the webhook admin form: create, reopen for edit, change a
-// field, reject an empty submit, delete. The steps run in order and share the id
-// of the webhook created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const webhookName = `Cypress Webhook ${stamp}`
@@ -82,8 +80,7 @@ describe('Webhook form', () => {
     cy.visit(newPath)
     cy.get('button[type="submit"]').click()
 
-    // Only `exist`: an overflow container clips this message, so whether it is
-    // visible depends on scroll position. See docs/BUGS-FOUND.md.
+    // An overflow container clips this message, so only 'exist' holds. See docs/BUGS-FOUND.md.
     cy.contains(/required/i).should('exist')
     cy.get('@createWebhook.all').should('have.length', 0)
     cy.location('pathname').should('eq', newPath)

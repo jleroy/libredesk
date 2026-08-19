@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/templates. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: templates', () => {
   const stamp = Date.now()
   const name = `api-template-${stamp}`

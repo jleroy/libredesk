@@ -28,7 +28,6 @@ describe('General Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Site name
     test('site_name missing', () => {
         const { site_name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -42,7 +41,6 @@ describe('General Form Schema', () => {
         expect(() => schema.parse({ ...validForm, site_name: 'a' })).not.toThrow()
     })
 
-    // Root URL
     test('root_url missing', () => {
         const { root_url, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -60,7 +58,6 @@ describe('General Form Schema', () => {
         expect(() => schema.parse({ ...validForm, root_url: 'http://localhost:9000/desk' })).not.toThrow()
     })
 
-    // Favicon URL
     test('favicon_url missing', () => {
         const { favicon_url, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -70,7 +67,6 @@ describe('General Form Schema', () => {
         expect(() => schema.parse({ ...validForm, favicon_url: '/favicon.ico' })).toThrow()
     })
 
-    // Logo URL
     test('logo_url optional', () => {
         expect(() => schema.parse(validForm)).not.toThrow()
     })
@@ -83,7 +79,6 @@ describe('General Form Schema', () => {
         expect(() => schema.parse({ ...validForm, logo_url: 'not-a-url' })).toThrow()
     })
 
-    // Max file upload size
     test('max_file_upload_size missing', () => {
         const { max_file_upload_size, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()

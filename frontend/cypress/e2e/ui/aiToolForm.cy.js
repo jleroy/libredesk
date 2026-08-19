@@ -1,7 +1,4 @@
-// Clicks through the AI tool admin form: create with a header row and a JSON
-// parameters body, reopen for edit, add and remove a header row, change a
-// field, reject an empty submit, delete. The steps run in order and share the
-// id of the tool created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const toolName = `cypress_tool_${stamp}`
@@ -119,8 +116,7 @@ describe('AI tool form', () => {
     cy.get('input[name="url"]').type(toolUrl)
     cy.get('button[type="submit"]').click()
 
-    // The message renders inside the scrolling admin pane, which clips it, so
-    // assert it exists rather than that it is visible.
+    // The scrolling admin pane clips the message, so assert it exists rather than is visible.
     cy.contains(/required/i).should('exist')
     cy.get('input[name="name"]').should('have.attr', 'aria-invalid', 'true')
     cy.get('@createTool.all').should('have.length', 0)

@@ -1,7 +1,3 @@
-// Clicks through the role admin form: create with a permission matrix, reopen
-// for edit, change permissions, reject an empty submit, delete. The steps run in
-// order and share the id of the role created by the first one.
-
 const stamp = Date.now()
 const roleName = `Cypress Role ${stamp}`
 const renamedRole = `Cypress Role ${stamp} edited`
@@ -118,8 +114,7 @@ describe('Role form', () => {
     cy.visit(newPath)
     cy.get('button[type="submit"]').click()
 
-    // Submitting scrolls to the bottom of the long permission matrix, so bring
-    // the message back into view before asserting it renders.
+    // Submitting scrolls to the bottom of the permission matrix, so bring the message back in view.
     cy.contains('label', 'Description')
       .parent()
       .contains(/required/i)

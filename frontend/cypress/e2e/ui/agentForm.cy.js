@@ -1,6 +1,4 @@
-// Clicks through the agent admin form: create, reopen for edit, change a field,
-// reject an empty submit, delete. The steps run in order and share the id of the
-// agent created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const firstName = `Cyagent${stamp}`
@@ -14,8 +12,7 @@ const listPath = '/admin/teams/agents'
 
 const filterList = (text) => cy.get('input[placeholder="Search"]').clear().type(text)
 
-// SelectTag is a combobox over a tags input. Typing narrows the list, which
-// matters because the option list is capped at 200 entries.
+// Typing narrows the SelectTag combobox list, which is capped at 200 entries.
 const pickTag = (placeholder, optionText) => {
   cy.get(`input[placeholder="${placeholder}"]`).click().type(optionText)
   cy.get('[role="option"]').contains(optionText).click()

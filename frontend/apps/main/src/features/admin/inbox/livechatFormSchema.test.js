@@ -103,7 +103,6 @@ describe('Livechat Inbox Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Top level
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -132,7 +131,6 @@ describe('Livechat Inbox Form Schema', () => {
         expect(() => schema.parse({ ...validForm, secret: null, linked_email_inbox_id: null })).not.toThrow()
     })
 
-    // Config basics
     test('brand_name empty', () => {
         expect(() => schema.parse(withConfig({ brand_name: '' }))).toThrow()
     })
@@ -149,7 +147,6 @@ describe('Livechat Inbox Form Schema', () => {
         expect(() => schema.parse(withConfig({ website_url: '' }))).not.toThrow()
     })
 
-    // Colors
     test('primary color invalid hex', () => {
         expect(() => schema.parse(withConfig({ colors: { primary: 'blue' } }))).toThrow()
     })
@@ -162,7 +159,6 @@ describe('Livechat Inbox Form Schema', () => {
         expect(() => schema.parse(withConfig({ colors: { primary: '#ffffff00' } }))).toThrow()
     })
 
-    // Launcher
     test('launcher position invalid', () => {
         expect(() => schema.parse(withConfig({
             launcher: { ...validConfig.launcher, position: 'center' }
@@ -191,7 +187,6 @@ describe('Livechat Inbox Form Schema', () => {
         expect(parsed.config.launcher.spacing.side).toBe(30)
     })
 
-    // Notice banner
     test('notice banner enabled without text', () => {
         expect(() => schema.parse(withConfig({ notice_banner: { enabled: true } }))).toThrow()
         expect(() => schema.parse(withConfig({ notice_banner: { enabled: true, text: '   ' } }))).toThrow()
@@ -201,7 +196,6 @@ describe('Livechat Inbox Form Schema', () => {
         expect(() => schema.parse(withConfig({ notice_banner: { enabled: false, text: '' } }))).not.toThrow()
     })
 
-    // Home screen background
     test('home screen header_text_color invalid', () => {
         expect(() => schema.parse(withConfig({
             home_screen: { ...validConfig.home_screen, header_text_color: 'grey' }
@@ -244,7 +238,6 @@ describe('Livechat Inbox Form Schema', () => {
         }))).toThrow()
     })
 
-    // Durations
     test('session_duration invalid duration', () => {
         expect(() => schema.parse(withConfig({ session_duration: '30 days' }))).toThrow()
     })
@@ -253,7 +246,6 @@ describe('Livechat Inbox Form Schema', () => {
         expect(() => schema.parse(withConfig({ session_duration: '' }))).toThrow()
     })
 
-    // Continuity
     test('continuity optional', () => {
         expect(() => schema.parse(validForm)).not.toThrow()
     })
@@ -282,7 +274,6 @@ describe('Livechat Inbox Form Schema', () => {
         }))).not.toThrow()
     })
 
-    // Home apps
     test('home app type invalid', () => {
         expect(() => schema.parse(withConfig({ home_apps: [{ type: 'banner' }] }))).toThrow()
     })
@@ -295,7 +286,6 @@ describe('Livechat Inbox Form Schema', () => {
         expect(() => schema.parse(withConfig({ home_apps: [{ type: 'announcement' }] }))).not.toThrow()
     })
 
-    // Prechat form
     test('prechat field label empty', () => {
         expect(() => schema.parse(withConfig({
             prechat_form: {
@@ -343,7 +333,6 @@ describe('Livechat Inbox Form Schema', () => {
         }
     })
 
-    // Defaults
     test('direct_to_conversation defaults to false', () => {
         expect(schema.parse(validForm).config.direct_to_conversation).toBe(false)
     })

@@ -33,7 +33,6 @@ describe('Notification Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Required strings
     test('username missing', () => {
         const { username, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -66,7 +65,6 @@ describe('Notification Form Schema', () => {
         expect(() => schema.parse({ ...validForm, email_address: '' })).toThrow()
     })
 
-    // Port
     test('port defaults to 587', () => {
         expect(schema.parse(validForm).port).toBe(587)
     })
@@ -91,7 +89,6 @@ describe('Notification Form Schema', () => {
         expect(() => schema.parse({ ...validForm, port: '587' })).toThrow()
     })
 
-    // Max conns
     test('max_conns missing', () => {
         const { max_conns, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -113,7 +110,6 @@ describe('Notification Form Schema', () => {
         expect(() => schema.parse({ ...validForm, max_conns: 1000 })).not.toThrow()
     })
 
-    // Max msg retries
     test('max_msg_retries defaults to 2', () => {
         expect(schema.parse(validForm).max_msg_retries).toBe(2)
     })
@@ -130,7 +126,6 @@ describe('Notification Form Schema', () => {
         expect(() => schema.parse({ ...validForm, max_msg_retries: 1001 })).toThrow()
     })
 
-    // Durations
     test('idle_timeout defaults to 15s', () => {
         expect(schema.parse(validForm).idle_timeout).toBe('15s')
     })
@@ -151,7 +146,6 @@ describe('Notification Form Schema', () => {
         expect(() => schema.parse({ ...validForm, wait_timeout: '1h30m5s' })).not.toThrow()
     })
 
-    // Enums
     test('auth_protocol missing', () => {
         const { auth_protocol, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -182,7 +176,6 @@ describe('Notification Form Schema', () => {
         }
     })
 
-    // Optional fields
     test('enabled defaults to false', () => {
         expect(schema.parse(validForm).enabled).toBe(false)
     })

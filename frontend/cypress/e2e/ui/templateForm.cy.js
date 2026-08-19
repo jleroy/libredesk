@@ -1,6 +1,4 @@
-// Clicks through the outgoing email template admin form: create, reopen for
-// edit, change a field, reject an empty submit, delete. The steps run in order
-// and share the id of the template created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const templateName = `Cypress Template ${stamp}`
@@ -11,9 +9,7 @@ const listPath = '/admin/templates'
 
 const filterList = (text) => cy.get('input[placeholder="Search"]').clear().type(text)
 
-// CodeMirror ignores Cypress's synthetic key events, so the body is written into
-// the editor's line element instead; CodeMirror's DOM observer turns that into a
-// real edit, exactly as it does for a keystroke.
+// CodeMirror ignores synthetic key events, so text is written into its line element instead.
 const typeBody = (text) => {
   cy.get('.cm-content').click()
   cy.get('.cm-content .cm-line').first().then(($line) => {

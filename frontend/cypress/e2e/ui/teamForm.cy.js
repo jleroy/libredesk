@@ -1,6 +1,4 @@
-// Clicks through the team admin form: create, reopen for edit, change a field,
-// reject an empty submit, delete. The steps run in order and share the id of the
-// team created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const teamName = `Cypress Team ${stamp}`
@@ -9,8 +7,7 @@ const businessHoursName = `Cypress BH ${stamp}`
 const newPath = '/admin/teams/teams/new'
 const listPath = '/admin/teams/teams'
 
-// A radix Select renders a hidden native select next to its trigger, so the
-// field name is enough to drive it without depending on translated labels.
+// A radix Select renders a hidden native select, so the field name drives it without labels.
 const pickOption = (field, optionText) => {
   cy.get(`select[name="${field}"]`).siblings('button[role="combobox"]').click()
   cy.get('[role="option"]').contains(optionText).click()
@@ -45,8 +42,7 @@ describe('Team form', () => {
 
     cy.visit(newPath)
 
-    // Emoji is required. Pick it first so the picker overlay is closed (by the
-    // next click) before filling the rest of the form.
+    // Pick the required emoji first so the next click closes the picker overlay.
     cy.get('input[name="emoji"]').click()
     cy.get('.v3-emoji-picker .v3-emojis button').first().click()
 

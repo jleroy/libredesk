@@ -232,8 +232,7 @@ watch(
   () => props.initialValues,
   (newValues) => {
     form.setValues(newValues, false)
-    // Copy, so toggling a permission cannot mutate the prop and retrigger this
-    // watcher, which would reset the fields the user is editing.
+    // Copy: mutating the shared array retriggers the watcher and resets the form.
     selectedPermissions.value = [...(newValues.permissions || [])]
   },
   { deep: true, immediate: true }

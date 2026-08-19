@@ -30,7 +30,6 @@ describe('Help Center Article Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Title
     test('title missing', () => {
         const { title, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -44,7 +43,6 @@ describe('Help Center Article Form Schema', () => {
         expect(() => schema.parse({ ...validForm, title: 'a' })).not.toThrow()
     })
 
-    // Content
     test('content missing', () => {
         const { content, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -68,7 +66,6 @@ describe('Help Center Article Form Schema', () => {
         expect(() => schema.parse({ ...validForm, content: '<table><tr><td></td></tr></table>' })).not.toThrow()
     })
 
-    // Collection id
     test('collection_id missing', () => {
         const { collection_id, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -86,7 +83,6 @@ describe('Help Center Article Form Schema', () => {
         expect(() => schema.parse({ ...validForm, collection_id: 'abc' })).toThrow()
     })
 
-    // Status
     test('status invalid value', () => {
         expect(() => schema.parse({ ...validForm, status: 'archived' })).toThrow()
     })
@@ -95,7 +91,6 @@ describe('Help Center Article Form Schema', () => {
         expect(schema.parse(validForm).status).toBe('draft')
     })
 
-    // Other defaults
     test('sort_order defaults to 0', () => {
         expect(schema.parse(validForm).sort_order).toBe(0)
     })

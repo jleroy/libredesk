@@ -25,7 +25,6 @@ describe('Help Center Collection Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         expect(() => schema.parse({})).toThrow()
     })
@@ -42,7 +41,6 @@ describe('Help Center Collection Form Schema', () => {
         expect(() => schema.parse({ name: 1 })).toThrow()
     })
 
-    // Defaults
     test('locale defaults to en', () => {
         expect(schema.parse(validForm).locale).toBe('en')
     })
@@ -59,7 +57,6 @@ describe('Help Center Collection Form Schema', () => {
         expect(() => schema.parse({ ...validForm, sort_order: '2' })).toThrow()
     })
 
-    // Parent id
     test('parent_id accepts null', () => {
         expect(() => schema.parse({ ...validForm, parent_id: null })).not.toThrow()
     })
@@ -72,7 +69,6 @@ describe('Help Center Collection Form Schema', () => {
         expect(() => schema.parse({ ...validForm, parent_id: 'abc' })).toThrow()
     })
 
-    // Optional fields
     test('description and icon optional', () => {
         expect(() => schema.parse(validForm)).not.toThrow()
     })

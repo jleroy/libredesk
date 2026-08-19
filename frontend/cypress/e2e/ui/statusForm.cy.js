@@ -1,6 +1,4 @@
-// Clicks through the conversation status admin form, which lives in an inline
-// dialog rather than its own route: create, reopen for edit, change a field,
-// reject an empty submit, delete. The steps run in order.
+// The steps run in order and share the record created by the first one.
 
 const stamp = String(Date.now()).slice(-6)
 // The name is capped at 25 characters, so keep the stamp short.

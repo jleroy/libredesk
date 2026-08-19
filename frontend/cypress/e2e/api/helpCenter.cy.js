@@ -1,7 +1,3 @@
-// Backend contract for the help center tree: /api/v1/help-centers, its
-// collections and the articles inside them. Each level is created, read back,
-// updated and deleted through the API only.
-
 describe('API: help center', () => {
   const stamp = Date.now()
   const hcSlug = `api-hc-${stamp}`

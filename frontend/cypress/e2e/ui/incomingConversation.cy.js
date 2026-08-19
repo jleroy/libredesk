@@ -1,13 +1,4 @@
-// An inbound customer journey seen from the agent side: the conversation lands
-// in the open list, its first message renders as an incoming bubble, the agent
-// replies, and a follow-up from the customer shows up in the open thread.
-//
-// There is no IMAP in this environment, so the customer side is simulated over
-// the API: creating a conversation with initiator "contact" produces an incoming
-// message, and POSTing one with sender_type "contact" adds another. That needs
-// messages:write_as_contact, which neither System nor the stock Agent role has,
-// and the Admin role refuses to be edited, so before() creates a throwaway role
-// and agent that carry it and the spec runs the whole journey as that agent.
+// No IMAP here, the customer side is simulated over the API with messages:write_as_contact.
 
 describe('Incoming conversation', () => {
   const stamp = Date.now()
@@ -164,8 +155,7 @@ describe('Incoming conversation', () => {
     cy.intercept('POST', `**/conversations/${conversationUuid}/messages`).as('sendReply')
 
     openConversation()
-    // The recipient is derived from the loaded thread; sending before it is
-    // populated is rejected with "recipient required".
+    // The recipient comes from the loaded thread, sending early fails with "recipient required".
     cy.get('input[placeholder="Email addresses separated by comma"]')
       .first()
       .should('not.have.value', '')

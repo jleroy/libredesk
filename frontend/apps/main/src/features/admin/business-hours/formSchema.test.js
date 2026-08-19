@@ -21,7 +21,6 @@ describe('Business Hours Form Schema', () => {
         expect(() => schema.parse({ name: 'Always', is_always_open: true })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -45,7 +44,6 @@ describe('Business Hours Form Schema', () => {
         expect(() => schema.parse({ ...validForm, is_always_open: 'false' })).toThrow()
     })
 
-    // Hours
     test('hours required when not always open', () => {
         expect(() => schema.parse({ name: 'Weekdays', is_always_open: false })).toThrow()
     })
@@ -84,7 +82,6 @@ describe('Business Hours Form Schema', () => {
         expect(() => schema.parse({ ...validForm, hours: { monday: { open: '09:00' } } })).toThrow()
     })
 
-    // Description
     test('description optional', () => {
         expect(() => schema.parse({ ...validForm, description: 'Office hours' })).not.toThrow()
     })

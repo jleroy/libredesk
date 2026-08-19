@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/macros. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: macros', () => {
   const stamp = Date.now()
   const name = `api-macro-${stamp}`

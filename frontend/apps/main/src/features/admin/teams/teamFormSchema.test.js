@@ -25,7 +25,6 @@ describe('Team Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -39,7 +38,6 @@ describe('Team Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'ab' })).not.toThrow()
     })
 
-    // Emoji
     test('emoji missing', () => {
         const { emoji, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -49,13 +47,11 @@ describe('Team Form Schema', () => {
         expect(() => schema.parse({ ...validForm, emoji: 1 })).toThrow()
     })
 
-    // Assignment type
     test('conversation_assignment_type missing', () => {
         const { conversation_assignment_type, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
     })
 
-    // Timezone
     test('timezone missing', () => {
         const { timezone, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -74,7 +70,6 @@ describe('Team Form Schema', () => {
         expect(() => schema.parse({ ...validForm, max_auto_assigned_conversations: 'abc' })).toThrow()
     })
 
-    // Optional nullable ids
     test('business_hours_id accepts null', () => {
         expect(() => schema.parse({ ...validForm, business_hours_id: null })).not.toThrow()
     })

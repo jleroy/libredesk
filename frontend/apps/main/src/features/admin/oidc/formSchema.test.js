@@ -27,7 +27,6 @@ describe('OIDC Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -41,7 +40,6 @@ describe('OIDC Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'a' })).not.toThrow()
     })
 
-    // Provider URL
     test('provider_url missing', () => {
         const { provider_url, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -55,7 +53,6 @@ describe('OIDC Form Schema', () => {
         expect(() => schema.parse({ ...validForm, provider_url: '' })).toThrow()
     })
 
-    // Client id and secret
     test('client_id missing', () => {
         const { client_id, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -74,7 +71,6 @@ describe('OIDC Form Schema', () => {
         expect(() => schema.parse({ ...validForm, client_secret: '' })).toThrow()
     })
 
-    // Logo URL
     test('logo_url empty string accepted', () => {
         expect(() => schema.parse({ ...validForm, logo_url: '' })).not.toThrow()
     })

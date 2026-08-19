@@ -1,8 +1,4 @@
-// Backend contract for /api/v1/contacts and its notes sub-resource. No browser: these
-// assert what the API really accepts, rejects and persists.
-//
-// Contacts have no create endpoint. They come into existence when a conversation is
-// created for an email address, so this spec seeds one that way.
+// Contacts have no create endpoint, so this spec seeds one by creating a conversation.
 
 describe('API: contacts', () => {
   const stamp = Date.now()
@@ -11,9 +7,7 @@ describe('API: contacts', () => {
   let contactId
   let noteId
 
-  // Contact updates are multipart/form-data, not JSON. cy.api cannot carry them: its
-  // options spread replaces the CSRF header, and Cypress hands back an empty body for a
-  // FormData request, so this builds the multipart body and repeats what cy.api does.
+  // Contact updates are multipart/form-data and cy.api mangles them (CSRF header, empty body).
   const boundary = 'libredeskcypressboundary'
   const updateContact = (id, fields, options = {}) => {
     const body = Object.entries(fields)
@@ -205,8 +199,7 @@ describe('API: contacts', () => {
     })
   })
 
-  // A note on a contact that does not exist hits the foreign key and comes back as a
-  // 500 GeneralException.
+  // A note on a missing contact hits the foreign key and comes back as a 500 GeneralException.
   it.skip('rejects a note on a contact that does not exist', () => {
     cy.api('POST', '/api/v1/contacts/99999999/notes', { note: 'orphan' }, {
       failOnStatusCode: false

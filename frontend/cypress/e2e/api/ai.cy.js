@@ -1,5 +1,3 @@
-// Backend contract for the AI tool and snippet endpoints.
-
 describe('API: ai tools', () => {
   const stamp = Date.now()
   const name = `probe_tool_${stamp}`

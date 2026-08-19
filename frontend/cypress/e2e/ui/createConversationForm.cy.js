@@ -1,10 +1,3 @@
-// The "New conversation" dialog: every field, the validation on each required
-// one, picking an existing contact vs typing a new email, and a real create.
-//
-// The inbox, team and agent are created over the API in before(): this spec is
-// about the dialog, not about the admin forms that feed it. SMTP points at the
-// MailHog sink and IMAP is left empty, so nothing here touches a real mail server.
-
 describe('Create conversation dialog', () => {
   const stamp = Date.now()
   const inboxName = `Create Conv Inbox ${stamp}`
@@ -32,8 +25,7 @@ describe('Create conversation dialog', () => {
     cy.get('[role="dialog"]').should('be.visible')
   }
 
-  // Radix Select and the combobox both render their options in a portal outside
-  // the dialog, so the option has to be queried at the top level.
+  // Radix Select and the combobox render options in a portal outside the dialog.
   const pickFromPortal = (triggerLabel, optionText) => {
     cy.get('[role="dialog"]').contains('button[role="combobox"]', triggerLabel).click()
     cy.get('[role="option"]').contains(optionText).click()

@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/roles. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: roles', () => {
   const stamp = Date.now()
   const name = `api-role-${stamp}`
@@ -138,7 +135,7 @@ describe('API: roles', () => {
     })
   })
 
-  // BUG: an empty name is accepted and a nameless role is created.
+  // An empty name is accepted and a nameless role is created.
   it.skip('rejects a create with an empty name', () => {
     cy.api('POST', '/api/v1/roles', {
       name: '', description: 'x', permissions: ['conversations:read']
@@ -148,7 +145,7 @@ describe('API: roles', () => {
     })
   })
 
-  // BUG: unknown permissions are silently dropped when at least one is valid.
+  // Unknown permissions are silently dropped when at least one is valid.
   it.skip('rejects a create mixing known and unknown permissions', () => {
     cy.api('POST', '/api/v1/roles', {
       name: `mixed-${stamp}`, description: 'x', permissions: ['conversations:read', 'not:a:permission']
@@ -158,7 +155,7 @@ describe('API: roles', () => {
     })
   })
 
-  // BUG: renaming onto an existing role name returns 500 GeneralException.
+  // Renaming onto an existing role name returns 500 GeneralException.
   it.skip('rejects an update that collides with another role name', () => {
     cy.api('PUT', `/api/v1/roles/${roleId}`, {
       name: 'Agent', description: 'x', permissions: ['conversations:read']

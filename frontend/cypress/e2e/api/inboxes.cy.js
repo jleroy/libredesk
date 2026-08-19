@@ -1,6 +1,4 @@
-// Backend contract for /api/v1/inboxes. Covers both channels: email (nested
-// imap/smtp config arrays) and livechat. Hosts and ports are dummies: nothing
-// here connects to a real mail server.
+// Hosts and ports are dummies, nothing here connects to a real mail server.
 
 describe('API: inboxes', () => {
   const stamp = Date.now()

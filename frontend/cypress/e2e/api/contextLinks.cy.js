@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/context-links. No browser: these assert what the
-// API really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: context links', () => {
   const stamp = Date.now()
   const name = `api-context-link-${stamp}`
@@ -166,7 +163,7 @@ describe('API: context links', () => {
       })
   })
 
-  // BUG: updating a missing row returns 500 GeneralException, not a 404.
+  // Updating a missing row returns 500 GeneralException, not a 404.
   it.skip('404s when updating a context link that does not exist', () => {
     cy.api('PUT', '/api/v1/context-links/99999999', {
       name: 'ghost', url_template: 'https://example.com'
@@ -176,8 +173,7 @@ describe('API: context links', () => {
     })
   })
 
-  // Deleting a missing context link returns 200. Idempotent delete is defensible,
-  // so this stays skipped until the API settles on 404 or 200 across all resources.
+  // Deleting a missing context link returns 200, skipped until the API settles on 404 vs 200.
   it.skip('404s when deleting a context link that does not exist', () => {
     cy.api('DELETE', '/api/v1/context-links/99999999', null, { failOnStatusCode: false })
       .its('status')

@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/conversations. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: conversations', () => {
   const stamp = Date.now()
   const contactEmail = `api.conv.${stamp}@example.com`

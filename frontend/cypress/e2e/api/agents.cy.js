@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/agents. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: agents', () => {
   const stamp = Date.now()
   const email = `api.agent.${stamp}@example.com`

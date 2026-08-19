@@ -16,7 +16,6 @@ describe('Templates Form Schema', () => {
         expect(() => schema.parse(validForm)).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -26,7 +25,6 @@ describe('Templates Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 1 })).toThrow()
     })
 
-    // Body
     test('body missing', () => {
         const { body, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -36,7 +34,6 @@ describe('Templates Form Schema', () => {
         expect(() => schema.parse({ ...validForm, body: null })).toThrow()
     })
 
-    // Subject
     test('subject required for non outgoing email templates', () => {
         const { subject, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -54,7 +51,6 @@ describe('Templates Form Schema', () => {
         expect(() => schema.parse({ name: 'CSAT request', body: '<p>x</p>', type: 'email_notification' })).not.toThrow()
     })
 
-    // Optional fields
     test('type optional', () => {
         expect(() => schema.parse({ name: 'x', body: 'y', subject: 'z' })).not.toThrow()
     })

@@ -1,10 +1,3 @@
-// The general settings form at /admin/general.
-//
-// These settings are one global record shared by every other spec, so before()
-// captures the live values over the API and after() writes them back verbatim.
-// Every test here changes something, so the restore is what keeps the rest of
-// the suite honest.
-
 describe('General settings form', () => {
   const stamp = Date.now()
   const siteName = `Cypress Desk ${stamp}`

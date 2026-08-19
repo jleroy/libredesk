@@ -1,7 +1,4 @@
-// Clicks through the three help center forms: the site itself, a collection
-// and an article. Each one is created, reopened to check it repopulates,
-// changed and saved, then deleted. The steps run in order and share the ids
-// created by the earlier ones.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const siteName = `Cypress HC ${stamp}`
@@ -16,8 +13,7 @@ const articleBody = `Article body from the help center form spec ${stamp}`
 const articleExcerpt = `Excerpt ${stamp}`
 const listPath = '/admin/help-center'
 
-// Row actions only paint on hover, which cannot be faked, but the wrapper also
-// reveals them on focus-within, so the trigger is focused before it is clicked.
+// Hover cannot be faked, but the row wrapper also reveals actions on focus-within.
 const openRowMenu = (label) =>
   cy.contains('button.tree-node-title', label).closest('.tree-node').find('.hover-actions button').focus().click()
 

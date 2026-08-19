@@ -1,10 +1,6 @@
-// Backend contract for /api/v1/views/me (personal views) and /api/v1/shared-views.
-// No browser: these assert what the API really accepts, rejects and persists.
-
 describe('API: views', () => {
   const stamp = Date.now()
-  // Filters are a JSON object, either a {logic, rules} group or a legacy flat array of
-  // leaves. Leaf fields are validated against the conversation list allow-list.
+  // Filters are a {logic, rules} group or legacy flat array, leaves use conversation-list fields.
   const openFilter = {
     logic: 'AND',
     rules: [{ model: 'conversations', field: 'status_id', operator: 'equals', value: '1' }]

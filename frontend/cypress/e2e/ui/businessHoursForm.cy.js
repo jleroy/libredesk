@@ -1,6 +1,4 @@
-// Clicks through the business hours admin form: create with per-weekday opening
-// hours and a holiday, reopen for edit, change a field, reject an empty submit,
-// delete. The steps run in order and share the id created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const hoursName = `Cypress Business Hours ${stamp}`

@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/sla. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: sla', () => {
   const stamp = Date.now()
   const name = `api-sla-${stamp}`
@@ -90,8 +87,7 @@ describe('API: sla', () => {
     })
   })
 
-  // Validation accepts any one of the three durations but first_response_time
-  // and resolution_time are both NOT NULL in sla_policies, so this 500s.
+  // first_response_time and resolution_time are both NOT NULL in sla_policies, so this 500s.
   it.skip('rejects a create that omits resolution time', () => {
     cy.api('POST', '/api/v1/sla', {
       name: `${name}-onlyfrt`, first_response_time: '1h'

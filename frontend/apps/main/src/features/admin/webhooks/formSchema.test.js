@@ -24,7 +24,6 @@ describe('Webhooks Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -38,7 +37,6 @@ describe('Webhooks Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'a' })).not.toThrow()
     })
 
-    // URL
     test('url missing', () => {
         const { url, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -56,7 +54,6 @@ describe('Webhooks Form Schema', () => {
         expect(() => schema.parse({ ...validForm, url: 'http://localhost:9000/hook' })).not.toThrow()
     })
 
-    // Events
     test('events missing', () => {
         const { events, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()

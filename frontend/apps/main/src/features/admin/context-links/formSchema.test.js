@@ -23,7 +23,6 @@ describe('Context Links Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -37,7 +36,6 @@ describe('Context Links Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'a' })).not.toThrow()
     })
 
-    // URL template
     test('url_template missing', () => {
         const { url_template, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -47,7 +45,6 @@ describe('Context Links Form Schema', () => {
         expect(() => schema.parse({ ...validForm, url_template: '' })).toThrow()
     })
 
-    // Token expiry
     test('token_expiry_seconds defaults to 1200', () => {
         expect(schema.parse(validForm).token_expiry_seconds).toBe(1200)
     })
@@ -68,7 +65,6 @@ describe('Context Links Form Schema', () => {
         expect(schema.parse({ ...validForm, token_expiry_seconds: '300' }).token_expiry_seconds).toBe(300)
     })
 
-    // Optional fields
     test('secret optional', () => {
         expect(() => schema.parse({ ...validForm, secret: '' })).not.toThrow()
     })

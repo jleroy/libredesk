@@ -1,6 +1,3 @@
-// Backend contract for /api/v1/business-hours. No browser: these assert what
-// the API really accepts, rejects and persists, independent of what the form allows.
-
 describe('API: business hours', () => {
   const stamp = Date.now()
   const name = `api-bh-${stamp}`

@@ -18,7 +18,6 @@ describe('Roles Form Schema', () => {
         expect(() => schema.parse({ ...validForm, permissions: ['conversations:read'] })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -40,7 +39,6 @@ describe('Roles Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'a'.repeat(50) })).not.toThrow()
     })
 
-    // Description
     test('description missing', () => {
         const { description, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -62,7 +60,6 @@ describe('Roles Form Schema', () => {
         expect(() => schema.parse({ ...validForm, description: 'a'.repeat(300) })).not.toThrow()
     })
 
-    // Permissions
     test('permissions optional', () => {
         expect(() => schema.parse(validForm)).not.toThrow()
     })

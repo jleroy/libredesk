@@ -1,7 +1,4 @@
-// Backend contract for the settings and SSO endpoints.
-//
-// General settings are a single global record, so this spec restores whatever it
-// changes. Leaving a mutated root_url or timezone behind would break other specs.
+// General settings are one global record, so this spec restores whatever it changes.
 
 describe('API: general settings', () => {
   let original
@@ -104,8 +101,7 @@ describe('API: sso providers', () => {
   })
 
   it('deletes a provider it created, if creation is possible offline', function () {
-    // Creating a provider performs OIDC discovery against provider_url, so this
-    // cannot run without network. Skip rather than depend on the internet.
+    // Creating a provider does OIDC discovery against provider_url, which needs network access.
     cy.api('POST', '/api/v1/oidc', {
       name,
       provider_url: 'https://accounts.google.com',

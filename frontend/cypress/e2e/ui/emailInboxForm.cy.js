@@ -1,6 +1,4 @@
-// Clicks through the email inbox admin form: create, reopen for edit, change a
-// field, reject an empty submit, delete. The steps run in order and share the id
-// of the inbox created by the first one.
+// The steps run in order and share the record created by the first one.
 
 const stamp = Date.now()
 const inboxName = `Cypress Email Inbox ${stamp}`
@@ -14,8 +12,7 @@ const listPath = '/admin/inboxes'
 
 const filterList = (text) => cy.get('input[placeholder="Search"]').clear().type(text)
 
-// The hidden OAuth section repeats most imap/smtp field names and is rendered
-// first, so the manual copy is always the last match.
+// The hidden OAuth section repeats imap/smtp field names first, so the manual copy is last.
 const field = (name) => cy.get(`input[name="${name}"]`).last()
 
 const openManualForm = () => {

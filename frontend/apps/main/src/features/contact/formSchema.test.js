@@ -26,7 +26,6 @@ describe('Contact Form Schema', () => {
         })).not.toThrow()
     })
 
-    // First name
     test('first_name missing', () => {
         const { first_name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -48,7 +47,6 @@ describe('Contact Form Schema', () => {
         expect(() => schema.parse({ ...validForm, first_name: 'a'.repeat(50) })).not.toThrow()
     })
 
-    // Email
     test('email missing', () => {
         const { email, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -64,7 +62,6 @@ describe('Contact Form Schema', () => {
         expect(() => schema.parse({ ...validForm, email: 'a@b.co' })).not.toThrow()
     })
 
-    // Phone number
     test('phone_number optional and nullable', () => {
         expect(() => schema.parse({ ...validForm, phone_number: null })).not.toThrow()
         expect(() => schema.parse(validForm)).not.toThrow()
@@ -86,7 +83,6 @@ describe('Contact Form Schema', () => {
         expect(() => schema.parse({ ...validForm, phone_number: '1'.repeat(20) })).not.toThrow()
     })
 
-    // Other optional fields
     test('last_name optional', () => {
         expect(() => schema.parse({ ...validForm, last_name: '' })).not.toThrow()
     })

@@ -1,6 +1,4 @@
-// Backend contract for /api/v1/tags. No browser: these assert what the API
-// really accepts, rejects and persists, independent of what the form allows.
-// There is no GET /api/v1/tags/{id}, so read-backs go through the list.
+// There is no GET /tags/{id}, so read-backs go through the list.
 
 describe('API: tags', () => {
   const stamp = Date.now()
@@ -81,7 +79,7 @@ describe('API: tags', () => {
     })
   })
 
-  // BUG: renaming onto an existing tag name returns 500 GeneralException.
+  // Renaming onto an existing tag name returns 500 GeneralException.
   it.skip('rejects an update that collides with another tag name', () => {
     cy.api('POST', '/api/v1/tags', { name: other }).then(({ body }) => {
       const otherId = body.data.id
@@ -93,7 +91,7 @@ describe('API: tags', () => {
     })
   })
 
-  // BUG: updating a tag that does not exist returns 500 GeneralException.
+  // Updating a tag that does not exist returns 500 GeneralException.
   it.skip('404s on an update to a tag that does not exist', () => {
     cy.api('PUT', '/api/v1/tags/99999999', { name: 'nope' }, { failOnStatusCode: false }).then(({ status, body }) => {
       expect(status).to.eq(404)
@@ -101,8 +99,7 @@ describe('API: tags', () => {
     })
   })
 
-  // Deleting a missing tag returns 200. Idempotent delete is defensible, so
-  // this stays skipped until the API settles on 404 or 200 across all resources.
+  // Deleting a missing tag returns 200, skipped until the API settles on 404 vs 200.
   it.skip('404s on a delete of a tag that does not exist', () => {
     cy.api('DELETE', '/api/v1/tags/99999999', null, { failOnStatusCode: false }).then(({ status, body }) => {
       expect(status).to.eq(404)

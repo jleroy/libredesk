@@ -26,7 +26,6 @@ describe('Macros Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -40,7 +39,6 @@ describe('Macros Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: 'a' })).not.toThrow()
     })
 
-    // Message content or actions
     test('neither message content nor actions', () => {
         expect(() => schema.parse({ name: 'x', visibility: 'all', visible_when: [] })).toThrow()
     })
@@ -53,7 +51,6 @@ describe('Macros Form Schema', () => {
         expect(() => schema.parse({ ...validForm, message_content: '<p>   </p>' })).toThrow()
     })
 
-    // Actions
     test('actions defaults to empty array', () => {
         expect(schema.parse(validForm).actions).toEqual([])
     })
@@ -70,7 +67,6 @@ describe('Macros Form Schema', () => {
         expect(() => schema.parse({ ...validForm, actions: [{ type: 'set_status', value: [] }] })).toThrow()
     })
 
-    // Visibility
     test('visibility missing', () => {
         const { visibility, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -92,7 +88,6 @@ describe('Macros Form Schema', () => {
         expect(() => schema.parse({ ...validForm, visibility: 'user', user_id: '7' })).not.toThrow()
     })
 
-    // Visible when
     test('visible_when missing', () => {
         const { visible_when, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()

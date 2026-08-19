@@ -307,8 +307,7 @@ const initializeFromValues = (values) => {
 
   // Set hours and selected days
   if (values.hours && typeof values.hours === 'object') {
-    // Copy each day too, so editing a time cannot mutate the prop and retrigger
-    // the deep watcher, which would reset the fields the user is editing.
+    // Copy each day: mutating a shared day object retriggers the watcher and resets the form.
     hours.value = Object.fromEntries(
       Object.entries(values.hours).map(([day, hour]) => [day, { ...hour }])
     )

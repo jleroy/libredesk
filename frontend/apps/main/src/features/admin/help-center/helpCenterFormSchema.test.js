@@ -52,7 +52,6 @@ describe('Help Center Form Schema', () => {
         })).not.toThrow()
     })
 
-    // Name
     test('name missing', () => {
         const { name, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -74,7 +73,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, name: '😀'.repeat(200) })).not.toThrow()
     })
 
-    // Slug
     test('slug missing', () => {
         const { slug, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -100,7 +98,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, slug: 'a'.repeat(201) })).toThrow()
     })
 
-    // Page title
     test('page_title missing', () => {
         const { page_title, ...form } = validForm
         expect(() => schema.parse(form)).toThrow()
@@ -114,7 +111,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, page_title: 'a'.repeat(201) })).toThrow()
     })
 
-    // Template
     test('template defaults to classic', () => {
         expect(schema.parse(validForm).template).toBe('classic')
     })
@@ -123,7 +119,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, template: 'minimal' })).toThrow()
     })
 
-    // Meta description
     test('meta_description too long', () => {
         expect(() => schema.parse({ ...validForm, meta_description: 'a'.repeat(501) })).toThrow()
     })
@@ -132,7 +127,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, meta_description: 'a'.repeat(500) })).not.toThrow()
     })
 
-    // Custom domain
     test('custom_domain without protocol rejected', () => {
         expect(() => schema.parse({ ...validForm, custom_domain: 'help.example.com' })).toThrow()
     })
@@ -145,7 +139,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, custom_domain: '' })).not.toThrow()
     })
 
-    // Locales
     test('default_locale defaults to en', () => {
         expect(schema.parse(validForm).default_locale).toBe('en')
     })
@@ -170,7 +163,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, allowed_locales: [] })).toThrow()
     })
 
-    // Theme URLs and colors
     test('theme logo_url protocol relative rejected', () => {
         expect(() => schema.parse({ ...validForm, theme: { logo_url: '//cdn.example.com/l.png' } })).toThrow()
     })
@@ -208,7 +200,6 @@ describe('Help Center Form Schema', () => {
         expect(() => schema.parse({ ...validForm, theme: { cards: { icon_position: 'bottom' } } })).toThrow()
     })
 
-    // Announcement
     test('announcement link without text rejected', () => {
         expect(() => schema.parse({
             ...validForm,

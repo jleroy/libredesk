@@ -1,10 +1,4 @@
-// The email notification settings form at /admin/notification.
-//
-// Like general settings this is one global record, so before() captures the live
-// values and after() writes them back. before() also seeds a usable SMTP config
-// (and a password) so the form is submittable and the masking is observable.
-// The password is the one field the restore cannot undo: the API treats an empty
-// password as "keep the current one", so there is no way to clear it again.
+// One global record, so before() captures the live values and after() writes them back.
 
 describe('Notification settings form', () => {
   const stamp = Date.now()
@@ -60,8 +54,7 @@ describe('Notification settings form', () => {
 
   after(() => {
     cy.login()
-    // password is deliberately omitted: an empty one means "keep current", so
-    // the seeded password stays. Everything else goes back as it was.
+    // An empty password means "keep current", so the seeded password stays.
     put({ ...original, password: '' })
     getSettings().its('host').should('eq', original.host)
   })

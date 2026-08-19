@@ -1,12 +1,3 @@
-// The agent-facing conversation journey, driven through the real UI:
-// open from the list -> assign agent -> assign team -> priority -> tags ->
-// private note -> reply -> resolve -> and the list views that follow it.
-//
-// The inbox, team, agent, tag and conversation are created over the API in
-// before(): this spec is about the conversation view, not about setup forms.
-// SMTP points at the MailHog sink and IMAP is left empty, so nothing here
-// touches a real mail server.
-
 describe('Conversation lifecycle', () => {
   const stamp = Date.now()
   const inboxName = `Lifecycle Inbox ${stamp}`
@@ -32,8 +23,7 @@ describe('Conversation lifecycle', () => {
     cy.wait('@loadMessages')
   }
 
-  // Sidebar sections are collapsed until opened, and the open set is remembered
-  // per browser, so toggling blindly would close it on a later test.
+  // The open set of sidebar sections is remembered per browser, so blind toggling closes it later.
   const openActionsSection = () => {
     cy.contains('button', 'Actions').then(($trigger) => {
       if ($trigger.attr('aria-expanded') !== 'true') cy.wrap($trigger).click()
@@ -189,8 +179,7 @@ describe('Conversation lifecycle', () => {
     cy.intercept('POST', `**/conversations/${conversationUuid}/messages`).as('sendReply')
 
     openConversation()
-    // The recipient is derived from the loaded thread; sending before it is
-    // populated is rejected with "recipient required".
+    // The recipient comes from the loaded thread, sending early fails with "recipient required".
     cy.get('input[placeholder="Email addresses separated by comma"]')
       .first()
       .should('not.have.value', '')
