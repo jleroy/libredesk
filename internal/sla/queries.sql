@@ -31,49 +31,62 @@ RETURNING *;
 DELETE FROM sla_policies WHERE id = $1;
 
 -- name: apply-sla
--- Close the old pending SLA that already recorded an outcome, labeling it from its timestamps.
-WITH closed AS (
-  UPDATE applied_slas
+WITH conv_slas AS (
+  SELECT id FROM applied_slas WHERE conversation_id = $1
+),
+-- Next-response events are recurring and reported per event; they decide the SLA's status only when fr/res produced no outcome.
+scored AS (
+  SELECT id,
+    (first_response_met_at IS NOT NULL OR resolution_met_at IS NOT NULL) AS frres_met,
+    (first_response_breached_at IS NOT NULL OR resolution_breached_at IS NOT NULL) AS frres_breached,
+    EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id
+        AND (e.status = 'met' OR e.met_at <= e.deadline_at)) AS event_met,
+    EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id
+        AND (e.status = 'breached' OR e.breached_at IS NOT NULL OR e.met_at > e.deadline_at)) AS event_breached
+  FROM applied_slas
+  WHERE conversation_id = $1 AND status = 'pending'::applied_sla_status
+),
+-- A pending SLA with a recorded outcome is kept as closed history; deleting it would cascade scored sla_events away.
+closed AS (
+  UPDATE applied_slas a
   SET
     status = CASE
-       WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
-       WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
-       ELSE 'partially_met'::applied_sla_status
+       WHEN s.frres_met OR s.frres_breached THEN CASE
+          WHEN s.frres_met AND s.frres_breached THEN 'partially_met'::applied_sla_status
+          WHEN s.frres_breached THEN 'breached'::applied_sla_status
+          ELSE 'met'::applied_sla_status
+       END
+       ELSE CASE
+          WHEN s.event_met AND s.event_breached THEN 'partially_met'::applied_sla_status
+          WHEN s.event_breached THEN 'breached'::applied_sla_status
+          ELSE 'met'::applied_sla_status
+       END
     END,
     updated_at = NOW()
-  -- Did this old SLA ever record anything real? A fr/res timestamp or a scored next-response event (final status, or met/breached stamped but not yet ticked over) means history worth keeping; otherwise the deleted CTE below removes it.
-  WHERE conversation_id = $1
-    AND status = 'pending'::applied_sla_status
-    AND (first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL
-         OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL
-         OR EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id
-             AND (e.status != 'pending' OR e.met_at IS NOT NULL OR e.breached_at IS NOT NULL)))
-  RETURNING id
+  FROM scored s
+  WHERE a.id = s.id AND (s.frres_met OR s.frres_breached OR s.event_met OR s.event_breached)
+  RETURNING a.id
 ),
--- Cancel unmet events of every previous SLA on this conversation so the old policy stops breaching.
--- An event with met_at/breached_at already stamped is a real outcome waiting for the next tick to flip its status; keep it.
+-- An event with met_at/breached_at stamped is a recorded outcome awaiting the tick; only unstamped countdowns die with the old policy.
 superseded_events AS (
   DELETE FROM sla_events
   WHERE status = 'pending'
     AND met_at IS NULL AND breached_at IS NULL
-    AND applied_sla_id IN (SELECT id FROM applied_slas WHERE conversation_id = $1)
+    AND applied_sla_id IN (SELECT id FROM conv_slas)
 ),
--- Cancel unsent notifications the same way so agents don't get emails for dead deadlines.
+-- Breach notifications record an outcome that already happened; only warnings for dead deadlines are cancelled.
 superseded_notifications AS (
   DELETE FROM scheduled_sla_notifications
   WHERE processed_at IS NULL
-    AND applied_sla_id IN (SELECT id FROM applied_slas WHERE conversation_id = $1)
+    AND notification_type = 'warning'
+    AND applied_sla_id IN (SELECT id FROM conv_slas)
 ),
--- Delete the old pending SLA only if nothing scored anywhere; deleting a row with scored next-response events would cascade that history away.
 deleted AS (
-  DELETE FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'
-    AND first_response_met_at IS NULL AND first_response_breached_at IS NULL
-    AND resolution_met_at IS NULL AND resolution_breached_at IS NULL
-    AND NOT EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id
-             AND (e.status != 'pending' OR e.met_at IS NOT NULL OR e.breached_at IS NOT NULL))
+  DELETE FROM applied_slas
+  WHERE conversation_id = $1 AND status = 'pending'::applied_sla_status
+    AND id NOT IN (SELECT id FROM closed)
   RETURNING id
 ),
--- Insert the new pending SLA.
 new_sla AS (
   INSERT INTO applied_slas (
     conversation_id,
@@ -81,16 +94,18 @@ new_sla AS (
     first_response_deadline_at,
     resolution_deadline_at
   )
-  -- The COUNT refs force closed/deleted to run before this insert's unique-index check.
+  -- The COUNT ref forces closed and deleted to retire the old pending row before this insert's unique-index check.
   SELECT $1, $2, $3, $4
-  WHERE (SELECT COUNT(*) FROM closed) IS NOT NULL AND (SELECT COUNT(*) FROM deleted) IS NOT NULL
+  WHERE (SELECT COUNT(*) FROM deleted) IS NOT NULL
   RETURNING conversation_id, id
 )
--- Stamp the conversation with the new policy and its earliest deadline.
 UPDATE conversations c
 SET
    sla_policy_id = $2,
-   next_sla_deadline_at = LEAST($3, $4)
+   next_sla_deadline_at = CASE
+      WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
+      ELSE LEAST(CASE WHEN c.first_reply_at IS NULL THEN $3::TIMESTAMPTZ END, $4::TIMESTAMPTZ)
+   END
 FROM new_sla ns
 WHERE c.id = ns.conversation_id
 RETURNING ns.id;
@@ -126,15 +141,16 @@ UPDATE applied_slas SET
    updated_at = NOW()
 WHERE id = $1;
 
+-- name: lock-conversation
+SELECT 1 FROM conversations WHERE id = $1 FOR UPDATE;
+
 -- name: update-conversation-sla-deadline
 UPDATE conversations c
 SET next_sla_deadline_at = CASE
-    -- If the conversation is in a resolved-category status, clear the deadline
     WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
 
-    -- Earliest obligation still open: the caller-provided timestamp ($2, e.g. a fresh next-response deadline), each fr/res deadline still owed, and any live next-response countdown. A first reply discharges the first-response deadline immediately, before the tick stamps it. LEAST ignores NULLs.
+    -- A first reply discharges the first-response deadline before the tick stamps it; LEAST ignores NULLs.
     ELSE LEAST(
-        $2::TIMESTAMPTZ,
         CASE WHEN c.first_reply_at IS NULL AND a.first_response_met_at IS NULL AND a.first_response_breached_at IS NULL THEN a.first_response_deadline_at END,
         CASE WHEN a.resolution_met_at IS NULL AND a.resolution_breached_at IS NULL THEN a.resolution_deadline_at END,
         (SELECT MIN(e.deadline_at) FROM sla_events e
@@ -142,45 +158,32 @@ SET next_sla_deadline_at = CASE
          WHERE a2.conversation_id = c.id AND e.status = 'pending' AND e.met_at IS NULL AND e.breached_at IS NULL)
     )
 END
--- History rows accumulate per conversation; deadlines must come from the latest (current) SLA, not an arbitrary row.
+-- History rows accumulate per conversation; only the latest SLA carries live deadlines.
 FROM (
-    SELECT DISTINCT ON (conversation_id) *
-    FROM applied_slas
+    SELECT * FROM applied_slas
     WHERE conversation_id = $1
-    ORDER BY conversation_id, created_at DESC, id DESC
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
 ) a
 WHERE a.conversation_id = c.id
 AND c.id = $1;
 
 -- name: close-settled-applied-slas
 -- Close every pending SLA whose configured metrics all have an outcome; a metric with no deadline counts as done.
-WITH closed AS (
-  UPDATE applied_slas
-  SET
-    status = CASE
-       WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
-       WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
-       ELSE 'partially_met'::applied_sla_status
-    END,
-    updated_at = NOW()
-  WHERE status = 'pending'::applied_sla_status
-    -- Next-response-only rows have both deadlines NULL; leave them pending or the sweep wipes their live next-response deadline.
-    AND (first_response_deadline_at IS NOT NULL OR resolution_deadline_at IS NOT NULL)
-    AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
-    AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
-  RETURNING conversation_id
-)
--- Recompute the deadline shown on each conversation whose SLA just closed, in the same statement so a failure can't leave it stale.
-UPDATE conversations c
-SET next_sla_deadline_at = CASE
-    WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
-    -- The closed row's fr/res are all judged, so the only obligation left is a live next-response countdown.
-    ELSE (SELECT MIN(e.deadline_at) FROM sla_events e
-          JOIN applied_slas a2 ON a2.id = e.applied_sla_id
-          WHERE a2.conversation_id = c.id AND e.status = 'pending' AND e.met_at IS NULL AND e.breached_at IS NULL)
-END
-FROM closed cl
-WHERE cl.conversation_id = c.id;
+UPDATE applied_slas
+SET
+  status = CASE
+     WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
+     WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
+     ELSE 'partially_met'::applied_sla_status
+  END,
+  updated_at = NOW()
+WHERE status = 'pending'::applied_sla_status
+  -- Next-response-only rows have both deadlines NULL and no fr/res outcome to judge; closing them would stamp a status they never earned.
+  AND (first_response_deadline_at IS NOT NULL OR resolution_deadline_at IS NOT NULL)
+  AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
+  AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
+RETURNING conversation_id;
 
 -- name: insert-scheduled-sla-notification
 INSERT INTO scheduled_sla_notifications (

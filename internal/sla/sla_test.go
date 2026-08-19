@@ -96,7 +96,7 @@ func TestApplySLAClosesSettledPendingAndCleansChildren(t *testing.T) {
 	old := fetchApplied(t, db, conv)[0]
 	db.MustExec(`UPDATE applied_slas SET first_response_met_at = NOW() WHERE id = $1`, old.ID)
 	db.MustExec(`INSERT INTO sla_events (applied_sla_id, sla_policy_id, type, deadline_at, status) VALUES ($1, $2, 'next_response', NOW() + INTERVAL '30 min', 'pending')`, old.ID, p1)
-	db.MustExec(`INSERT INTO scheduled_sla_notifications (applied_sla_id, metric, notification_type, recipients, send_at) VALUES ($1, 'resolution', 'breach', '{1}', NOW() + INTERVAL '2h')`, old.ID)
+	db.MustExec(`INSERT INTO scheduled_sla_notifications (applied_sla_id, metric, notification_type, recipients, send_at) VALUES ($1, 'resolution', 'warning', '{1}', NOW() + INTERVAL '2h')`, old.ID)
 
 	applySLA(t, m, conv, p2)
 
@@ -712,7 +712,7 @@ func TestDeadlineRecomputeUsesLatestSLA(t *testing.T) {
 		t.Fatalf("expected history plus current row, got %+v", rows)
 	}
 
-	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv, nil); err != nil {
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv); err != nil {
 		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
 	}
 	d := conversationDeadline(t, db, conv)
@@ -729,7 +729,7 @@ func TestDeadlineRecomputeSkipsRepliedFirstResponse(t *testing.T) {
 	row := fetchApplied(t, db, conv)[0]
 
 	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
-	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv, nil); err != nil {
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv); err != nil {
 		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
 	}
 
@@ -746,7 +746,7 @@ func TestDeadlineRecomputeKeepsUnrepliedFirstResponse(t *testing.T) {
 	applySLA(t, m, conv, policy)
 	row := fetchApplied(t, db, conv)[0]
 
-	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv, nil); err != nil {
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv); err != nil {
 		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
 	}
 
