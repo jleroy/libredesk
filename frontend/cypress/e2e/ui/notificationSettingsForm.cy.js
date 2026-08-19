@@ -53,6 +53,9 @@ describe('Notification settings form', () => {
   })
 
   after(() => {
+    // Without this guard a failed before() would PUT a record built from nothing,
+    // wiping the live settings instead of restoring them.
+    if (!original) return
     cy.login()
     // An empty password means "keep current", so the seeded password stays.
     put({ ...original, password: '' })

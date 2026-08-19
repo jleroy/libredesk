@@ -1,6 +1,8 @@
 // The steps run in order and share the record created by the first one.
 
-const stamp = String(Date.now()).slice(-6)
+// Random, not a truncated timestamp: the last six digits of Date.now() repeat
+// every ~17 minutes and a leaked status would then collide by name.
+const stamp = Math.random().toString(36).slice(2, 8)
 // The name is capped at 25 characters, so keep the stamp short.
 const statusName = `CyStatus ${stamp}`
 const renamedStatus = `CyStatus ${stamp} v2`

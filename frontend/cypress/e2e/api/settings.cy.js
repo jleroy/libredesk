@@ -61,7 +61,8 @@ describe('API: email notification settings', () => {
   it('never returns the stored password in clear text', () => {
     cy.api('GET', '/api/v1/settings/notifications/email').then(({ body }) => {
       const password = body.data['notification.email.password']
-      expect(password === '' || /^\*+$/.test(password), 'password is blank or masked').to.be.true
+      // Secrets come back as a run of the dummy character, never the stored value.
+      expect(password === '' || /^\u2022+$/.test(password), 'password is blank or masked').to.be.true
     })
   })
 })
@@ -69,7 +70,6 @@ describe('API: email notification settings', () => {
 describe('API: sso providers', () => {
   const stamp = Date.now()
   const name = `Probe SSO ${stamp}`
-  let providerId
 
   before(() => cy.login())
   beforeEach(() => cy.login())
@@ -100,20 +100,6 @@ describe('API: sso providers', () => {
     }, { failOnStatusCode: false }).its('status').should('be.gte', 400)
   })
 
-  it('deletes a provider it created, if creation is possible offline', function () {
-    // Creating a provider does OIDC discovery against provider_url, which needs network access.
-    cy.api('POST', '/api/v1/oidc', {
-      name,
-      provider_url: 'https://accounts.google.com',
-      client_id: 'id',
-      client_secret: 'secret'
-    }, { failOnStatusCode: false }).then(({ status, body }) => {
-      if (status !== 200) {
-        this.skip()
-        return
-      }
-      providerId = body.data.id
-      cy.api('DELETE', `/api/v1/oidc/${providerId}`).its('status').should('eq', 200)
-    })
-  })
+  // Create and delete are not covered: create performs OIDC discovery against
+  // provider_url, so it needs a real provider.
 })

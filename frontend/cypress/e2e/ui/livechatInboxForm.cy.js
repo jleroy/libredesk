@@ -137,6 +137,9 @@ describe('Live chat inbox form', () => {
     cy.get('button[type="submit"]').click()
 
     cy.contains('Invalid URL').should('be.visible')
+    // The offending field is on another tab, so the form has to switch back to it.
+    cy.get('input[name="config.website_url"]').should('be.visible')
+    cy.get('[role="tab"][data-state="active"]').should('not.contain', 'Security')
     cy.get('@createInbox.all').should('have.length', 0)
   })
 

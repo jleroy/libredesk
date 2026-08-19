@@ -57,6 +57,7 @@ describe('API: agents', () => {
         expect(res.status).to.eq(400)
         expect(res.body.error_type).to.eq('InputException')
       })
+      cy.api('DELETE', `/api/v1/agents/${body.data.id}`)
     })
   })
 
@@ -73,6 +74,7 @@ describe('API: agents', () => {
       cy.api('GET', `/api/v1/agents/${id}`)
         .its('body.data.availability_status')
         .should('eq', before)
+      cy.api('DELETE', `/api/v1/agents/${id}`)
     })
   })
 

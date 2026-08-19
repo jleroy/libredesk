@@ -79,7 +79,7 @@ describe('Template form', () => {
     cy.get('button[type="submit"]').click()
 
     // Only `exist`: an overflow container clips this message.
-    cy.contains(/required/i).should('exist')
+    cy.contains('Name Required').should('exist')
     cy.get('@createTemplate.all').should('have.length', 0)
     cy.location('pathname').should('eq', `${listPath}/new`)
   })
