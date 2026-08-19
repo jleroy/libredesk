@@ -617,6 +617,85 @@ func TestPolicyCRUD(t *testing.T) {
 	}
 }
 
+func TestQuietTickChangesNothing(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	before := fetchApplied(t, db, conv)[0]
+	beforeDeadline := conversationDeadline(t, db, conv)
+
+	for i := 0; i < 3; i++ {
+		if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+			t.Fatalf("evaluatePendingSLAs: %v", err)
+		}
+	}
+
+	after := fetchApplied(t, db, conv)[0]
+	if after != before {
+		t.Fatalf("expected quiet ticks to change nothing, before %+v after %+v", before, after)
+	}
+	if d := conversationDeadline(t, db, conv); d != beforeDeadline {
+		t.Fatalf("expected conversation deadline untouched, got %v want %v", d, beforeDeadline)
+	}
+}
+
+func TestSkippedRowPickedUpWhenDeadlinePasses(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAs: %v", err)
+	}
+	if row := fetchApplied(t, db, conv)[0]; row.Status != "pending" || row.FRBreached.Valid {
+		t.Fatalf("expected row untouched while nothing is due, got %+v", row)
+	}
+
+	db.MustExec(`UPDATE applied_slas SET first_response_deadline_at = NOW() - INTERVAL '1 min' WHERE conversation_id = $1`, conv)
+	if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAs: %v", err)
+	}
+	if row := fetchApplied(t, db, conv)[0]; !row.FRBreached.Valid || row.Status != "pending" {
+		t.Fatalf("expected previously skipped row breached once due and still pending on resolution, got %+v", row)
+	}
+
+	db.MustExec(`UPDATE conversations SET resolved_at = NOW() WHERE id = $1`, conv)
+	if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAs: %v", err)
+	}
+	if row := fetchApplied(t, db, conv)[0]; row.Status != "partially_met" || !row.ResMetAt.Valid {
+		t.Fatalf("expected row settled across ticks, got %+v", row)
+	}
+}
+
+func TestSweepIsolatedPerConversation(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	settling := insertConversation(t, db, "c1")
+	bystander := insertConversation(t, db, "c2")
+	applySLA(t, m, settling, policy)
+	applySLA(t, m, bystander, policy)
+	bystanderBefore := fetchApplied(t, db, bystander)[0]
+	bystanderDeadline := conversationDeadline(t, db, bystander)
+
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW(), resolved_at = NOW() WHERE id = $1`, settling)
+	if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAs: %v", err)
+	}
+
+	if row := fetchApplied(t, db, settling)[0]; row.Status != "met" {
+		t.Fatalf("expected settling conversation closed, got %+v", row)
+	}
+	if row := fetchApplied(t, db, bystander)[0]; row != bystanderBefore {
+		t.Fatalf("expected bystander conversation untouched, before %+v after %+v", bystanderBefore, row)
+	}
+	if d := conversationDeadline(t, db, bystander); d != bystanderDeadline {
+		t.Fatalf("expected bystander deadline untouched, got %v want %v", d, bystanderDeadline)
+	}
+}
+
 func newTestManager(t *testing.T) (*Manager, *sqlx.DB) {
 	t.Helper()
 	return newTestManagerBH(t, bmodels.BusinessHours{ID: 1, IsAlwaysOpen: true})
