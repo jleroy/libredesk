@@ -46,13 +46,15 @@ WITH closed AS (
          OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
   RETURNING id
 ),
-closed_events AS (
+superseded_events AS (
   DELETE FROM sla_events
-  WHERE applied_sla_id IN (SELECT id FROM closed) AND status = 'pending'
+  WHERE status = 'pending'
+    AND applied_sla_id IN (SELECT id FROM applied_slas WHERE conversation_id = $1)
 ),
-closed_notifications AS (
+superseded_notifications AS (
   DELETE FROM scheduled_sla_notifications
-  WHERE applied_sla_id IN (SELECT id FROM closed) AND processed_at IS NULL
+  WHERE processed_at IS NULL
+    AND applied_sla_id IN (SELECT id FROM applied_slas WHERE conversation_id = $1)
 ),
 deleted AS (
   DELETE FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'

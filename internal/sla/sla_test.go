@@ -3,6 +3,7 @@ package sla
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
+	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
 
@@ -343,6 +345,149 @@ func TestSendNotificationSkipsMetMetric(t *testing.T) {
 	db.QueryRow(`SELECT processed_at IS NOT NULL FROM scheduled_sla_notifications WHERE id = $1`, pending[0].ID).Scan(&processed)
 	if !processed {
 		t.Fatal("expected met-metric notification marked processed without sending")
+	}
+}
+
+func TestPolicyMetricCombinations(t *testing.T) {
+	cases := []struct {
+		name           string
+		fr, res, nr    string
+		wantStatus     string
+		wantRowsAfter  int
+		settledOldGone bool
+	}{
+		{"fr-only", "1h", "", "", "met", 2, false},
+		{"res-only", "", "2h", "", "met", 2, false},
+		{"nr-only", "", "", "30m", "pending", 1, true},
+		{"fr-res", "1h", "2h", "", "met", 2, false},
+		{"fr-nr", "1h", "", "30m", "met", 2, false},
+		{"res-nr", "", "2h", "30m", "met", 2, false},
+		{"fr-res-nr", "1h", "2h", "30m", "met", 2, false},
+	}
+	m, db := newTestManager(t)
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			policy := insertPolicy(t, db, tc.name, tc.fr, tc.res, tc.nr)
+			conv := insertConversation(t, db, fmt.Sprintf("combo-%d", i))
+			applySLA(t, m, conv, policy)
+
+			row := fetchApplied(t, db, conv)[0]
+			if row.FRDeadline.Valid != (tc.fr != "") || row.ResDeadline.Valid != (tc.res != "") {
+				t.Fatalf("deadline validity mismatch for %s: %+v", tc.name, row)
+			}
+			if tc.nr != "" {
+				if _, err := m.CreateNextResponseSLAEvent(conv, row.ID, policy, 0); err != nil {
+					t.Fatalf("CreateNextResponseSLAEvent: %v", err)
+				}
+			}
+
+			if tc.fr != "" {
+				db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+			}
+			if tc.res != "" {
+				db.MustExec(`UPDATE conversations SET resolved_at = NOW() WHERE id = $1`, conv)
+			}
+			if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+				t.Fatalf("evaluatePendingSLAs: %v", err)
+			}
+			row = fetchApplied(t, db, conv)[0]
+			if row.Status != tc.wantStatus {
+				t.Fatalf("expected status %s after evaluation, got %+v", tc.wantStatus, row)
+			}
+
+			next := insertPolicy(t, db, tc.name+"-next", "3h", "4h", "")
+			applySLA(t, m, conv, next)
+			rows := fetchApplied(t, db, conv)
+			if len(rows) != tc.wantRowsAfter {
+				t.Fatalf("expected %d rows after re-apply, got %+v", tc.wantRowsAfter, rows)
+			}
+			var pending int
+			for _, r := range rows {
+				if r.Status == "pending" {
+					pending++
+				}
+			}
+			if pending != 1 {
+				t.Fatalf("expected exactly one pending row after re-apply, got %+v", rows)
+			}
+			if tc.settledOldGone && rows[0].ID == row.ID {
+				t.Fatalf("expected untouched old row deleted on re-apply, got %+v", rows)
+			}
+			var orphanEvents int
+			db.QueryRow(`SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND status = 'pending'`, row.ID).Scan(&orphanEvents)
+			if orphanEvents != 0 {
+				t.Fatalf("expected no pending events left on superseded sla, got %d", orphanEvents)
+			}
+		})
+	}
+}
+
+func TestSweepStatusLabels(t *testing.T) {
+	cases := []struct {
+		name                       string
+		fr, res                    string
+		frMet, frBreach            bool
+		resMet, resBreach          bool
+		want                       string
+	}{
+		{"both-met", "1h", "2h", true, false, true, false, "met"},
+		{"both-breached", "1h", "2h", false, true, false, true, "breached"},
+		{"fr-met-res-breached", "1h", "2h", true, false, false, true, "partially_met"},
+		{"fr-breached-res-met", "1h", "2h", false, true, true, false, "partially_met"},
+		{"fr-only-met", "1h", "", true, false, false, false, "met"},
+		{"fr-only-breached", "1h", "", false, true, false, false, "breached"},
+		{"res-only-met", "", "2h", false, false, true, false, "met"},
+		{"res-only-breached", "", "2h", false, false, false, true, "breached"},
+	}
+	m, db := newTestManager(t)
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			policy := insertPolicy(t, db, tc.name, tc.fr, tc.res, "")
+			conv := insertConversation(t, db, fmt.Sprintf("label-%d", i))
+			applySLA(t, m, conv, policy)
+			db.MustExec(`UPDATE applied_slas SET
+				first_response_met_at = CASE WHEN $2 THEN NOW() END,
+				first_response_breached_at = CASE WHEN $3 THEN NOW() END,
+				resolution_met_at = CASE WHEN $4 THEN NOW() END,
+				resolution_breached_at = CASE WHEN $5 THEN NOW() END
+				WHERE conversation_id = $1`, conv, tc.frMet, tc.frBreach, tc.resMet, tc.resBreach)
+
+			if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+				t.Fatalf("evaluatePendingSLAs: %v", err)
+			}
+			row := fetchApplied(t, db, conv)[0]
+			if row.Status != tc.want {
+				t.Fatalf("expected %s, got %+v", tc.want, row)
+			}
+		})
+	}
+}
+
+func TestPolicyCRUD(t *testing.T) {
+	m, _ := newTestManager(t)
+	created, err := m.Create("p1", "desc", null.StringFrom("1h"), null.StringFrom("2h"), null.StringFrom("30m"), models.SlaNotifications{})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := m.Update(created.ID, "p1-renamed", "desc", null.StringFrom("3h"), null.StringFrom("4h"), null.String{}, models.SlaNotifications{}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	got, err := m.Get(created.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Name != "p1-renamed" || got.FirstResponseTime.String != "3h" {
+		t.Fatalf("expected updated policy, got %+v", got)
+	}
+	all, err := m.GetAll()
+	if err != nil || len(all) != 2 {
+		t.Fatalf("expected created policy plus the seeded default from GetAll, got %v %v", all, err)
+	}
+	if err := m.Delete(created.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if _, err := m.Get(created.ID); err == nil {
+		t.Fatal("expected Get to fail after delete")
 	}
 }
 
