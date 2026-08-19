@@ -42,7 +42,8 @@ scored AS (
     EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id
         AND (e.status = 'met' OR e.met_at <= e.deadline_at)) AS event_met,
     EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id
-        AND (e.status = 'breached' OR e.breached_at IS NOT NULL OR e.met_at > e.deadline_at)) AS event_breached
+        AND (e.status = 'breached' OR e.breached_at IS NOT NULL OR e.met_at > e.deadline_at
+             OR (e.met_at IS NULL AND e.deadline_at <= NOW()))) AS event_breached
   FROM applied_slas
   WHERE conversation_id = $1 AND status = 'pending'::applied_sla_status
 ),
@@ -67,11 +68,12 @@ closed AS (
   WHERE a.id = s.id AND (s.frres_met OR s.frres_breached OR s.event_met OR s.event_breached)
   RETURNING a.id
 ),
--- An event with met_at/breached_at stamped is a recorded outcome awaiting the tick; only unstamped countdowns die with the old policy.
+-- A stamped or overdue event is a recorded outcome awaiting the tick; only countdowns still inside their deadline die with the old policy.
 superseded_events AS (
   DELETE FROM sla_events
   WHERE status = 'pending'
     AND met_at IS NULL AND breached_at IS NULL
+    AND deadline_at > NOW()
     AND applied_sla_id IN (SELECT id FROM conv_slas)
 ),
 -- Breach notifications record an outcome that already happened; only warnings for dead deadlines are cancelled.
@@ -127,6 +129,13 @@ WHERE a.status = 'pending'::applied_sla_status
      AND (a.resolution_deadline_at <= NOW() OR c.resolved_at IS NOT NULL))
   );
 
+-- name: get-pending-applied-sla-by-conversation
+SELECT a.id, a.first_response_deadline_at, c.first_reply_at as conversation_first_response_at, a.sla_policy_id,
+a.resolution_deadline_at, c.resolved_at as conversation_resolved_at, c.id as conversation_id, a.first_response_met_at, a.resolution_met_at, a.first_response_breached_at, a.resolution_breached_at
+FROM applied_slas a
+JOIN conversations c ON a.conversation_id = c.id and c.sla_policy_id = a.sla_policy_id
+WHERE a.status = 'pending'::applied_sla_status AND a.conversation_id = $1;
+
 -- name: update-applied-sla-breached-at
 UPDATE applied_slas SET
    first_response_breached_at = CASE WHEN $2 = 'first_response' THEN NOW() ELSE first_response_breached_at END,
@@ -154,8 +163,7 @@ SET next_sla_deadline_at = CASE
         CASE WHEN c.first_reply_at IS NULL AND a.first_response_met_at IS NULL AND a.first_response_breached_at IS NULL THEN a.first_response_deadline_at END,
         CASE WHEN a.resolution_met_at IS NULL AND a.resolution_breached_at IS NULL THEN a.resolution_deadline_at END,
         (SELECT MIN(e.deadline_at) FROM sla_events e
-         JOIN applied_slas a2 ON a2.id = e.applied_sla_id
-         WHERE a2.conversation_id = c.id AND e.status = 'pending' AND e.met_at IS NULL AND e.breached_at IS NULL)
+         WHERE e.applied_sla_id = a.id AND e.status = 'pending' AND e.met_at IS NULL AND e.breached_at IS NULL)
     )
 END
 -- History rows accumulate per conversation; only the latest SLA carries live deadlines.

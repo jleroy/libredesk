@@ -117,6 +117,73 @@ func TestApplySLAClosesSettledPendingAndCleansChildren(t *testing.T) {
 	}
 }
 
+func TestApplySLAJudgesUnstampedBreachBeforeSupersede(t *testing.T) {
+	m, db := newTestManager(t)
+	p1 := insertPolicy(t, db, "p1", "30m", "", "")
+	p2 := insertPolicy(t, db, "p2", "3h", "", "")
+	conv := insertConversation(t, db, "c1")
+
+	applySLA(t, m, conv, p1)
+	old := fetchApplied(t, db, conv)[0]
+	db.MustExec(`UPDATE applied_slas SET first_response_deadline_at = NOW() - INTERVAL '10 min' WHERE id = $1`, old.ID)
+
+	applySLA(t, m, conv, p2)
+
+	rows := fetchApplied(t, db, conv)
+	if len(rows) != 2 || rows[0].ID != old.ID {
+		t.Fatalf("expected old sla kept plus new pending, got %+v", rows)
+	}
+	if rows[0].Status != "breached" || !rows[0].FRBreached.Valid {
+		t.Fatalf("expected incurred breach stamped and status breached, got %+v", rows[0])
+	}
+}
+
+func TestApplySLAJudgesUnstampedReplyBeforeSupersede(t *testing.T) {
+	m, db := newTestManager(t)
+	p1 := insertPolicy(t, db, "p1", "1h", "", "")
+	p2 := insertPolicy(t, db, "p2", "5m", "", "")
+	conv := insertConversation(t, db, "c1")
+
+	applySLA(t, m, conv, p1)
+	old := fetchApplied(t, db, conv)[0]
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+
+	applySLA(t, m, conv, p2)
+
+	rows := fetchApplied(t, db, conv)
+	if len(rows) != 2 || rows[0].ID != old.ID {
+		t.Fatalf("expected old sla kept plus new pending, got %+v", rows)
+	}
+	if rows[0].Status != "met" || !rows[0].FRMetAt.Valid {
+		t.Fatalf("expected reply stamped met and status met, got %+v", rows[0])
+	}
+}
+
+func TestApplySLAKeepsOverdueCountdownAsBreach(t *testing.T) {
+	m, db := newTestManager(t)
+	p1 := insertPolicy(t, db, "p1", "", "", "30m")
+	p2 := insertPolicy(t, db, "p2", "1h", "", "")
+	conv := insertConversation(t, db, "c1")
+
+	applySLA(t, m, conv, p1)
+	old := fetchApplied(t, db, conv)[0]
+	db.MustExec(`INSERT INTO sla_events (applied_sla_id, sla_policy_id, type, deadline_at, status) VALUES ($1, $2, 'next_response', NOW() - INTERVAL '5 min', 'pending')`, old.ID, p1)
+
+	applySLA(t, m, conv, p2)
+
+	rows := fetchApplied(t, db, conv)
+	if len(rows) != 2 || rows[0].ID != old.ID {
+		t.Fatalf("expected old sla kept plus new pending, got %+v", rows)
+	}
+	if rows[0].Status != "breached" {
+		t.Fatalf("expected overdue countdown scored as breach, got %+v", rows[0])
+	}
+	events := queryInt(t, db, `SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND status = 'pending' AND breached_at IS NULL`, old.ID)
+	if events != 1 {
+		t.Fatalf("expected overdue countdown kept for the tick, got %d", events)
+	}
+}
+
 func TestEvaluateMetAndClose(t *testing.T) {
 	m, db := newTestManager(t)
 	policy := insertPolicy(t, db, "p1", "1h", "2h", "")

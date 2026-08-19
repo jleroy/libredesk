@@ -113,6 +113,7 @@ type queries struct {
 	GetSLAEvent                       *sqlx.Stmt `query:"get-sla-event"`
 	GetScheduledSLANotifications      *sqlx.Stmt `query:"get-scheduled-sla-notifications"`
 	GetPendingAppliedSLA              *sqlx.Stmt `query:"get-pending-applied-sla"`
+	GetPendingAppliedSLAByConv        *sqlx.Stmt `query:"get-pending-applied-sla-by-conversation"`
 	GetPendingSLAEvents               *sqlx.Stmt `query:"get-pending-sla-events"`
 	InsertScheduledSLANotification    *sqlx.Stmt `query:"insert-scheduled-sla-notification"`
 	InsertSLAPolicy                   *sqlx.Stmt `query:"insert-sla-policy"`
@@ -272,6 +273,18 @@ func (m *Manager) ApplySLA(startTime time.Time, conversationID, assignedTeamID, 
 	// Next response is not set at this point, next response are stored in SLA events as there can be multiple entries for next response.
 	deadlines.NextResponse = null.Time{}
 
+	// Outcomes that already occurred can be a whole tick ahead of their stamps; judge the outgoing SLA now or apply-sla discards them.
+	var current models.AppliedSLA
+	if err := m.q.GetPendingAppliedSLAByConv.Get(&current, conversationID); err != nil {
+		if err != sql.ErrNoRows {
+			m.lo.Error("error fetching pending SLA before re-apply", "conversation_id", conversationID, "error", err)
+		}
+	} else if current.FirstResponseDeadlineAt.Valid || current.ResolutionDeadlineAt.Valid {
+		if err := m.evaluateSLA(current); err != nil {
+			m.lo.Error("error evaluating pending SLA before re-apply", "conversation_id", conversationID, "error", err)
+		}
+	}
+
 	// Insert applied SLA entry delete any previous pending applied SLA.
 	var appliedSLAID int
 	if err := m.q.ApplySLA.QueryRowx(
@@ -399,15 +412,15 @@ func (m *Manager) SetLatestSLAEventMetAt(appliedSLAID int, metric string) (time.
 // evaluatePendingSLAEvents fetches pending SLA events, updates their status based on deadlines, and schedules notifications for breached SLAs.
 func (m *Manager) evaluatePendingSLAEvents(ctx context.Context) error {
 	var slaEvents []models.SLAEvent
+	m.lo.Info("fetching pending SLA events")
 	if err := m.q.GetPendingSLAEvents.SelectContext(ctx, &slaEvents); err != nil {
 		m.lo.Error("error fetching pending SLA events", "error", err)
 		return fmt.Errorf("fetching pending SLA events: %w", err)
 	}
+	m.lo.Info("fetched pending SLA events", "count", len(slaEvents))
 	if len(slaEvents) == 0 {
 		return nil
 	}
-
-	m.lo.Info("found pending SLA events for evaluation", "count", len(slaEvents))
 
 	var slaPolicyCache = make(map[int]models.SLAPolicy)
 	for _, event := range slaEvents {
@@ -863,13 +876,12 @@ func (m *Manager) createNotificationSchedule(notifications models.SlaNotificatio
 // evaluatePendingSLAs fetches pending SLAs and evaluates them, pending SLAs are applied SLAs that have not breached or met yet.
 func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 	var pendingSLAs []models.AppliedSLA
+	m.lo.Info("fetching pending applied SLAs")
 	if err := m.q.GetPendingAppliedSLA.SelectContext(ctx, &pendingSLAs); err != nil {
 		m.lo.Error("error fetching pending SLAs", "error", err)
 		return err
 	}
-	if len(pendingSLAs) > 0 {
-		m.lo.Info("evaluating pending SLAs", "count", len(pendingSLAs))
-	}
+	m.lo.Info("fetched pending applied SLAs", "count", len(pendingSLAs))
 	for _, sla := range pendingSLAs {
 		select {
 		case <-ctx.Done():
