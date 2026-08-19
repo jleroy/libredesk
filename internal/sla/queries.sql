@@ -58,6 +58,7 @@ deleted AS (
   DELETE FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'
     AND first_response_met_at IS NULL AND first_response_breached_at IS NULL
     AND resolution_met_at IS NULL AND resolution_breached_at IS NULL
+  RETURNING id
 ),
 new_sla AS (
   INSERT INTO applied_slas (
@@ -65,7 +66,10 @@ new_sla AS (
     sla_policy_id,
     first_response_deadline_at,
     resolution_deadline_at
-  ) VALUES ($1, $2, $3, $4)
+  )
+  -- The COUNT refs force closed/deleted to run before this insert's unique-index check.
+  SELECT $1, $2, $3, $4
+  WHERE (SELECT COUNT(*) FROM closed) IS NOT NULL AND (SELECT COUNT(*) FROM deleted) IS NOT NULL
   RETURNING conversation_id, id
 )
 -- update the conversation with the new SLA policy and next SLA deadline.
