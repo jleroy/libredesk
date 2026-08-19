@@ -121,7 +121,8 @@ type queries struct {
 	UpdateAppliedSLABreachedAt        *sqlx.Stmt `query:"update-applied-sla-breached-at"`
 	UpdateAppliedSLAMetAt             *sqlx.Stmt `query:"update-applied-sla-met-at"`
 	UpdateConversationNextSLADeadline *sqlx.Stmt `query:"update-conversation-sla-deadline"`
-	UpdateAppliedSLAStatus            *sqlx.Stmt `query:"update-applied-sla-status"`
+	CloseSettledAppliedSLAs           *sqlx.Stmt `query:"close-settled-applied-slas"`
+	CloseSupersededAppliedSLA         *sqlx.Stmt `query:"close-superseded-applied-sla"`
 	UpdateSLANotificationProcessed    *sqlx.Stmt `query:"update-notification-processed"`
 	UpdateSLAEventAsBreached          *sqlx.Stmt `query:"update-sla-event-as-breached"`
 	UpdateSLAEventAsMet               *sqlx.Stmt `query:"update-sla-event-as-met"`
@@ -267,6 +268,11 @@ func (m *Manager) ApplySLA(startTime time.Time, conversationID, assignedTeamID, 
 	deadlines, err := m.GetDeadlines(startTime, slaPolicyID, assignedTeamID)
 	if err != nil {
 		return sla, err
+	}
+
+	if _, err := m.q.CloseSupersededAppliedSLA.Exec(conversationID); err != nil {
+		m.lo.Error("error closing superseded SLA", "error", err, "conversation_id", conversationID)
+		return sla, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	// Next response is not set at this point, next response are stored in SLA events as there can be multiple entries for next response.
 	deadlines.NextResponse = null.Time{}
@@ -846,6 +852,11 @@ func (m *Manager) createNotificationSchedule(notifications models.SlaNotificatio
 
 // evaluatePendingSLAs fetches pending SLAs and evaluates them, pending SLAs are applied SLAs that have not breached or met yet.
 func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
+	if _, err := m.q.CloseSettledAppliedSLAs.ExecContext(ctx); err != nil {
+		m.lo.Error("error closing settled SLAs", "error", err)
+		return err
+	}
+
 	var pendingSLAs []models.AppliedSLA
 	if err := m.q.GetPendingAppliedSLA.SelectContext(ctx, &pendingSLAs); err != nil {
 		m.lo.Error("error fetching pending SLAs", "error", err)
@@ -861,6 +872,9 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 				m.lo.Error("error evaluating SLA", "error", err)
 			}
 		}
+	}
+	if _, err := m.q.CloseSettledAppliedSLAs.ExecContext(ctx); err != nil {
+		m.lo.Error("error closing settled SLAs", "error", err)
 	}
 	m.lo.Info("evaluated pending SLAs", "count", len(pendingSLAs))
 	return nil
@@ -927,10 +941,6 @@ func (m *Manager) evaluateSLA(appliedSLA models.AppliedSLA) error {
 
 	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(appliedSLA.ConversationID, nil); err != nil {
 		return fmt.Errorf("setting conversation next SLA deadline: %w", err)
-	}
-
-	if _, err := m.q.UpdateAppliedSLAStatus.Exec(appliedSLA.ID); err != nil {
-		return fmt.Errorf("updating applied SLA status: %w", err)
 	}
 
 	return nil

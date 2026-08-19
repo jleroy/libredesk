@@ -422,7 +422,7 @@ func serveIndexPage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", "text/html")
-	r.RequestCtx.SetBody(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
 
 	// Set CSRF cookie if not already set.
 	if err := app.auth.SetCSRFCookie(r); err != nil {
@@ -453,7 +453,7 @@ func serveWidgetIndexPage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", "text/html")
-	r.RequestCtx.SetBody(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
 
 	return nil
 }
@@ -476,7 +476,7 @@ func serveStaticFiles(r *fastglue.Request) error {
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
 	r.RequestCtx.Response.Header.Set("Cache-Control", "public, max-age=86400")
-	r.RequestCtx.SetBody(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
 	return nil
 }
 
@@ -501,7 +501,7 @@ func serveFrontendStaticFiles(r *fastglue.Request) error {
 		contentType = http.DetectContentType(file.ReadBytes())
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
-	r.RequestCtx.SetBody(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
 	return nil
 }
 
@@ -524,7 +524,7 @@ func serveWidgetStaticFiles(r *fastglue.Request) error {
 		contentType = http.DetectContentType(file.ReadBytes())
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
-	r.RequestCtx.SetBody(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
 	return nil
 }
 
@@ -540,7 +540,7 @@ func serveWidgetJS(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
-	r.RequestCtx.SetBody(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
 	return nil
 }
 

@@ -3,8 +3,11 @@ package user
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -115,6 +118,7 @@ type queries struct {
 	GetUserByAPIKey      *sqlx.Stmt `query:"get-user-by-api-key"`
 	SetAPIKey            *sqlx.Stmt `query:"set-api-key"`
 	RevokeAPIKey         *sqlx.Stmt `query:"revoke-api-key"`
+	UpdateAPISecretHash  *sqlx.Stmt `query:"update-api-secret-hash"`
 	UpdateAPIKeyLastUsed *sqlx.Stmt `query:"update-api-key-last-used"`
 
 	MergeVisitorToContact *sqlx.Stmt `query:"merge-visitor-to-contact"`
@@ -431,15 +435,8 @@ func (u *Manager) GenerateAPIKey(userID int) (string, string, error) {
 		return "", "", envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Hash the API secret for storage
-	secretHash, err := bcrypt.GenerateFromPassword([]byte(apiSecret), bcrypt.DefaultCost)
-	if err != nil {
-		u.lo.Error("error hashing API secret", "error", err, "user_id", userID)
-		return "", "", envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-
 	// Update user with API key.
-	if _, err := u.q.SetAPIKey.Exec(userID, apiKey, string(secretHash)); err != nil {
+	if _, err := u.q.SetAPIKey.Exec(userID, apiKey, hashAPISecret(apiSecret)); err != nil {
 		u.lo.Error("error saving API key", "error", err, "user_id", userID)
 		return "", "", envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -460,7 +457,16 @@ func (u *Manager) ValidateAPIKey(apiKey, apiSecret string) (models.User, error) 
 	}
 
 	// Verify API secret.
-	if err := bcrypt.CompareHashAndPassword([]byte(user.APISecret.String), []byte(apiSecret)); err != nil {
+	storedHash := user.APISecret.String
+	if strings.HasPrefix(storedHash, "$2") {
+		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(apiSecret)); err != nil {
+			return user, envelope.NewError(envelope.UnauthorizedError, u.i18n.T("validation.invalidCredential"), nil)
+		}
+		// Legacy bcrypt hashes are upgraded in place on first successful use.
+		if _, err := u.q.UpdateAPISecretHash.Exec(user.ID, hashAPISecret(apiSecret)); err != nil {
+			u.lo.Error("failed to upgrade API secret hash", "error", err, "user_id", user.ID)
+		}
+	} else if subtle.ConstantTimeCompare([]byte(storedHash), []byte(hashAPISecret(apiSecret))) != 1 {
 		return user, envelope.NewError(envelope.UnauthorizedError, u.i18n.T("validation.invalidCredential"), nil)
 	}
 
@@ -646,4 +652,11 @@ func (u *Manager) reserveFlush(id int) bool {
 	// Stamp timestamp.
 	u.lastActiveFlushAt[id] = time.Now()
 	return true
+}
+
+// hashAPISecret hashes an API secret. Secrets are 64 char random tokens, so a plain SHA-256 is
+// enough; bcrypt's work factor only buys anything for low entropy input like human passwords.
+func hashAPISecret(secret string) string {
+	sum := sha256.Sum256([]byte(secret))
+	return hex.EncodeToString(sum[:])
 }

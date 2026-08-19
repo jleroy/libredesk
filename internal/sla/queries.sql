@@ -33,6 +33,8 @@ DELETE FROM sla_policies WHERE id = $1;
 -- name: apply-sla
 WITH deleted AS (
   DELETE FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'
+    AND first_response_met_at IS NULL AND first_response_breached_at IS NULL
+    AND resolution_met_at IS NULL AND resolution_breached_at IS NULL
 ),
 new_sla AS (
   INSERT INTO applied_slas (
@@ -52,19 +54,37 @@ FROM new_sla ns
 WHERE c.id = ns.conversation_id
 RETURNING ns.id;
 
+-- name: close-superseded-applied-sla
+-- A pending SLA that already recorded a met or breach is closed, not deleted.
+UPDATE applied_slas
+SET
+  status = CASE
+     WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
+     WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
+     ELSE 'partially_met'::applied_sla_status
+  END,
+  updated_at = NOW()
+WHERE conversation_id = $1
+  AND status = 'pending'::applied_sla_status
+  AND (first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL
+       OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL);
+
 -- name: get-pending-applied-sla
--- Returns only actionable pending SLAs: a metric is unresolved AND either its deadline has passed
--- or the conversation has transitioned (first reply / resolve) since the last evaluation.
+-- Returns only actionable pending SLAs: the metric has a deadline configured, is unresolved, and
+-- either its deadline has passed or the conversation transitioned (first reply / resolve).
+-- A metric with no deadline can never settle, so excluding it keeps such rows out of every tick.
 SELECT a.id, a.first_response_deadline_at, c.first_reply_at as conversation_first_response_at, a.sla_policy_id,
 a.resolution_deadline_at, c.resolved_at as conversation_resolved_at, c.id as conversation_id, a.first_response_met_at, a.resolution_met_at, a.first_response_breached_at, a.resolution_breached_at
 FROM applied_slas a
 JOIN conversations c ON a.conversation_id = c.id and c.sla_policy_id = a.sla_policy_id
 WHERE a.status = 'pending'::applied_sla_status
   AND (
-    (a.first_response_met_at IS NULL AND a.first_response_breached_at IS NULL
+    (a.first_response_deadline_at IS NOT NULL
+     AND a.first_response_met_at IS NULL AND a.first_response_breached_at IS NULL
      AND (a.first_response_deadline_at <= NOW() OR c.first_reply_at IS NOT NULL))
     OR
-    (a.resolution_met_at IS NULL AND a.resolution_breached_at IS NULL
+    (a.resolution_deadline_at IS NOT NULL
+     AND a.resolution_met_at IS NULL AND a.resolution_breached_at IS NULL
      AND (a.resolution_deadline_at <= NOW() OR c.resolved_at IS NOT NULL))
   );
 
@@ -111,19 +131,19 @@ FROM applied_slas a
 WHERE a.conversation_id = c.id
 AND c.id = $1;
 
--- name: update-applied-sla-status
+-- name: close-settled-applied-slas
+-- A metric with no deadline configured counts as settled.
 UPDATE applied_slas
 SET
-  status = CASE 
-     WHEN first_response_met_at IS NOT NULL AND resolution_met_at IS NOT NULL THEN 'met'::applied_sla_status
-     WHEN first_response_breached_at IS NOT NULL AND resolution_breached_at IS NOT NULL THEN 'breached'::applied_sla_status
-     WHEN (first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL) 
-          AND (resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL) THEN 'partially_met'::applied_sla_status
-     WHEN first_response_met_at IS NULL AND first_response_breached_at IS NULL THEN 'pending'::applied_sla_status
-     ELSE 'pending'::applied_sla_status
+  status = CASE
+     WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
+     WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
+     ELSE 'partially_met'::applied_sla_status
   END,
   updated_at = NOW()
-WHERE applied_slas.id = $1;
+WHERE status = 'pending'::applied_sla_status
+  AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
+  AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL);
 
 -- name: insert-scheduled-sla-notification
 INSERT INTO scheduled_sla_notifications (
