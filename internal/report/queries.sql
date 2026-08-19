@@ -77,6 +77,10 @@ WHERE
 WITH latest_applied AS (
     SELECT DISTINCT ON (conversation_id) *
     FROM applied_slas
+    WHERE created_at >= CASE
+        WHEN %d = 0 THEN CURRENT_DATE
+        ELSE NOW() - INTERVAL '%d days'
+    END
     ORDER BY conversation_id, created_at DESC, id DESC
 ),
 first_and_resolution AS (
@@ -125,11 +129,6 @@ first_and_resolution AS (
         ) AS avg_resolution_time_sec
     FROM
         latest_applied
-    WHERE
-        created_at >= CASE
-            WHEN %d = 0 THEN CURRENT_DATE
-            ELSE NOW() - INTERVAL '%d days'
-        END
 ),
 next_response AS (
     SELECT
