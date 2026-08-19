@@ -31,7 +31,30 @@ RETURNING *;
 DELETE FROM sla_policies WHERE id = $1;
 
 -- name: apply-sla
-WITH deleted AS (
+WITH closed AS (
+  UPDATE applied_slas
+  SET
+    status = CASE
+       WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
+       WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
+       ELSE 'partially_met'::applied_sla_status
+    END,
+    updated_at = NOW()
+  WHERE conversation_id = $1
+    AND status = 'pending'::applied_sla_status
+    AND (first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL
+         OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
+  RETURNING id
+),
+closed_events AS (
+  DELETE FROM sla_events
+  WHERE applied_sla_id IN (SELECT id FROM closed) AND status = 'pending'
+),
+closed_notifications AS (
+  DELETE FROM scheduled_sla_notifications
+  WHERE applied_sla_id IN (SELECT id FROM closed) AND processed_at IS NULL
+),
+deleted AS (
   DELETE FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'
     AND first_response_met_at IS NULL AND first_response_breached_at IS NULL
     AND resolution_met_at IS NULL AND resolution_breached_at IS NULL
@@ -54,25 +77,8 @@ FROM new_sla ns
 WHERE c.id = ns.conversation_id
 RETURNING ns.id;
 
--- name: close-superseded-applied-sla
--- A pending SLA that already recorded a met or breach is closed, not deleted.
-UPDATE applied_slas
-SET
-  status = CASE
-     WHEN first_response_breached_at IS NULL AND resolution_breached_at IS NULL THEN 'met'::applied_sla_status
-     WHEN first_response_met_at IS NULL AND resolution_met_at IS NULL THEN 'breached'::applied_sla_status
-     ELSE 'partially_met'::applied_sla_status
-  END,
-  updated_at = NOW()
-WHERE conversation_id = $1
-  AND status = 'pending'::applied_sla_status
-  AND (first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL
-       OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL);
-
 -- name: get-pending-applied-sla
--- Returns only actionable pending SLAs: the metric has a deadline configured, is unresolved, and
--- either its deadline has passed or the conversation transitioned (first reply / resolve).
--- A metric with no deadline can never settle, so excluding it keeps such rows out of every tick.
+-- Returns pending SLAs with a configured, unresolved metric whose deadline passed or whose conversation transitioned.
 SELECT a.id, a.first_response_deadline_at, c.first_reply_at as conversation_first_response_at, a.sla_policy_id,
 a.resolution_deadline_at, c.resolved_at as conversation_resolved_at, c.id as conversation_id, a.first_response_met_at, a.resolution_met_at, a.first_response_breached_at, a.resolution_breached_at
 FROM applied_slas a

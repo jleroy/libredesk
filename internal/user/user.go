@@ -462,8 +462,7 @@ func (u *Manager) ValidateAPIKey(apiKey, apiSecret string) (models.User, error) 
 		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(apiSecret)); err != nil {
 			return user, envelope.NewError(envelope.UnauthorizedError, u.i18n.T("validation.invalidCredential"), nil)
 		}
-		// Legacy bcrypt hashes are upgraded in place on first successful use. Matching on the hash
-		// just verified keeps a rotation that landed meanwhile from being overwritten.
+		// Matching on storedHash keeps a rotation that landed meanwhile from being overwritten.
 		if _, err := u.q.UpdateAPISecretHash.Exec(user.ID, storedHash, hashAPISecret(apiSecret)); err != nil {
 			u.lo.Error("failed to upgrade API secret hash", "error", err, "user_id", user.ID)
 		}
@@ -655,8 +654,7 @@ func (u *Manager) reserveFlush(id int) bool {
 	return true
 }
 
-// hashAPISecret hashes an API secret. Secrets are 64 char random tokens, so a plain SHA-256 is
-// enough; bcrypt's work factor only buys anything for low entropy input like human passwords.
+// hashAPISecret returns the hex SHA-256 of an API secret (a 64 char random token, so no work factor needed).
 func hashAPISecret(secret string) string {
 	sum := sha256.Sum256([]byte(secret))
 	return hex.EncodeToString(sum[:])

@@ -469,14 +469,15 @@ func serveStaticFiles(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
+	body := file.ReadBytes()
 	ext := filepath.Ext(filePath)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
-		contentType = http.DetectContentType(file.ReadBytes())
+		contentType = http.DetectContentType(body)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
 	r.RequestCtx.Response.Header.Set("Cache-Control", "public, max-age=86400")
-	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(body)
 	return nil
 }
 
@@ -494,14 +495,14 @@ func serveFrontendStaticFiles(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
-	// Set the appropriate Content-Type based on the file extension.
+	body := file.ReadBytes()
 	ext := filepath.Ext(filePath)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
-		contentType = http.DetectContentType(file.ReadBytes())
+		contentType = http.DetectContentType(body)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
-	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(body)
 	return nil
 }
 
@@ -517,14 +518,14 @@ func serveWidgetStaticFiles(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
 	}
 
-	// Set the appropriate Content-Type based on the file extension.
+	body := file.ReadBytes()
 	ext := filepath.Ext(filePath)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
-		contentType = http.DetectContentType(file.ReadBytes())
+		contentType = http.DetectContentType(body)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
-	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
+	r.RequestCtx.Response.SetBodyRaw(body)
 	return nil
 }
 
