@@ -32,6 +32,15 @@ describe('Team form', () => {
     })
   })
 
+  // Teardown never asserts: a failed cleanup must not mask the real failure.
+  after(() => {
+    if (!businessHoursId) return
+    cy.login()
+    cy.api('DELETE', `/api/v1/business-hours/${businessHoursId}`, null, {
+      failOnStatusCode: false
+    })
+  })
+
   beforeEach(() => {
     cy.viewport(1280, 800)
     cy.login()

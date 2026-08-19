@@ -18,6 +18,9 @@ describe('Incoming conversation', () => {
   const smtpPort = Number(Cypress.env('SMTP_PORT') || 1025)
 
   let conversationUuid
+  let roleId
+  let agentId
+  let inboxId
 
   const loginAsAgent = () => {
     cy.session(
@@ -62,6 +65,8 @@ describe('Incoming conversation', () => {
         'messages:write_as_contact',
         'view:manage'
       ]
+    }).then((res) => {
+      roleId = res.body.data.id
     })
     cy.api('POST', '/api/v1/agents', {
       first_name: 'Incoming',
@@ -71,6 +76,7 @@ describe('Incoming conversation', () => {
       enabled: true,
       send_welcome_email: false
     }).then(({ body }) => {
+      agentId = body.data.id
       cy.api('PUT', `/api/v1/agents/${body.data.id}`, {
         first_name: 'Incoming',
         last_name: `Agent${stamp}`,
@@ -103,6 +109,7 @@ describe('Incoming conversation', () => {
         ]
       }
     }).then(({ body }) => {
+      inboxId = body.data.id
       cy.api('POST', '/api/v1/conversations', {
         inbox_id: body.data.id,
         contact_email: `incoming.customer.${stamp}@example.com`,
@@ -116,6 +123,17 @@ describe('Incoming conversation', () => {
         expect(conversationUuid, 'conversation uuid').to.be.a('string').and.not.be.empty
       })
     })
+  })
+
+  // Conversations have no delete endpoint, so the conversation itself stays.
+  // Teardown never asserts: a failed cleanup must not mask the real failure.
+  // Logs back in as System because the throwaway agent cannot delete these.
+  after(() => {
+    cy.login()
+    const drop = (path) => cy.api('DELETE', path, null, { failOnStatusCode: false })
+    if (inboxId) drop(`/api/v1/inboxes/${inboxId}`)
+    if (agentId) drop(`/api/v1/agents/${agentId}`)
+    if (roleId) drop(`/api/v1/roles/${roleId}`)
   })
 
   beforeEach(() => {

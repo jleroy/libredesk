@@ -78,7 +78,7 @@ describe('Tag form', () => {
     cy.get('input[name="name"]').type('ab')
     cy.get('button[type="submit"]').click()
 
-    cy.contains('Tag name should at least 3 characters').should('be.visible')
+    cy.contains('Tag name should be at least 3 characters').should('be.visible')
     cy.get('@createTag.all').should('have.length', 0)
   })
 

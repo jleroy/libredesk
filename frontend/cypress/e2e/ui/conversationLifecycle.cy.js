@@ -16,6 +16,10 @@ describe('Conversation lifecycle', () => {
   const smtpPort = Number(Cypress.env('SMTP_PORT') || 1025)
 
   let conversationUuid
+  let inboxId
+  let teamId
+  let agentId
+  let tagId
 
   const openConversation = () => {
     cy.intercept('GET', '**/messages?page=*').as('loadMessages')
@@ -58,11 +62,14 @@ describe('Conversation lifecycle', () => {
       }
     }).then(({ body }) => {
       const inboxID = body.data.id
+      inboxId = inboxID
       cy.api('POST', '/api/v1/teams', {
         name: teamName,
         emoji: '🐝',
         conversation_assignment_type: 'Round robin',
         timezone: 'Asia/Kolkata'
+      }).then((res) => {
+        teamId = res.body.data.id
       })
       cy.api('POST', '/api/v1/agents', {
         first_name: agentFirstName,
@@ -71,8 +78,12 @@ describe('Conversation lifecycle', () => {
         roles: ['Agent'],
         enabled: true,
         send_welcome_email: false
+      }).then((res) => {
+        agentId = res.body.data.id
       })
-      cy.api('POST', '/api/v1/tags', { name: tagName })
+      cy.api('POST', '/api/v1/tags', { name: tagName }).then((res) => {
+        tagId = res.body.data.id
+      })
       cy.api('POST', '/api/v1/conversations', {
         inbox_id: inboxID,
         contact_email: `lifecycle.customer.${stamp}@example.com`,
@@ -86,6 +97,17 @@ describe('Conversation lifecycle', () => {
         expect(conversationUuid, 'conversation uuid').to.be.a('string').and.not.be.empty
       })
     })
+  })
+
+  // Conversations have no delete endpoint, so the conversation itself stays.
+  // Teardown never asserts: a failed cleanup must not mask the real failure.
+  after(() => {
+    cy.login()
+    const drop = (path) => cy.api('DELETE', path, null, { failOnStatusCode: false })
+    if (tagId) drop(`/api/v1/tags/${tagId}`)
+    if (agentId) drop(`/api/v1/agents/${agentId}`)
+    if (teamId) drop(`/api/v1/teams/${teamId}`)
+    if (inboxId) drop(`/api/v1/inboxes/${inboxId}`)
   })
 
   beforeEach(() => {
