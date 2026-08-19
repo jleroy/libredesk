@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,7 +26,7 @@ type stubUserStore struct{}
 
 type stubAppSettingsStore struct{}
 
-type stubBusinessHrsStore struct{}
+type stubBusinessHrsStore struct{ bh bmodels.BusinessHours }
 
 type appliedRow struct {
 	ID          int          `db:"id"`
@@ -45,8 +47,8 @@ func (stubAppSettingsStore) GetByPrefix(prefix string) (types.JSONText, error) {
 	return types.JSONText(`{"app.business_hours_id":"1","app.timezone":"UTC"}`), nil
 }
 
-func (stubBusinessHrsStore) Get(id int) (bmodels.BusinessHours, error) {
-	return bmodels.BusinessHours{ID: 1, IsAlwaysOpen: true}, nil
+func (s stubBusinessHrsStore) Get(id int) (bmodels.BusinessHours, error) {
+	return s.bh, nil
 }
 
 func TestApplySLASetsDeadlinesAndConversation(t *testing.T) {
@@ -108,9 +110,8 @@ func TestApplySLAClosesSettledPendingAndCleansChildren(t *testing.T) {
 	if rows[1].Status != "pending" {
 		t.Fatalf("expected new pending sla, got %+v", rows[1])
 	}
-	var events, notifs int
-	db.QueryRow(`SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND status = 'pending'`, old.ID).Scan(&events)
-	db.QueryRow(`SELECT COUNT(*) FROM scheduled_sla_notifications WHERE applied_sla_id = $1 AND processed_at IS NULL`, old.ID).Scan(&notifs)
+	events := queryInt(t, db, `SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND status = 'pending'`, old.ID)
+	notifs := queryInt(t, db, `SELECT COUNT(*) FROM scheduled_sla_notifications WHERE applied_sla_id = $1 AND processed_at IS NULL`, old.ID)
 	if events != 0 || notifs != 0 {
 		t.Fatalf("expected superseded sla children cleaned, got %d events and %d notifications", events, notifs)
 	}
@@ -256,8 +257,7 @@ func TestBreachSchedulesNotification(t *testing.T) {
 		t.Fatalf("evaluatePendingSLAs: %v", err)
 	}
 
-	var n int
-	db.QueryRow(`SELECT COUNT(*) FROM scheduled_sla_notifications WHERE applied_sla_id = $1 AND notification_type = 'breach'`, fetchApplied(t, db, conv)[0].ID).Scan(&n)
+	n := queryInt(t, db, `SELECT COUNT(*) FROM scheduled_sla_notifications WHERE applied_sla_id = $1 AND notification_type = 'breach'`, fetchApplied(t, db, conv)[0].ID)
 	if n != 1 {
 		t.Fatalf("expected one scheduled breach notification, got %d", n)
 	}
@@ -283,9 +283,7 @@ func TestNextResponseEventLifecycle(t *testing.T) {
 		t.Fatalf("evaluatePendingSLAEvents: %v", err)
 	}
 
-	var status string
-	db.QueryRow(`SELECT status FROM sla_events WHERE applied_sla_id = $1`, appliedID).Scan(&status)
-	if status != "met" {
+	if status := queryStr(t, db, `SELECT status FROM sla_events WHERE applied_sla_id = $1`, appliedID); status != "met" {
 		t.Fatalf("expected event met, got %s", status)
 	}
 	if _, err := m.CreateNextResponseSLAEvent(conv, appliedID, policy, 0); err != nil {
@@ -309,13 +307,10 @@ func TestNextResponseEventBreachSchedulesNotification(t *testing.T) {
 		t.Fatalf("evaluatePendingSLAEvents: %v", err)
 	}
 
-	var status string
-	db.QueryRow(`SELECT status FROM sla_events WHERE applied_sla_id = $1`, appliedID).Scan(&status)
-	if status != "breached" {
+	if status := queryStr(t, db, `SELECT status FROM sla_events WHERE applied_sla_id = $1`, appliedID); status != "breached" {
 		t.Fatalf("expected event breached, got %s", status)
 	}
-	var n int
-	db.QueryRow(`SELECT COUNT(*) FROM scheduled_sla_notifications WHERE applied_sla_id = $1 AND metric = 'next_response' AND notification_type = 'breach'`, appliedID).Scan(&n)
+	n := queryInt(t, db, `SELECT COUNT(*) FROM scheduled_sla_notifications WHERE applied_sla_id = $1 AND metric = 'next_response' AND notification_type = 'breach'`, appliedID)
 	if n != 1 {
 		t.Fatalf("expected one scheduled next-response breach notification, got %d", n)
 	}
@@ -341,9 +336,7 @@ func TestSendNotificationSkipsMetMetric(t *testing.T) {
 		t.Fatalf("SendNotification: %v", err)
 	}
 
-	var processed bool
-	db.QueryRow(`SELECT processed_at IS NOT NULL FROM scheduled_sla_notifications WHERE id = $1`, pending[0].ID).Scan(&processed)
-	if !processed {
+	if queryInt(t, db, `SELECT COUNT(*) FROM scheduled_sla_notifications WHERE id = $1 AND processed_at IS NOT NULL`, pending[0].ID) != 1 {
 		t.Fatal("expected met-metric notification marked processed without sending")
 	}
 }
@@ -413,8 +406,7 @@ func TestPolicyMetricCombinations(t *testing.T) {
 			if tc.settledOldGone && rows[0].ID == row.ID {
 				t.Fatalf("expected untouched old row deleted on re-apply, got %+v", rows)
 			}
-			var orphanEvents int
-			db.QueryRow(`SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND status = 'pending'`, row.ID).Scan(&orphanEvents)
+			orphanEvents := queryInt(t, db, `SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND status = 'pending'`, row.ID)
 			if orphanEvents != 0 {
 				t.Fatalf("expected no pending events left on superseded sla, got %d", orphanEvents)
 			}
@@ -463,6 +455,140 @@ func TestSweepStatusLabels(t *testing.T) {
 	}
 }
 
+func TestSendNotificationSkipsResolvedConversation(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	appliedID := fetchApplied(t, db, conv)[0].ID
+	db.MustExec(`UPDATE conversations SET status_id = (SELECT id FROM conversation_statuses WHERE category = 'resolved' LIMIT 1) WHERE id = $1`, conv)
+	db.MustExec(`INSERT INTO scheduled_sla_notifications (applied_sla_id, metric, notification_type, recipients, send_at) VALUES ($1, 'first_response', 'breach', '{1}', NOW() - INTERVAL '1 min')`, appliedID)
+
+	var pending []models.ScheduledSLANotification
+	if err := m.q.GetScheduledSLANotifications.Select(&pending); err != nil {
+		t.Fatalf("fetching scheduled notifications: %v", err)
+	}
+	if err := m.SendNotification(pending[0]); err != nil {
+		t.Fatalf("SendNotification: %v", err)
+	}
+
+	if queryInt(t, db, `SELECT COUNT(*) FROM scheduled_sla_notifications WHERE id = $1 AND processed_at IS NOT NULL`, pending[0].ID) != 1 {
+		t.Fatal("expected resolved-conversation notification marked processed without sending")
+	}
+}
+
+func TestSweepRepairsConversationDeadline(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	frDeadline := fetchApplied(t, db, conv)[0].FRDeadline.Time
+	db.MustExec(`UPDATE applied_slas SET first_response_met_at = NOW(), resolution_met_at = NOW() WHERE conversation_id = $1`, conv)
+	db.MustExec(`UPDATE conversations SET next_sla_deadline_at = NOW() + INTERVAL '10 days' WHERE id = $1`, conv)
+
+	if err := m.evaluatePendingSLAs(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAs: %v", err)
+	}
+
+	if fetchApplied(t, db, conv)[0].Status != "met" {
+		t.Fatal("expected sla closed")
+	}
+	d := conversationDeadline(t, db, conv)
+	if !d.Valid || d.Time.Sub(frDeadline).Abs() > time.Millisecond {
+		t.Fatalf("expected sweep to repair conversation deadline to %v, got %v", frDeadline, d)
+	}
+}
+
+func TestApplySLADeadlinesHonorBusinessHours(t *testing.T) {
+	m, db := newTestManagerBH(t, bmodels.BusinessHours{
+		ID:       1,
+		Holidays: types.JSONText(`[]`),
+		Hours:    types.JSONText(`{"Tuesday":{"open":"09:00","close":"17:00"}}`),
+	})
+	policy := insertPolicy(t, db, "p1", "1h", "8h", "")
+	conv := insertConversation(t, db, "c1")
+	start := time.Date(2023, 10, 10, 10, 0, 0, 0, time.UTC)
+	if _, err := m.ApplySLA(start, conv, 0, policy); err != nil {
+		t.Fatalf("ApplySLA: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	wantFR := time.Date(2023, 10, 10, 11, 0, 0, 0, time.UTC)
+	wantRes := time.Date(2023, 10, 17, 10, 0, 0, 0, time.UTC)
+	if !row.FRDeadline.Time.UTC().Equal(wantFR) {
+		t.Fatalf("expected first response deadline %v, got %v", wantFR, row.FRDeadline.Time.UTC())
+	}
+	if !row.ResDeadline.Time.UTC().Equal(wantRes) {
+		t.Fatalf("expected resolution deadline to spill into next working day %v, got %v", wantRes, row.ResDeadline.Time.UTC())
+	}
+}
+
+func TestConcurrentApplySLA(t *testing.T) {
+	m, db := newTestManager(t)
+	conv := insertConversation(t, db, "c1")
+	policies := make([]int, 8)
+	for i := range policies {
+		policies[i] = insertPolicy(t, db, fmt.Sprintf("p%d", i), "1h", "2h", "")
+	}
+
+	var wg sync.WaitGroup
+	var successes atomic.Int32
+	for _, p := range policies {
+		wg.Add(1)
+		go func(policyID int) {
+			defer wg.Done()
+			if _, err := m.ApplySLA(time.Now(), conv, 0, policyID); err == nil {
+				successes.Add(1)
+			}
+		}(p)
+	}
+	wg.Wait()
+
+	if successes.Load() == 0 {
+		t.Fatal("expected at least one concurrent ApplySLA to succeed")
+	}
+	pending := queryInt(t, db, `SELECT COUNT(*) FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'`, conv)
+	total := queryInt(t, db, `SELECT COUNT(*) FROM applied_slas WHERE conversation_id = $1`, conv)
+	if pending != 1 {
+		t.Fatalf("expected exactly one pending row after concurrent applies, got %d pending of %d total", pending, total)
+	}
+}
+
+func TestWarningNotificationSchedule(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "", "")
+	db.MustExec(`UPDATE sla_policies SET notifications = '[{"type":"warning","time_delay_type":"before","time_delay":"10m","recipients":["assigned_user"]}]' WHERE id = $1`, policy)
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	row := fetchApplied(t, db, conv)[0]
+	var sendAt time.Time
+	if err := db.QueryRow(`SELECT send_at FROM scheduled_sla_notifications WHERE applied_sla_id = $1 AND notification_type = 'warning'`, row.ID).Scan(&sendAt); err != nil {
+		t.Fatalf("fetching warning notification: %v", err)
+	}
+	want := row.FRDeadline.Time.Add(-10 * time.Minute)
+	if sendAt.Sub(want).Abs() > time.Millisecond {
+		t.Fatalf("expected warning at deadline minus 10m (%v), got %v", want, sendAt)
+	}
+
+	short := insertPolicy(t, db, "p2", "1m", "", "")
+	db.MustExec(`UPDATE sla_policies SET notifications = '[{"type":"warning","time_delay_type":"before","time_delay":"10m","recipients":["assigned_user"]}]' WHERE id = $1`, short)
+	conv2 := insertConversation(t, db, "c2")
+	applySLA(t, m, conv2, short)
+	if n := queryInt(t, db, `SELECT COUNT(*) FROM scheduled_sla_notifications WHERE applied_sla_id = $1`, fetchApplied(t, db, conv2)[0].ID); n != 0 {
+		t.Fatalf("expected past-dated warning skipped, got %d scheduled", n)
+	}
+}
+
+func TestSendNotificationsStopsOnCancel(t *testing.T) {
+	m, _ := newTestManager(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := m.SendNotifications(ctx); err != context.Canceled {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
 func TestPolicyCRUD(t *testing.T) {
 	m, _ := newTestManager(t)
 	created, err := m.Create("p1", "desc", null.StringFrom("1h"), null.StringFrom("2h"), null.StringFrom("30m"), models.SlaNotifications{})
@@ -493,13 +619,18 @@ func TestPolicyCRUD(t *testing.T) {
 
 func newTestManager(t *testing.T) (*Manager, *sqlx.DB) {
 	t.Helper()
+	return newTestManagerBH(t, bmodels.BusinessHours{ID: 1, IsAlwaysOpen: true})
+}
+
+func newTestManagerBH(t *testing.T, bh bmodels.BusinessHours) (*Manager, *sqlx.DB) {
+	t.Helper()
 	db := testutil.NewDB(t, "sla")
 	lo := logf.New(logf.Opts{})
 	mgr, err := New(
 		Opts{DB: db, Lo: &lo, I18n: testutil.NewI18n(t)},
 		stubTeamStore{},
 		stubAppSettingsStore{},
-		stubBusinessHrsStore{},
+		stubBusinessHrsStore{bh: bh},
 		nil,
 		stubUserStore{},
 		nil,
@@ -508,6 +639,24 @@ func newTestManager(t *testing.T) (*Manager, *sqlx.DB) {
 		t.Fatalf("creating sla manager: %v", err)
 	}
 	return mgr, db
+}
+
+func queryInt(t *testing.T, db *sqlx.DB, query string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := db.QueryRow(query, args...).Scan(&n); err != nil {
+		t.Fatalf("querying %q: %v", query, err)
+	}
+	return n
+}
+
+func queryStr(t *testing.T, db *sqlx.DB, query string, args ...any) string {
+	t.Helper()
+	var s string
+	if err := db.QueryRow(query, args...).Scan(&s); err != nil {
+		t.Fatalf("querying %q: %v", query, err)
+	}
+	return s
 }
 
 func insertPolicy(t *testing.T, db *sqlx.DB, name, fr, res, nr string) int {
