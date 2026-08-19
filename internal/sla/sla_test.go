@@ -617,6 +617,35 @@ func TestPolicyCRUD(t *testing.T) {
 	}
 }
 
+func TestScoredNextResponseHistorySurvivesReapply(t *testing.T) {
+	m, db := newTestManager(t)
+	p1 := insertPolicy(t, db, "nr-only", "", "", "30m")
+	p2 := insertPolicy(t, db, "p2", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, p1)
+	oldID := fetchApplied(t, db, conv)[0].ID
+
+	if _, err := m.CreateNextResponseSLAEvent(conv, oldID, p1, 0); err != nil {
+		t.Fatalf("CreateNextResponseSLAEvent: %v", err)
+	}
+	if _, err := m.SetLatestSLAEventMetAt(oldID, MetricNextResponse); err != nil {
+		t.Fatalf("SetLatestSLAEventMetAt: %v", err)
+	}
+	if err := m.evaluatePendingSLAEvents(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAEvents: %v", err)
+	}
+
+	applySLA(t, m, conv, p2)
+
+	rows := fetchApplied(t, db, conv)
+	if len(rows) != 2 || rows[0].ID != oldID || rows[0].Status == "pending" {
+		t.Fatalf("expected scored nr-only sla closed and kept, got %+v", rows)
+	}
+	if n := queryInt(t, db, `SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND status = 'met'`, oldID); n != 1 {
+		t.Fatalf("expected met next-response event history kept, got %d", n)
+	}
+}
+
 func TestQuietTickChangesNothing(t *testing.T) {
 	m, db := newTestManager(t)
 	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
