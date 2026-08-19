@@ -147,7 +147,8 @@ SET
      ELSE 'partially_met'::applied_sla_status
   END,
   updated_at = NOW()
-WHERE status = 'pending'::applied_sla_status
+WHERE id = ANY($1)
+  AND status = 'pending'::applied_sla_status
   AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
   AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL);
 
