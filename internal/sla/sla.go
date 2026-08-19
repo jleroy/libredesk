@@ -367,7 +367,7 @@ func (m *Manager) CreateNextResponseSLAEvent(conversationID, appliedSLAID, slaPo
 		return time.Time{}, fmt.Errorf("inserting SLA event (applied_sla: %d): %w", appliedSLAID, err)
 	}
 
-	if err := m.recomputeConversationNextSLADeadline(conversationID); err != nil {
+	if err := m.RecomputeConversationNextSLADeadline(conversationID); err != nil {
 		m.lo.Error("error updating conversation next SLA deadline",
 			"error", err,
 			"conversation_id", conversationID,
@@ -384,8 +384,8 @@ func (m *Manager) CreateNextResponseSLAEvent(conversationID, appliedSLAID, slaPo
 	return deadlines.NextResponse.Time, nil
 }
 
-// recomputeConversationNextSLADeadline locks the conversation rows before recomputing next_sla_deadline_at, else a lock-blocked concurrent recompute writes from a stale snapshot.
-func (m *Manager) recomputeConversationNextSLADeadline(conversationIDs ...int) error {
+// RecomputeConversationNextSLADeadline locks the conversation rows before recomputing next_sla_deadline_at, else a lock-blocked concurrent recompute writes from a stale snapshot.
+func (m *Manager) RecomputeConversationNextSLADeadline(conversationIDs ...int) error {
 	if len(conversationIDs) == 0 {
 		return nil
 	}
@@ -907,7 +907,7 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 	}
 	for start := 0; start < len(settledConvIDs); start += deadlineRecomputeBatchSize {
 		batch := settledConvIDs[start:min(start+deadlineRecomputeBatchSize, len(settledConvIDs))]
-		if err := m.recomputeConversationNextSLADeadline(batch...); err != nil {
+		if err := m.RecomputeConversationNextSLADeadline(batch...); err != nil {
 			m.lo.Error("error updating conversation next SLA deadlines", "conversation_ids", batch, "error", err)
 		}
 	}
@@ -976,7 +976,7 @@ func (m *Manager) evaluateSLA(appliedSLA models.AppliedSLA) error {
 		return nil
 	}
 
-	if err := m.recomputeConversationNextSLADeadline(appliedSLA.ConversationID); err != nil {
+	if err := m.RecomputeConversationNextSLADeadline(appliedSLA.ConversationID); err != nil {
 		return fmt.Errorf("setting conversation next SLA deadline: %w", err)
 	}
 

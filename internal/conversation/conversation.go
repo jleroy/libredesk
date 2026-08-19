@@ -144,6 +144,7 @@ type slaStore interface {
 	ApplySLA(startTime time.Time, conversationID, assignedTeamID, slaID int) (slaModels.SLAPolicy, error)
 	CreateNextResponseSLAEvent(conversationID, appliedSLAID, slaPolicyID, assignedTeamID int) (time.Time, error)
 	SetLatestSLAEventMetAt(appliedSLAID int, metric string) (time.Time, error)
+	RecomputeConversationNextSLADeadline(conversationIDs ...int) error
 }
 
 type statusStore interface {
@@ -992,6 +993,10 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	if _, err := c.q.UpdateConversationStatus.Exec(uuid, status, snoozeUntil); err != nil {
 		c.lo.Error("error updating conversation status", "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+
+	if err := c.slaStore.RecomputeConversationNextSLADeadline(conversationBeforeChange.ID); err != nil {
+		c.lo.Error("error recomputing next SLA deadline after status change", "uuid", uuid, "error", err)
 	}
 
 	// Fetch conversation for webhook and automation rules.
