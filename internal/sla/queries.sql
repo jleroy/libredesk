@@ -45,7 +45,7 @@ WITH closed AS (
     AND status = 'pending'::applied_sla_status
     AND (first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL
          OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL
-         OR EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id AND e.status <> 'pending'))
+         OR EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id AND e.status != 'pending'))
   RETURNING id
 ),
 -- Cancel unmet events of every previous SLA on this conversation so the old policy stops breaching.
@@ -65,7 +65,7 @@ deleted AS (
   DELETE FROM applied_slas WHERE conversation_id = $1 AND status = 'pending'
     AND first_response_met_at IS NULL AND first_response_breached_at IS NULL
     AND resolution_met_at IS NULL AND resolution_breached_at IS NULL
-    AND NOT EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id AND e.status <> 'pending')
+    AND NOT EXISTS (SELECT 1 FROM sla_events e WHERE e.applied_sla_id = applied_slas.id AND e.status != 'pending')
   RETURNING id
 ),
 -- Insert the new pending SLA.
