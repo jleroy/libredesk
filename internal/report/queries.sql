@@ -73,7 +73,13 @@ WHERE
     s.category != 'resolved';
 
 -- name: get-overview-sla-counts
-WITH first_and_resolution AS (
+-- Count only each conversation's latest applied SLA; superseded rows are kept as history and would double-count.
+WITH latest_applied AS (
+    SELECT DISTINCT ON (conversation_id) *
+    FROM applied_slas
+    ORDER BY conversation_id, created_at DESC, id DESC
+),
+first_and_resolution AS (
     SELECT
         COUNT(*) FILTER (
             WHERE
@@ -118,7 +124,7 @@ WITH first_and_resolution AS (
             0
         ) AS avg_resolution_time_sec
     FROM
-        applied_slas
+        latest_applied
     WHERE
         created_at >= CASE
             WHEN %d = 0 THEN CURRENT_DATE
