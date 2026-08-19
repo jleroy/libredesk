@@ -1409,7 +1409,9 @@ watch(
     }
 
     if (newValues.config?.home_apps) {
-      homeApps.value = [...newValues.config.home_apps]
+      // Copy each app too, so editing one cannot mutate the prop and retrigger
+      // this watcher, which would reset the fields the user is editing.
+      homeApps.value = newValues.config.home_apps.map((app) => ({ ...app }))
     }
 
     if (newValues.config?.prechat_form) {

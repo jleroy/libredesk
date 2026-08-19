@@ -11,6 +11,9 @@ const websiteUrl = `https://cypress.test/${stamp}`
 const greeting = `Hello from Cypress ${stamp}`
 const chatIntroduction = `Ask Cypress ${stamp} anything.`
 const trustedDomain = `cypress-${stamp}.test`
+const editedBrandName = `Cypress Brand ${stamp} edited`
+const homeAppTitle = `Cypress Announcement ${stamp}`
+const editedHomeAppTitle = `Cypress Announcement ${stamp} edited`
 const secret = `${stamp}`.padEnd(32, 'c').slice(0, 32)
 const maskedSecret = '••••••••••'
 const newPath = '/admin/inboxes/new'
@@ -139,6 +142,32 @@ describe('Live chat inbox form', () => {
 
     cy.contains('Invalid URL').should('be.visible')
     cy.get('@createInbox.all').should('have.length', 0)
+  })
+
+  it('persists a brand name edit made alongside a home screen app edit', () => {
+    cy.intercept('PUT', `**/api/v1/inboxes/${inboxId}`).as('updateInbox')
+
+    cy.visit(`${listPath}/${inboxId}/edit`)
+    openTab('Appearance')
+    cy.contains('button', 'Add announcement').click()
+    cy.get('input[placeholder="Title"]').type(homeAppTitle)
+    cy.get('input[placeholder="Cover image URL"]').type('https://cypress.test/cover.png')
+    cy.get('input[placeholder="Link URL"]').type('https://cypress.test/announcement')
+    cy.get('button[type="submit"]').click()
+    cy.wait('@updateInbox').its('response.statusCode').should('eq', 200)
+
+    cy.visit(`${listPath}/${inboxId}/edit`)
+    cy.get('input[name="config.brand_name"]').clear().type(editedBrandName)
+    openTab('Appearance')
+    cy.get('input[placeholder="Title"]').clear().type(editedHomeAppTitle)
+
+    cy.get('button[type="submit"]').click()
+    cy.wait('@updateInbox').its('response.statusCode').should('eq', 200)
+
+    cy.visit(`${listPath}/${inboxId}/edit`)
+    cy.get('input[name="config.brand_name"]').should('have.value', editedBrandName)
+    openTab('Appearance')
+    cy.get('input[placeholder="Title"]').should('have.value', editedHomeAppTitle)
   })
 
   it('deletes the inbox', () => {
