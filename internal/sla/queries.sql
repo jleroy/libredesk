@@ -132,10 +132,10 @@ SET next_sla_deadline_at = CASE
     -- If the conversation is in a resolved-category status, clear the deadline
     WHEN c.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'resolved') THEN NULL
 
-    -- Earliest obligation still open: the caller-provided timestamp ($2, e.g. a fresh next-response deadline), each fr/res deadline not yet judged, and any live next-response countdown. Judged metrics contribute nothing; LEAST ignores NULLs.
+    -- Earliest obligation still open: the caller-provided timestamp ($2, e.g. a fresh next-response deadline), each fr/res deadline still owed, and any live next-response countdown. A first reply discharges the first-response deadline immediately, before the tick stamps it. LEAST ignores NULLs.
     ELSE LEAST(
         $2::TIMESTAMPTZ,
-        CASE WHEN a.first_response_met_at IS NULL AND a.first_response_breached_at IS NULL THEN a.first_response_deadline_at END,
+        CASE WHEN c.first_reply_at IS NULL AND a.first_response_met_at IS NULL AND a.first_response_breached_at IS NULL THEN a.first_response_deadline_at END,
         CASE WHEN a.resolution_met_at IS NULL AND a.resolution_breached_at IS NULL THEN a.resolution_deadline_at END,
         (SELECT MIN(e.deadline_at) FROM sla_events e
          JOIN applied_slas a2 ON a2.id = e.applied_sla_id
@@ -168,7 +168,7 @@ WITH closed AS (
     AND (first_response_deadline_at IS NOT NULL OR resolution_deadline_at IS NOT NULL)
     AND (first_response_deadline_at IS NULL OR first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL)
     AND (resolution_deadline_at IS NULL OR resolution_met_at IS NOT NULL OR resolution_breached_at IS NOT NULL)
-  RETURNING id, conversation_id
+  RETURNING conversation_id
 )
 -- Recompute the deadline shown on each conversation whose SLA just closed, in the same statement so a failure can't leave it stale.
 UPDATE conversations c
@@ -179,9 +179,8 @@ SET next_sla_deadline_at = CASE
           JOIN applied_slas a2 ON a2.id = e.applied_sla_id
           WHERE a2.conversation_id = c.id AND e.status = 'pending' AND e.met_at IS NULL AND e.breached_at IS NULL)
 END
-FROM applied_slas a
-JOIN closed cl ON cl.id = a.id
-WHERE a.conversation_id = c.id;
+FROM closed cl
+WHERE cl.conversation_id = c.id;
 
 -- name: insert-scheduled-sla-notification
 INSERT INTO scheduled_sla_notifications (

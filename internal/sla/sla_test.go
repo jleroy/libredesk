@@ -416,11 +416,11 @@ func TestPolicyMetricCombinations(t *testing.T) {
 
 func TestSweepStatusLabels(t *testing.T) {
 	cases := []struct {
-		name                       string
-		fr, res                    string
-		frMet, frBreach            bool
-		resMet, resBreach          bool
-		want                       string
+		name              string
+		fr, res           string
+		frMet, frBreach   bool
+		resMet, resBreach bool
+		want              string
 	}{
 		{"both-met", "1h", "2h", true, false, true, false, "met"},
 		{"both-breached", "1h", "2h", false, true, false, true, "breached"},
@@ -718,6 +718,41 @@ func TestDeadlineRecomputeUsesLatestSLA(t *testing.T) {
 	d := conversationDeadline(t, db, conv)
 	if !d.Valid || d.Time.Sub(rows[1].FRDeadline.Time).Abs() > time.Millisecond {
 		t.Fatalf("expected deadline from the latest sla %v, got %v", rows[1].FRDeadline.Time, d)
+	}
+}
+
+func TestDeadlineRecomputeSkipsRepliedFirstResponse(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	row := fetchApplied(t, db, conv)[0]
+
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv, nil); err != nil {
+		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
+	}
+
+	d := conversationDeadline(t, db, conv)
+	if !d.Valid || d.Time.Sub(row.ResDeadline.Time).Abs() > time.Millisecond {
+		t.Fatalf("expected resolution deadline %v after a first reply, got %v", row.ResDeadline.Time, d)
+	}
+}
+
+func TestDeadlineRecomputeKeepsUnrepliedFirstResponse(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	row := fetchApplied(t, db, conv)[0]
+
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv, nil); err != nil {
+		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
+	}
+
+	d := conversationDeadline(t, db, conv)
+	if !d.Valid || d.Time.Sub(row.FRDeadline.Time).Abs() > time.Millisecond {
+		t.Fatalf("expected first response deadline %v with no reply yet, got %v", row.FRDeadline.Time, d)
 	}
 }
 
