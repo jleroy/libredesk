@@ -307,7 +307,11 @@ const initializeFromValues = (values) => {
 
   // Set hours and selected days
   if (values.hours && typeof values.hours === 'object') {
-    hours.value = { ...values.hours }
+    // Copy each day too, so editing a time cannot mutate the prop and retrigger
+    // the deep watcher, which would reset the fields the user is editing.
+    hours.value = Object.fromEntries(
+      Object.entries(values.hours).map(([day, hour]) => [day, { ...hour }])
+    )
     selectedDays.value = Object.keys(values.hours).reduce((acc, day) => {
       acc[day] = true
       return acc
@@ -316,7 +320,7 @@ const initializeFromValues = (values) => {
 
   // Set holidays
   if (values.holidays) {
-    holidays.push(...values.holidays)
+    holidays.push(...values.holidays.map((holiday) => ({ ...holiday })))
   }
 
   // Update form

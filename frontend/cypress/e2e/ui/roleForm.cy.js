@@ -5,6 +5,7 @@
 const stamp = Date.now()
 const roleName = `Cypress Role ${stamp}`
 const renamedRole = `Cypress Role ${stamp} edited`
+const finalRole = `Cypress Role ${stamp} again`
 const roleDescription = 'Role created by the role form spec'
 const updatedDescription = 'Role edited by the role form spec'
 const newPath = '/admin/teams/roles/new'
@@ -96,20 +97,18 @@ describe('Role form', () => {
     permission('Manage conversation statuses').should('have.attr', 'data-state', 'checked')
   })
 
-  // Toggling a permission reverts the name and description inputs to their
-  // saved values, so the save silently drops both edits.
-  it.skip('persists text edits made alongside a permission toggle', () => {
+  it('persists text edits made alongside a permission toggle', () => {
     cy.intercept('PUT', `**/api/v1/roles/${roleId}`).as('updateRole')
 
     cy.visit(`${listPath}/${roleId}/edit`)
-    cy.get('input[name="name"]').should('have.value', renamedRole).clear().type(`${roleName} again`)
+    cy.get('input[name="name"]').should('have.value', renamedRole).clear().type(finalRole)
     togglePermission('Manage macros')
 
     cy.get('button[type="submit"]').click()
     cy.wait('@updateRole').its('response.statusCode').should('eq', 200)
 
     cy.visit(`${listPath}/${roleId}/edit`)
-    cy.get('input[name="name"]').should('have.value', `${roleName} again`)
+    cy.get('input[name="name"]').should('have.value', finalRole)
     permission('Manage macros').should('have.attr', 'data-state', 'checked')
   })
 
@@ -134,12 +133,12 @@ describe('Role form', () => {
     cy.intercept('DELETE', `**/api/v1/roles/${roleId}`).as('deleteRole')
 
     cy.visit(listPath)
-    filterList(renamedRole)
-    cy.contains('tr', renamedRole).find('button[aria-haspopup="menu"]').click()
+    filterList(finalRole)
+    cy.contains('tr', finalRole).find('button[aria-haspopup="menu"]').click()
     cy.get('[role="menuitem"]').contains('Delete').click()
     cy.get('[role="alertdialog"]').contains('button', 'Delete').click()
 
     cy.wait('@deleteRole').its('response.statusCode').should('eq', 200)
-    cy.contains(renamedRole).should('not.exist')
+    cy.contains(finalRole).should('not.exist')
   })
 })

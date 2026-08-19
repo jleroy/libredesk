@@ -232,7 +232,9 @@ watch(
   () => props.initialValues,
   (newValues) => {
     form.setValues(newValues, false)
-    selectedPermissions.value = newValues.permissions || []
+    // Copy, so toggling a permission cannot mutate the prop and retrigger this
+    // watcher, which would reset the fields the user is editing.
+    selectedPermissions.value = [...(newValues.permissions || [])]
   },
   { deep: true, immediate: true }
 )
