@@ -852,7 +852,9 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 		m.lo.Error("error fetching pending SLAs", "error", err)
 		return err
 	}
-	m.lo.Info("evaluating pending SLAs", "count", len(pendingSLAs))
+	if len(pendingSLAs) > 0 {
+		m.lo.Info("evaluating pending SLAs", "count", len(pendingSLAs))
+	}
 	for _, sla := range pendingSLAs {
 		select {
 		case <-ctx.Done():
@@ -867,7 +869,9 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 		m.lo.Error("error closing settled SLAs", "error", err)
 		return err
 	}
-	m.lo.Info("evaluated pending SLAs", "count", len(pendingSLAs))
+	if len(pendingSLAs) > 0 {
+		m.lo.Info("evaluated pending SLAs", "count", len(pendingSLAs))
+	}
 	return nil
 }
 
