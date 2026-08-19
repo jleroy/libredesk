@@ -646,6 +646,34 @@ func TestScoredNextResponseHistorySurvivesReapply(t *testing.T) {
 	}
 }
 
+func TestMetButUntickedEventSurvivesReapply(t *testing.T) {
+	m, db := newTestManager(t)
+	p1 := insertPolicy(t, db, "p1", "", "", "30m")
+	p2 := insertPolicy(t, db, "p2", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, p1)
+	oldID := fetchApplied(t, db, conv)[0].ID
+
+	if _, err := m.CreateNextResponseSLAEvent(conv, oldID, p1, 0); err != nil {
+		t.Fatalf("CreateNextResponseSLAEvent: %v", err)
+	}
+	if _, err := m.SetLatestSLAEventMetAt(oldID, MetricNextResponse); err != nil {
+		t.Fatalf("SetLatestSLAEventMetAt: %v", err)
+	}
+
+	applySLA(t, m, conv, p2)
+
+	if n := queryInt(t, db, `SELECT COUNT(*) FROM sla_events WHERE applied_sla_id = $1 AND met_at IS NOT NULL`, oldID); n != 1 {
+		t.Fatalf("expected met-but-unticked event kept through re-apply, got %d", n)
+	}
+	if err := m.evaluatePendingSLAEvents(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAEvents: %v", err)
+	}
+	if status := queryStr(t, db, `SELECT status FROM sla_events WHERE applied_sla_id = $1`, oldID); status != "met" {
+		t.Fatalf("expected surviving event flipped to met by next tick, got %s", status)
+	}
+}
+
 func TestQuietTickChangesNothing(t *testing.T) {
 	m, db := newTestManager(t)
 	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
