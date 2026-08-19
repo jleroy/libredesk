@@ -58,7 +58,7 @@
       >
         <!-- Delete note menu (private notes, appears on hover, left of bubble) -->
         <div
-          v-if="isPrivateMessage && !isDeleted"
+          v-if="canDeleteNote"
           class="flex-shrink-0 transition-opacity duration-200 can-hover:opacity-0 can-hover:group-hover:opacity-100 focus-within:!opacity-100"
         >
           <DropdownMenu>
@@ -393,6 +393,12 @@ const bubbleClasses = computed(() => ({
 
 const isPrivateMessage = computed(() => isOutgoing.value && props.message.private)
 const isDeleted = computed(() => !!props.message.meta?.deleted_at)
+const canDeleteNote = computed(
+  () =>
+    isPrivateMessage.value &&
+    !isDeleted.value &&
+    (props.message.sender_id === userStore.userID || userStore.hasAdminRole)
+)
 const showCheckCheck = computed(
   () => isOutgoing.value && props.message.status === 'sent' && !isPrivateMessage.value
 )
