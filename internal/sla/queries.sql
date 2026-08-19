@@ -150,8 +150,8 @@ UPDATE applied_slas SET
    updated_at = NOW()
 WHERE id = $1;
 
--- name: lock-conversation
-SELECT 1 FROM conversations WHERE id = $1 FOR UPDATE;
+-- name: lock-conversations
+SELECT 1 FROM conversations WHERE id = ANY($1::INT[]) ORDER BY id FOR UPDATE;
 
 -- name: update-conversation-sla-deadline
 UPDATE conversations c
@@ -168,13 +168,12 @@ SET next_sla_deadline_at = CASE
 END
 -- History rows accumulate per conversation; only the latest SLA carries live deadlines.
 FROM (
-    SELECT * FROM applied_slas
-    WHERE conversation_id = $1
-    ORDER BY created_at DESC, id DESC
-    LIMIT 1
+    SELECT DISTINCT ON (conversation_id) * FROM applied_slas
+    WHERE conversation_id = ANY($1::INT[])
+    ORDER BY conversation_id, created_at DESC, id DESC
 ) a
 WHERE a.conversation_id = c.id
-AND c.id = $1;
+AND c.id = ANY($1::INT[]);
 
 -- name: close-settled-applied-slas
 -- Close every pending SLA whose configured metrics all have an outcome; a metric with no deadline counts as done.

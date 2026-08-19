@@ -16,6 +16,7 @@ import (
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
+	"github.com/lib/pq"
 	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
@@ -779,7 +780,7 @@ func TestDeadlineRecomputeUsesLatestSLA(t *testing.T) {
 		t.Fatalf("expected history plus current row, got %+v", rows)
 	}
 
-	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv); err != nil {
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(pq.Array([]int{conv})); err != nil {
 		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
 	}
 	d := conversationDeadline(t, db, conv)
@@ -796,7 +797,7 @@ func TestDeadlineRecomputeSkipsRepliedFirstResponse(t *testing.T) {
 	row := fetchApplied(t, db, conv)[0]
 
 	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
-	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv); err != nil {
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(pq.Array([]int{conv})); err != nil {
 		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
 	}
 
@@ -813,7 +814,7 @@ func TestDeadlineRecomputeKeepsUnrepliedFirstResponse(t *testing.T) {
 	applySLA(t, m, conv, policy)
 	row := fetchApplied(t, db, conv)[0]
 
-	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(conv); err != nil {
+	if _, err := m.q.UpdateConversationNextSLADeadline.Exec(pq.Array([]int{conv})); err != nil {
 		t.Fatalf("UpdateConversationNextSLADeadline: %v", err)
 	}
 

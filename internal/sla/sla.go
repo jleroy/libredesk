@@ -46,6 +46,9 @@ const (
 
 	NotificationTypeWarning = "warning"
 	NotificationTypeBreach  = "breach"
+
+	// Caps how many conversation rows one recompute tx locks at once.
+	deadlineRecomputeBatchSize = 500
 )
 
 var metricLabels = map[string]string{
@@ -122,7 +125,7 @@ type queries struct {
 	UpdateAppliedSLABreachedAt        *sqlx.Stmt `query:"update-applied-sla-breached-at"`
 	UpdateAppliedSLAMetAt             *sqlx.Stmt `query:"update-applied-sla-met-at"`
 	UpdateConversationNextSLADeadline *sqlx.Stmt `query:"update-conversation-sla-deadline"`
-	LockConversation                  *sqlx.Stmt `query:"lock-conversation"`
+	LockConversations                 *sqlx.Stmt `query:"lock-conversations"`
 	CloseSettledAppliedSLAs           *sqlx.Stmt `query:"close-settled-applied-slas"`
 	UpdateSLANotificationProcessed    *sqlx.Stmt `query:"update-notification-processed"`
 	UpdateSLAEventAsBreached          *sqlx.Stmt `query:"update-sla-event-as-breached"`
@@ -278,10 +281,12 @@ func (m *Manager) ApplySLA(startTime time.Time, conversationID, assignedTeamID, 
 	if err := m.q.GetPendingAppliedSLAByConv.Get(&current, conversationID); err != nil {
 		if err != sql.ErrNoRows {
 			m.lo.Error("error fetching pending SLA before re-apply", "conversation_id", conversationID, "error", err)
+			return sla, fmt.Errorf("fetching pending SLA before re-apply: %w", err)
 		}
 	} else if current.FirstResponseDeadlineAt.Valid || current.ResolutionDeadlineAt.Valid {
 		if err := m.evaluateSLA(current); err != nil {
 			m.lo.Error("error evaluating pending SLA before re-apply", "conversation_id", conversationID, "error", err)
+			return sla, fmt.Errorf("evaluating pending SLA before re-apply: %w", err)
 		}
 	}
 
@@ -379,17 +384,20 @@ func (m *Manager) CreateNextResponseSLAEvent(conversationID, appliedSLAID, slaPo
 	return deadlines.NextResponse.Time, nil
 }
 
-// recomputeConversationNextSLADeadline locks the conversation row before recomputing next_sla_deadline_at, else a lock-blocked concurrent recompute writes from a stale snapshot.
-func (m *Manager) recomputeConversationNextSLADeadline(conversationID int) error {
+// recomputeConversationNextSLADeadline locks the conversation rows before recomputing next_sla_deadline_at, else a lock-blocked concurrent recompute writes from a stale snapshot.
+func (m *Manager) recomputeConversationNextSLADeadline(conversationIDs ...int) error {
+	if len(conversationIDs) == 0 {
+		return nil
+	}
 	tx, err := m.opts.DB.Beginx()
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
 	}
 	defer tx.Rollback()
-	if _, err := tx.Stmtx(m.q.LockConversation).Exec(conversationID); err != nil {
-		return fmt.Errorf("locking conversation %d: %w", conversationID, err)
+	if _, err := tx.Stmtx(m.q.LockConversations).Exec(pq.Array(conversationIDs)); err != nil {
+		return fmt.Errorf("locking conversations %v: %w", conversationIDs, err)
 	}
-	if _, err := tx.Stmtx(m.q.UpdateConversationNextSLADeadline).Exec(conversationID); err != nil {
+	if _, err := tx.Stmtx(m.q.UpdateConversationNextSLADeadline).Exec(pq.Array(conversationIDs)); err != nil {
 		return fmt.Errorf("updating conversation next SLA deadline: %w", err)
 	}
 	return tx.Commit()
@@ -897,9 +905,10 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 		m.lo.Error("error closing settled SLAs", "error", err)
 		return err
 	}
-	for _, conversationID := range settledConvIDs {
-		if err := m.recomputeConversationNextSLADeadline(conversationID); err != nil {
-			m.lo.Error("error updating conversation next SLA deadline", "conversation_id", conversationID, "error", err)
+	for start := 0; start < len(settledConvIDs); start += deadlineRecomputeBatchSize {
+		batch := settledConvIDs[start:min(start+deadlineRecomputeBatchSize, len(settledConvIDs))]
+		if err := m.recomputeConversationNextSLADeadline(batch...); err != nil {
+			m.lo.Error("error updating conversation next SLA deadlines", "conversation_ids", batch, "error", err)
 		}
 	}
 	if len(pendingSLAs) > 0 {
