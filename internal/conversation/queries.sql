@@ -649,7 +649,7 @@ DELETE FROM conversation_messages WHERE CASE
 END;
 
 -- name: delete-private-message
--- $1 = message uuid, $2 = conversation uuid, $3 = deleted placeholder text.
+-- $1 = message uuid, $2 = conversation uuid, $3 = deleted placeholder text, $4 = sender id, 0 to skip the sender check.
 WITH deleted AS (
     UPDATE conversation_messages
     SET content = $3, text_content = $3, updated_at = NOW(),
@@ -657,6 +657,7 @@ WITH deleted AS (
     WHERE uuid = $1
       AND private = true
       AND meta->>'deleted_at' IS NULL
+      AND ($4 = 0 OR sender_id = $4)
       AND conversation_id = (SELECT id FROM conversations WHERE uuid = $2)
     RETURNING id, conversation_id, created_at
 ),

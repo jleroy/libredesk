@@ -630,5 +630,11 @@ func validateAgentRequest(app *App, req *agentReq) error {
 		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`first_name`"), nil)
 	}
 
+	switch req.AvailabilityStatus {
+	case "", models.Online, models.Offline, models.Away, models.AwayManual, models.AwayAndReassigning:
+	default:
+		return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidAvailabilityStatus"), nil)
+	}
+
 	return nil
 }
