@@ -41,6 +41,7 @@ WITH closed AS (
        ELSE 'partially_met'::applied_sla_status
     END,
     updated_at = NOW()
+  -- Did this old SLA ever record anything real? A fr/res timestamp or a scored next-response event means history worth keeping; otherwise the deleted CTE below removes it.
   WHERE conversation_id = $1
     AND status = 'pending'::applied_sla_status
     AND (first_response_met_at IS NOT NULL OR first_response_breached_at IS NOT NULL
