@@ -50,7 +50,7 @@ const (
 
 	fastCachePrefix = "libredesk:cache:"
 
-	helpCenterCacheTTL = 5 * time.Minute
+	helpCenterCacheTTL = 30 * time.Minute
 
 	helpCenterCacheGroup = "helpcenter"
 
@@ -1152,6 +1152,9 @@ func cacheHCPage(h fastglue.FastRequestHandler, noIndex bool) fastglue.FastReque
 				status = "MISS"
 			}
 			r.RequestCtx.Response.Header.Set("X-Cache", status)
+			r.RequestCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
+			r.RequestCtx.Response.Header.Set("X-Frame-Options", "SAMEORIGIN")
+			r.RequestCtx.Response.Header.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 			if noIndex || isMarkdownRequest(r) {
 				r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 			}

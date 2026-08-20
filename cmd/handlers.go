@@ -316,10 +316,10 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/help-centers/{id}/insights", perm(handleGetHelpCenterInsights, "help_center:manage"))
 
 	// Public help center JSON API.
-	g.GET("/api/public/help-centers/{slug}/tree", rateLimit(handleGetPublicHelpCenterTree, "public"))
-	g.GET("/api/public/help-centers/{slug}/articles/{article_slug}", rateLimit(handleGetPublicHelpCenterArticle, "public"))
-	g.GET("/api/public/help-centers/{slug}/search", rateLimit(handlePublicHelpCenterSearch, "public"))
-	g.POST("/api/public/help-centers/{slug}/articles/{article_slug}/feedback", rateLimit(handleHelpCenterArticleFeedback, "public"))
+	g.GET("/api/v1/public/help-centers/{slug}/tree", rateLimit(handleGetPublicHelpCenterTree, "public"))
+	g.GET("/api/v1/public/help-centers/{slug}/articles/{article_slug}", rateLimit(handleGetPublicHelpCenterArticle, "public"))
+	g.GET("/api/v1/public/help-centers/{slug}/search", rateLimit(handlePublicHelpCenterSearch, "public"))
+	g.POST("/api/v1/public/help-centers/{slug}/articles/{article_slug}/feedback", rateLimit(handleHelpCenterArticleFeedback, "public"))
 
 	// Custom attributes.
 	g.GET("/api/v1/custom-attributes", auth(handleGetCustomAttributes))
