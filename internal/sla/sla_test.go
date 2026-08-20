@@ -384,6 +384,27 @@ func TestNextResponseEventBreachSchedulesNotification(t *testing.T) {
 	}
 }
 
+func TestDeletePolicyClearsConversationDeadline(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	if d := conversationDeadline(t, db, conv); !d.Valid {
+		t.Fatal("expected conversation deadline set after applying the policy")
+	}
+
+	if err := m.Delete(policy); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if n := queryInt(t, db, `SELECT COUNT(*) FROM applied_slas WHERE conversation_id = $1`, conv); n != 0 {
+		t.Fatalf("expected applied slas to cascade away, got %d", n)
+	}
+	if d := conversationDeadline(t, db, conv); d.Valid {
+		t.Fatalf("expected conversation deadline cleared after policy delete, got %v", d.Time)
+	}
+}
+
 func TestNextResponseMetClearsConversationDeadline(t *testing.T) {
 	m, db := newTestManager(t)
 	policy := insertPolicy(t, db, "p1", "1h", "", "30m")

@@ -133,14 +133,16 @@ first_and_resolution AS (
         latest_applied
 ),
 next_response AS (
+    -- A reply after the deadline carries both met_at and breached_at, so counting the
+    -- timestamps puts one event in both buckets. status holds a single terminal verdict.
     SELECT
         COUNT(*) FILTER (
             WHERE
-                met_at IS NOT NULL
+                status = 'met'
         ) AS next_response_met_count,
         COUNT(*) FILTER (
             WHERE
-                breached_at IS NOT NULL
+                status = 'breached'
         ) AS next_response_breached_count,
         COALESCE(
             AVG(
@@ -151,7 +153,7 @@ next_response AS (
                 )
             ) FILTER (
                 WHERE
-                    met_at IS NOT NULL
+                    status = 'met'
             ),
             0
         ) AS avg_next_response_time_sec

@@ -28,9 +28,25 @@ WHERE id = $1
 RETURNING *;
 
 -- name: delete-sla-policy
+-- Clears the cached deadlines first: the delete cascades applied_slas away, so afterwards the
+-- recompute has nothing left to read and cannot clear them itself.
+WITH cleared AS (
+  UPDATE conversations SET next_sla_deadline_at = NULL
+  WHERE sla_policy_id = $1 AND next_sla_deadline_at IS NOT NULL
+)
 DELETE FROM sla_policies WHERE id = $1;
 
 -- name: apply-sla
+-- Swaps a conversation onto a policy in one statement, which is fiddly because the old
+-- applied_slas row may already carry outcomes worth keeping.
+--
+-- scored decides whether the outgoing row earned a verdict. closed stamps a final status on
+-- rows that earned one and keeps them as history; deleted drops the rest. superseded_events
+-- and superseded_notifications clear out only what was still counting down.
+--
+-- The insert reads COUNT(*) from deleted purely to force those CTEs to run first, otherwise
+-- the unique index on (conversation_id) WHERE status = 'pending' trips against the row being
+-- retired. Finally the conversation gets the new policy id and a fresh cached deadline.
 WITH conv_slas AS (
   SELECT id FROM applied_slas WHERE conversation_id = $1
 ),
@@ -113,7 +129,10 @@ WHERE c.id = ns.conversation_id
 RETURNING ns.id;
 
 -- name: get-pending-applied-sla
--- Returns pending SLAs with a configured, unresolved metric whose deadline passed or whose conversation transitioned.
+-- Feeds the SLA sweep. Returns a pending row only when a configured metric is still
+-- undecided AND something happened worth judging: the deadline passed, or the conversation
+-- reached the state that satisfies the metric. Rows where nothing changed are skipped so
+-- each tick does no writes for them.
 SELECT a.id, a.first_response_deadline_at, c.first_reply_at as conversation_first_response_at, a.sla_policy_id,
 a.resolution_deadline_at, c.resolved_at as conversation_resolved_at, c.id as conversation_id, a.first_response_met_at, a.resolution_met_at, a.first_response_breached_at, a.resolution_breached_at
 FROM applied_slas a
@@ -167,19 +186,22 @@ SET next_sla_deadline_at = CASE
     )
 END
 -- History rows accumulate per conversation; only the latest SLA carries live deadlines.
-FROM (
-    SELECT DISTINCT ON (conversation_id)
-        id, conversation_id, first_response_deadline_at, resolution_deadline_at,
+FROM unnest($1::INT[]) AS target(id)
+-- LEFT so a conversation whose applied_slas rows cascaded away on policy delete still clears.
+LEFT JOIN LATERAL (
+    SELECT id, first_response_deadline_at, resolution_deadline_at,
         first_response_met_at, first_response_breached_at, resolution_met_at, resolution_breached_at
     FROM applied_slas
-    WHERE conversation_id = ANY($1::INT[])
-    ORDER BY conversation_id, created_at DESC, id DESC
-) a
-WHERE a.conversation_id = c.id
-AND c.id = ANY($1::INT[]);
+    WHERE conversation_id = target.id
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+) a ON true
+WHERE c.id = target.id;
 
 -- name: close-settled-applied-slas
--- Close every pending SLA whose configured metrics all have an outcome; a metric with no deadline counts as done.
+-- Retires pending rows whose configured column metrics have all landed, and derives the final
+-- status from which ones were met versus breached. A NULL deadline counts as settled because
+-- that metric was never configured.
 UPDATE applied_slas
 SET
   status = CASE
