@@ -18,7 +18,7 @@
             <div>
               <SelectComboBox
                 v-model="conversationStore.current.assigned_user_id"
-                :items="[{ value: 'none', label: t('globals.terms.none') }, ...usersStore.options]"
+                :items="agentOptions"
                 :placeholder="t('placeholders.selectAgent')"
                 @select="selectAgent"
                 type="user"
@@ -263,6 +263,14 @@ const applySuggestedTag = (tag) => {
 }
 
 const priorityOptions = computed(() => conversationStore.priorityOptions)
+
+const agentOptions = computed(() => {
+  const none = { value: 'none', label: t('globals.terms.none') }
+  const isMe = (option) => String(option.value) === String(userStore.userID)
+  const me = usersStore.options.find(isMe)
+  if (!me) return [none, ...usersStore.options]
+  return [none, me, ...usersStore.options.filter((option) => !isMe(option))]
+})
 
 const fetchTags = async () => {
   await tagStore.fetchTags()

@@ -203,6 +203,7 @@ type queries struct {
 	GetPublishedArticlesByCollection *sqlx.Stmt `query:"get-published-articles-by-collection"`
 	SearchPublishedArticles          *sqlx.Stmt `query:"search-published-articles"`
 	IncrementArticleViewCount        *sqlx.Stmt `query:"increment-article-view-count"`
+	IncrementPublishedArticleView    *sqlx.Stmt `query:"increment-published-article-view-count"`
 
 	InsertArticleFeedback    *sqlx.Stmt `query:"insert-article-feedback"`
 	InsertSearchQuery        *sqlx.Stmt `query:"insert-search-query"`
@@ -954,6 +955,13 @@ func (m *Manager) SearchPublishedArticles(helpCenterSlug, query, locale string, 
 func (m *Manager) IncrementArticleViewCount(id int) {
 	if _, err := m.q.IncrementArticleViewCount.Exec(id); err != nil {
 		m.lo.Error("error incrementing article view count", "error", err, "id", id)
+	}
+}
+
+// IncrementPublishedArticleView increments a published article's view count by its URL parts.
+func (m *Manager) IncrementPublishedArticleView(helpCenterSlug, articleSlug, locale string) {
+	if _, err := m.q.IncrementPublishedArticleView.Exec(helpCenterSlug, articleSlug, locale); err != nil {
+		m.lo.Error("error incrementing article view count", "error", err, "slug", articleSlug)
 	}
 }
 

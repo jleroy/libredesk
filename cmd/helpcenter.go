@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"html/template"
+	"io"
 	"log"
 	"math"
 	"net"
@@ -25,6 +26,7 @@ import (
 	realip "github.com/ferluci/fast-realip"
 	"github.com/knadh/stuffbin"
 	"github.com/valyala/fasthttp"
+	"github.com/zerodha/fastcache/v4"
 	"github.com/zerodha/fastglue"
 )
 
@@ -43,7 +45,15 @@ const (
 	sitemapDate      = "2006-01-02"
 	schemaOrgContext = "https://schema.org"
 
-	helpCenterCacheControl = "public, max-age=300, stale-while-revalidate=3600"
+	helpCenterCacheControl = "public, no-cache"
+
+	fastCachePrefix = "libredesk:cache:"
+
+	helpCenterCacheTTL = 24 * time.Hour
+
+	helpCenterCacheGroup = "helpcenter"
+
+	helpCenterXMLCacheControl = "public, max-age=300, stale-while-revalidate=3600"
 
 	// articleFeedbackDedupTTL is how long a reader IP's vote on an article suppresses further votes.
 	articleFeedbackDedupTTL = 24 * time.Hour
@@ -60,6 +70,16 @@ const (
 )
 
 var (
+	// Logger is set because fastcache writes to the field when it finds it nil, racing across requests.
+	helpCenterCacheOpts = &fastcache.Options{
+		NamespaceKey:       "slug",
+		ETag:               true,
+		IncludeQueryString: true,
+		// Backstop for keys nothing invalidates, such as a deleted help center's.
+		TTL:    helpCenterCacheTTL,
+		Logger: log.New(io.Discard, "", 0),
+	}
+
 	// crawlerUARe matches search and preview bots, whose hits must not count as reader views.
 	crawlerUARe = regexp.MustCompile(`(?i)bot\b|bot/|crawler|spider|crawling|slurp|facebookexternalhit|preview|headlesschrome|lighthouse|feedfetcher|python-requests|curl/|wget/`)
 
@@ -689,9 +709,6 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	}
 	// The JSON-LD embeds the author too, not just the byline.
 	hideArticleAuthor(helpCenterTheme(helpCenter), &article)
-	if !isCrawler(r) {
-		app.helpcenter.IncrementArticleViewCount(article.ID)
-	}
 
 	if markdown {
 		r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
@@ -1055,11 +1072,13 @@ func handleUpdateArticle(r *fastglue.Request) error {
 // no-store default that RenderWebPage applies for the app's authenticated pages.
 func renderHelpCenterPage(r *fastglue.Request, name string, data map[string]interface{}) error {
 	app := r.Context.(*App)
-	err := app.tmpl.RenderWebPage(r.RequestCtx, name, data)
+	if err := app.tmpl.RenderWebPage(r.RequestCtx, name, data); err != nil {
+		return err
+	}
 	r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterCacheControl)
 	r.RequestCtx.Response.Header.Del("Pragma")
 	r.RequestCtx.Response.Header.Del("Expires")
-	return err
+	return nil
 }
 
 // sendXML writes v as an XML document.
@@ -1069,10 +1088,75 @@ func sendXML(r *fastglue.Request, v any) error {
 		return sendErrorEnvelope(r, err)
 	}
 	r.RequestCtx.SetContentType("application/xml; charset=utf-8")
-	r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterCacheControl)
+	r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterXMLCacheControl)
 	fmt.Fprint(r.RequestCtx, xml.Header)
 	r.RequestCtx.Write(out)
 	return nil
+}
+
+// countArticleView records a view after the page is served, counting cache hits too.
+func countArticleView(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return func(r *fastglue.Request) error {
+		err := h(r)
+		switch r.RequestCtx.Response.StatusCode() {
+		case fasthttp.StatusOK, fasthttp.StatusNotModified:
+			if !isCrawler(r) {
+				app := r.Context.(*App)
+				slug, _ := r.RequestCtx.UserValue("slug").(string)
+				articleSlug, _ := r.RequestCtx.UserValue("article_slug").(string)
+				locale, _ := r.RequestCtx.UserValue("locale").(string)
+				app.helpcenter.IncrementPublishedArticleView(slug, strings.TrimSuffix(articleSlug, markdownSlugExtension), locale)
+			}
+		}
+		return err
+	}
+}
+
+// cachedHelpCenterPage serves a public help center page from the response cache, which
+// stores the body alone, so the caching headers are re-applied on the hit and 304 paths.
+func cachedHelpCenterPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return func(r *fastglue.Request) error {
+		app := r.Context.(*App)
+		err := app.fastCache.Cached(h, helpCenterCacheOpts, helpCenterCacheGroup)(r)
+		switch r.RequestCtx.Response.StatusCode() {
+		case fasthttp.StatusOK, fasthttp.StatusNotModified:
+			r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterCacheControl)
+			r.RequestCtx.Response.Header.Del("Pragma")
+			r.RequestCtx.Response.Header.Del("Expires")
+		}
+		return err
+	}
+}
+
+// clearsHelpCenterCache drops the cached public pages after a successful write.
+func clearsHelpCenterCache(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return func(r *fastglue.Request) error {
+		err := h(r)
+		if r.RequestCtx.Response.StatusCode() < fasthttp.StatusMultipleChoices {
+			clearHelpCenterCache(r.Context.(*App), "")
+		}
+		return err
+	}
+}
+
+// clearHelpCenterCache drops every cached public page for slug, or for all when slug is empty.
+func clearHelpCenterCache(app *App, slug string) {
+	if slug != "" {
+		if err := app.fastCache.DelGroup(slug, helpCenterCacheGroup); err != nil {
+			app.lo.Error("error clearing help center cache", "slug", slug, "error", err)
+		}
+		return
+	}
+	helpCenters, err := app.helpcenter.GetAllHelpCenters()
+	if err != nil {
+		app.lo.Error("error listing help centers to clear cache", "error", err)
+		return
+	}
+	for _, hc := range helpCenters {
+		if err := app.fastCache.DelGroup(hc.Slug, helpCenterCacheGroup); err != nil {
+			app.lo.Error("error clearing help center cache", "slug", hc.Slug, "error", err)
+		}
+	}
 }
 
 // isCrawler reports whether the request came from a bot rather than a reader; HEAD probes never count as readers.

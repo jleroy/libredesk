@@ -424,6 +424,13 @@ UPDATE help_articles
 SET view_count = view_count + 1
 WHERE id = $1;
 
+-- name: increment-published-article-view-count
+UPDATE help_articles a
+SET view_count = view_count + 1
+FROM article_collections c, help_centers h
+WHERE a.collection_id = c.id AND c.help_center_id = h.id
+    AND h.slug = $1 AND a.slug = $2 AND a.locale = $3 AND a.status = 'published';
+
 -- name: insert-article-feedback
 INSERT INTO help_article_feedback (article_id, is_helpful)
 SELECT $1, $2
