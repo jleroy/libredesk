@@ -86,7 +86,11 @@ func (c *Client) Serve() {
 func (c *Client) Listen() {
 	// A peer that disappears without closing (slept laptop, dropped wifi) leaves this read blocked forever unless a pong refreshes the deadline.
 	c.Conn.SetReadLimit(maxMessageSize)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		c.Hub.RemoveClient(c)
+		c.close()
+		return
+	}
 	c.Conn.SetPongHandler(func(string) error {
 		return c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	})

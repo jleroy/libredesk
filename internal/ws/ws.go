@@ -166,7 +166,9 @@ func (h *Hub) RemoveClient(client *Client) {
 	if clients, ok := h.clients[client.ID]; ok {
 		for i, c := range clients {
 			if c == client {
-				clients = append(clients[:i], clients[i+1:]...)
+				copy(clients[i:], clients[i+1:])
+				clients[len(clients)-1] = nil
+				clients = clients[:len(clients)-1]
 				break
 			}
 		}

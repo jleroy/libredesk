@@ -77,14 +77,22 @@ func (sc *safeConn) WriteJSON(v any) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.conn.SetWriteDeadline(time.Now().Add(wsWriteDeadline))
-	return sc.conn.WriteJSON(v)
+	if err := sc.conn.WriteJSON(v); err != nil {
+		sc.conn.Close()
+		return err
+	}
+	return nil
 }
 
 func (sc *safeConn) WriteMessage(msgType int, data []byte) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.conn.SetWriteDeadline(time.Now().Add(wsWriteDeadline))
-	return sc.conn.WriteMessage(msgType, data)
+	if err := sc.conn.WriteMessage(msgType, data); err != nil {
+		sc.conn.Close()
+		return err
+	}
+	return nil
 }
 
 // allow throttles abusive clients that flood typing/page_visit/ping frames.
