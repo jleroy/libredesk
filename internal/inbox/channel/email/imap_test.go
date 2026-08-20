@@ -402,7 +402,6 @@ Body`,
 }
 
 // TestMimeParser_Charsets asserts that the declared charset is honoured across transfer encodings.
-// enmime's charset autodetection, which we disable, misreads long mostly-ASCII UTF-8 bodies as ISO-8859-1.
 func TestMimeParser_Charsets(t *testing.T) {
 	const headers = "From: a@example.com\r\nTo: b@example.com\r\nSubject: test\r\n"
 

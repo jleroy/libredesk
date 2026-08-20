@@ -24,8 +24,7 @@ const (
 	defaultScanInboxSince = time.Duration(48 * time.Hour)
 )
 
-// enmime's charset autodetection overrides an explicitly declared charset, and it misreads
-// mostly-ASCII UTF-8 bodies as ISO-8859-1, mangling accented characters.
+// Charset autodetection is disabled: it overrides the declared charset and misreads mostly-ASCII UTF-8 bodies as ISO-8859-1.
 var mimeParser = enmime.NewParser(enmime.DisableCharacterDetection(true))
 
 // ReadIncomingMessages reads and processes incoming messages from an IMAP server based on the provided configuration.
@@ -391,7 +390,7 @@ func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, 
 		}
 	}
 
-	meta, err := json.Marshal(map[string]interface{}{
+	meta, err := json.Marshal(map[string]any{
 		"from":    fromAddr,
 		"cc":      ccAddr,
 		"bcc":     bccAddr,
@@ -450,9 +449,6 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 	envelope, err := mimeParser.ReadEnvelope(item.Literal)
 	if err != nil {
 		e.lo.Error("error parsing email envelope", "error", err, "message_id", incomingMsg.SourceID.String)
-		for _, err := range envelope.Errors {
-			e.lo.Error("error parsing email envelope. envelope_error: ", "error", err.Error(), "message_id", incomingMsg.SourceID.String)
-		}
 		return fmt.Errorf("parsing email envelope: %w", err)
 	}
 
