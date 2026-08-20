@@ -207,6 +207,7 @@ SELECT
    c.subject,
    c.contact_id,
    c.sla_policy_id,
+   c.next_sla_deadline_at,
    c.meta,
    sla.name as sla_policy_name,
    c.last_message_at,
@@ -627,6 +628,7 @@ WHERE
   AND status_id IN (
     SELECT id FROM conversation_statuses WHERE name NOT IN ('Open')
   )
+RETURNING id;
 
 -- name: get-conversation-by-message-id
 SELECT

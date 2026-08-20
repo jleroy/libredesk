@@ -144,6 +144,7 @@ type slaStore interface {
 	ApplySLA(startTime time.Time, conversationID, assignedTeamID, slaID int) (slaModels.SLAPolicy, error)
 	CreateNextResponseSLAEvent(conversationID, appliedSLAID, slaPolicyID, assignedTeamID int) (time.Time, error)
 	SetLatestSLAEventMetAt(appliedSLAID int, metric string) (time.Time, error)
+	EvaluateConversationSLA(conversationID int) error
 }
 
 type statusStore interface {
@@ -677,22 +678,24 @@ func (c *Manager) GetConversations(viewingUserID, userID int, teamIDs []int, lis
 
 // ReOpenConversation reopens a conversation if it's snoozed, resolved or closed.
 func (c *Manager) ReOpenConversation(conversationUUID string, actor umodels.User) error {
-	rows, err := c.q.ReOpenConversation.Exec(conversationUUID)
-	if err != nil {
+	var conversationID int
+	if err := c.q.ReOpenConversation.QueryRow(conversationUUID).Scan(&conversationID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		c.lo.Error("error reopening conversation", "uuid", conversationUUID, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Record the status change as an activity if the conversation was reopened.
-	count, _ := rows.RowsAffected()
-	if count > 0 {
-		// Broadcast update using WS
-		c.BroadcastConversationUpdate(conversationUUID, map[string]any{"status": models.StatusOpen})
+	// Reopening revives any first response or resolution deadline the resolved status had nulled.
+	if err := c.slaStore.EvaluateConversationSLA(conversationID); err != nil {
+		c.lo.Error("error evaluating SLA after reopen", "uuid", conversationUUID, "error", err)
+	}
 
-		// Record the status change as an activity.
-		if err := c.RecordStatusChange(models.StatusOpen, conversationUUID, actor); err != nil {
-			return err
-		}
+	c.BroadcastConversationUpdate(conversationUUID, map[string]any{"status": models.StatusOpen})
+
+	if err := c.RecordStatusChange(models.StatusOpen, conversationUUID, actor); err != nil {
+		return err
 	}
 	return nil
 }
@@ -992,6 +995,11 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	if _, err := c.q.UpdateConversationStatus.Exec(uuid, status, snoozeUntil); err != nil {
 		c.lo.Error("error updating conversation status", "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+
+	// Stamps a just-resolved resolution SLA immediately and recomputes the cached deadline.
+	if err := c.slaStore.EvaluateConversationSLA(conversationBeforeChange.ID); err != nil {
+		c.lo.Error("error evaluating SLA after status change", "uuid", uuid, "error", err)
 	}
 
 	// Fetch conversation for webhook and automation rules.
@@ -1380,9 +1388,13 @@ func (m *Manager) ApplySLA(conversation models.Conversation, policyID int, actor
 	if updated, ferr := m.GetConversation(0, conversation.UUID, ""); ferr == nil {
 		m.BroadcastConversationUpdate(conversation.UUID, map[string]any{
 			"sla_policy_id":              updated.SLAPolicyID.Int,
+			"sla_policy_name":            updated.SlaPolicyName.String,
 			"applied_sla_id":             updated.AppliedSLAID.Int,
 			"first_response_deadline_at": nullTimeOrNil(updated.FirstResponseDueAt),
 			"resolution_deadline_at":     nullTimeOrNil(updated.ResolutionDueAt),
+			"next_response_deadline_at":  nullTimeOrNil(updated.NextResponseDueAt),
+			"next_response_met_at":       nullTimeOrNil(updated.NextResponseMetAt),
+			"next_sla_deadline_at":       nullTimeOrNil(updated.NextSLADeadlineAt),
 		})
 	}
 

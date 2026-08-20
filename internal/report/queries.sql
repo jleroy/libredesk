@@ -73,7 +73,19 @@ WHERE
     s.category != 'resolved';
 
 -- name: get-overview-sla-counts
-WITH first_and_resolution AS (
+-- Count only each conversation's latest applied SLA; superseded rows are kept as history and would double-count.
+WITH latest_applied AS (
+    SELECT DISTINCT ON (conversation_id)
+        created_at, first_response_met_at, first_response_breached_at,
+        resolution_met_at, resolution_breached_at
+    FROM applied_slas
+    WHERE created_at >= CASE
+        WHEN %d = 0 THEN CURRENT_DATE
+        ELSE NOW() - INTERVAL '%d days'
+    END
+    ORDER BY conversation_id, created_at DESC, id DESC
+),
+first_and_resolution AS (
     SELECT
         COUNT(*) FILTER (
             WHERE
@@ -118,22 +130,19 @@ WITH first_and_resolution AS (
             0
         ) AS avg_resolution_time_sec
     FROM
-        applied_slas
-    WHERE
-        created_at >= CASE
-            WHEN %d = 0 THEN CURRENT_DATE
-            ELSE NOW() - INTERVAL '%d days'
-        END
+        latest_applied
 ),
 next_response AS (
+    -- A reply after the deadline carries both met_at and breached_at, so counting the
+    -- timestamps puts one event in both buckets. status holds a single terminal verdict.
     SELECT
         COUNT(*) FILTER (
             WHERE
-                met_at IS NOT NULL
+                status = 'met'
         ) AS next_response_met_count,
         COUNT(*) FILTER (
             WHERE
-                breached_at IS NOT NULL
+                status = 'breached'
         ) AS next_response_breached_count,
         COALESCE(
             AVG(
@@ -144,7 +153,7 @@ next_response AS (
                 )
             ) FILTER (
                 WHERE
-                    met_at IS NOT NULL
+                    status = 'met'
             ),
             0
         ) AS avg_next_response_time_sec

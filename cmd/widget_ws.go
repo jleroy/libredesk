@@ -29,6 +29,7 @@ const (
 	maxPageVisits           = 20
 	pageVisitTTL            = 24 * time.Hour
 	wsReadDeadline          = 20 * time.Second
+	wsWriteDeadline         = 10 * time.Second
 	wsReadLimitBytes        = 64 * 1024
 
 	// Per-connection minimum intervals between inbound frames of each kind.
@@ -71,16 +72,27 @@ type safeConn struct {
 	lastAt map[string]time.Time
 }
 
+// WriteJSON and WriteMessage set a deadline first; a peer that stops reading would otherwise block the caller while holding sc.mu.
 func (sc *safeConn) WriteJSON(v any) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	return sc.conn.WriteJSON(v)
+	sc.conn.SetWriteDeadline(time.Now().Add(wsWriteDeadline))
+	if err := sc.conn.WriteJSON(v); err != nil {
+		sc.conn.Close()
+		return err
+	}
+	return nil
 }
 
 func (sc *safeConn) WriteMessage(msgType int, data []byte) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	return sc.conn.WriteMessage(msgType, data)
+	sc.conn.SetWriteDeadline(time.Now().Add(wsWriteDeadline))
+	if err := sc.conn.WriteMessage(msgType, data); err != nil {
+		sc.conn.Close()
+		return err
+	}
+	return nil
 }
 
 // allow throttles abusive clients that flood typing/page_visit/ping frames.
@@ -108,8 +120,8 @@ func handleWidgetWS(r *fastglue.Request) error {
 		sc := &safeConn{conn: conn}
 
 		var (
-			client   *livechat.Client
-			liveChat *livechat.LiveChat
+			client    *livechat.Client
+			liveChat  *livechat.LiveChat
 			inboxUUID string
 			userID    int
 		)
@@ -258,6 +270,8 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, client
 		Type: WidgetMsgTypeJoined,
 		Data: json.RawMessage(`{"message":"namaste!"}`),
 	}); err != nil {
+		liveChat.RemoveClient(client)
+		client.CloseChannel()
 		return nil, nil, "", 0, err
 	}
 

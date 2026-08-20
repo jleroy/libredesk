@@ -332,6 +332,9 @@ func main() {
 	initHandlers(g, wsHub)
 	g.Router.NotFound = helpCenterHostNotFound(app, g)
 
+	// fasthttp keeps a RequestCtx's response buffer at full capacity and recycles the ctx across connections, and a hijacked websocket holds its ctx until the socket closes.
+	fasthttp.SetBodySizePoolLimit(64<<10, 64<<10) // 64 KiB
+
 	s := &fasthttp.Server{
 		Name:                 appName,
 		ReadTimeout:          ko.MustDuration("app.server.read_timeout"),
