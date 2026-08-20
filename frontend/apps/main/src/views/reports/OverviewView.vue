@@ -404,7 +404,7 @@ const conversationCountLabels = computed(() => ({
   open: t('globals.terms.open'),
   awaiting_response: t('globals.terms.awaitingResponse'),
   unassigned: t('globals.terms.unassigned'),
-  pending: t('globals.terms.pending')
+  pending: t('report.awaitingFirstReply')
 }))
 
 const agentStatusLabels = computed(() => ({
