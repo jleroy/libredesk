@@ -18,26 +18,6 @@ const (
 	maxListSubUUIDs = 500
 )
 
-// SafeBool is a thread-safe boolean.
-type SafeBool struct {
-	flag bool
-	mu   sync.RWMutex
-}
-
-// Set sets the value of the SafeBool.
-func (b *SafeBool) Set(value bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.flag = value
-}
-
-// Get returns the value of the SafeBool.
-func (b *SafeBool) Get() bool {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	return b.flag
-}
-
 // Client is a single connected WS user.
 type Client struct {
 	// Client ID.
@@ -49,11 +29,12 @@ type Client struct {
 	// WebSocket connection.
 	Conn *websocket.Conn
 
-	// To prevent pushes to the channel.
-	Closed SafeBool
-
 	// Buffered channel of outbound ws messages.
 	Send chan models.WSMessage
+
+	// sendMu guards every send on Send and its close; a send racing the close panics.
+	sendMu sync.Mutex
+	closed bool
 }
 
 // Serve handles heartbeats and sending messages to the client.
@@ -203,10 +184,30 @@ func (c *Client) handleTyping(data json.RawMessage) {
 	c.Hub.BroadcastTypingToConversation(typingMsg.ConversationUUID, typingMsg)
 }
 
-// close closes the client connection.
+// close is idempotent; Listen and SendError can both reach it for the same client.
 func (c *Client) close() {
-	c.Closed.Set(true)
+	c.sendMu.Lock()
+	defer c.sendMu.Unlock()
+	if c.closed {
+		return
+	}
+	c.closed = true
 	close(c.Send)
+}
+
+// trySend reports whether the message was queued; it drops when the client is closed or its buffer is full.
+func (c *Client) trySend(msg models.WSMessage) bool {
+	c.sendMu.Lock()
+	defer c.sendMu.Unlock()
+	if c.closed {
+		return false
+	}
+	select {
+	case c.Send <- msg:
+		return true
+	default:
+		return false
+	}
 }
 
 // SendError sends an error message to client.
@@ -217,9 +218,7 @@ func (c *Client) SendError(msg string) {
 	}
 	b, _ := json.Marshal(out)
 
-	select {
-	case c.Send <- models.WSMessage{Data: b, MessageType: websocket.TextMessage}:
-	default:
+	if !c.trySend(models.WSMessage{Data: b, MessageType: websocket.TextMessage}) {
 		c.Hub.lo.Warn("client send channel full, could not send error message", "client_id", c.ID)
 		c.Hub.RemoveClient(c)
 		c.close()
@@ -228,12 +227,5 @@ func (c *Client) SendError(msg string) {
 
 // SendMessage sends a message to client.
 func (c *Client) SendMessage(b []byte, typ byte) {
-	if c.Closed.Get() {
-		c.Hub.lo.Warn("attempted to send message to closed client", "client_id", c.ID)
-		return
-	}
-	select {
-	case c.Send <- models.WSMessage{Data: b, MessageType: websocket.TextMessage}:
-	default:
-	}
+	c.trySend(models.WSMessage{Data: b, MessageType: websocket.TextMessage})
 }

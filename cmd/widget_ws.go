@@ -270,6 +270,8 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, client
 		Type: WidgetMsgTypeJoined,
 		Data: json.RawMessage(`{"message":"namaste!"}`),
 	}); err != nil {
+		liveChat.RemoveClient(client)
+		client.CloseChannel()
 		return nil, nil, "", 0, err
 	}
 
