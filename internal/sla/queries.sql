@@ -168,7 +168,10 @@ SET next_sla_deadline_at = CASE
 END
 -- History rows accumulate per conversation; only the latest SLA carries live deadlines.
 FROM (
-    SELECT DISTINCT ON (conversation_id) * FROM applied_slas
+    SELECT DISTINCT ON (conversation_id)
+        id, conversation_id, first_response_deadline_at, resolution_deadline_at,
+        first_response_met_at, first_response_breached_at, resolution_met_at, resolution_breached_at
+    FROM applied_slas
     WHERE conversation_id = ANY($1::INT[])
     ORDER BY conversation_id, created_at DESC, id DESC
 ) a
@@ -249,15 +252,20 @@ WHERE NOT EXISTS (
 RETURNING id;
 
 -- name: set-latest-sla-event-met-at
-UPDATE sla_events
-SET met_at = NOW()
-WHERE id = (
-  SELECT id FROM sla_events
-  WHERE applied_sla_id = $1 AND type = $2 AND met_at IS NULL
-  ORDER BY created_at DESC
-  LIMIT 1
+WITH updated AS (
+  UPDATE sla_events
+  SET met_at = NOW()
+  WHERE id = (
+    SELECT id FROM sla_events
+    WHERE applied_sla_id = $1 AND type = $2 AND met_at IS NULL
+    ORDER BY created_at DESC
+    LIMIT 1
+  )
+  RETURNING applied_sla_id, met_at
 )
-RETURNING met_at;
+SELECT u.met_at, a.conversation_id
+FROM updated u
+JOIN applied_slas a ON a.id = u.applied_sla_id;
 
 -- name: update-sla-event-as-breached
 UPDATE sla_events
@@ -277,8 +285,9 @@ WHERE id = $1;
 
 -- name: get-pending-sla-events
 -- Returns full event rows whose deadline has already passed (or that already have a met_at);
-SELECT id, created_at, updated_at, applied_sla_id, sla_policy_id, type, deadline_at, met_at, breached_at
-FROM sla_events
-WHERE status = 'pending'
-  AND deadline_at IS NOT NULL
-  AND (deadline_at <= NOW() OR met_at IS NOT NULL);
+SELECT e.id, e.created_at, e.updated_at, e.applied_sla_id, e.sla_policy_id, e.type, e.deadline_at, e.met_at, e.breached_at, a.conversation_id
+FROM sla_events e
+JOIN applied_slas a ON a.id = e.applied_sla_id
+WHERE e.status = 'pending'
+  AND e.deadline_at IS NOT NULL
+  AND (e.deadline_at <= NOW() OR e.met_at IS NOT NULL);

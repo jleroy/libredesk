@@ -678,22 +678,24 @@ func (c *Manager) GetConversations(viewingUserID, userID int, teamIDs []int, lis
 
 // ReOpenConversation reopens a conversation if it's snoozed, resolved or closed.
 func (c *Manager) ReOpenConversation(conversationUUID string, actor umodels.User) error {
-	rows, err := c.q.ReOpenConversation.Exec(conversationUUID)
-	if err != nil {
+	var conversationID int
+	if err := c.q.ReOpenConversation.QueryRow(conversationUUID).Scan(&conversationID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		c.lo.Error("error reopening conversation", "uuid", conversationUUID, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	// Record the status change as an activity if the conversation was reopened.
-	count, _ := rows.RowsAffected()
-	if count > 0 {
-		// Broadcast update using WS
-		c.BroadcastConversationUpdate(conversationUUID, map[string]any{"status": models.StatusOpen})
+	// Reopening revives any first response or resolution deadline the resolved status had nulled.
+	if err := c.slaStore.RecomputeConversationNextSLADeadline(conversationID); err != nil {
+		c.lo.Error("error recomputing next SLA deadline after reopen", "uuid", conversationUUID, "error", err)
+	}
 
-		// Record the status change as an activity.
-		if err := c.RecordStatusChange(models.StatusOpen, conversationUUID, actor); err != nil {
-			return err
-		}
+	c.BroadcastConversationUpdate(conversationUUID, map[string]any{"status": models.StatusOpen})
+
+	if err := c.RecordStatusChange(models.StatusOpen, conversationUUID, actor); err != nil {
+		return err
 	}
 	return nil
 }

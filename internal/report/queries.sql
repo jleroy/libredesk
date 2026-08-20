@@ -75,7 +75,9 @@ WHERE
 -- name: get-overview-sla-counts
 -- Count only each conversation's latest applied SLA; superseded rows are kept as history and would double-count.
 WITH latest_applied AS (
-    SELECT DISTINCT ON (conversation_id) *
+    SELECT DISTINCT ON (conversation_id)
+        created_at, first_response_met_at, first_response_breached_at,
+        resolution_met_at, resolution_breached_at
     FROM applied_slas
     WHERE created_at >= CASE
         WHEN %d = 0 THEN CURRENT_DATE

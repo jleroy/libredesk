@@ -627,6 +627,7 @@ WHERE
   AND status_id IN (
     SELECT id FROM conversation_statuses WHERE name NOT IN ('Open')
   )
+RETURNING id;
 
 -- name: get-conversation-by-message-id
 SELECT

@@ -405,14 +405,20 @@ func (m *Manager) RecomputeConversationNextSLADeadline(conversationIDs ...int) e
 
 // SetLatestSLAEventMetAt marks the latest SLA event as met for a given applied SLA.
 func (m *Manager) SetLatestSLAEventMetAt(appliedSLAID int, metric string) (time.Time, error) {
-	var metAt time.Time
-	if err := m.q.SetLatestSLAEventMetAt.QueryRow(appliedSLAID, metric).Scan(&metAt); err != nil {
+	var (
+		metAt          time.Time
+		conversationID int
+	)
+	if err := m.q.SetLatestSLAEventMetAt.QueryRow(appliedSLAID, metric).Scan(&metAt, &conversationID); err != nil {
 		if err == sql.ErrNoRows {
 			m.lo.Info("no SLA event found for applied SLA and metric to update `met_at` timestamp", "applied_sla_id", appliedSLAID, "metric", metric)
 			return metAt, ErrLatestSLAEventNotFound
 		}
 		m.lo.Error("error marking SLA event as met", "error", err)
 		return metAt, fmt.Errorf("marking SLA event as met: %w", err)
+	}
+	if err := m.RecomputeConversationNextSLADeadline(conversationID); err != nil {
+		m.lo.Error("error updating conversation next SLA deadline", "conversation_id", conversationID, "applied_sla_id", appliedSLAID, "error", err)
 	}
 	return metAt, nil
 }
@@ -430,7 +436,10 @@ func (m *Manager) evaluatePendingSLAEvents(ctx context.Context) error {
 		return nil
 	}
 
-	var slaPolicyCache = make(map[int]models.SLAPolicy)
+	var (
+		slaPolicyCache = make(map[int]models.SLAPolicy)
+		settledConvIDs []int
+	)
 	for _, event := range slaEvents {
 		select {
 		case <-ctx.Done():
@@ -451,6 +460,7 @@ func (m *Manager) evaluatePendingSLAEvents(ctx context.Context) error {
 				m.lo.Error("error marking SLA event as breached", "error", err)
 				continue
 			}
+			settledConvIDs = append(settledConvIDs, event.ConversationID)
 		}
 
 		// Met at before the deadline - mark event met.
@@ -459,6 +469,7 @@ func (m *Manager) evaluatePendingSLAEvents(ctx context.Context) error {
 				m.lo.Error("error marking SLA event as met", "error", err)
 				continue
 			}
+			settledConvIDs = append(settledConvIDs, event.ConversationID)
 		}
 
 		// Schedule a breach notification if the event is not met at all and SLA breached.
@@ -479,6 +490,8 @@ func (m *Manager) evaluatePendingSLAEvents(ctx context.Context) error {
 			})
 		}
 	}
+
+	m.recomputeDeadlinesInBatches(settledConvIDs)
 	return nil
 }
 
@@ -905,12 +918,7 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 		m.lo.Error("error closing settled SLAs", "error", err)
 		return err
 	}
-	for start := 0; start < len(settledConvIDs); start += deadlineRecomputeBatchSize {
-		batch := settledConvIDs[start:min(start+deadlineRecomputeBatchSize, len(settledConvIDs))]
-		if err := m.RecomputeConversationNextSLADeadline(batch...); err != nil {
-			m.lo.Error("error updating conversation next SLA deadlines", "conversation_ids", batch, "error", err)
-		}
-	}
+	m.recomputeDeadlinesInBatches(settledConvIDs)
 	if len(pendingSLAs) > 0 {
 		m.lo.Info("evaluated pending SLAs", "count", len(pendingSLAs))
 	}
@@ -1011,4 +1019,14 @@ func (m *Manager) handleSLABreach(appliedSLAID, slaPolicyID int, metric string) 
 	})
 
 	return nil
+}
+
+// recomputeDeadlinesInBatches recomputes in fixed-size batches to bound the row lock each transaction holds.
+func (m *Manager) recomputeDeadlinesInBatches(conversationIDs []int) {
+	for start := 0; start < len(conversationIDs); start += deadlineRecomputeBatchSize {
+		batch := conversationIDs[start:min(start+deadlineRecomputeBatchSize, len(conversationIDs))]
+		if err := m.RecomputeConversationNextSLADeadline(batch...); err != nil {
+			m.lo.Error("error updating conversation next SLA deadlines", "conversation_ids", batch, "error", err)
+		}
+	}
 }

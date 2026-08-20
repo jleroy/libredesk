@@ -384,6 +384,50 @@ func TestNextResponseEventBreachSchedulesNotification(t *testing.T) {
 	}
 }
 
+func TestNextResponseMetClearsConversationDeadline(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "", "30m")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	appliedID := fetchApplied(t, db, conv)[0].ID
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+
+	if _, err := m.CreateNextResponseSLAEvent(conv, appliedID, policy, 0); err != nil {
+		t.Fatalf("CreateNextResponseSLAEvent: %v", err)
+	}
+	if d := conversationDeadline(t, db, conv); !d.Valid {
+		t.Fatal("expected conversation deadline to track the pending next-response event")
+	}
+
+	if _, err := m.SetLatestSLAEventMetAt(appliedID, MetricNextResponse); err != nil {
+		t.Fatalf("SetLatestSLAEventMetAt: %v", err)
+	}
+	if d := conversationDeadline(t, db, conv); d.Valid {
+		t.Fatalf("expected conversation deadline cleared once next response was met, got %v", d.Time)
+	}
+}
+
+func TestNextResponseBreachClearsConversationDeadline(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "", "30m")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+	appliedID := fetchApplied(t, db, conv)[0].ID
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+
+	if _, err := m.CreateNextResponseSLAEvent(conv, appliedID, policy, 0); err != nil {
+		t.Fatalf("CreateNextResponseSLAEvent: %v", err)
+	}
+	db.MustExec(`UPDATE sla_events SET deadline_at = NOW() - INTERVAL '1h' WHERE applied_sla_id = $1`, appliedID)
+
+	if err := m.evaluatePendingSLAEvents(context.Background()); err != nil {
+		t.Fatalf("evaluatePendingSLAEvents: %v", err)
+	}
+	if d := conversationDeadline(t, db, conv); d.Valid {
+		t.Fatalf("expected conversation deadline cleared once next response breached, got %v", d.Time)
+	}
+}
+
 func TestSendNotificationSkipsMetMetric(t *testing.T) {
 	m, db := newTestManager(t)
 	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
