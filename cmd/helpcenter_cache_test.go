@@ -117,8 +117,8 @@ func TestHelpCenterPageCacheKeysPerQueryAndSurvivesRename(t *testing.T) {
 }
 
 func TestHelpCenterPageCacheReportsHitOrMiss(t *testing.T) {
-	app := &App{fastCache: newTestFastCache(t)}
-	handler := cachedHelpCenterPage(func(r *fastglue.Request) error {
+	app := &App{fc: newTestFastCache(t)}
+	handler := cachedHCPage(func(r *fastglue.Request) error {
 		r.RequestCtx.Response.SetBodyString("<h1>page</h1>")
 		return nil
 	})
@@ -153,7 +153,7 @@ func TestHelpCenterPageCacheReportsHitOrMiss(t *testing.T) {
 }
 
 func TestHelpCenterPageCacheKeepsNoIndexOnHits(t *testing.T) {
-	app := &App{fastCache: newTestFastCache(t)}
+	app := &App{fc: newTestFastCache(t)}
 	body := func(r *fastglue.Request) error {
 		r.RequestCtx.Response.SetBodyString("raw markdown")
 		return nil
@@ -165,9 +165,9 @@ func TestHelpCenterPageCacheKeepsNoIndexOnHits(t *testing.T) {
 		uri     string
 		slug    string
 	}{
-		{"search results", cachedHelpCenterNoIndexPage(body), "/hc/support/en/search?q=refund", ""},
-		{"markdown article", cachedHelpCenterPage(body), "/hc/support/en/articles/refunds.md", "refunds.md"},
-		{"html article", cachedHelpCenterPage(body), "/hc/support/en/articles/refunds", "refunds"},
+		{"search results", cachedHCNoIndexPage(body), "/hc/support/en/search?q=refund", ""},
+		{"markdown article", cachedHCPage(body), "/hc/support/en/articles/refunds.md", "refunds.md"},
+		{"html article", cachedHCPage(body), "/hc/support/en/articles/refunds", "refunds"},
 	}
 
 	for _, tc := range cases {

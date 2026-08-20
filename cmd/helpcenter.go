@@ -1123,16 +1123,16 @@ func countArticleView(h fastglue.FastRequestHandler) fastglue.FastRequestHandler
 	}
 }
 
-func cachedHelpCenterPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
-	return cacheHelpCenterPage(h, false)
+func cachedHCPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return cacheHCPage(h, false)
 }
 
-func cachedHelpCenterNoIndexPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
-	return cacheHelpCenterPage(h, true)
+func cachedHCNoIndexPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return cacheHCPage(h, true)
 }
 
-// cacheHelpCenterPage owns every response header: the cache restores only body and content type.
-func cacheHelpCenterPage(h fastglue.FastRequestHandler, noIndex bool) fastglue.FastRequestHandler {
+// cacheHCPage owns every response header: the cache restores only body and content type.
+func cacheHCPage(h fastglue.FastRequestHandler, noIndex bool) fastglue.FastRequestHandler {
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
 		r.RequestCtx.SetUserValue(helpCenterCacheNamespaceKey, helpCenterCacheNamespace)
@@ -1141,7 +1141,7 @@ func cacheHelpCenterPage(h fastglue.FastRequestHandler, noIndex bool) fastglue.F
 			miss = true
 			return h(r)
 		}
-		err := app.fastCache.Cached(rendered, helpCenterCacheOpts, helpCenterCacheGroup)(r)
+		err := app.fc.Cached(rendered, helpCenterCacheOpts, helpCenterCacheGroup)(r)
 		switch r.RequestCtx.Response.StatusCode() {
 		case fasthttp.StatusOK, fasthttp.StatusNotModified:
 			r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterCacheControl)
@@ -1165,19 +1165,16 @@ func isMarkdownRequest(r *fastglue.Request) bool {
 	return strings.HasSuffix(slug, markdownSlugExtension)
 }
 
-func clearsHelpCenterCache(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+func clearsHCCache(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
 	return func(r *fastglue.Request) error {
 		err := h(r)
 		if r.RequestCtx.Response.StatusCode() < fasthttp.StatusMultipleChoices {
-			clearHelpCenterCache(r.Context.(*App))
+			app := r.Context.(*App)
+			if err := app.fc.DelGroup(helpCenterCacheNamespace, helpCenterCacheGroup); err != nil {
+				app.lo.Error("error clearing help center cache", "error", err)
+			}
 		}
 		return err
-	}
-}
-
-func clearHelpCenterCache(app *App) {
-	if err := app.fastCache.DelGroup(helpCenterCacheNamespace, helpCenterCacheGroup); err != nil {
-		app.lo.Error("error clearing help center cache", "error", err)
 	}
 }
 

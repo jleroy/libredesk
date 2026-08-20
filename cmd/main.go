@@ -129,7 +129,7 @@ type App struct {
 	contextLink      *contextlink.Manager
 	rateLimit        *ratelimit.Limiter
 	redis            *redis.Client
-	fastCache        *fastcache.FastCache
+	fc               *fastcache.FastCache
 	importer         *importer.Importer
 	wsHub            *ws.Hub
 
@@ -324,7 +324,7 @@ func main() {
 		contextLink:      initContextLink(db, i18n),
 		rateLimit:        rateLimiter,
 		redis:            rdb,
-		fastCache:        initFastCache(rdb),
+		fc:               initFastCache(rdb),
 		userNotification: userNotification,
 		wsHub:            wsHub,
 	}
