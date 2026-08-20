@@ -277,17 +277,9 @@ func (m *Manager) ApplySLA(startTime time.Time, conversationID, assignedTeamID, 
 	deadlines.NextResponse = null.Time{}
 
 	// Outcomes that already occurred can be a whole tick ahead of their stamps; judge the outgoing SLA now or apply-sla discards them.
-	var current models.AppliedSLA
-	if err := m.q.GetPendingAppliedSLAByConv.Get(&current, conversationID); err != nil {
-		if err != sql.ErrNoRows {
-			m.lo.Error("error fetching pending SLA before re-apply", "conversation_id", conversationID, "error", err)
-			return sla, fmt.Errorf("fetching pending SLA before re-apply: %w", err)
-		}
-	} else if current.FirstResponseDeadlineAt.Valid || current.ResolutionDeadlineAt.Valid {
-		if err := m.evaluateSLA(current); err != nil {
-			m.lo.Error("error evaluating pending SLA before re-apply", "conversation_id", conversationID, "error", err)
-			return sla, fmt.Errorf("evaluating pending SLA before re-apply: %w", err)
-		}
+	if err := m.EvaluateConversationSLA(conversationID); err != nil {
+		m.lo.Error("error evaluating pending SLA before re-apply", "conversation_id", conversationID, "error", err)
+		return sla, fmt.Errorf("evaluating pending SLA before re-apply: %w", err)
 	}
 
 	// Insert applied SLA entry delete any previous pending applied SLA.
@@ -403,6 +395,28 @@ func (m *Manager) RecomputeConversationNextSLADeadline(conversationIDs ...int) e
 	return tx.Commit()
 }
 
+// EvaluateConversationSLA judges the conversation's pending applied SLA now instead of waiting for the
+// next sweep tick, and always leaves next_sla_deadline_at recomputed so callers need no separate call.
+func (m *Manager) EvaluateConversationSLA(conversationID int) error {
+	recomputed := false
+	var current models.AppliedSLA
+	if err := m.q.GetPendingAppliedSLAByConv.Get(&current, conversationID); err != nil {
+		if err != sql.ErrNoRows {
+			m.lo.Error("error fetching pending SLA for evaluation", "conversation_id", conversationID, "error", err)
+			return fmt.Errorf("fetching pending SLA for evaluation: %w", err)
+		}
+	} else if current.FirstResponseDeadlineAt.Valid || current.ResolutionDeadlineAt.Valid {
+		var err error
+		if recomputed, err = m.evaluateSLA(current); err != nil {
+			return err
+		}
+	}
+	if recomputed {
+		return nil
+	}
+	return m.RecomputeConversationNextSLADeadline(conversationID)
+}
+
 // SetLatestSLAEventMetAt marks the latest SLA event as met for a given applied SLA.
 func (m *Manager) SetLatestSLAEventMetAt(appliedSLAID int, metric string) (time.Time, error) {
 	var (
@@ -431,7 +445,10 @@ func (m *Manager) evaluatePendingSLAEvents(ctx context.Context) error {
 		m.lo.Error("error fetching pending SLA events", "error", err)
 		return fmt.Errorf("fetching pending SLA events: %w", err)
 	}
-	m.lo.Info("fetched pending SLA events", "count", len(slaEvents))
+	if len(slaEvents) > 0 {
+		m.lo.Info("fetched pending SLA events", "count", len(slaEvents))
+	}
+
 	if len(slaEvents) == 0 {
 		return nil
 	}
@@ -448,6 +465,7 @@ func (m *Manager) evaluatePendingSLAEvents(ctx context.Context) error {
 		}
 
 		if event.DeadlineAt.IsZero() {
+			// Cannot happen.
 			m.lo.Warn("SLA event deadline is zero, skipping evaluation", "sla_event_id", event.ID)
 			continue
 		}
@@ -908,11 +926,13 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			if err := m.evaluateSLA(sla); err != nil {
+			if _, err := m.evaluateSLA(sla); err != nil {
 				m.lo.Error("error evaluating SLA", "error", err)
 			}
 		}
 	}
+
+	// Now put Applied SLAs to terminal status.
 	var settledConvIDs []int
 	if err := m.q.CloseSettledAppliedSLAs.SelectContext(ctx, &settledConvIDs); err != nil {
 		m.lo.Error("error closing settled SLAs", "error", err)
@@ -925,13 +945,12 @@ func (m *Manager) evaluatePendingSLAs(ctx context.Context) error {
 	return nil
 }
 
-// evaluateSLA evaluates an SLA policy on an applied SLA.
-func (m *Manager) evaluateSLA(appliedSLA models.AppliedSLA) error {
+// evaluateSLA stamps met/breached timestamps on an applied SLA and reports whether it recomputed the cached deadline, the terminal status column is left to close-settled-applied-slas.
+func (m *Manager) evaluateSLA(appliedSLA models.AppliedSLA) (bool, error) {
 	m.lo.Debug("evaluating SLA", "conversation_id", appliedSLA.ConversationID, "applied_sla_id", appliedSLA.ID)
 	var changed bool
 	checkDeadline := func(deadline time.Time, metAt null.Time, metric string) error {
 		if deadline.IsZero() {
-			m.lo.Warn("deadline zero, skipping checking the deadline", "conversation_id", appliedSLA.ConversationID, "applied_sla_id", appliedSLA.ID, "metric", metric)
 			return nil
 		}
 
@@ -967,7 +986,7 @@ func (m *Manager) evaluateSLA(appliedSLA models.AppliedSLA) error {
 	if !appliedSLA.FirstResponseBreachedAt.Valid && !appliedSLA.FirstResponseMetAt.Valid {
 		m.lo.Debug("checking deadline", "deadline", appliedSLA.FirstResponseDeadlineAt.Time, "met_at", appliedSLA.ConversationFirstResponseAt.Time, "metric", MetricFirstResponse)
 		if err := checkDeadline(appliedSLA.FirstResponseDeadlineAt.Time, appliedSLA.ConversationFirstResponseAt, MetricFirstResponse); err != nil {
-			return err
+			return changed, err
 		}
 	}
 
@@ -975,20 +994,20 @@ func (m *Manager) evaluateSLA(appliedSLA models.AppliedSLA) error {
 	if !appliedSLA.ResolutionBreachedAt.Valid && !appliedSLA.ResolutionMetAt.Valid {
 		m.lo.Debug("checking deadline", "deadline", appliedSLA.ResolutionDeadlineAt.Time, "met_at", appliedSLA.ConversationResolvedAt.Time, "metric", MetricResolution)
 		if err := checkDeadline(appliedSLA.ResolutionDeadlineAt.Time, appliedSLA.ConversationResolvedAt, MetricResolution); err != nil {
-			return err
+			return changed, err
 		}
 	}
 
-	// Nothing transitioned; skip the recompute writes that would otherwise run every tick.
+	// Nothing transitioned, skip the recompute writes that would otherwise run every tick.
 	if !changed {
-		return nil
+		return false, nil
 	}
 
 	if err := m.RecomputeConversationNextSLADeadline(appliedSLA.ConversationID); err != nil {
-		return fmt.Errorf("setting conversation next SLA deadline: %w", err)
+		return true, fmt.Errorf("setting conversation next SLA deadline: %w", err)
 	}
 
-	return nil
+	return true, nil
 }
 
 // handleSLABreach processes a breach for the given SLA metric on an applied SLA.

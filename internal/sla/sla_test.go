@@ -971,6 +971,162 @@ func TestSweepIsolatedPerConversation(t *testing.T) {
 	}
 }
 
+func TestEvaluateConversationStampsMetOnReply(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	if row.Status != "pending" || !row.FRMetAt.Valid || row.FRBreached.Valid {
+		t.Fatalf("expected first response met and sla still pending, got %+v", row)
+	}
+	d := conversationDeadline(t, db, conv)
+	if !d.Valid || !d.Time.Equal(row.ResDeadline.Time) {
+		t.Fatalf("expected cached deadline to move to resolution deadline, got %+v", d)
+	}
+}
+
+func TestEvaluateConversationStampsBreachOnLateReply(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	db.MustExec(`UPDATE applied_slas SET first_response_deadline_at = NOW() - INTERVAL '2h' WHERE conversation_id = $1`, conv)
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	if !row.FRBreached.Valid || row.FRMetAt.Valid {
+		t.Fatalf("expected first response breached on late reply, got %+v", row)
+	}
+}
+
+func TestEvaluateConversationStampsBreachOnSilence(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	db.MustExec(`UPDATE applied_slas SET first_response_deadline_at = NOW() - INTERVAL '1h' WHERE conversation_id = $1`, conv)
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	if !row.FRBreached.Valid || row.FRMetAt.Valid {
+		t.Fatalf("expected first response breached with no reply, got %+v", row)
+	}
+}
+
+func TestEvaluateConversationStampsResolutionMet(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW(), resolved_at = NOW(),
+		status_id = (SELECT id FROM conversation_statuses WHERE category = 'resolved' LIMIT 1) WHERE id = $1`, conv)
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	if !row.FRMetAt.Valid || !row.ResMetAt.Valid {
+		t.Fatalf("expected both metrics met, got %+v", row)
+	}
+	if d := conversationDeadline(t, db, conv); d.Valid {
+		t.Fatalf("expected NULL cached deadline on resolved conversation, got %+v", d)
+	}
+}
+
+func TestEvaluateConversationIsIdempotent(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	db.MustExec(`UPDATE conversations SET first_reply_at = NOW() WHERE id = $1`, conv)
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+	first := fetchApplied(t, db, conv)[0]
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA second call: %v", err)
+	}
+	second := fetchApplied(t, db, conv)[0]
+	if !first.FRMetAt.Time.Equal(second.FRMetAt.Time) {
+		t.Fatalf("expected met_at unchanged on second call, got %v then %v", first.FRMetAt.Time, second.FRMetAt.Time)
+	}
+}
+
+func TestEvaluateConversationNoChangeStillRecomputes(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "p1", "1h", "2h", "")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	db.MustExec(`UPDATE conversations SET next_sla_deadline_at = NOW() - INTERVAL '5h' WHERE id = $1`, conv)
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	if row.FRMetAt.Valid || row.FRBreached.Valid {
+		t.Fatalf("expected no stamps with future deadlines, got %+v", row)
+	}
+	d := conversationDeadline(t, db, conv)
+	if !d.Valid || !d.Time.Equal(row.FRDeadline.Time) {
+		t.Fatalf("expected cached deadline repaired to first response deadline, got %+v", d)
+	}
+}
+
+func TestEvaluateConversationNoPendingRowStillRecomputes(t *testing.T) {
+	m, db := newTestManager(t)
+	conv := insertConversation(t, db, "c1")
+
+	db.MustExec(`UPDATE conversations SET next_sla_deadline_at = NOW() + INTERVAL '1h' WHERE id = $1`, conv)
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+
+	if d := conversationDeadline(t, db, conv); d.Valid {
+		t.Fatalf("expected stale cached deadline cleared with no applied sla, got %+v", d)
+	}
+}
+
+func TestEvaluateConversationNextResponseOnlyRecomputes(t *testing.T) {
+	m, db := newTestManager(t)
+	policy := insertPolicy(t, db, "nr-only", "", "", "30m")
+	conv := insertConversation(t, db, "c1")
+	applySLA(t, m, conv, policy)
+
+	appliedID := fetchApplied(t, db, conv)[0].ID
+	db.MustExec(`INSERT INTO sla_events (applied_sla_id, sla_policy_id, type, deadline_at)
+		VALUES ($1, $2, 'next_response', NOW() + INTERVAL '30m')`, appliedID, policy)
+	db.MustExec(`UPDATE conversations SET next_sla_deadline_at = NULL WHERE id = $1`, conv)
+
+	if err := m.EvaluateConversationSLA(conv); err != nil {
+		t.Fatalf("EvaluateConversationSLA: %v", err)
+	}
+
+	row := fetchApplied(t, db, conv)[0]
+	if row.Status != "pending" || row.FRMetAt.Valid || row.FRBreached.Valid || row.ResMetAt.Valid || row.ResBreached.Valid {
+		t.Fatalf("expected next-response-only row untouched, got %+v", row)
+	}
+	if d := conversationDeadline(t, db, conv); !d.Valid {
+		t.Fatalf("expected cached deadline recomputed from pending event, got %+v", d)
+	}
+}
+
 func newTestManager(t *testing.T) (*Manager, *sqlx.DB) {
 	t.Helper()
 	return newTestManagerBH(t, bmodels.BusinessHours{ID: 1, IsAlwaysOpen: true})

@@ -144,7 +144,7 @@ type slaStore interface {
 	ApplySLA(startTime time.Time, conversationID, assignedTeamID, slaID int) (slaModels.SLAPolicy, error)
 	CreateNextResponseSLAEvent(conversationID, appliedSLAID, slaPolicyID, assignedTeamID int) (time.Time, error)
 	SetLatestSLAEventMetAt(appliedSLAID int, metric string) (time.Time, error)
-	RecomputeConversationNextSLADeadline(conversationIDs ...int) error
+	EvaluateConversationSLA(conversationID int) error
 }
 
 type statusStore interface {
@@ -688,8 +688,8 @@ func (c *Manager) ReOpenConversation(conversationUUID string, actor umodels.User
 	}
 
 	// Reopening revives any first response or resolution deadline the resolved status had nulled.
-	if err := c.slaStore.RecomputeConversationNextSLADeadline(conversationID); err != nil {
-		c.lo.Error("error recomputing next SLA deadline after reopen", "uuid", conversationUUID, "error", err)
+	if err := c.slaStore.EvaluateConversationSLA(conversationID); err != nil {
+		c.lo.Error("error evaluating SLA after reopen", "uuid", conversationUUID, "error", err)
 	}
 
 	c.BroadcastConversationUpdate(conversationUUID, map[string]any{"status": models.StatusOpen})
@@ -997,8 +997,9 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
-	if err := c.slaStore.RecomputeConversationNextSLADeadline(conversationBeforeChange.ID); err != nil {
-		c.lo.Error("error recomputing next SLA deadline after status change", "uuid", uuid, "error", err)
+	// Stamps a just-resolved resolution SLA immediately and recomputes the cached deadline.
+	if err := c.slaStore.EvaluateConversationSLA(conversationBeforeChange.ID); err != nil {
+		c.lo.Error("error evaluating SLA after status change", "uuid", uuid, "error", err)
 	}
 
 	// Fetch conversation for webhook and automation rules.
@@ -1391,10 +1392,9 @@ func (m *Manager) ApplySLA(conversation models.Conversation, policyID int, actor
 			"applied_sla_id":             updated.AppliedSLAID.Int,
 			"first_response_deadline_at": nullTimeOrNil(updated.FirstResponseDueAt),
 			"resolution_deadline_at":     nullTimeOrNil(updated.ResolutionDueAt),
-			// A new policy has no next-response event yet, so these clear the previous policy's values.
-			"next_response_deadline_at": nullTimeOrNil(updated.NextResponseDueAt),
-			"next_response_met_at":      nullTimeOrNil(updated.NextResponseMetAt),
-			"next_sla_deadline_at":      nullTimeOrNil(updated.NextSLADeadlineAt),
+			"next_response_deadline_at":  nullTimeOrNil(updated.NextResponseDueAt),
+			"next_response_met_at":       nullTimeOrNil(updated.NextResponseMetAt),
+			"next_sla_deadline_at":       nullTimeOrNil(updated.NextSLADeadlineAt),
 		})
 	}
 

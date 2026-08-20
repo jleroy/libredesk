@@ -217,9 +217,13 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 			m.lo.Error("error updating conversation reply timestamps", "error", err)
 		} else if isFirstReply {
 			wsData["first_reply_at"] = nowStr
+			// Stamp the first-response SLA immediately.
+			if err := m.slaStore.EvaluateConversationSLA(message.ConversationID); err != nil {
+				m.lo.Error("error evaluating SLA after first reply", "conversation_id", message.ConversationID, "error", err)
+			}
 		}
 
-		// Mark latest SLA event for next response as met.
+		// Mark latest SLA event for next response metric as met.
 		metAt, err := m.slaStore.SetLatestSLAEventMetAt(conversation.AppliedSLAID.Int, sla.MetricNextResponse)
 		if err != nil && !errors.Is(err, sla.ErrLatestSLAEventNotFound) {
 			m.lo.Error("error setting next response SLA event `met_at`", "conversation_id", conversation.ID, "metric", sla.MetricNextResponse, "applied_sla_id", conversation.AppliedSLAID.Int, "error", err)
