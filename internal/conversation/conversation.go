@@ -1387,9 +1387,14 @@ func (m *Manager) ApplySLA(conversation models.Conversation, policyID int, actor
 	if updated, ferr := m.GetConversation(0, conversation.UUID, ""); ferr == nil {
 		m.BroadcastConversationUpdate(conversation.UUID, map[string]any{
 			"sla_policy_id":              updated.SLAPolicyID.Int,
+			"sla_policy_name":            updated.SlaPolicyName.String,
 			"applied_sla_id":             updated.AppliedSLAID.Int,
 			"first_response_deadline_at": nullTimeOrNil(updated.FirstResponseDueAt),
 			"resolution_deadline_at":     nullTimeOrNil(updated.ResolutionDueAt),
+			// A new policy has no next-response event yet, so these clear the previous policy's values.
+			"next_response_deadline_at": nullTimeOrNil(updated.NextResponseDueAt),
+			"next_response_met_at":      nullTimeOrNil(updated.NextResponseMetAt),
+			"next_sla_deadline_at":      nullTimeOrNil(updated.NextSLADeadlineAt),
 		})
 	}
 
