@@ -28,6 +28,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastcache/v4"
 	"github.com/zerodha/fastglue"
+	"github.com/zerodha/logf"
 )
 
 const (
@@ -55,9 +56,6 @@ const (
 
 	helpCenterCacheNamespaceKey = "hc_cache_ns"
 	helpCenterCacheNamespace    = "hc"
-
-	// helpCenterCacheMissKey is set by the inner handler, which only runs on a miss.
-	helpCenterCacheMissKey = "hc_cache_miss"
 
 	helpCenterXMLCacheControl = "public, max-age=300, stale-while-revalidate=3600"
 
@@ -108,6 +106,11 @@ var (
 	}
 )
 
+// helpCenterCacheLogWriter routes fastcache's log lines into the app logger.
+type helpCenterCacheLogWriter struct {
+	lo *logf.Logger
+}
+
 type sitemapURL struct {
 	Loc     string `xml:"loc"`
 	LastMod string `xml:"lastmod,omitempty"`
@@ -138,6 +141,11 @@ type localeLink struct {
 type previewTOCItem struct {
 	ID    string
 	Title string
+}
+
+func (w helpCenterCacheLogWriter) Write(p []byte) (int, error) {
+	w.lo.Error("help center page cache: " + strings.TrimSpace(string(p)))
+	return len(p), nil
 }
 
 // handleGetHelpCenterLocales returns the locales a help center can be authored in.
@@ -799,7 +807,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 		lcl     = localeI18n(app, locale)
 		pathFor = func(l string) string { return searchPath(helpCenter, l) }
 	)
-	return app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-search"), map[string]interface{}{
+	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-search"), map[string]interface{}{
 		"L": lcl,
 		"Data": map[string]interface{}{
 			"Title":       fmt.Sprintf("%s - %s", lcl.T("globals.terms.search"), helpCenter.Name),
@@ -1125,13 +1133,14 @@ func cachedHelpCenterNoIndexPage(h fastglue.FastRequestHandler) fastglue.FastReq
 
 // cacheHelpCenterPage owns every response header: the cache restores only body and content type.
 func cacheHelpCenterPage(h fastglue.FastRequestHandler, noIndex bool) fastglue.FastRequestHandler {
-	rendered := func(r *fastglue.Request) error {
-		r.RequestCtx.SetUserValue(helpCenterCacheMissKey, true)
-		return h(r)
-	}
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
 		r.RequestCtx.SetUserValue(helpCenterCacheNamespaceKey, helpCenterCacheNamespace)
+		miss := false
+		rendered := func(r *fastglue.Request) error {
+			miss = true
+			return h(r)
+		}
 		err := app.fastCache.Cached(rendered, helpCenterCacheOpts, helpCenterCacheGroup)(r)
 		switch r.RequestCtx.Response.StatusCode() {
 		case fasthttp.StatusOK, fasthttp.StatusNotModified:
@@ -1139,7 +1148,7 @@ func cacheHelpCenterPage(h fastglue.FastRequestHandler, noIndex bool) fastglue.F
 			r.RequestCtx.Response.Header.Del("Pragma")
 			r.RequestCtx.Response.Header.Del("Expires")
 			status := "HIT"
-			if r.RequestCtx.UserValue(helpCenterCacheMissKey) != nil {
+			if miss {
 				status = "MISS"
 			}
 			r.RequestCtx.Response.Header.Set("X-Cache", status)

@@ -329,6 +329,7 @@ func main() {
 		wsHub:            wsHub,
 	}
 	app.consts.Store(constants)
+	helpCenterCacheOpts.Logger = log.New(helpCenterCacheLogWriter{lo: app.lo}, "", 0)
 
 	g := fastglue.NewGlue()
 	g.SetContext(app)
