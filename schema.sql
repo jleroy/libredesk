@@ -291,6 +291,7 @@ CREATE INDEX index_conversations_on_inbox_id ON conversations (inbox_id);
 CREATE INDEX index_conversations_on_status_id ON conversations (status_id);
 CREATE INDEX index_conversations_on_priority_id ON conversations (priority_id);
 CREATE INDEX index_conversations_on_created_at ON conversations (created_at);
+CREATE INDEX index_conversations_on_resolved_at ON conversations (resolved_at);
 CREATE INDEX index_conversations_on_last_message_at ON conversations (last_message_at);
 CREATE INDEX index_conversations_on_last_interaction_at ON conversations (last_interaction_at);
 CREATE INDEX index_conversations_on_next_sla_deadline_at ON conversations (next_sla_deadline_at);

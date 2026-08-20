@@ -28,7 +28,7 @@ agents AS (
         ) AS agents_online,
         COUNT(*) FILTER (
             WHERE
-                availability_status = 'away_manual'
+                availability_status IN ('away', 'away_manual')
         ) AS agents_away,
         COUNT(*) FILTER (
             WHERE
@@ -325,7 +325,7 @@ WITH tag_counts AS (
     GROUP BY
         t.id, t.name
     ORDER BY
-        count DESC
+        count DESC, t.id
     LIMIT 10
 ),
 tagging AS (
