@@ -341,7 +341,7 @@ FROM help_articles a
 JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale AND c.id IN (SELECT id FROM published_collections)
 LEFT JOIN users u ON u.id = a.author_id
 WHERE a.slug = $2 AND a.status = 'published' AND ($3 = '' OR a.locale = $3)
-ORDER BY c.sort_order, a.sort_order
+ORDER BY c.sort_order, a.sort_order, a.id
 LIMIT 1;
 
 -- name: get-published-article-locales
@@ -441,7 +441,7 @@ WHERE id = (
     FROM help_articles a
     JOIN article_collections c ON c.id = a.collection_id AND c.locale = a.locale AND c.id IN (SELECT id FROM published_collections)
     WHERE a.slug = $2 AND a.status = 'published' AND ($3 = '' OR a.locale = $3)
-    ORDER BY c.sort_order, a.sort_order
+    ORDER BY c.sort_order, a.sort_order, a.id
     LIMIT 1
 );
 
