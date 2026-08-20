@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	minDays = 1
+	minDays = 0
 	maxDays = 365
 )
 
