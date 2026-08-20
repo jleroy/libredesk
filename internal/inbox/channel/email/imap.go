@@ -15,7 +15,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
-	"github.com/jhillyerd/enmime"
+	"github.com/jhillyerd/enmime/v2"
 	"github.com/volatiletech/null/v9"
 )
 
@@ -23,6 +23,10 @@ const (
 	defaultReadInterval   = time.Duration(5 * time.Minute)
 	defaultScanInboxSince = time.Duration(48 * time.Hour)
 )
+
+// enmime's charset autodetection overrides an explicitly declared charset, and it misreads
+// mostly-ASCII UTF-8 bodies as ISO-8859-1, mangling accented characters.
+var mimeParser = enmime.NewParser(enmime.DisableCharacterDetection(true))
 
 // ReadIncomingMessages reads and processes incoming messages from an IMAP server based on the provided configuration.
 func (e *Email) ReadIncomingMessages(ctx context.Context, cfg imodels.IMAPConfig) error {
@@ -248,7 +252,7 @@ func (e *Email) fetchAndProcessMessages(ctx context.Context, client *imapclient.
 
 			// Body section.
 			if bs, ok := item.(imapclient.FetchItemDataBodySection); ok && bs.Literal != nil {
-				envelope, err := enmime.ReadEnvelope(bs.Literal)
+				envelope, err := mimeParser.ReadEnvelope(bs.Literal)
 				if err != nil {
 					e.lo.Error("error reading envelope", "error", err)
 					continue
@@ -443,7 +447,7 @@ func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, 
 
 // processFullMessage processes the full message and enqueues it for inserting into the database.
 func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, incomingMsg models.IncomingMessage) error {
-	envelope, err := enmime.ReadEnvelope(item.Literal)
+	envelope, err := mimeParser.ReadEnvelope(item.Literal)
 	if err != nil {
 		e.lo.Error("error parsing email envelope", "error", err, "message_id", incomingMsg.SourceID.String)
 		for _, err := range envelope.Errors {
