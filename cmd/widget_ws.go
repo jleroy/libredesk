@@ -29,6 +29,7 @@ const (
 	maxPageVisits           = 20
 	pageVisitTTL            = 24 * time.Hour
 	wsReadDeadline          = 20 * time.Second
+	wsWriteDeadline         = 10 * time.Second
 	wsReadLimitBytes        = 64 * 1024
 
 	// Per-connection minimum intervals between inbound frames of each kind.
@@ -71,15 +72,18 @@ type safeConn struct {
 	lastAt map[string]time.Time
 }
 
+// WriteJSON and WriteMessage set a deadline first; a peer that stops reading would otherwise block the caller while holding sc.mu.
 func (sc *safeConn) WriteJSON(v any) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
+	sc.conn.SetWriteDeadline(time.Now().Add(wsWriteDeadline))
 	return sc.conn.WriteJSON(v)
 }
 
 func (sc *safeConn) WriteMessage(msgType int, data []byte) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
+	sc.conn.SetWriteDeadline(time.Now().Add(wsWriteDeadline))
 	return sc.conn.WriteMessage(msgType, data)
 }
 
@@ -108,8 +112,8 @@ func handleWidgetWS(r *fastglue.Request) error {
 		sc := &safeConn{conn: conn}
 
 		var (
-			client   *livechat.Client
-			liveChat *livechat.LiveChat
+			client    *livechat.Client
+			liveChat  *livechat.LiveChat
 			inboxUUID string
 			userID    int
 		)

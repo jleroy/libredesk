@@ -9,6 +9,15 @@ import (
 	"github.com/fasthttp/websocket"
 )
 
+const (
+	pongWait   = 60 * time.Second
+	pingPeriod = 25 * time.Second
+	writeWait  = 10 * time.Second
+	// 64 KiB
+	maxMessageSize  = 64 << 10
+	maxListSubUUIDs = 500
+)
+
 // SafeBool is a thread-safe boolean.
 type SafeBool struct {
 	flag bool
@@ -49,13 +58,15 @@ type Client struct {
 
 // Serve handles heartbeats and sending messages to the client.
 func (c *Client) Serve() {
-	var heartBeatTicker = time.NewTicker(2 * time.Second)
+	// Write deadlines below: a peer that stops reading would otherwise block this goroutine and hold the socket open indefinitely.
+	var heartBeatTicker = time.NewTicker(pingPeriod)
 	defer heartBeatTicker.Stop()
 	defer c.Conn.Close()
-	
+
 	for {
 		select {
 		case <-heartBeatTicker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -63,13 +74,23 @@ func (c *Client) Serve() {
 			if !ok {
 				return
 			}
-			c.Conn.WriteMessage(msg.MessageType, msg.Data)
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(msg.MessageType, msg.Data); err != nil {
+				return
+			}
 		}
 	}
 }
 
 // Listen is a block method that listens for incoming messages from the client.
 func (c *Client) Listen() {
+	// A peer that disappears without closing (slept laptop, dropped wifi) leaves this read blocked forever unless a pong refreshes the deadline.
+	c.Conn.SetReadLimit(maxMessageSize)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		return c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
+
 	for {
 		msgType, msg, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -99,7 +120,7 @@ func (c *Client) processIncomingMessage(data []byte) {
 	}
 
 	// Try to parse as JSON message
-	var msg models.Message
+	var msg models.IncomingMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
 		c.SendError("invalid message format")
 		return
@@ -117,18 +138,11 @@ func (c *Client) processIncomingMessage(data []byte) {
 	}
 }
 
-const maxListSubUUIDs = 500
-
-func (c *Client) handleListSubscribe(data interface{}) {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		c.SendError("invalid list_subscribe payload")
-		return
-	}
+func (c *Client) handleListSubscribe(data json.RawMessage) {
 	var payload struct {
 		UUIDs []string `json:"uuids"`
 	}
-	if err := json.Unmarshal(dataBytes, &payload); err != nil {
+	if err := json.Unmarshal(data, &payload); err != nil {
 		c.SendError("invalid list_subscribe payload")
 		return
 	}
@@ -143,15 +157,9 @@ func (c *Client) handleListSubscribe(data interface{}) {
 }
 
 // handleConversationSubscribe registers the open-conversation sub; authz is enforced because content (not just typing) flows through it.
-func (c *Client) handleConversationSubscribe(data interface{}) {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		c.SendError("invalid subscription data")
-		return
-	}
-
+func (c *Client) handleConversationSubscribe(data json.RawMessage) {
 	var subscribeMsg models.ConversationSubscribe
-	if err := json.Unmarshal(dataBytes, &subscribeMsg); err != nil {
+	if err := json.Unmarshal(data, &subscribeMsg); err != nil {
 		c.SendError("invalid subscription format")
 		return
 	}
@@ -176,16 +184,9 @@ func (c *Client) handleConversationSubscribe(data interface{}) {
 // authenticated agent. A hostile agent could broadcast fake typing to any
 // conversation UUID (including widget clients), but typing is ephemeral and
 // cosmetic; adding per-frame authz isn't worth the DB cost today.
-func (c *Client) handleTyping(data interface{}) {
-	// Convert the data to JSON and then unmarshal to TypingMessage
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		c.SendError("invalid typing data")
-		return
-	}
-
+func (c *Client) handleTyping(data json.RawMessage) {
 	var typingMsg models.TypingMessage
-	if err := json.Unmarshal(dataBytes, &typingMsg); err != nil {
+	if err := json.Unmarshal(data, &typingMsg); err != nil {
 		c.SendError("invalid typing format")
 		return
 	}
