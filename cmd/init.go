@@ -942,7 +942,6 @@ func initRedis() *redis.Client {
 	})
 }
 
-// initFastCache inits the shared HTTP response cache.
 func initFastCache(rdb *redis.Client) *fastcache.FastCache {
 	return fastcache.New(goredis.New(goredis.Config{Prefix: fastCachePrefix}, rdb))
 }

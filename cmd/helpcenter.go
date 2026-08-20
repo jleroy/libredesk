@@ -49,12 +49,10 @@ const (
 
 	fastCachePrefix = "libredesk:cache:"
 
-	// Caps how long a page can drift if some write path fails to clear the cache.
 	helpCenterCacheTTL = 5 * time.Minute
 
 	helpCenterCacheGroup = "helpcenter"
 
-	// Not the slug: a rename or delete would strand that namespace's pages.
 	helpCenterCacheNamespaceKey = "hc_cache_ns"
 	helpCenterCacheNamespace    = "hc"
 
@@ -1117,8 +1115,6 @@ func countArticleView(h fastglue.FastRequestHandler) fastglue.FastRequestHandler
 	}
 }
 
-// cachedHelpCenterPage serves a public help center page from the response cache, which
-// stores the body alone, so the caching headers are re-applied on the hit and 304 paths.
 func cachedHelpCenterPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
 	return cacheHelpCenterPage(h, false)
 }
@@ -1160,7 +1156,6 @@ func isMarkdownRequest(r *fastglue.Request) bool {
 	return strings.HasSuffix(slug, markdownSlugExtension)
 }
 
-// clearsHelpCenterCache drops the cached public pages after a successful write.
 func clearsHelpCenterCache(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
 	return func(r *fastglue.Request) error {
 		err := h(r)

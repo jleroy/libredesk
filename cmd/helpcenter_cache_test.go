@@ -61,7 +61,6 @@ func TestHelpCenterPageCacheServesAndInvalidates(t *testing.T) {
 		t.Errorf("304 carried a body of %d bytes", len(got))
 	}
 
-	// An admin write clears the group, so the next read must re-render the edit.
 	if err := fc.DelGroup(helpCenterCacheNamespace, helpCenterCacheGroup); err != nil {
 		t.Fatalf("clearing the group: %v", err)
 	}
@@ -106,7 +105,6 @@ func TestHelpCenterPageCacheKeysPerQueryAndSurvivesRename(t *testing.T) {
 		t.Fatalf("expected 3 distinct cache entries, got %d: %v", len(served), served)
 	}
 
-	// A slug-keyed namespace would leave these served until the TTL.
 	clearAll(t, fc)
 	for uri, before := range served {
 		if err := cached(request(uri, "")); err != nil {
@@ -193,7 +191,6 @@ func TestHelpCenterPageCacheKeepsNoIndexOnHits(t *testing.T) {
 	}
 }
 
-// newTestFastCache returns a cache backed by an in-memory redis.
 func newTestFastCache(t *testing.T) *fastcache.FastCache {
 	t.Helper()
 	mr := miniredis.RunT(t)

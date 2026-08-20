@@ -958,7 +958,6 @@ func (m *Manager) IncrementArticleViewCount(id int) {
 	}
 }
 
-// IncrementPublishedArticleView increments a published article's view count by its URL parts.
 func (m *Manager) IncrementPublishedArticleView(helpCenterSlug, articleSlug, locale string) {
 	if _, err := m.q.IncrementPublishedArticleView.Exec(helpCenterSlug, articleSlug, locale); err != nil {
 		m.lo.Error("error incrementing article view count", "error", err, "slug", articleSlug)
