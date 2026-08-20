@@ -2,6 +2,7 @@
 package ws
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -164,13 +165,8 @@ func (h *Hub) RemoveClient(client *Client) {
 	defer h.clientsMutex.Unlock()
 
 	if clients, ok := h.clients[client.ID]; ok {
-		for i, c := range clients {
-			if c == client {
-				copy(clients[i:], clients[i+1:])
-				clients[len(clients)-1] = nil
-				clients = clients[:len(clients)-1]
-				break
-			}
+		if i := slices.Index(clients, client); i >= 0 {
+			clients = slices.Delete(clients, i, i+1)
 		}
 		if len(clients) == 0 {
 			delete(h.clients, client.ID)
