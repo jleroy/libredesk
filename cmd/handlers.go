@@ -125,17 +125,17 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 
 	// Agents.
 	g.GET("/api/v1/agents/me", auth(handleGetCurrentAgent))
-	g.PUT("/api/v1/agents/me", auth(handleUpdateCurrentAgent))
+	g.PUT("/api/v1/agents/me", auth(clearsHelpCenterCache(handleUpdateCurrentAgent)))
 	g.GET("/api/v1/agents/me/teams", auth(handleGetCurrentAgentTeams))
 	g.PUT("/api/v1/agents/me/availability", auth(handleUpdateAgentAvailability))
-	g.DELETE("/api/v1/agents/me/avatar", auth(handleDeleteCurrentAgentAvatar))
+	g.DELETE("/api/v1/agents/me/avatar", auth(clearsHelpCenterCache(handleDeleteCurrentAgentAvatar)))
 
 	g.GET("/api/v1/agents/compact", auth(handleGetAgentsCompact))
 	g.GET("/api/v1/agents", perm(handleGetAgents, "users:manage"))
 	g.GET("/api/v1/agents/{id}", perm(handleGetAgent, "users:manage"))
 	g.POST("/api/v1/agents", perm(handleCreateAgent, "users:manage"))
-	g.PUT("/api/v1/agents/{id}", perm(handleUpdateAgent, "users:manage"))
-	g.DELETE("/api/v1/agents/{id}", perm(handleDeleteAgent, "users:manage"))
+	g.PUT("/api/v1/agents/{id}", perm(clearsHelpCenterCache(handleUpdateAgent), "users:manage"))
+	g.DELETE("/api/v1/agents/{id}", perm(clearsHelpCenterCache(handleDeleteAgent), "users:manage"))
 	g.POST("/api/v1/agents/import", perm(handleImportAgents, "users:manage"))
 	g.GET("/api/v1/agents/import/status", perm(handleGetAgentImportStatus, "users:manage"))
 	g.POST("/api/v1/agents/{id}/api-key", perm(handleGenerateAPIKey, "users:manage"))
@@ -395,7 +395,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	getAndHead("/hc/{slug}", rateLimit(handleRedirectHelpCenterHome, "public"))
 	getAndHead("/hc/{slug}/{locale}", rateLimit(cachedHelpCenterPage(handleShowHelpCenterHome), "public"))
 	getAndHead("/hc/{slug}/{locale}/sitemap.xml", rateLimit(handleHelpCenterSitemap, "public"))
-	getAndHead("/hc/{slug}/{locale}/search", rateLimit(cachedHelpCenterPage(handleHelpCenterSearch), "public"))
+	getAndHead("/hc/{slug}/{locale}/search", rateLimit(cachedHelpCenterNoIndexPage(handleHelpCenterSearch), "public"))
 	getAndHead("/hc/{slug}/{locale}/collections/{collection_slug}", rateLimit(cachedHelpCenterPage(handleShowHelpCenterCollection), "public"))
 	getAndHead("/hc/{slug}/{locale}/articles/{article_slug}", rateLimit(countArticleView(cachedHelpCenterPage(handleShowHelpCenterArticle)), "public"))
 

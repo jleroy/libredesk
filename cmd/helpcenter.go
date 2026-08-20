@@ -49,9 +49,17 @@ const (
 
 	fastCachePrefix = "libredesk:cache:"
 
-	helpCenterCacheTTL = 24 * time.Hour
+	// Caps how long a page can drift if some write path fails to clear the cache.
+	helpCenterCacheTTL = 5 * time.Minute
 
 	helpCenterCacheGroup = "helpcenter"
+
+	// Not the slug: a rename or delete would strand that namespace's pages.
+	helpCenterCacheNamespaceKey = "hc_cache_ns"
+	helpCenterCacheNamespace    = "hc"
+
+	// helpCenterCacheMissKey is set by the inner handler, which only runs on a miss.
+	helpCenterCacheMissKey = "hc_cache_miss"
 
 	helpCenterXMLCacheControl = "public, max-age=300, stale-while-revalidate=3600"
 
@@ -72,12 +80,11 @@ const (
 var (
 	// Logger is set because fastcache writes to the field when it finds it nil, racing across requests.
 	helpCenterCacheOpts = &fastcache.Options{
-		NamespaceKey:       "slug",
+		NamespaceKey:       helpCenterCacheNamespaceKey,
 		ETag:               true,
 		IncludeQueryString: true,
-		// Backstop for keys nothing invalidates, such as a deleted help center's.
-		TTL:    helpCenterCacheTTL,
-		Logger: log.New(io.Discard, "", 0),
+		TTL:                helpCenterCacheTTL,
+		Logger:             log.New(io.Discard, "", 0),
 	}
 
 	// crawlerUARe matches search and preview bots, whose hits must not count as reader views.
@@ -711,7 +718,6 @@ func handleShowHelpCenterArticle(r *fastglue.Request) error {
 	hideArticleAuthor(helpCenterTheme(helpCenter), &article)
 
 	if markdown {
-		r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 		r.RequestCtx.SetContentType("text/markdown; charset=utf-8")
 		fmt.Fprintf(r.RequestCtx, "# %s\n\n%s\n", article.Title, stringutil.HTML2Text(article.Content))
 		return nil
@@ -795,7 +801,6 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 		lcl     = localeI18n(app, locale)
 		pathFor = func(l string) string { return searchPath(helpCenter, l) }
 	)
-	r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 	return app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-search"), map[string]interface{}{
 		"L": lcl,
 		"Data": map[string]interface{}{
@@ -1115,17 +1120,44 @@ func countArticleView(h fastglue.FastRequestHandler) fastglue.FastRequestHandler
 // cachedHelpCenterPage serves a public help center page from the response cache, which
 // stores the body alone, so the caching headers are re-applied on the hit and 304 paths.
 func cachedHelpCenterPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return cacheHelpCenterPage(h, false)
+}
+
+func cachedHelpCenterNoIndexPage(h fastglue.FastRequestHandler) fastglue.FastRequestHandler {
+	return cacheHelpCenterPage(h, true)
+}
+
+// cacheHelpCenterPage owns every response header: the cache restores only body and content type.
+func cacheHelpCenterPage(h fastglue.FastRequestHandler, noIndex bool) fastglue.FastRequestHandler {
+	rendered := func(r *fastglue.Request) error {
+		r.RequestCtx.SetUserValue(helpCenterCacheMissKey, true)
+		return h(r)
+	}
 	return func(r *fastglue.Request) error {
 		app := r.Context.(*App)
-		err := app.fastCache.Cached(h, helpCenterCacheOpts, helpCenterCacheGroup)(r)
+		r.RequestCtx.SetUserValue(helpCenterCacheNamespaceKey, helpCenterCacheNamespace)
+		err := app.fastCache.Cached(rendered, helpCenterCacheOpts, helpCenterCacheGroup)(r)
 		switch r.RequestCtx.Response.StatusCode() {
 		case fasthttp.StatusOK, fasthttp.StatusNotModified:
 			r.RequestCtx.Response.Header.Set("Cache-Control", helpCenterCacheControl)
 			r.RequestCtx.Response.Header.Del("Pragma")
 			r.RequestCtx.Response.Header.Del("Expires")
+			status := "HIT"
+			if r.RequestCtx.UserValue(helpCenterCacheMissKey) != nil {
+				status = "MISS"
+			}
+			r.RequestCtx.Response.Header.Set("X-Cache", status)
+			if noIndex || isMarkdownRequest(r) {
+				r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
+			}
 		}
 		return err
 	}
+}
+
+func isMarkdownRequest(r *fastglue.Request) bool {
+	slug, _ := r.RequestCtx.UserValue("article_slug").(string)
+	return strings.HasSuffix(slug, markdownSlugExtension)
 }
 
 // clearsHelpCenterCache drops the cached public pages after a successful write.
@@ -1133,29 +1165,15 @@ func clearsHelpCenterCache(h fastglue.FastRequestHandler) fastglue.FastRequestHa
 	return func(r *fastglue.Request) error {
 		err := h(r)
 		if r.RequestCtx.Response.StatusCode() < fasthttp.StatusMultipleChoices {
-			clearHelpCenterCache(r.Context.(*App), "")
+			clearHelpCenterCache(r.Context.(*App))
 		}
 		return err
 	}
 }
 
-// clearHelpCenterCache drops every cached public page for slug, or for all when slug is empty.
-func clearHelpCenterCache(app *App, slug string) {
-	if slug != "" {
-		if err := app.fastCache.DelGroup(slug, helpCenterCacheGroup); err != nil {
-			app.lo.Error("error clearing help center cache", "slug", slug, "error", err)
-		}
-		return
-	}
-	helpCenters, err := app.helpcenter.GetAllHelpCenters()
-	if err != nil {
-		app.lo.Error("error listing help centers to clear cache", "error", err)
-		return
-	}
-	for _, hc := range helpCenters {
-		if err := app.fastCache.DelGroup(hc.Slug, helpCenterCacheGroup); err != nil {
-			app.lo.Error("error clearing help center cache", "slug", hc.Slug, "error", err)
-		}
+func clearHelpCenterCache(app *App) {
+	if err := app.fastCache.DelGroup(helpCenterCacheNamespace, helpCenterCacheGroup); err != nil {
+		app.lo.Error("error clearing help center cache", "error", err)
 	}
 }
 

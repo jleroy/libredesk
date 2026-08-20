@@ -27,7 +27,7 @@ func TestHelpCenterPageCacheServesAndInvalidates(t *testing.T) {
 
 	const uri = "/hc/support/en/articles/refunds"
 
-	first := request(uri, "support", "")
+	first := request(uri, "")
 	if err := cached(first); err != nil {
 		t.Fatalf("first request: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestHelpCenterPageCacheServesAndInvalidates(t *testing.T) {
 		t.Fatal("expected an ETag on the rendered page")
 	}
 
-	second := request(uri, "support", "")
+	second := request(uri, "")
 	if err := cached(second); err != nil {
 		t.Fatalf("second request: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestHelpCenterPageCacheServesAndInvalidates(t *testing.T) {
 		t.Errorf("cached body = %q, want %q", got, body)
 	}
 
-	revalidate := request(uri, "support", etag)
+	revalidate := request(uri, etag)
 	if err := cached(revalidate); err != nil {
 		t.Fatalf("revalidation: %v", err)
 	}
@@ -62,11 +62,11 @@ func TestHelpCenterPageCacheServesAndInvalidates(t *testing.T) {
 	}
 
 	// An admin write clears the group, so the next read must re-render the edit.
-	if err := fc.DelGroup("support", helpCenterCacheGroup); err != nil {
+	if err := fc.DelGroup(helpCenterCacheNamespace, helpCenterCacheGroup); err != nil {
 		t.Fatalf("clearing the group: %v", err)
 	}
 	body = "<h1>edited</h1>"
-	afterEdit := request(uri, "support", "")
+	afterEdit := request(uri, "")
 	if err := cached(afterEdit); err != nil {
 		t.Fatalf("request after edit: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestHelpCenterPageCacheServesAndInvalidates(t *testing.T) {
 	}
 }
 
-func TestHelpCenterPageCacheIsolatesHelpCentersAndQueries(t *testing.T) {
+func TestHelpCenterPageCacheKeysPerQueryAndSurvivesRename(t *testing.T) {
 	fc := newTestFastCache(t)
 
 	served := map[string]int{}
@@ -93,12 +93,12 @@ func TestHelpCenterPageCacheIsolatesHelpCentersAndQueries(t *testing.T) {
 	}
 	cached := fc.Cached(handler, helpCenterCacheOpts, helpCenterCacheGroup)
 
-	for _, req := range []*fastglue.Request{
-		request("/hc/support/en/search?q=refund", "support", ""),
-		request("/hc/support/en/search?q=billing", "support", ""),
-		request("/hc/docs/en/search?q=refund", "docs", ""),
+	for _, uri := range []string{
+		"/hc/support/en/search?q=refund",
+		"/hc/support/en/search?q=billing",
+		"/hc/docs/en/search?q=refund",
 	} {
-		if err := cached(req); err != nil {
+		if err := cached(request(uri, "")); err != nil {
 			t.Fatalf("request: %v", err)
 		}
 	}
@@ -106,15 +106,90 @@ func TestHelpCenterPageCacheIsolatesHelpCentersAndQueries(t *testing.T) {
 		t.Fatalf("expected 3 distinct cache entries, got %d: %v", len(served), served)
 	}
 
-	// Clearing one help center must not touch another's pages.
-	if err := fc.DelGroup("support", helpCenterCacheGroup); err != nil {
-		t.Fatalf("clearing the group: %v", err)
+	// A slug-keyed namespace would leave these served until the TTL.
+	clearAll(t, fc)
+	for uri, before := range served {
+		if err := cached(request(uri, "")); err != nil {
+			t.Fatalf("request: %v", err)
+		}
+		if served[uri] == before {
+			t.Errorf("%s still served from cache after a clear", uri)
+		}
 	}
-	if err := cached(request("/hc/docs/en/search?q=refund", "docs", "")); err != nil {
-		t.Fatalf("request: %v", err)
+}
+
+func TestHelpCenterPageCacheReportsHitOrMiss(t *testing.T) {
+	app := &App{fastCache: newTestFastCache(t)}
+	handler := cachedHelpCenterPage(func(r *fastglue.Request) error {
+		r.RequestCtx.Response.SetBodyString("<h1>page</h1>")
+		return nil
+	})
+
+	const uri = "/hc/support/en/articles/refunds"
+	run := func(ifNoneMatch string) *fasthttp.RequestCtx {
+		req := request(uri, ifNoneMatch)
+		req.Context = app
+		if err := handler(req); err != nil {
+			t.Fatalf("request: %v", err)
+		}
+		return req.RequestCtx
 	}
-	if got := served["/hc/docs/en/search?q=refund"]; got != 1 {
-		t.Errorf("clearing 'support' evicted 'docs', renders = %d", got)
+
+	first := run("")
+	if got := string(first.Response.Header.Peek("X-Cache")); got != "MISS" {
+		t.Errorf("first request X-Cache = %q, want MISS", got)
+	}
+
+	second := run("")
+	if got := string(second.Response.Header.Peek("X-Cache")); got != "HIT" {
+		t.Errorf("second request X-Cache = %q, want HIT", got)
+	}
+
+	revalidated := run(string(first.Response.Header.Peek("ETag")))
+	if got := revalidated.Response.StatusCode(); got != fasthttp.StatusNotModified {
+		t.Fatalf("revalidation returned %d, want 304", got)
+	}
+	if got := string(revalidated.Response.Header.Peek("X-Cache")); got != "HIT" {
+		t.Errorf("304 X-Cache = %q, want HIT", got)
+	}
+}
+
+func TestHelpCenterPageCacheKeepsNoIndexOnHits(t *testing.T) {
+	app := &App{fastCache: newTestFastCache(t)}
+	body := func(r *fastglue.Request) error {
+		r.RequestCtx.Response.SetBodyString("raw markdown")
+		return nil
+	}
+
+	cases := []struct {
+		name    string
+		handler fastglue.FastRequestHandler
+		uri     string
+		slug    string
+	}{
+		{"search results", cachedHelpCenterNoIndexPage(body), "/hc/support/en/search?q=refund", ""},
+		{"markdown article", cachedHelpCenterPage(body), "/hc/support/en/articles/refunds.md", "refunds.md"},
+		{"html article", cachedHelpCenterPage(body), "/hc/support/en/articles/refunds", "refunds"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			want := tc.slug != "refunds"
+			for _, pass := range []string{"miss", "hit"} {
+				req := request(tc.uri, "")
+				req.Context = app
+				if tc.slug != "" {
+					req.RequestCtx.SetUserValue("article_slug", tc.slug)
+				}
+				if err := tc.handler(req); err != nil {
+					t.Fatalf("%s: %v", pass, err)
+				}
+				got := string(req.RequestCtx.Response.Header.Peek("X-Robots-Tag")) == noIndexHeader
+				if got != want {
+					t.Errorf("%s: noindex = %v, want %v", pass, got, want)
+				}
+			}
+		})
 	}
 }
 
@@ -125,14 +200,20 @@ func newTestFastCache(t *testing.T) *fastcache.FastCache {
 	return fastcache.New(goredis.New(goredis.Config{Prefix: fastCachePrefix}, redis.NewClient(&redis.Options{Addr: mr.Addr()})))
 }
 
-// request builds a GET for the given URI with the slug namespace the options read.
-func request(uri, slug, ifNoneMatch string) *fastglue.Request {
+func request(uri, ifNoneMatch string) *fastglue.Request {
 	ctx := &fasthttp.RequestCtx{}
 	ctx.Request.Header.SetMethod("GET")
 	ctx.Request.SetRequestURI(uri)
-	ctx.SetUserValue("slug", slug)
+	ctx.SetUserValue(helpCenterCacheNamespaceKey, helpCenterCacheNamespace)
 	if ifNoneMatch != "" {
 		ctx.Request.Header.Set("If-None-Match", ifNoneMatch)
 	}
 	return &fastglue.Request{RequestCtx: ctx}
+}
+
+func clearAll(t *testing.T, fc *fastcache.FastCache) {
+	t.Helper()
+	if err := fc.DelGroup(helpCenterCacheNamespace, helpCenterCacheGroup); err != nil {
+		t.Fatalf("clearing the group: %v", err)
+	}
 }
