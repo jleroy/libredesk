@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 	"sync"
@@ -14,7 +13,6 @@ import (
 	"github.com/zerodha/fastglue"
 )
 
-// Without a pool the 8 KiB write buffer is allocated at upgrade and held until the socket closes.
 var wsWriteBufferPool = &sync.Pool{}
 
 // agentUpgrader: same-origin only, with loopback allowed for dev.
@@ -54,9 +52,9 @@ var widgetUpgrader = websocket.FastHTTPUpgrader{
 	Error: ErrHandler,
 }
 
-// ErrHandler is a custom error handler.
+// ErrHandler writes the handshake failure response.
 func ErrHandler(ctx *fasthttp.RequestCtx, status int, reason error) {
-	fmt.Printf("error status %d: %s", status, reason)
+	ctx.Error(reason.Error(), status)
 }
 
 // handleWS handles the websocket connection.

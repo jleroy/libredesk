@@ -10,10 +10,9 @@ import (
 )
 
 const (
-	pongWait   = 60 * time.Second
-	pingPeriod = 25 * time.Second
-	writeWait  = 10 * time.Second
-	// 64 KiB
+	pongWait        = 60 * time.Second
+	pingPeriod      = 25 * time.Second
+	writeWait       = 10 * time.Second
 	maxMessageSize  = 64 << 10
 	maxListSubUUIDs = 500
 )
@@ -39,7 +38,6 @@ type Client struct {
 
 // Serve handles heartbeats and sending messages to the client.
 func (c *Client) Serve() {
-	// Write deadlines below: a peer that stops reading would otherwise block this goroutine and hold the socket open indefinitely.
 	var heartBeatTicker = time.NewTicker(pingPeriod)
 	defer heartBeatTicker.Stop()
 	defer c.Conn.Close()
@@ -65,13 +63,8 @@ func (c *Client) Serve() {
 
 // Listen is a block method that listens for incoming messages from the client.
 func (c *Client) Listen() {
-	// A peer that disappears without closing (slept laptop, dropped wifi) leaves this read blocked forever unless a pong refreshes the deadline.
 	c.Conn.SetReadLimit(maxMessageSize)
-	if err := c.Conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		c.Hub.RemoveClient(c)
-		c.close()
-		return
-	}
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.Conn.SetPongHandler(func(string) error {
 		return c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
@@ -82,13 +75,10 @@ func (c *Client) Listen() {
 			break
 		}
 
-		if msgType == websocket.TextMessage {
-			c.processIncomingMessage(msg)
-		} else {
-			c.Hub.RemoveClient(c)
-			c.close()
-			return
+		if msgType != websocket.TextMessage {
+			break
 		}
+		c.processIncomingMessage(msg)
 	}
 	c.Hub.RemoveClient(c)
 	c.close()
@@ -136,6 +126,7 @@ func (c *Client) handleListSubscribe(data json.RawMessage) {
 	}
 	authorized, err := c.Hub.conversationStore.FilterAuthorizedListUUIDs(c.ID, payload.UUIDs)
 	if err != nil {
+		c.Hub.lo.Error("FilterAuthorizedListUUIDs failed", "client_id", c.ID, "error", err)
 		return
 	}
 	c.Hub.SubscribeListReplace(c, authorized)
@@ -184,7 +175,7 @@ func (c *Client) handleTyping(data json.RawMessage) {
 	c.Hub.BroadcastTypingToConversation(typingMsg.ConversationUUID, typingMsg)
 }
 
-// close is idempotent; Listen and SendError can both reach it for the same client.
+// close closes the Send channel; it is idempotent.
 func (c *Client) close() {
 	c.sendMu.Lock()
 	defer c.sendMu.Unlock()
@@ -219,13 +210,13 @@ func (c *Client) SendError(msg string) {
 	b, _ := json.Marshal(out)
 
 	if !c.trySend(models.WSMessage{Data: b, MessageType: websocket.TextMessage}) {
-		c.Hub.lo.Warn("client send channel full, could not send error message", "client_id", c.ID)
+		c.Hub.lo.Warn("could not queue error message to client, closing connection", "client_id", c.ID)
 		c.Hub.RemoveClient(c)
 		c.close()
 	}
 }
 
 // SendMessage sends a message to client.
-func (c *Client) SendMessage(b []byte, typ byte) {
-	c.trySend(models.WSMessage{Data: b, MessageType: websocket.TextMessage})
+func (c *Client) SendMessage(b []byte, typ int) {
+	c.trySend(models.WSMessage{Data: b, MessageType: typ})
 }

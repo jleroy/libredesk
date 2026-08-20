@@ -28,7 +28,7 @@ type Message struct {
 	Data interface{} `json:"data"`
 }
 
-// IncomingMessage keeps Data raw so an inbound frame is decoded once instead of passing through map[string]any.
+// IncomingMessage is an inbound client frame with its payload kept raw for the per-type handlers.
 type IncomingMessage struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
