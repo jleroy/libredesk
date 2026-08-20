@@ -57,6 +57,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/knadh/stuffbin"
 	"github.com/valyala/fasthttp"
+	"github.com/zerodha/fastcache/v4"
 	"github.com/zerodha/fastglue"
 	"github.com/zerodha/logf"
 )
@@ -128,6 +129,7 @@ type App struct {
 	contextLink      *contextlink.Manager
 	rateLimit        *ratelimit.Limiter
 	redis            *redis.Client
+	fc               *fastcache.FastCache
 	importer         *importer.Importer
 	wsHub            *ws.Hub
 
@@ -322,10 +324,12 @@ func main() {
 		contextLink:      initContextLink(db, i18n),
 		rateLimit:        rateLimiter,
 		redis:            rdb,
+		fc:               initFastCache(rdb),
 		userNotification: userNotification,
 		wsHub:            wsHub,
 	}
 	app.consts.Store(constants)
+	helpCenterCacheOpts.Logger = log.New(helpCenterCacheLogWriter{lo: app.lo}, "", 0)
 
 	g := fastglue.NewGlue()
 	g.SetContext(app)

@@ -1,6 +1,7 @@
 const animate = require("tailwindcss-animate")
 const typography = require("@tailwindcss/typography")
 const plugin = require("tailwindcss/plugin")
+const defaultTheme = require("tailwindcss/defaultTheme")
 
 const canHover = plugin(({ addVariant }) => addVariant("can-hover", "@media (hover: hover)"))
 
@@ -26,6 +27,9 @@ module.exports = {
       }
     },
     extend: {
+      fontFamily: {
+        sans: ['Geist', ...defaultTheme.fontFamily.sans]
+      },
       height: {
         screen: '100dvh'
       },

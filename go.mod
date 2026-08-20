@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/abhinavxd/ssrfguard v0.1.0
-	github.com/alicebob/miniredis/v2 v2.32.1
+	github.com/alicebob/miniredis/v2 v2.33.0
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/emersion/go-imap/v2 v2.0.0-beta.3
@@ -42,6 +42,8 @@ require (
 	github.com/valyala/fasthttp v1.62.0
 	github.com/volatiletech/null/v9 v9.0.0
 	github.com/yuin/goldmark v1.8.4
+	github.com/zerodha/fastcache/stores/goredis/v9 v9.1.0
+	github.com/zerodha/fastcache/v4 v4.2.1
 	github.com/zerodha/fastglue v1.8.0
 	github.com/zerodha/logf v0.5.5
 	github.com/zerodha/simplesessions/stores/redis/v3 v3.0.0
