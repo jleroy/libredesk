@@ -28,7 +28,7 @@ agents AS (
         ) AS agents_online,
         COUNT(*) FILTER (
             WHERE
-                availability_status IN ('away', 'away_manual')
+                availability_status = 'away_manual'
         ) AS agents_away,
         COUNT(*) FILTER (
             WHERE
