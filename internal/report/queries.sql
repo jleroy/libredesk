@@ -278,6 +278,7 @@ WITH per_conversation AS (
         conversation_messages
     WHERE
         type IN ('incoming', 'outgoing')
+        AND private = false
         AND created_at >= CASE
             WHEN %d = 0 THEN CURRENT_DATE
             ELSE NOW() - INTERVAL '%d days'
