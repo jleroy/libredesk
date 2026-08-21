@@ -1791,13 +1791,13 @@ func (c *Manager) UpdateConversationCustomAttributes(uuid string, customAttribut
 
 // addConversationParticipant adds a user as participant to a conversation.
 func (c *Manager) addConversationParticipant(userID int, conversationUUID string) error {
-	_, err := c.q.InsertConversationParticipant.Exec(userID, conversationUUID)
+	res, err := c.q.InsertConversationParticipant.Exec(userID, conversationUUID)
 	if err != nil {
-		if dbutil.IsUniqueViolationError(err) {
-			return nil // Already a participant.
-		}
 		c.lo.Error("error adding conversation participant", "user_id", userID, "conversation_uuid", conversationUUID, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if rows, err := res.RowsAffected(); err == nil && rows == 0 {
+		return nil
 	}
 
 	// New participant added - log activity only for contacts with a different email than the conversation contact.
