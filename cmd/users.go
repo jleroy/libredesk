@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	maxAvatarSizeMB = 2
+	// Bounds the request body only; the stored file is capped by image.AvatarMaxDim regardless.
+	maxAvatarSizeMB = 10
 )
 
 type resetPasswordRequest struct {
