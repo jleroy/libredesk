@@ -6,6 +6,10 @@
   font-size: 16px;
 }
 
+[data-sonner-toaster] {
+  font-family: inherit;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 0.15s;
@@ -23,6 +27,7 @@
   html,
   body {
     @apply font-sans;
+    --vis-font-family: theme('fontFamily.sans');
     min-height: 100%;
     overflow: hidden;
     margin: 0;
