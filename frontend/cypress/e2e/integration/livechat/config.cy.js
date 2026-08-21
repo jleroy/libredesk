@@ -277,4 +277,47 @@ describe('Live chat widget config applied end to end', () => {
       })
     )
   })
+
+  it('keeps the messages-tab button off when visitors may not start one but multiples are prevented', () => {
+    cy.createLivechatInbox(
+      withStart({
+        visitors: {
+          allow_start_conversation: true,
+          prevent_multiple_conversations: true,
+          start_conversation_button_text: startText
+        }
+      })
+    ).then((inbox) => {
+      cy.openWidget(inbox)
+      cy.widgetBody().contains('Messages').click()
+      cy.widgetBody().contains(startText).should('be.visible')
+    })
+
+    cy.createLivechatInbox(
+      withStart({
+        visitors: {
+          allow_start_conversation: false,
+          prevent_multiple_conversations: true,
+          start_conversation_button_text: startText
+        }
+      })
+    ).then((inbox) => {
+      cy.openWidget(inbox)
+      cy.widgetBody().contains('Messages').click()
+      cy.widgetBody().contains('Home').should('be.visible')
+      cy.widgetBody().should('not.contain', startText)
+    })
+  })
+
+  it('uses the visitor label on the messages tab, not the agent-side one', () => {
+    cy.createLivechatInbox({
+      visitors: { allow_start_conversation: true, start_conversation_button_text: 'Visitor label' },
+      users: { allow_start_conversation: true, start_conversation_button_text: 'User label' }
+    }).then((inbox) => {
+      cy.openWidget(inbox)
+      cy.widgetBody().contains('Messages').click()
+      cy.widgetBody().contains('Visitor label').should('be.visible')
+      cy.widgetBody().should('not.contain', 'User label')
+    })
+  })
 })
