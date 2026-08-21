@@ -87,6 +87,8 @@ var (
 
 const (
 	sampleEncKey = "your-32-char-random-string-here!"
+
+	serverShutdownTimeout = 3 * time.Second
 )
 
 // App is the global app context which is passed and injected in the http handlers.
@@ -365,8 +367,15 @@ func main() {
 
 	// Wait for shutdown signal.
 	<-ctx.Done()
+	closedAgentConns := wsHub.CloseAll()
+	closedLiveChatInboxes := inbox.CloseLiveChatClients()
+	colorlog.Red("Closed %d agent websocket connections and %d livechat inboxes.", closedAgentConns, closedLiveChatInboxes)
 	colorlog.Red("Shutting down HTTP server...")
-	s.Shutdown()
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), serverShutdownTimeout)
+	if err := s.ShutdownWithContext(shutdownCtx); err != nil {
+		colorlog.Red("HTTP server did not finish within %s, abandoning in-flight requests: %v", serverShutdownTimeout, err)
+	}
+	cancelShutdown()
 	colorlog.Red("Shutting down AI agent...")
 	aiAgent.Close()
 	colorlog.Red("Shutting down AI...")
