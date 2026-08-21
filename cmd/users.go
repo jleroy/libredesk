@@ -512,10 +512,14 @@ func uploadUserAvatar(r *fastglue.Request, user models.User, files []*multipart.
 
 	srcFileName := stringutil.SanitizeFilename(fileHeader.Filename)
 	srcContentType := fileHeader.Header.Get("Content-Type")
-	srcFileSize := fileHeader.Size
 
-	// Reset ptr.
-	file.Seek(0, 0)
+	resized, err := image.Downscale(image.AvatarMaxDim, file)
+	if err != nil {
+		app.lo.Error("error downscaling avatar", "user_id", user.ID, "error", err)
+		return envelope.NewError(envelope.InputError, app.i18n.T("globals.messages.fileTypeisNotAnImage"), nil)
+	}
+	srcFileSize := resized.Len()
+
 	linkedModel := null.StringFrom(mmodels.ModelUser)
 	linkedID := null.IntFrom(user.ID)
 	disposition := null.NewString("", false)
@@ -523,7 +527,7 @@ func uploadUserAvatar(r *fastglue.Request, user models.User, files []*multipart.
 	meta := []byte("{}")
 	// Agent and AI assistant avatars are public: both appear as authors on the help center.
 	private := user.Type != models.UserTypeAgent && user.Type != models.UserTypeAIAssistant
-	media, err := app.media.UploadAndInsert(srcFileName, srcContentType, contentID, linkedModel, linkedID, file, int(srcFileSize), disposition, meta, private)
+	media, err := app.media.UploadAndInsert(srcFileName, srcContentType, contentID, linkedModel, linkedID, resized, srcFileSize, disposition, meta, private)
 	if err != nil {
 		app.lo.Error("error uploading file", "user_id", user.ID, "error", err)
 		return envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.errorUploadingFile"), nil)
