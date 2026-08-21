@@ -373,7 +373,7 @@ func main() {
 	colorlog.Red("Shutting down HTTP server...")
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), serverShutdownTimeout)
 	if err := s.ShutdownWithContext(shutdownCtx); err != nil {
-		colorlog.Red("HTTP server did not finish within %s, abandoning in-flight requests: %v", serverShutdownTimeout, err)
+		colorlog.Red("HTTP server drain timed out after %s, exiting with connections still open: %v", serverShutdownTimeout, err)
 	}
 	cancelShutdown()
 	colorlog.Red("Shutting down AI agent...")
