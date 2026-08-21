@@ -244,7 +244,6 @@ func closeClients(clients []*Client, closeCode int, reason string) {
 	closeMsg := websocket.FormatCloseMessage(closeCode, reason)
 	deadline := time.Now().Add(closeFrameWait)
 	for _, c := range clients {
-		// fasthttp makes Close a no-op on a hijacked conn; expiring the read deadline and closing Send is what drops it.
 		_ = c.Conn.WriteControl(websocket.CloseMessage, closeMsg, deadline)
 		_ = c.Conn.SetReadDeadline(time.Now())
 		_ = c.Conn.Close()
