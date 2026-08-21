@@ -93,6 +93,7 @@ export class WidgetWebSocketClient {
   }
 
   handleMessage (event) {
+    if (event.target !== this.socket) return
     const chatStore = useChatStore()
     try {
       if (!event.data) return

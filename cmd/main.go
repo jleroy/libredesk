@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"log"
@@ -373,7 +374,11 @@ func main() {
 	colorlog.Red("Shutting down HTTP server...")
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), serverShutdownTimeout)
 	if err := s.ShutdownWithContext(shutdownCtx); err != nil {
-		colorlog.Red("HTTP server drain timed out after %s, exiting with connections still open: %v", serverShutdownTimeout, err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			colorlog.Red("HTTP server drain timed out after %s, exiting with connections still open: %v", serverShutdownTimeout, err)
+		} else {
+			colorlog.Red("error shutting down HTTP server: %v", err)
+		}
 	}
 	cancelShutdown()
 	colorlog.Red("Shutting down AI agent...")
