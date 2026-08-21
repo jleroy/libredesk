@@ -42,18 +42,10 @@ const widgetStore = useWidgetStore()
 const userStore = useUserStore()
 
 const canStartNewConversation = computed(() => {
-  const isVisitor = userStore.isVisitor
-  if (isVisitor) {
-    if (widgetStore.config?.visitors?.prevent_multiple_conversations) {
-      return !chatStore.hasConversations
-    }
-    return widgetStore.config?.visitors?.allow_start_conversation ?? true
-  } else {
-    if (widgetStore.config?.users?.prevent_multiple_conversations) {
-      return !chatStore.hasConversations
-    }
-    return widgetStore.config?.users?.allow_start_conversation ?? true
-  }
+  const userConfig = userStore.isVisitor ? widgetStore.config?.visitors : widgetStore.config?.users
+  // Mirrors the server check, else the button is offered and the send fails.
+  if (!userConfig?.allow_start_conversation) return false
+  return userConfig?.prevent_multiple_conversations !== true || !chatStore.hasConversations
 })
 
 const startNewConversation = () => {

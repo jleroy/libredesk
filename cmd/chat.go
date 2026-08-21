@@ -1200,7 +1200,7 @@ func validateFormData(app *App, formData map[string]any, config livechat.Config,
 				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.phoneNumber}", "max", strconv.Itoa(maxPhoneNumberLength)), nil)
 			}
 			if len(finalPhoneCountryCode) > maxPhoneCountryCodeLength {
-				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.phoneNumber}", "max", strconv.Itoa(maxPhoneCountryCodeLength)), nil)
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.countryCode}", "max", strconv.Itoa(maxPhoneCountryCodeLength)), nil)
 			}
 			if finalPhone == "" {
 				finalPhoneCountryCode = ""
