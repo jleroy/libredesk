@@ -36,7 +36,7 @@ agents AS (
         ) AS agents_reassigning,
         COUNT(*) FILTER (
             WHERE
-                availability_status = 'offline'
+                availability_status IN ('offline', 'away')
         ) AS agents_offline
     FROM
         users
