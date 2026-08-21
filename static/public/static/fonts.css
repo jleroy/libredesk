@@ -14,3 +14,12 @@
   font-display: swap;
   src: url('/static/public/static/fonts/Geist-Italic-Variable.woff2') format('woff2');
 }
+
+/* Form controls default to the browser UI font, not the page font. */
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+}

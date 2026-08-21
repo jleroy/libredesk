@@ -4,6 +4,12 @@
 
 :root {
   font-size: 16px;
+  // unovis injects its own :root font stack at runtime, after this stylesheet.
+  --vis-font-family: theme('fontFamily.sans') !important;
+}
+
+[data-sonner-toaster] {
+  font-family: inherit;
 }
 
 ::view-transition-old(root),
