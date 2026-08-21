@@ -4,8 +4,6 @@
 
 :root {
   font-size: 16px;
-  // unovis injects its own :root font stack at runtime, after this stylesheet.
-  --vis-font-family: theme('fontFamily.sans') !important;
 }
 
 [data-sonner-toaster] {
@@ -29,6 +27,7 @@
   html,
   body {
     @apply font-sans;
+    --vis-font-family: theme('fontFamily.sans');
     min-height: 100%;
     overflow: hidden;
     margin: 0;
