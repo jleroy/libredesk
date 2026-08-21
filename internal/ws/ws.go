@@ -242,10 +242,13 @@ func (h *Hub) BroadcastTypingToAllConversationClients(conversationUUID string, d
 
 func closeClients(clients []*Client, closeCode int, reason string) {
 	closeMsg := websocket.FormatCloseMessage(closeCode, reason)
-	// One deadline for the whole pass, else a stalled connection costs closeFrameWait each.
 	deadline := time.Now().Add(closeFrameWait)
 	for _, c := range clients {
+		// fasthttp makes Close a no-op on a hijacked conn; expiring the read deadline and closing Send is what drops it.
 		_ = c.Conn.WriteControl(websocket.CloseMessage, closeMsg, deadline)
+		_ = c.Conn.SetReadDeadline(time.Now())
 		_ = c.Conn.Close()
+		c.Hub.RemoveClient(c)
+		c.close()
 	}
 }

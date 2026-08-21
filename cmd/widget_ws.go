@@ -135,14 +135,15 @@ func handleWidgetWS(r *fastglue.Request) error {
 		}()
 
 		for {
+			// Checked before the deadline is refreshed, else the refresh undoes the expiry disconnect() set.
+			if client != nil && client.IsClosed() {
+				break
+			}
+
 			conn.SetReadDeadline(time.Now().Add(wsReadDeadline))
 			var msg WidgetMessage
 			if err := conn.ReadJSON(&msg); err != nil {
 				app.lo.Debug("widget websocket connection closed", "error", err)
-				break
-			}
-
-			if client != nil && client.IsClosed() {
 				break
 			}
 
@@ -152,9 +153,8 @@ func handleWidgetWS(r *fastglue.Request) error {
 				if client != nil && liveChat != nil {
 					liveChat.RemoveClient(client)
 					client.CloseChannel()
-					client = nil
-					liveChat = nil
 				}
+				client, liveChat, inboxUUID, userID = nil, nil, "", 0
 
 				joinedClient, joinedLiveChat, joinedInboxUUID, joinedUserID, err := handleInboxJoin(app, sc, msg.Data, msg.Token, clientIP)
 				if err != nil {
