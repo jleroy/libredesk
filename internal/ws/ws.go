@@ -60,11 +60,19 @@ func (h *Hub) KickUser(userID int) {
 		return
 	}
 	h.lo.Debug("kicking user ws connections", "user_id", userID, "connections", len(clients))
-	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "kicked")
-	for _, c := range clients {
-		_ = c.Conn.WriteControl(websocket.CloseMessage, closeMsg, time.Now().Add(time.Second))
-		_ = c.Conn.Close()
+	closeClients(clients, websocket.CloseNormalClosure, "kicked")
+}
+
+// CloseAll sends a close frame to every connected client and returns the number closed.
+func (h *Hub) CloseAll() int {
+	h.clientsMutex.RLock()
+	clients := make([]*Client, 0, len(h.clients))
+	for _, userClients := range h.clients {
+		clients = append(clients, userClients...)
 	}
+	h.clientsMutex.RUnlock()
+	closeClients(clients, websocket.CloseGoingAway, "server shutting down")
+	return len(clients)
 }
 
 // SubscribeListReplace replaces list-source subs; open-source subs are untouched so deep links survive list refreshes.
@@ -229,5 +237,17 @@ func (h *Hub) BroadcastTypingToConversation(conversationUUID string, typingMsg m
 func (h *Hub) BroadcastTypingToAllConversationClients(conversationUUID string, data []byte) {
 	for _, c := range h.ListSubscribers(conversationUUID) {
 		c.SendMessage(data, websocket.TextMessage)
+	}
+}
+
+func closeClients(clients []*Client, closeCode int, reason string) {
+	closeMsg := websocket.FormatCloseMessage(closeCode, reason)
+	deadline := time.Now().Add(closeFrameWait)
+	for _, c := range clients {
+		_ = c.Conn.WriteControl(websocket.CloseMessage, closeMsg, deadline)
+		_ = c.Conn.SetReadDeadline(time.Now())
+		_ = c.Conn.Close()
+		c.Hub.RemoveClient(c)
+		c.close()
 	}
 }

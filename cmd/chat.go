@@ -225,8 +225,7 @@ func handleChatInit(r *fastglue.Request) error {
 		isVisitor = true
 		visitor, newSessionToken, conversationAttrs, err = createVisitorContact(app, req.FormData, config, inbox)
 		if err != nil {
-			app.lo.Error("error creating visitor contact", "error", err)
-			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+			return sendErrorEnvelope(r, err)
 		}
 		contactID = visitor.ID
 	}
@@ -384,10 +383,10 @@ func handleAuthExchange(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "first_name"), nil, envelope.InputError)
 	}
 	if len(claims.LastName) > maxNameLength {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxNameLength)), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.name}", "max", strconv.Itoa(maxNameLength)), nil, envelope.InputError)
 	}
 	if len(claims.PhoneNumber) > maxPhoneNumberLength {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxPhoneNumberLength)), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.phoneNumber}", "max", strconv.Itoa(maxPhoneNumberLength)), nil, envelope.InputError)
 	}
 	// Country code is cosmetic - drop an invalid one instead of failing the whole exchange.
 	if len(claims.PhoneNumberCountryCode) > maxPhoneCountryCodeLength {
@@ -807,7 +806,7 @@ func resolveOrCreateExternalContact(app *App, claims Claims) (int, error) {
 // createVisitorContact creates a new visitor contact from form data.
 func createVisitorContact(app *App, formData map[string]any, config livechat.Config, inbox imodels.Inbox) (umodels.User, string, map[string]any, error) {
 	// Validate form data and get final name/email/phone for new visitor.
-	finalName, finalEmail, finalPhone, finalPhoneCountryCode, err := validateFormData(formData, config, nil)
+	finalName, finalEmail, finalPhone, finalPhoneCountryCode, err := validateFormData(app, formData, config, nil)
 	if err != nil {
 		return umodels.User{}, "", nil, err
 	}
@@ -825,13 +824,13 @@ func createVisitorContact(app *App, formData map[string]any, config livechat.Con
 
 	if err := app.user.CreateVisitor(&visitor); err != nil {
 		app.lo.Error("error creating visitor contact", "error", err)
-		return umodels.User{}, "", nil, err
+		return umodels.User{}, "", nil, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	token, err := generateSessionToken(app, visitor.ID, inbox.ID, true, "", defaultSessionTTL)
 	if err != nil {
 		app.lo.Error("error generating session token for visitor", "error", err)
-		return umodels.User{}, "", nil, err
+		return umodels.User{}, "", nil, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	return visitor, token, formConvoAttrs, nil
@@ -1149,7 +1148,7 @@ func validateAttributeValue(key string, value any, app *App) any {
 }
 
 // validateFormData returns the final name/email/phone/phone country code to persist from the pre-chat form.
-func validateFormData(formData map[string]any, config livechat.Config, existingUser *umodels.User) (string, string, string, string, error) {
+func validateFormData(app *App, formData map[string]any, config livechat.Config, existingUser *umodels.User) (string, string, string, string, error) {
 	var finalName, finalEmail, finalPhone, finalPhoneCountryCode string
 
 	if !config.PreChatForm.Enabled {
@@ -1173,35 +1172,35 @@ func validateFormData(formData map[string]any, config livechat.Config, existingU
 		case "name":
 			finalName = resolveFormField(formData, field.Key, exName)
 			if field.Required && finalName == "" {
-				return "", "", "", "", fmt.Errorf("name is required")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.name}"), nil)
 			}
 			if len(finalName) > maxNameLength {
-				return "", "", "", "", fmt.Errorf("name too long")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.name}", "max", strconv.Itoa(maxNameLength)), nil)
 			}
 
 		case "email":
 			finalEmail = resolveFormField(formData, field.Key, exEmail)
 			if field.Required && finalEmail == "" {
-				return "", "", "", "", fmt.Errorf("email is required")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.email}"), nil)
 			}
 			if len(finalEmail) > maxEmailLength {
-				return "", "", "", "", fmt.Errorf("email too long")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.email}", "max", strconv.Itoa(maxEmailLength)), nil)
 			}
 			if finalEmail != "" && !stringutil.ValidEmail(finalEmail) {
-				return "", "", "", "", fmt.Errorf("invalid email format")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidEmail"), nil)
 			}
 
 		case fieldTypePhone:
 			finalPhone = resolveFormField(formData, field.Key, exPhone)
 			finalPhoneCountryCode = resolveFormField(formData, field.Key+phoneCountryCodeSuffix, exPhoneCountryCode)
 			if field.Required && (finalPhone == "" || finalPhoneCountryCode == "") {
-				return "", "", "", "", fmt.Errorf("phone is required")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.phoneNumber}"), nil)
 			}
 			if len(finalPhone) > maxPhoneNumberLength {
-				return "", "", "", "", fmt.Errorf("phone too long")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.phoneNumber}", "max", strconv.Itoa(maxPhoneNumberLength)), nil)
 			}
 			if len(finalPhoneCountryCode) > maxPhoneCountryCodeLength {
-				return "", "", "", "", fmt.Errorf("phone country code too long")
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.countryCode}", "max", strconv.Itoa(maxPhoneCountryCodeLength)), nil)
 			}
 			if finalPhone == "" {
 				finalPhoneCountryCode = ""

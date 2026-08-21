@@ -136,6 +136,13 @@ func handleWidgetWS(r *fastglue.Request) error {
 
 		for {
 			conn.SetReadDeadline(time.Now().Add(wsReadDeadline))
+
+			// Checked after the refresh: CloseChannel marks the client before disconnect() expires the deadline, so
+			// either this sees it or the expiry landed after the refresh and ReadJSON returns immediately.
+			if client != nil && client.IsClosed() {
+				break
+			}
+
 			var msg WidgetMessage
 			if err := conn.ReadJSON(&msg); err != nil {
 				app.lo.Debug("widget websocket connection closed", "error", err)
@@ -148,9 +155,8 @@ func handleWidgetWS(r *fastglue.Request) error {
 				if client != nil && liveChat != nil {
 					liveChat.RemoveClient(client)
 					client.CloseChannel()
-					client = nil
-					liveChat = nil
 				}
+				client, liveChat, inboxUUID, userID = nil, nil, "", 0
 
 				joinedClient, joinedLiveChat, joinedInboxUUID, joinedUserID, err := handleInboxJoin(app, sc, msg.Data, msg.Token, clientIP)
 				if err != nil {
@@ -247,7 +253,10 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, client
 	}
 
 	userIDStr := fmt.Sprintf("%d", user.ID)
-	client, err := liveChat.AddClient(userIDStr)
+	// fasthttp makes Close a no-op on a hijacked conn; expiring the read deadline is what drops it.
+	client, err := liveChat.AddClient(userIDStr, func() {
+		sc.conn.SetReadDeadline(time.Now())
+	})
 	if err != nil {
 		return nil, nil, "", 0, fmt.Errorf("adding client to live chat: %w", err)
 	}
