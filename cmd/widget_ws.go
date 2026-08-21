@@ -135,12 +135,14 @@ func handleWidgetWS(r *fastglue.Request) error {
 		}()
 
 		for {
-			// Checked before the deadline is refreshed, else the refresh undoes the expiry disconnect() set.
+			conn.SetReadDeadline(time.Now().Add(wsReadDeadline))
+
+			// Checked after the refresh: CloseChannel marks the client before disconnect() expires the deadline, so
+			// either this sees it or the expiry landed after the refresh and ReadJSON returns immediately.
 			if client != nil && client.IsClosed() {
 				break
 			}
 
-			conn.SetReadDeadline(time.Now().Add(wsReadDeadline))
 			var msg WidgetMessage
 			if err := conn.ReadJSON(&msg); err != nil {
 				app.lo.Debug("widget websocket connection closed", "error", err)
