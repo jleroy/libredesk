@@ -129,4 +129,53 @@ describe('Live chat widget session and auth', () => {
     })
     cy.then(() => cy.waitForFrame(joined(socket), 'session did not survive a reload'))
   })
+
+  it('merges an anonymous visitor into the JWT contact', () => {
+    const stamp = Date.now()
+    const email = `merge.${stamp}@cypress.test`
+    const secret = `cypress-secret-${stamp}`
+    let jwtInbox
+    let visitorToken
+    let contactToken
+
+    cy.createLivechatInbox({}, { secret }).then((created) => {
+      jwtInbox = created
+    })
+    cy.then(() => cy.widgetInit(jwtInbox.uuid, { message: `Anonymous message ${stamp}` })).then((res) => {
+      visitorToken = res.sessionToken
+    })
+
+    cy.then(() =>
+      cy
+        .signWidgetJWT(
+          { external_user_id: `merge_${stamp}`, email, first_name: 'Merged', last_name: 'Contact' },
+          secret
+        )
+        .then((jwt) =>
+          cy
+            .widgetApi('POST', '/api/v1/widget/chat/auth/exchange', null, jwtInbox.uuid, { jwt })
+            .then(({ status, body }) => {
+              expect(status).to.eq(200)
+              contactToken = body.data.session_token
+            })
+        )
+    )
+
+    cy.then(() =>
+      cy
+        .widgetApi('GET', '/api/v1/widget/chat/conversations', contactToken, jwtInbox.uuid, null, {
+          headers: { 'X-Libredesk-Visitor-Token': visitorToken }
+        })
+        .then((res) => {
+          expect(res.status).to.eq(200)
+          expect(res.headers['x-libredesk-clear-visitor'], 'visitor token not cleared after merge').to.eq('true')
+        })
+    )
+
+    cy.then(() =>
+      cy.latestConversation(jwtInbox).then((conversation) => {
+        expect(conversation.contact.email, 'conversation not moved to the JWT contact').to.eq(email)
+      })
+    )
+  })
 })

@@ -126,4 +126,22 @@ describe('Live chat widget settings and init rules', () => {
         .should('eq', 400)
     })
   })
+
+  it('names the field when a pre-chat value is too long', () => {
+    cy.createLivechatInbox({
+      prechat_form: {
+        enabled: true,
+        fields: [
+          { key: 'name', type: 'text', label: 'Name', required: true, enabled: true, order: 1, is_default: true }
+        ]
+      }
+    }).then((inbox) => {
+      cy.widgetInit(inbox.uuid, { form_data: { name: 'x'.repeat(300) } }, { failOnStatusCode: false }).then(
+        (res) => {
+          expect(res.status).to.eq(400)
+          expect(res.body.message, 'error does not name the field').to.match(/name/i)
+        }
+      )
+    })
+  })
 })

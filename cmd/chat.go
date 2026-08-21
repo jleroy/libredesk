@@ -383,10 +383,10 @@ func handleAuthExchange(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "first_name"), nil, envelope.InputError)
 	}
 	if len(claims.LastName) > maxNameLength {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxNameLength)), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.name}", "max", strconv.Itoa(maxNameLength)), nil, envelope.InputError)
 	}
 	if len(claims.PhoneNumber) > maxPhoneNumberLength {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxPhoneNumberLength)), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.phoneNumber}", "max", strconv.Itoa(maxPhoneNumberLength)), nil, envelope.InputError)
 	}
 	// Country code is cosmetic - drop an invalid one instead of failing the whole exchange.
 	if len(claims.PhoneNumberCountryCode) > maxPhoneCountryCodeLength {
@@ -1175,7 +1175,7 @@ func validateFormData(app *App, formData map[string]any, config livechat.Config,
 				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.name}"), nil)
 			}
 			if len(finalName) > maxNameLength {
-				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxNameLength)), nil)
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.name}", "max", strconv.Itoa(maxNameLength)), nil)
 			}
 
 		case "email":
@@ -1184,7 +1184,7 @@ func validateFormData(app *App, formData map[string]any, config livechat.Config,
 				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.email}"), nil)
 			}
 			if len(finalEmail) > maxEmailLength {
-				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxEmailLength)), nil)
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.email}", "max", strconv.Itoa(maxEmailLength)), nil)
 			}
 			if finalEmail != "" && !stringutil.ValidEmail(finalEmail) {
 				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidEmail"), nil)
@@ -1197,10 +1197,10 @@ func validateFormData(app *App, formData map[string]any, config livechat.Config,
 				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.phoneNumber}"), nil)
 			}
 			if len(finalPhone) > maxPhoneNumberLength {
-				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxPhoneNumberLength)), nil)
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.phoneNumber}", "max", strconv.Itoa(maxPhoneNumberLength)), nil)
 			}
 			if len(finalPhoneCountryCode) > maxPhoneCountryCodeLength {
-				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxPhoneCountryCodeLength)), nil)
+				return "", "", "", "", envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.fieldTooLong", "field", "{globals.terms.phoneNumber}", "max", strconv.Itoa(maxPhoneCountryCodeLength)), nil)
 			}
 			if finalPhone == "" {
 				finalPhoneCountryCode = ""
