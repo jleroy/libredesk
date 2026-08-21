@@ -508,7 +508,8 @@ WHERE conversation_id =
 -- name: insert-conversation-participant
 INSERT INTO conversation_participants
 (user_id, conversation_id)
-VALUES($1, (SELECT id FROM conversations WHERE uuid = $2));
+VALUES($1, (SELECT id FROM conversations WHERE uuid = $2))
+ON CONFLICT (conversation_id, user_id) DO NOTHING;
 
 -- name: get-unassigned-conversations
 SELECT
