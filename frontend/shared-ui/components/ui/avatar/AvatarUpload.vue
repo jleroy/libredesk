@@ -96,8 +96,6 @@ const props = defineProps({
   }
 })
 
-const AVATAR_MAX_DIM = 256
-
 const emit = defineEmits(['upload', 'remove'])
 const { t } = useI18n()
 const fileInput = ref(null)
@@ -128,7 +126,7 @@ function closeCropper() {
 
 async function applyCrop() {
   if (!cropper) return
-  const blob = await cropper.getBlob({ maxWidth: AVATAR_MAX_DIM, maxHeight: AVATAR_MAX_DIM })
+  const blob = await cropper.getBlob()
   if (!blob) return
   emit('upload', new File([blob], 'avatar.png', { type: blob.type || 'image/png' }))
   closeCropper()

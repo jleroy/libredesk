@@ -19,8 +19,8 @@ const (
 	llmJPEGQuality = 85
 	// maxDecodePixels bounds width*height read from the header, blocking a small file that declares huge dimensions. 25 MP is ~100 MB of RGBA per agent worker.
 	maxDecodePixels = 25_000_000
-	// AvatarMaxDim caps an avatar's longest edge. The largest render is 112px (size-28) at 2x DPI.
-	AvatarMaxDim      = 256
+	// AvatarMaxDim caps an avatar's longest edge. The largest render is the 128px `lg` variant, at up to 4x DPI.
+	AvatarMaxDim      = 512
 	avatarJPEGQuality = 85
 )
 
