@@ -54,6 +54,8 @@ export class WidgetWebSocketClient {
   connect () {
     if (this.isReconnecting || this.manualClose) return
 
+    if (this.socket) this.socket.close()
+
     try {
       this.socket = new WebSocket('/widget/ws')
       this.socket.addEventListener('open', this.handleOpen.bind(this))
@@ -66,7 +68,8 @@ export class WidgetWebSocketClient {
     }
   }
 
-  handleOpen () {
+  handleOpen (event) {
+    if (event.target !== this.socket) return
     this.reconnectAttempts = 0
     this.isReconnecting = false
     this.lastPong = Date.now()
@@ -146,11 +149,13 @@ export class WidgetWebSocketClient {
   }
 
   handleError (event) {
+    if (event.target !== this.socket) return
     console.error('Widget WebSocket error:', event)
     this.reconnect()
   }
 
-  handleClose () {
+  handleClose (event) {
+    if (event.target !== this.socket) return
     this.clearPing()
     if (!this.manualClose) {
       this.beginRecovery()

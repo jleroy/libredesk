@@ -142,6 +142,10 @@ func handleWidgetWS(r *fastglue.Request) error {
 				break
 			}
 
+			if client != nil && client.IsClosed() {
+				break
+			}
+
 			switch msg.Type {
 			case WidgetMsgTypeJoin:
 				// Clean up previous client on re-join.
@@ -247,7 +251,10 @@ func handleInboxJoin(app *App, sc *safeConn, data json.RawMessage, token, client
 	}
 
 	userIDStr := fmt.Sprintf("%d", user.ID)
-	client, err := liveChat.AddClient(userIDStr)
+	// fasthttp makes Close a no-op on a hijacked conn; expiring the read deadline is what drops it.
+	client, err := liveChat.AddClient(userIDStr, func() {
+		sc.conn.SetReadDeadline(time.Now())
+	})
 	if err != nil {
 		return nil, nil, "", 0, fmt.Errorf("adding client to live chat: %w", err)
 	}
