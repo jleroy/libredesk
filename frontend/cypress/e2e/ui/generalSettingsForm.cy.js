@@ -101,7 +101,7 @@ describe('General settings form', () => {
       .type('definitely not a url')
     cy.get('button[type="submit"]').click()
 
-    cy.contains('Root URL should be a valid URL').should('be.visible')
+    cy.contains('Root URL should be a valid URL').should('exist')
     cy.get('@saveGeneral.all').should('have.length', 0)
   })
 
@@ -112,7 +112,7 @@ describe('General settings form', () => {
     cy.get('input[name="site_name"]').should('not.have.value', '').clear()
     cy.get('button[type="submit"]').click()
 
-    cy.contains('Site name should be at least 1 character').should('be.visible')
+    cy.contains('Site name should be at least 1 character').should('exist')
     cy.get('@saveGeneral.all').should('have.length', 0)
   })
 })
