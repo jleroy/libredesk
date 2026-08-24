@@ -7,5 +7,6 @@ The open-source customer support platform you actually own. One inbox for email,
 
 ## Mid Term
 - Portal to manage tickets - TODO
+- Conversation reports - TODO
 - Contact merging - TODO
 - 2FA for password login - TODO
