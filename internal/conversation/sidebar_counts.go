@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	authzModels "github.com/abhinavxd/libredesk/internal/authz/models"
 	"github.com/abhinavxd/libredesk/internal/conversation/models"
@@ -15,6 +16,7 @@ import (
 )
 
 const sidebarCountsMaxViews = 50
+const sidebarCountsQueryTimeout = 10 * time.Second
 
 // conversationsCountBaseQuery counts conversations matching list-type/view filters.
 // Unlike the standard inbox badges, view counts intentionally do NOT force
@@ -156,7 +158,9 @@ func (c *Manager) getViewOpenCounts(userID int, teamIDs []int, listTypes []strin
 		ViewID    int `db:"view_id"`
 		OpenCount int `db:"open_count"`
 	}
-	if err := c.db.SelectContext(context.Background(), &rows, query, qArgs...); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), sidebarCountsQueryTimeout)
+	defer cancel()
+	if err := c.db.SelectContext(ctx, &rows, query, qArgs...); err != nil {
 		c.lo.Error("error fetching view open counts", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
