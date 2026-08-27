@@ -229,7 +229,7 @@ const createTeam = (data) => http.post('/api/v1/teams', data, {
     'Content-Type': 'application/json'
   }
 })
-const getTeamsCompact = () => http.get('/api/v1/teams/compact')
+const getTeamsCompact = (params) => http.get('/api/v1/teams/compact', { params })
 const deleteTeam = (id) => http.delete(`/api/v1/teams/${id}`)
 const updateUser = (id, data) =>
   http.put(`/api/v1/agents/${id}`, data, {
@@ -238,7 +238,7 @@ const updateUser = (id, data) =>
     }
   })
 const getUsers = () => http.get('/api/v1/agents')
-const getUsersCompact = () => http.get('/api/v1/agents/compact')
+const getUsersCompact = (params) => http.get('/api/v1/agents/compact', { params })
 const updateCurrentUser = (data) =>
   http.put('/api/v1/agents/me', data, {
     headers: {
@@ -278,7 +278,7 @@ const createUser = (data) =>
       'Content-Type': 'application/json'
     }
   })
-const getTags = () => http.get('/api/v1/tags')
+const getTags = (params) => http.get('/api/v1/tags', { params })
 const importTags = (data) =>
   http.post('/api/v1/tags/import', data, {
     headers: {
@@ -349,7 +349,8 @@ const getConversation = (uuid) => http.get(`/api/v1/conversations/${uuid}`, { ab
 const getConversationTranscript = (uuid) =>
   http.get(`/api/v1/conversations/${uuid}/transcript`, { responseType: 'blob' })
 const getContactPageVisits = (uuid) => http.get(`/api/v1/conversations/${uuid}/page-visits`, { abortOnRoute: true })
-const getAllMacros = () => http.get('/api/v1/macros')
+const getMacrosCompact = (params) => http.get('/api/v1/macros/compact', { params })
+const searchMacros = (params) => http.get('/api/v1/macros/search', { params })
 const getMacro = (id) => http.get(`/api/v1/macros/${id}`)
 const createMacro = (data) =>
   http.post('/api/v1/macros', data, {
@@ -665,7 +666,8 @@ export default {
   getConversationTranscript,
   getCurrentUser,
   getCurrentUserTeams,
-  getAllMacros,
+  getMacrosCompact,
+  searchMacros,
   getMacro,
   createMacro,
   updateMacro,

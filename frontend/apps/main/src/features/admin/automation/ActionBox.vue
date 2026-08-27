@@ -37,11 +37,7 @@
                 v-if="action.type && conversationActions[action.type]?.type === 'tag'"
                 class="flex-1 min-w-0"
               >
-                <SelectTag
-                  v-model="action.value"
-                  :items="tagsStore.tagNames.map((tag) => ({ label: tag, value: tag }))"
-                  :placeholder="t('placeholders.selectTags')"
-                />
+                <SelectTagCombobox multiple v-model="action.value" />
               </div>
 
               <div
@@ -53,6 +49,8 @@
                   @update:modelValue="(value) => handleNotifyRecipientsChange(value, index)"
                   :items="notifyRecipientOptions"
                   :placeholder="t('placeholders.selectRecipients')"
+                  :search="searchRecipients"
+                  :searching="tStore.searching || uStore.searching"
                 />
                 <Input
                   type="text"
@@ -72,12 +70,22 @@
                 class="flex-1 min-w-0"
                 v-if="action.type && conversationActions[action.type]?.type === 'select'"
               >
+                <SelectAgentCombobox
+                  v-if="action.type === 'assign_user'"
+                  v-model="action.value[0]"
+                  @select="handleValueChange($event, index)"
+                />
+                <SelectTeamCombobox
+                  v-else-if="action.type === 'assign_team'"
+                  v-model="action.value[0]"
+                  @select="handleValueChange($event, index)"
+                />
                 <SelectComboBox
+                  v-else
                   v-model="action.value[0]"
                   :items="conversationActions[action.type]?.options"
                   :placeholder="t('placeholders.selectValue')"
                   @select="handleValueChange($event, index)"
-                  :type="action.type === 'assign_user' ? 'user' : 'team'"
                 />
               </div>
 
@@ -145,12 +153,11 @@
 </template>
 
 <script setup>
-import { toRefs, computed } from 'vue'
+import { toRefs, computed, watch, onMounted } from 'vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { Input } from '@shared-ui/components/ui/input'
 import { Textarea } from '@shared-ui/components/ui/textarea'
 import CloseButton from '@main/components/button/CloseButton.vue'
-import { useTagStore } from '@main/stores/tag'
 import { useWebhookStore } from '@main/stores/webhook'
 import { useUsersStore } from '@main/stores/users'
 import { useTeamStore } from '@main/stores/team'
@@ -168,6 +175,9 @@ import { getTextFromHTML } from '@shared-ui/utils/string'
 import { useI18n } from 'vue-i18n'
 import Editor from '@main/components/editor/ConversationEditor.vue'
 import SelectComboBox from '@main/components/combobox/SelectCombobox.vue'
+import SelectAgentCombobox from '@main/components/combobox/SelectAgentCombobox.vue'
+import SelectTeamCombobox from '@main/components/combobox/SelectTeamCombobox.vue'
+import SelectTagCombobox from '@main/components/combobox/SelectTagCombobox.vue'
 
 const props = defineProps({
   actions: {
@@ -179,7 +189,6 @@ const props = defineProps({
 const { actions } = toRefs(props)
 const { t } = useI18n()
 const emit = defineEmits(['update-actions', 'add-action', 'remove-action'])
-const tagsStore = useTagStore()
 const webhookStore = useWebhookStore()
 const uStore = useUsersStore()
 const tStore = useTeamStore()
@@ -199,6 +208,34 @@ const notifyRecipientOptions = computed(() => [
     value: `user:${o.value}`
   }))
 ])
+
+// Recipients mix teams and agents in one list, so typing has to query both.
+const searchRecipients = (query) => Promise.all([tStore.searchTeams(query), uStore.searchUsers(query)])
+
+// Recipients are prefixed, e.g. "user:12" / "team:3", alongside keywords like "assignee".
+const recipientIDs = (prefix) =>
+  actions.value.flatMap((action) =>
+    (action.recipients || [])
+      .filter((r) => typeof r === 'string' && r.startsWith(prefix + ':'))
+      .map((r) => r.slice(prefix.length + 1))
+  )
+
+onMounted(() => {
+  uStore.fetchUsers()
+  tStore.fetchTeams()
+})
+
+// Keyed on the ids alone: a deep watch on actions would refire on every subject/message keystroke.
+const recipientIDKey = computed(() => JSON.stringify([recipientIDs('user'), recipientIDs('team')]))
+
+watch(
+  recipientIDKey,
+  () => {
+    uStore.ensureUserIDs(recipientIDs('user'))
+    tStore.ensureTeamIDs(recipientIDs('team'))
+  },
+  { immediate: true }
+)
 
 const handleNotifyRecipientsChange = (value, index) => {
   actions.value[index].recipients = value || []

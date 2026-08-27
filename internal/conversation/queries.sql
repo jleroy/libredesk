@@ -583,11 +583,11 @@ SET custom_attributes = $2,
     updated_at = NOW()
 WHERE uuid = $1;
 
--- name: update-conversation-waiting-since
+-- name: start-conversation-waiting-since
 UPDATE conversations
 SET waiting_since = $2,
     updated_at = NOW()
-WHERE uuid = $1;
+WHERE uuid = $1 AND waiting_since IS NULL;
 
 -- name: update-conversation-reply-timestamps
 WITH old AS (

@@ -1368,8 +1368,7 @@ func (m *Manager) uploadThumbnailForMedia(media mmodels.Media, content []byte) e
 // function to trigger the necessary hooks.
 func (m *Manager) ProcessIncomingMessageHooks(conversationUUID string, isNewConversation bool) error {
 	// Start waiting since clock, cleared when agent replies.
-	now := time.Now()
-	m.UpdateConversationWaitingSince(conversationUUID, &now)
+	m.StartConversationWaitingSince(conversationUUID, time.Now())
 
 	// Handle new conversation events.
 	if isNewConversation {

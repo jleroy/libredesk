@@ -18,11 +18,9 @@
     </span>
 
     <!-- Assign Agent -->
-    <SelectComboBox
+    <SelectAgentCombobox
       v-if="canAssignAgent"
-      :items="agentItems"
-      :placeholder="t('placeholders.selectAgent')"
-      type="user"
+      include-none
       align="start"
       @select="(item) => onAssigneeSelect('user', item)"
     >
@@ -37,14 +35,12 @@
           <UserPlus class="w-4 h-4" />
         </Button>
       </template>
-    </SelectComboBox>
+    </SelectAgentCombobox>
 
     <!-- Assign Team -->
-    <SelectComboBox
+    <SelectTeamCombobox
       v-if="canAssignTeam"
-      :items="teamItems"
-      :placeholder="t('placeholders.selectTeam')"
-      type="team"
+      include-none
       align="start"
       @select="(item) => onAssigneeSelect('team', item)"
     >
@@ -59,13 +55,11 @@
           <Users class="w-4 h-4" />
         </Button>
       </template>
-    </SelectComboBox>
+    </SelectTeamCombobox>
 
     <!-- Add Tag -->
-    <SelectComboBox
+    <SelectTagCombobox
       v-if="canUpdateTags"
-      :items="tagItems"
-      :placeholder="t('placeholders.selectTags')"
       align="start"
       @select="onTagSelect"
     >
@@ -80,7 +74,7 @@
           <Tag class="w-4 h-4" />
         </Button>
       </template>
-    </SelectComboBox>
+    </SelectTagCombobox>
 
     <!-- Set Status -->
     <DropdownMenu v-if="canUpdateStatus">
@@ -121,7 +115,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { UserPlus, Users, Tag, CircleDot, Loader2, X } from 'lucide-vue-next'
 import { Button } from '@shared-ui/components/ui/button'
@@ -132,32 +126,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@shared-ui/components/ui/dropdown-menu'
-import SelectComboBox from '@main/components/combobox/SelectCombobox.vue'
+import SelectAgentCombobox from '@main/components/combobox/SelectAgentCombobox.vue'
+import SelectTeamCombobox from '@main/components/combobox/SelectTeamCombobox.vue'
+import SelectTagCombobox from '@main/components/combobox/SelectTagCombobox.vue'
 import { TAG_ACTION } from '@/constants/conversation'
 import { useConversationStore } from '@/stores/conversation'
-import { useUsersStore } from '@/stores/users'
-import { useTeamStore } from '@/stores/team'
-import { useTagStore } from '@/stores/tag'
 import { useEmitter } from '@/composables/useEmitter'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents'
 import { useBulkActionPermissions } from '@/composables/useBulkActionPermissions'
 import api from '@/api'
 
 const conversationStore = useConversationStore()
-const usersStore = useUsersStore()
-const teamsStore = useTeamStore()
-const tagStore = useTagStore()
 const { t } = useI18n()
 const emitter = useEmitter()
 const bulkLoading = ref(false)
 
 const { canAssignAgent, canAssignTeam, canUpdateStatus, canUpdateTags } = useBulkActionPermissions()
-
-onMounted(() => {
-  if (canAssignAgent.value) usersStore.fetchUsers()
-  if (canAssignTeam.value) teamsStore.fetchTeams()
-  if (canUpdateTags.value) tagStore.fetchTags()
-})
 
 const toggleSelectAll = () => {
   if (conversationStore.allSelected) {
@@ -166,17 +150,6 @@ const toggleSelectAll = () => {
     conversationStore.selectAll()
   }
 }
-
-const withNoneOption = (options) => [
-  { value: 'none', label: t('globals.terms.none') },
-  ...options
-]
-
-const agentItems = computed(() => withNoneOption(usersStore.options))
-const teamItems = computed(() => withNoneOption(teamsStore.options))
-const tagItems = computed(() =>
-  tagStore.tagNames.map((name) => ({ label: name, value: name }))
-)
 
 const runBulkAction = async (actionFn) => {
   const uuids = [...conversationStore.selectedUUIDs]

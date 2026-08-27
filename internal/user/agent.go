@@ -79,11 +79,25 @@ func (u *Manager) InvalidateAllAgentCache() {
 	u.agentCache = make(map[int]cachedAgent)
 }
 
-// GetAgentsCompact returns a compact list of agents and AI assistants (both assignable identities).
-func (u *Manager) GetAgentsCompact() ([]models.UserCompact, error) {
+// GetAgentsCompact returns agents and AI assistants matching search, all of them when pageSize is 0.
+func (u *Manager) GetAgentsCompact(search, userType string, enabledOnly bool, page, pageSize int) ([]models.UserCompact, error) {
 	var users = make([]models.UserCompact, 0)
-	if err := u.db.Select(&users, u.q.GetUsersCompact, pq.Array([]string{models.UserTypeAgent, models.UserTypeAIAssistant})); err != nil {
+	query := u.q.GetUsersCompact + ` AND ($2 = '' OR CONCAT(users.first_name, ' ', COALESCE(users.last_name, '')) ILIKE '%' || $2 || '%' OR users.email ILIKE '%' || $2 || '%')
+		AND ($3 = '' OR users.type::text = $3) AND (NOT $4 OR users.enabled)
+		ORDER BY users.first_name, users.last_name, users.id LIMIT NULLIF($5, 0) OFFSET $6`
+	if err := u.db.Select(&users, query, pq.Array([]string{models.UserTypeAgent, models.UserTypeAIAssistant}), search, userType, enabledOnly, pageSize, dbutil.PageOffset(page, pageSize)); err != nil {
 		u.lo.Error("error fetching users from db", "error", err)
+		return users, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return users, nil
+}
+
+// GetAgentsCompactByIDs returns the agents and AI assistants with the given IDs.
+func (u *Manager) GetAgentsCompactByIDs(ids []int) ([]models.UserCompact, error) {
+	var users = make([]models.UserCompact, 0)
+	query := u.q.GetUsersCompact + " AND users.id = ANY($2) ORDER BY users.first_name, users.last_name, users.id"
+	if err := u.db.Select(&users, query, pq.Array([]string{models.UserTypeAgent, models.UserTypeAIAssistant}), pq.Array(ids)); err != nil {
+		u.lo.Error("error fetching users by ids from db", "error", err)
 		return users, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return users, nil

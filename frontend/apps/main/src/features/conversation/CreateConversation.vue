@@ -148,15 +148,7 @@
                       ({{ $t('globals.terms.optional') }})
                     </FormLabel>
                     <FormControl>
-                      <SelectComboBox
-                        v-bind="componentField"
-                        :items="[
-                          { value: 'none', label: t('globals.terms.none') },
-                          ...teamStore.options
-                        ]"
-                        :placeholder="t('placeholders.selectTeam')"
-                        type="team"
-                      />
+                      <SelectTeamCombobox v-bind="componentField" include-none />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -170,15 +162,7 @@
                       ({{ $t('globals.terms.optional') }})
                     </FormLabel>
                     <FormControl>
-                      <SelectComboBox
-                        v-bind="componentField"
-                        :items="[
-                          { value: 'none', label: t('globals.terms.none') },
-                          ...uStore.options
-                        ]"
-                        :placeholder="t('placeholders.selectAgent')"
-                        type="user"
-                      />
+                      <SelectAgentCombobox v-bind="componentField" include-none />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -286,8 +270,6 @@ import { MACRO_CONTEXT } from '@main/constants/conversation'
 import { useEmitter } from '@main/composables/useEmitter'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useInboxStore } from '@main/stores/inbox'
-import { useUsersStore } from '@main/stores/users'
-import { useTeamStore } from '@main/stores/team'
 import {
   Select,
   SelectContent,
@@ -300,7 +282,8 @@ import { useI18n } from 'vue-i18n'
 import { useFileUpload } from '@/composables/useFileUpload'
 import Editor from '@/components/editor/ConversationEditor.vue'
 import { useMacroStore } from '@/stores/macro'
-import SelectComboBox from '@/components/combobox/SelectCombobox.vue'
+import SelectAgentCombobox from '@/components/combobox/SelectAgentCombobox.vue'
+import SelectTeamCombobox from '@/components/combobox/SelectTeamCombobox.vue'
 import { UserTypeAgent } from '@/constants/user'
 import { IdCard } from 'lucide-vue-next'
 import api from '@/api'
@@ -314,8 +297,6 @@ const dialogOpen = defineModel({
 
 const inboxStore = useInboxStore()
 const { t } = useI18n()
-const uStore = useUsersStore()
-const teamStore = useTeamStore()
 const emitter = useEmitter()
 const isCramped = useIsComposerCramped()
 const loading = ref(false)

@@ -310,7 +310,7 @@ type queries struct {
 	GetConversationsByContactEmailForAI *sqlx.Stmt `query:"get-conversations-by-contact-email-for-ai"`
 	GetConversationParticipants         *sqlx.Stmt `query:"get-conversation-participants"`
 	GetUserActiveConversationsCount     *sqlx.Stmt `query:"get-user-active-conversations-count"`
-	UpdateConversationWaitingSince      *sqlx.Stmt `query:"update-conversation-waiting-since"`
+	StartConversationWaitingSince       *sqlx.Stmt `query:"start-conversation-waiting-since"`
 	UpdateConversationReplyTimestamps   *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
 	UpdateConversationContactLastSeen   *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
 	UpsertUserLastSeen                  *sqlx.Stmt `query:"upsert-user-last-seen"`
@@ -720,21 +720,16 @@ func (c *Manager) UpdateConversationLastMessage(conversation int, conversationUU
 	return nil
 }
 
-// UpdateConversationWaitingSince updates the waiting since timestamp for a conversation.
-func (c *Manager) UpdateConversationWaitingSince(conversationUUID string, at *time.Time) error {
-	res, err := c.q.UpdateConversationWaitingSince.Exec(conversationUUID, at)
+// StartConversationWaitingSince stamps the waiting since timestamp only if the conversation isn't already waiting.
+func (c *Manager) StartConversationWaitingSince(conversationUUID string, at time.Time) error {
+	res, err := c.q.StartConversationWaitingSince.Exec(conversationUUID, at)
 	if err != nil {
 		c.lo.Error("error updating conversation waiting since", "error", err)
 		return err
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows > 0 {
-		if at != nil {
-			c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": at.Format(time.RFC3339)})
-		} else {
-			c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": nil})
-		}
+	if rows, _ := res.RowsAffected(); rows > 0 {
+		c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": at.Format(time.RFC3339)})
 	}
 	return nil
 }

@@ -1,0 +1,76 @@
+<template>
+  <SelectTag
+    v-if="multiple"
+    v-bind="$attrs"
+    :items="items"
+    :placeholder="placeholderText"
+    :search="teamStore.searchTeams"
+    :searching="teamStore.searching"
+  />
+  <SelectComboBox
+    v-else
+    v-bind="$attrs"
+    :items="items"
+    :placeholder="placeholderText"
+    :search="teamStore.searchTeams"
+    :searching="teamStore.searching"
+    type="team"
+  >
+    <template v-if="$slots.trigger" #trigger="slotProps">
+      <slot name="trigger" v-bind="slotProps" />
+    </template>
+  </SelectComboBox>
+</template>
+
+<script setup>
+import { computed, onMounted, useAttrs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useTeamStore } from '@/stores/team'
+import SelectComboBox from '@/components/combobox/SelectCombobox.vue'
+import { SelectTag } from '@shared-ui/components/ui/select'
+
+defineOptions({ inheritAttrs: false })
+
+const props = defineProps({
+  placeholder: {
+    type: String,
+    default: ''
+  },
+  multiple: {
+    type: Boolean,
+    default: false
+  },
+  includeNone: {
+    type: Boolean,
+    default: false
+  },
+  prependItems: {
+    type: Array,
+    default: () => []
+  }
+})
+
+const { t } = useI18n()
+const teamStore = useTeamStore()
+const attrs = useAttrs()
+
+const placeholderText = computed(() => props.placeholder || t('placeholders.selectTeam'))
+
+const items = computed(() => {
+  const prepended = props.includeNone
+    ? [{ value: 'none', label: t('globals.terms.none') }, ...props.prependItems]
+    : props.prependItems
+  return [...prepended, ...teamStore.options]
+})
+
+onMounted(teamStore.fetchTeams)
+
+watch(
+  () => attrs.modelValue,
+  (value) => {
+    const ids = Array.isArray(value) ? value : [value]
+    teamStore.ensureTeamIDs(ids)
+  },
+  { immediate: true }
+)
+</script>

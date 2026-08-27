@@ -1,6 +1,6 @@
 <template>
   <Dialog :open="openDialog" @update:open="openDialog = false">
-    <DialogContent class="min-w-[40%] min-h-[30%]">
+    <DialogContent class="w-[min(92vw,960px)] max-w-4xl">
       <DialogHeader class="space-y-1">
         <DialogTitle
           >{{ view?.id ? $t('globals.messages.edit') : $t('globals.messages.create') }}
@@ -11,7 +11,7 @@
         </DialogDescription>
       </DialogHeader>
       <form @submit.prevent="onSubmit">
-        <div class="grid gap-4 py-4">
+        <div class="grid gap-5 py-4">
           <FormField v-slot="{ componentField }" name="name" :validate-on-blur="false">
             <FormItem>
               <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
@@ -35,7 +35,7 @@
               <FormControl>
                 <FilterGroupBuilder :fields="filterFields" v-bind="componentField" />
               </FormControl>
-              <FormDescription> {{ $t('view.form.filters.description') }}</FormDescription>
+              <FormDescription>{{ $t('view.form.filters.description') }}</FormDescription>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -115,7 +115,8 @@ const filterFields = computed(() =>
     field,
     type: value.type,
     operators: value.operators,
-    options: value.options ?? []
+    options: value.options ?? [],
+    entity: value.entity
   }))
 )
 const formSchema = toTypedSchema(
