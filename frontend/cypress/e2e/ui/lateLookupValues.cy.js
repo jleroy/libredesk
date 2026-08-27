@@ -269,5 +269,7 @@ describe('Saved lookup values outside the first page', () => {
     if (ids.sharedView) cy.api('DELETE', `/api/v1/shared-views/${ids.sharedView}`)
     if (ids.rule) cy.api('DELETE', `/api/v1/automations/rules/${ids.rule}`)
     if (ids.macro) cy.api('DELETE', `/api/v1/macros/${ids.macro}`)
+    if (ids.team) cy.api('DELETE', `/api/v1/teams/${ids.team}`)
+    if (ids.agent) cy.api('DELETE', `/api/v1/agents/${ids.agent}`)
   })
 })

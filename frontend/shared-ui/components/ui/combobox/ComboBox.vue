@@ -47,9 +47,9 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { CaretSortIcon, CheckIcon } from '@radix-icons/vue'
-import { cn } from '../../../lib/utils'
-import { Button } from '../button'
-import { Popover, PopoverContent, PopoverTrigger } from '../popover'
+import { cn } from '@shared-ui/lib/utils'
+import { Button } from '@shared-ui/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
 import {
   CommandEmpty,
   CommandGroup,
@@ -57,7 +57,7 @@ import {
   Command,
   CommandItem,
   CommandList
-} from '../command'
+} from '@shared-ui/components/ui/command'
 
 const RENDER_CAP = 300
 const SEARCH_DEBOUNCE_MS = 250
@@ -92,13 +92,23 @@ const emit = defineEmits(['select'])
 const value = defineModel()
 const open = ref(false)
 const searchTerm = ref('')
+let disposed = false
+let searchVersion = 0
 
 const passThroughFilter = (items) => items
 
-const debouncedSearch = useDebounceFn((term) => props.search(term || ''), SEARCH_DEBOUNCE_MS)
+const debouncedSearch = useDebounceFn((term) => {
+  if (!disposed && term.version === searchVersion) props.search(term.value)
+}, SEARCH_DEBOUNCE_MS)
 
 watch(searchTerm, (term) => {
-  if (props.search) debouncedSearch(term)
+  if (!props.search) return
+  searchVersion++
+  if (!term) {
+    props.search('')
+    return
+  }
+  debouncedSearch({ value: term, version: searchVersion })
 })
 
 // The store list is shared, so a pending query left behind on close would filter every other picker.
@@ -107,6 +117,8 @@ watch(open, (isOpen) => {
 })
 
 onUnmounted(() => {
+  disposed = true
+  searchVersion++
   if (props.search && searchTerm.value) props.search('')
 })
 
@@ -132,6 +144,16 @@ const selectedItem = computed(
     (pickedItem.value?.value === value.value ? pickedItem.value : null)
 )
 const selectedLabel = computed(() => selectedItem.value?.label || props.defaultLabel)
+
+watch(
+  [value, () => props.items],
+  ([currentValue, items]) => {
+    const selected = items.find((item) => item.value === currentValue)
+    if (selected) pickedItem.value = selected
+    else if (pickedItem.value?.value !== currentValue) pickedItem.value = null
+  },
+  { immediate: true, deep: true }
+)
 
 const handleSelect = (ev) => {
   if (typeof ev.detail.value === 'string') {

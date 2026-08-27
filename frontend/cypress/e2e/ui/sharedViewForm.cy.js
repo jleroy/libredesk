@@ -35,6 +35,7 @@ const searchAndPickTeam = (name) => {
 
 describe('Shared view form', () => {
   let viewId
+  let teamId
 
   // radix-vue focuses the operator trigger it just unmounted, and Cypress fails on uncaught errors.
   Cypress.on('uncaught:exception', (err) => !err.message.includes("reading 'focus'"))
@@ -47,6 +48,8 @@ describe('Shared view form', () => {
       conversation_assignment_type: 'Round robin',
       timezone: 'UTC',
       max_auto_assigned_conversations: 0
+    }).then(({ body }) => {
+      teamId = body.data.id
     })
   })
 
@@ -345,5 +348,10 @@ describe('Shared view form', () => {
 
     cy.wait('@deleteView').its('response.statusCode').should('eq', 200)
     cy.contains(renamedView).should('not.exist')
+  })
+
+  after(() => {
+    cy.login()
+    if (teamId) cy.api('DELETE', `/api/v1/teams/${teamId}`)
   })
 })

@@ -83,8 +83,12 @@ func TestGetAgentsCompactByIDs(t *testing.T) {
 		('contact', 'customer@example.com', 'Customer', 'A')`)
 
 	var adaID, contactID int
-	db.Get(&adaID, `SELECT id FROM users WHERE email = 'ada@example.com'`)
-	db.Get(&contactID, `SELECT id FROM users WHERE email = 'customer@example.com'`)
+	if err := db.Get(&adaID, `SELECT id FROM users WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatalf("loading Ada ID: %v", err)
+	}
+	if err := db.Get(&contactID, `SELECT id FROM users WHERE email = 'customer@example.com'`); err != nil {
+		t.Fatalf("loading contact ID: %v", err)
+	}
 
 	got, err := mgr.GetAgentsCompactByIDs([]int{adaID, contactID})
 	if err != nil {

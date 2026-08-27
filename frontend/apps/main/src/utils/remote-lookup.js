@@ -39,7 +39,7 @@ export function createRemoteLookup ({ fetchRows, onError }) {
     firstPage = load({ page: 1 })
       .then((fetched) => {
         firstPageIDs = fetched.map((row) => row.id)
-        listIDs.value = firstPageIDs
+        if (searchSeq === 0) listIDs.value = firstPageIDs
       })
       .catch((error) => {
         firstPage = null

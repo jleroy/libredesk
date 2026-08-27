@@ -28,6 +28,21 @@ describe('createRemoteLookup', () => {
     expect(lookup.searching.value).toBe(false)
   })
 
+  it('does not let a late first page replace newer search results', async () => {
+    let resolveFirstPage
+    const fetchRows = vi.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirstPage = resolve }))
+      .mockResolvedValueOnce(rows([{ id: 2, name: 'search result' }]))
+    const lookup = createRemoteLookup({ fetchRows, onError: vi.fn() })
+
+    const firstPage = lookup.fetchFirstPage()
+    await lookup.search('search')
+    resolveFirstPage(rows([{ id: 1, name: 'first page' }]))
+    await firstPage
+
+    expect(lookup.rows.value).toEqual([{ id: 2, name: 'search result' }])
+  })
+
   it('drops results of a search that a newer one has superseded', async () => {
     let resolveFirst
     const fetchRows = vi.fn()

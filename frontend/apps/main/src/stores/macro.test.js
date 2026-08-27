@@ -49,6 +49,17 @@ describe('macro store', () => {
     expect(store.searchResults).toHaveLength(1)
   })
 
+  it('loads macros without sending an empty query', async () => {
+    api.searchMacros.mockResolvedValue({ data: { data: [compactMacro()] } })
+    const store = useMacroStore()
+    store.setCurrentView('replying')
+
+    await store.searchMacros('  ')
+
+    expect(api.searchMacros).toHaveBeenCalledWith({ view: 'replying' })
+    expect(store.searchResults).toHaveLength(1)
+  })
+
   it('keeps only the newest search response', async () => {
     let resolveFirst
     api.searchMacros
@@ -63,6 +74,19 @@ describe('macro store', () => {
 
     expect(store.searchResults.map((m) => m.name)).toEqual(['newer'])
     expect(store.searchLoading).toBe(false)
+  })
+
+  it('does not restore search results after clearing the cache', async () => {
+    let resolveSearch
+    api.searchMacros.mockReturnValue(new Promise((resolve) => { resolveSearch = resolve }))
+    const store = useMacroStore()
+
+    const search = store.searchMacros('old')
+    store.clearCache()
+    resolveSearch({ data: { data: [compactMacro()] } })
+    await search
+
+    expect(store.searchResults).toEqual([])
   })
 
   it('drops macros with no actions and no message content from the options', async () => {
@@ -118,6 +142,19 @@ describe('macro store', () => {
     api.getMacro.mockResolvedValue({ data: { data: { id: 7, message_content: '<p>hi</p>' } } })
     expect(await store.fetchMacroContent(7)).toBe('<p>hi</p>')
     expect(api.getMacro).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not restore macro content after clearing the cache', async () => {
+    let resolveContent
+    api.getMacro.mockReturnValue(new Promise((resolve) => { resolveContent = resolve }))
+    const store = useMacroStore()
+
+    const fetch = store.fetchMacroContent(7)
+    store.clearCache()
+    resolveContent({ data: { data: { message_content: '<p>old</p>' } } })
+    await fetch
+
+    expect(store.macroContents[7]).toBeUndefined()
   })
 
   it('clears results and cached content on clearCache', async () => {

@@ -12,7 +12,7 @@ export const useMacroStore = defineStore('macroStore', () => {
     const searchLoading = ref(false)
     // Per-macro message content, fetched on demand (the search response carries none).
     const macroContents = ref({})
-    const contentFetches = {}
+    let contentFetches = {}
     const emitter = useEmitter()
     const userStore = useUserStore()
     const currentView = ref('')
@@ -55,7 +55,9 @@ export const useMacroStore = defineStore('macroStore', () => {
         const seq = ++searchSeq
         searchLoading.value = true
         try {
-            const response = await api.searchMacros({ q: query, view: currentView.value })
+            const params = { view: currentView.value }
+            if (query.trim()) params.q = query.trim()
+            const response = await api.searchMacros(params)
             if (seq !== searchSeq) return
             searchResults.value = response?.data?.data || []
         } catch (error) {
@@ -71,23 +73,27 @@ export const useMacroStore = defineStore('macroStore', () => {
 
     const fetchMacroContent = (id) => {
         if (id in macroContents.value) return Promise.resolve(macroContents.value[id])
-        if (!contentFetches[id]) {
-            contentFetches[id] = api.getMacro(id)
+        const fetches = contentFetches
+        if (!fetches[id]) {
+            fetches[id] = api.getMacro(id)
                 .then(response => {
                     const content = response?.data?.data?.message_content || ''
-                    macroContents.value[id] = content
+                    if (fetches === contentFetches) macroContents.value[id] = content
                     return content
                 })
                 .finally(() => {
-                    delete contentFetches[id]
+                    delete fetches[id]
                 })
         }
-        return contentFetches[id]
+        return fetches[id]
     }
 
     const clearCache = () => {
+        searchSeq++
+        searchLoading.value = false
         searchResults.value = []
         macroContents.value = {}
+        contentFetches = {}
     }
 
     const setCurrentView = (view) => {

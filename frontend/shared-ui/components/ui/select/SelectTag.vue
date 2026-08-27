@@ -63,14 +63,14 @@
 </template>
 
 <script setup>
-import { CommandEmpty, CommandGroup, CommandItem, CommandList } from '../command'
+import { CommandEmpty, CommandGroup, CommandItem, CommandList } from '@shared-ui/components/ui/command'
 import {
   TagsInput,
   TagsInputInput,
   TagsInputItem,
   TagsInputItemDelete,
   TagsInputItemText
-} from '../tags-input'
+} from '@shared-ui/components/ui/tags-input'
 import {
   ComboboxAnchor,
   ComboboxContent,
@@ -123,11 +123,21 @@ const { handleBlur } = useField(() => props.name, undefined, {
 
 const open = ref(false)
 const searchTerm = ref('')
+let disposed = false
+let searchVersion = 0
 
-const debouncedSearch = useDebounceFn((term) => props.search(term || ''), SEARCH_DEBOUNCE_MS)
+const debouncedSearch = useDebounceFn((term) => {
+  if (!disposed && term.version === searchVersion) props.search(term.value)
+}, SEARCH_DEBOUNCE_MS)
 
 watch(searchTerm, (term) => {
-  if (props.search) debouncedSearch(term)
+  if (!props.search) return
+  searchVersion++
+  if (!term) {
+    props.search('')
+    return
+  }
+  debouncedSearch({ value: term, version: searchVersion })
 })
 
 // The store list is shared, so a pending query left behind on close would filter every other picker.
@@ -136,6 +146,8 @@ watch(open, (isOpen) => {
 })
 
 onUnmounted(() => {
+  disposed = true
+  searchVersion++
   if (props.search && searchTerm.value) props.search('')
 })
 
