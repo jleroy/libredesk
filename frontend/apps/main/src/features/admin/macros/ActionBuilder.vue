@@ -78,7 +78,6 @@
                     :items="config.actions[action.type].options"
                     :placeholder="config.valuePlaceholder"
                     :search="config.actions[action.type].search"
-                    :searching="config.actions[action.type].searching"
                     @update:modelValue="(value) => updateValue(value, index)"
                   />
                 </div>

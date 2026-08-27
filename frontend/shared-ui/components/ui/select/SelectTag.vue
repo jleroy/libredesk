@@ -79,9 +79,9 @@ import {
   ComboboxRoot
 } from 'radix-vue'
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { useDebounceFn } from '@vueuse/core'
 import { useField } from 'vee-validate'
 import Spinner from '@shared-ui/components/ui/spinner/Spinner.vue'
+import { useRemoteSearch } from '@shared-ui/composables/useRemoteSearch'
 
 const RENDER_CAP = 200
 const SEARCH_DEBOUNCE_MS = 250
@@ -110,10 +110,6 @@ const props = defineProps({
   search: {
     type: Function,
     default: null
-  },
-  searching: {
-    type: Boolean,
-    default: false
   }
 })
 
@@ -123,36 +119,32 @@ const { handleBlur } = useField(() => props.name, undefined, {
 
 const open = ref(false)
 const searchTerm = ref('')
-let disposed = false
-let searchVersion = 0
 
-const debouncedSearch = useDebounceFn((term) => {
-  if (!disposed && term.version === searchVersion) props.search(term.value)
-}, SEARCH_DEBOUNCE_MS)
+const {
+  results: remoteItems,
+  searching,
+  update: updateSearch,
+  dispose: disposeSearch
+} = useRemoteSearch((term) => props.search(term), SEARCH_DEBOUNCE_MS)
 
 watch(searchTerm, (term) => {
-  if (!props.search) return
-  searchVersion++
-  if (!term) {
-    props.search('')
-    return
-  }
-  debouncedSearch({ value: term, version: searchVersion })
+  if (props.search) updateSearch(term)
 })
 
-// The store list is shared, so a pending query left behind on close would filter every other picker.
 watch(open, (isOpen) => {
   if (!isOpen && searchTerm.value) searchTerm.value = ''
 })
 
 onUnmounted(() => {
-  disposed = true
-  searchVersion++
-  if (props.search && searchTerm.value) props.search('')
+  disposeSearch()
 })
 
+const displayedItems = computed(() =>
+  props.search && remoteItems.value !== null ? remoteItems.value : props.items
+)
+
 const filteredOptions = computed(() => {
-  const available = props.items.filter((item) => !tags.value.includes(item.value))
+  const available = displayedItems.value.filter((item) => !tags.value.includes(item.value))
 
   if (props.search || !searchTerm.value) return available
 
@@ -167,7 +159,7 @@ const visibleOptions = computed(() => filteredOptions.value.slice(0, RENDER_CAP)
 const seenLabels = new Map()
 
 watch(
-  () => props.items,
+  displayedItems,
   (items) => {
     for (const item of items) seenLabels.set(item.value, item.label)
   },
@@ -175,7 +167,7 @@ watch(
 )
 
 const getLabel = (value) => {
-  const item = props.items.find((item) => item.value === value)
+  const item = displayedItems.value.find((item) => item.value === value)
   return item?.label || seenLabels.get(value) || value
 }
 
@@ -192,7 +184,7 @@ const handleSelect = (event) => {
 }
 
 const filterFunc = (remainingItemValues, term) => {
-  const remainingItems = props.items.filter((item) => remainingItemValues.includes(item.value))
+  const remainingItems = displayedItems.value.filter((item) => remainingItemValues.includes(item.value))
   if (props.search) return remainingItems.map((item) => item.value)
   return remainingItems
     .filter((item) => item.label.toLowerCase().includes(term.toLowerCase()))

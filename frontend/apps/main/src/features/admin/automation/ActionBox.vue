@@ -50,7 +50,6 @@
                   :items="notifyRecipientOptions"
                   :placeholder="t('placeholders.selectRecipients')"
                   :search="searchRecipients"
-                  :searching="tStore.searching || uStore.searching"
                 />
                 <Input
                   type="text"
@@ -196,21 +195,38 @@ const { conversationActions } = useConversationFilters()
 
 webhookStore.fetchWebhooks()
 
-const notifyRecipientOptions = computed(() => [
+const recipientKeywords = computed(() => [
   { label: t('globals.terms.assignee'), value: 'assignee' },
-  { label: t('globals.terms.assignedTeam'), value: 'assigned_team' },
-  ...tStore.options.map((o) => ({
+  { label: t('globals.terms.assignedTeam'), value: 'assigned_team' }
+])
+
+const toTeamRecipients = (options) => options.map((o) => ({
     label: `${t('globals.terms.team')}: ${o.label}`,
     value: `team:${o.value}`
-  })),
-  ...uStore.options.map((o) => ({
+  }))
+
+const toUserRecipients = (options) => options.map((o) => ({
     label: `${t('globals.terms.agent')}: ${o.label}`,
     value: `user:${o.value}`
   }))
+
+const notifyRecipientOptions = computed(() => [
+  ...recipientKeywords.value,
+  ...toTeamRecipients(tStore.options),
+  ...toUserRecipients(uStore.options)
 ])
 
-// Recipients mix teams and agents in one list, so typing has to query both.
-const searchRecipients = (query) => Promise.all([tStore.searchTeams(query), uStore.searchUsers(query)])
+const searchRecipients = async (query) => {
+  const [teams, users] = await Promise.all([
+    tStore.searchTeams(query),
+    uStore.searchUsers(query)
+  ])
+  return [
+    ...recipientKeywords.value,
+    ...toTeamRecipients(teams),
+    ...toUserRecipients(users)
+  ]
+}
 
 // Recipients are prefixed, e.g. "user:12" / "team:3", alongside keywords like "assignee".
 const recipientIDs = (prefix) =>

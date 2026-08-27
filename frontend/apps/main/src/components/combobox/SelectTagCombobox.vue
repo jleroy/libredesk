@@ -4,16 +4,14 @@
     v-bind="$attrs"
     :items="items"
     :placeholder="placeholderText"
-    :search="tagStore.searchTags"
-    :searching="tagStore.searching"
+    :search="searchTags"
   />
   <SelectComboBox
     v-else
     v-bind="$attrs"
     :items="items"
     :placeholder="placeholderText"
-    :search="tagStore.searchTags"
-    :searching="tagStore.searching"
+    :search="searchTags"
   >
     <template v-if="$slots.trigger" #trigger="slotProps">
       <slot name="trigger" v-bind="slotProps" />
@@ -58,6 +56,11 @@ const items = computed(() =>
     ? tagStore.tagOptions
     : tagStore.tagNames.map((name) => ({ label: name, value: name }))
 )
+
+const searchTags = (query) =>
+  props.valueField === 'id'
+    ? tagStore.searchTagOptions(query)
+    : tagStore.searchTagNames(query)
 
 onMounted(tagStore.fetchTags)
 

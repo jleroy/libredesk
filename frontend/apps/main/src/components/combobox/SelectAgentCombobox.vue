@@ -5,7 +5,6 @@
     :items="items"
     :placeholder="placeholderText"
     :search="usersStore.searchUsers"
-    :searching="usersStore.searching"
   />
   <SelectComboBox
     v-else
@@ -13,7 +12,6 @@
     :items="items"
     :placeholder="placeholderText"
     :search="usersStore.searchUsers"
-    :searching="usersStore.searching"
     type="user"
   >
     <template v-if="$slots.trigger" #trigger="slotProps">

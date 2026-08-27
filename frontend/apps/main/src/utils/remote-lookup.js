@@ -5,17 +5,14 @@ const PAGE_SIZE = 50
 // Backs a store whose list lives on the server, ids outside the current page are pinned so their labels still render.
 export function createRemoteLookup ({ fetchRows, onError }) {
   const byID = ref({})
-  const listIDs = ref([])
+  const firstPageIDs = ref([])
   const pinnedIDs = ref([])
-  const searching = ref(false)
   let firstPage = null
-  let firstPageIDs = null
-  let searchSeq = 0
 
   const rows = computed(() => {
     const seen = new Set()
     const out = []
-    for (const id of [...listIDs.value, ...pinnedIDs.value]) {
+    for (const id of [...firstPageIDs.value, ...pinnedIDs.value]) {
       if (seen.has(id)) continue
       seen.add(id)
       const row = byID.value[id]
@@ -38,8 +35,8 @@ export function createRemoteLookup ({ fetchRows, onError }) {
     if (firstPage) return firstPage
     firstPage = load({ page: 1 })
       .then((fetched) => {
-        firstPageIDs = fetched.map((row) => row.id)
-        if (searchSeq === 0) listIDs.value = firstPageIDs
+        firstPageIDs.value = fetched.map((row) => row.id)
+        return fetched
       })
       .catch((error) => {
         firstPage = null
@@ -50,21 +47,15 @@ export function createRemoteLookup ({ fetchRows, onError }) {
 
   const search = async (query) => {
     const term = (query || '').trim()
-    const seq = ++searchSeq
-    if (!term && firstPageIDs) {
-      listIDs.value = firstPageIDs
-      searching.value = false
-      return
+    if (!term) {
+      await fetchFirstPage()
+      return firstPageIDs.value.map((id) => byID.value[id]).filter(Boolean)
     }
-    searching.value = true
     try {
-      const fetched = await load(term ? { q: term, page: 1 } : { page: 1 })
-      if (seq !== searchSeq) return
-      listIDs.value = fetched.map((row) => row.id)
+      return await load({ q: term, page: 1 })
     } catch (error) {
-      if (seq === searchSeq) onError(error)
-    } finally {
-      if (seq === searchSeq) searching.value = false
+      onError(error)
+      return []
     }
   }
 
@@ -87,5 +78,5 @@ export function createRemoteLookup ({ fetchRows, onError }) {
     if (row) byID.value[id] = { ...row, ...changes }
   }
 
-  return { rows, searching, fetchFirstPage, search, ensureIDs, patch }
+  return { rows, fetchFirstPage, search, ensureIDs, patch }
 }

@@ -25,14 +25,22 @@ export const useTagStore = defineStore('tags', () => {
         label: tag.name,
         value: String(tag.id),
     })))
+    const searchTagNames = async (query) => (await lookup.search(query)).map(tag => ({
+        label: tag.name,
+        value: tag.name,
+    }))
+    const searchTagOptions = async (query) => (await lookup.search(query)).map(tag => ({
+        label: tag.name,
+        value: String(tag.id),
+    }))
 
     return {
         tags,
         tagOptions,
         tagNames,
-        searching: lookup.searching,
         fetchTags: lookup.fetchFirstPage,
-        searchTags: lookup.search,
+        searchTagNames,
+        searchTagOptions,
         ensureTagIDs: lookup.ensureIDs,
     }
 })

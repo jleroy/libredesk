@@ -19,19 +19,20 @@ export const useTeamStore = defineStore('team', () => {
         onError: showFetchError
     })
 
-    const teams = lookup.rows
-    const options = computed(() => teams.value.map(team => ({
+    const toOptions = (teams) => teams.map(team => ({
         label: team.name,
         value: String(team.id),
         emoji: team.emoji,
-    })))
+    }))
+    const teams = lookup.rows
+    const options = computed(() => toOptions(teams.value))
+    const searchTeams = async (query) => toOptions(await lookup.search(query))
 
     return {
         teams,
         options,
-        searching: lookup.searching,
         fetchTeams: lookup.fetchFirstPage,
-        searchTeams: lookup.search,
+        searchTeams,
         ensureTeamIDs: lookup.ensureIDs,
     }
 })

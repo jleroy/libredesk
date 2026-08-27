@@ -20,14 +20,16 @@ export const useUsersStore = defineStore('users', () => {
         onError: showFetchError
     })
 
-    const users = lookup.rows
-    const options = computed(() => users.value.map(user => ({
+    const toOptions = (users) => users.map(user => ({
         label: user.first_name + ' ' + user.last_name,
         value: String(user.id),
         type: user.type,
         avatar_url: user.avatar_url,
         availability_status: user.availability_status,
-    })))
+    }))
+    const users = lookup.rows
+    const options = computed(() => toOptions(users.value))
+    const searchUsers = async (query) => toOptions(await lookup.search(query))
 
     const setAvailability = (agentID, status) => {
         lookup.patch(agentID, { availability_status: status })
@@ -36,9 +38,8 @@ export const useUsersStore = defineStore('users', () => {
     return {
         users,
         options,
-        searching: lookup.searching,
         fetchUsers: lookup.fetchFirstPage,
-        searchUsers: lookup.search,
+        searchUsers,
         ensureUserIDs: lookup.ensureIDs,
         setAvailability,
     }

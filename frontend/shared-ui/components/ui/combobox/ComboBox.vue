@@ -45,9 +45,9 @@
 
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { useDebounceFn } from '@vueuse/core'
 import { CaretSortIcon, CheckIcon } from '@radix-icons/vue'
 import { cn } from '@shared-ui/lib/utils'
+import { useRemoteSearch } from '@shared-ui/composables/useRemoteSearch'
 import { Button } from '@shared-ui/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
 import {
@@ -81,10 +81,6 @@ const props = defineProps({
   search: {
     type: Function,
     default: null
-  },
-  searching: {
-    type: Boolean,
-    default: false
   }
 })
 
@@ -92,41 +88,37 @@ const emit = defineEmits(['select'])
 const value = defineModel()
 const open = ref(false)
 const searchTerm = ref('')
-let disposed = false
-let searchVersion = 0
 
 const passThroughFilter = (items) => items
 
-const debouncedSearch = useDebounceFn((term) => {
-  if (!disposed && term.version === searchVersion) props.search(term.value)
-}, SEARCH_DEBOUNCE_MS)
+const {
+  results: remoteItems,
+  searching,
+  update: updateSearch,
+  dispose: disposeSearch
+} = useRemoteSearch((term) => props.search(term), SEARCH_DEBOUNCE_MS)
 
 watch(searchTerm, (term) => {
-  if (!props.search) return
-  searchVersion++
-  if (!term) {
-    props.search('')
-    return
-  }
-  debouncedSearch({ value: term, version: searchVersion })
+  if (props.search) updateSearch(term)
 })
 
-// The store list is shared, so a pending query left behind on close would filter every other picker.
 watch(open, (isOpen) => {
   if (!isOpen && searchTerm.value) searchTerm.value = ''
 })
 
 onUnmounted(() => {
-  disposed = true
-  searchVersion++
-  if (props.search && searchTerm.value) props.search('')
+  disposeSearch()
 })
 
+const displayedItems = computed(() =>
+  props.search && remoteItems.value !== null ? remoteItems.value : props.items
+)
+
 const filteredItems = computed(() => {
-  if (props.search) return props.items
+  if (props.search) return displayedItems.value
   const term = searchTerm.value?.trim().toLowerCase()
-  if (!term) return props.items
-  return props.items.filter((item) =>
+  if (!term) return displayedItems.value
+  return displayedItems.value.filter((item) =>
     [item.label, item.calling_code]
       .filter(Boolean)
       .some((field) => String(field).toLowerCase().includes(term))

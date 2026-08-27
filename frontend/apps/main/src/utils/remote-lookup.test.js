@@ -14,21 +14,21 @@ describe('createRemoteLookup', () => {
     expect(lookup.rows.value).toEqual([{ id: 1, name: 'a' }])
   })
 
-  it('replaces the list with server results when searching', async () => {
+  it('returns server search results without replacing the shared list', async () => {
     const fetchRows = vi.fn()
       .mockResolvedValueOnce(rows([{ id: 1, name: 'a' }]))
       .mockResolvedValueOnce(rows([{ id: 9, name: 'zebra' }]))
     const lookup = createRemoteLookup({ fetchRows, onError: vi.fn() })
 
     await lookup.fetchFirstPage()
-    await lookup.search('zeb')
+    const found = await lookup.search('zeb')
 
     expect(fetchRows).toHaveBeenLastCalledWith({ page_size: 50, q: 'zeb', page: 1 })
-    expect(lookup.rows.value).toEqual([{ id: 9, name: 'zebra' }])
-    expect(lookup.searching.value).toBe(false)
+    expect(found).toEqual([{ id: 9, name: 'zebra' }])
+    expect(lookup.rows.value).toEqual([{ id: 1, name: 'a' }])
   })
 
-  it('does not let a late first page replace newer search results', async () => {
+  it('keeps a late first page separate from search results', async () => {
     let resolveFirstPage
     const fetchRows = vi.fn()
       .mockImplementationOnce(() => new Promise((resolve) => { resolveFirstPage = resolve }))
@@ -36,38 +36,43 @@ describe('createRemoteLookup', () => {
     const lookup = createRemoteLookup({ fetchRows, onError: vi.fn() })
 
     const firstPage = lookup.fetchFirstPage()
-    await lookup.search('search')
+    const found = await lookup.search('search')
     resolveFirstPage(rows([{ id: 1, name: 'first page' }]))
     await firstPage
 
-    expect(lookup.rows.value).toEqual([{ id: 2, name: 'search result' }])
+    expect(found).toEqual([{ id: 2, name: 'search result' }])
+    expect(lookup.rows.value).toEqual([{ id: 1, name: 'first page' }])
   })
 
-  it('drops results of a search that a newer one has superseded', async () => {
-    let resolveFirst
+  it('returns independent search results without replacing the shared list', async () => {
+    let resolveFirstSearch
     const fetchRows = vi.fn()
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
-      .mockResolvedValueOnce(rows([{ id: 2, name: 'second' }]))
+      .mockResolvedValueOnce(rows([{ id: 1, name: 'first page' }]))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirstSearch = resolve }))
+      .mockResolvedValueOnce(rows([{ id: 3, name: 'second search' }]))
     const lookup = createRemoteLookup({ fetchRows, onError: vi.fn() })
 
-    const stale = lookup.search('a')
-    await lookup.search('b')
-    resolveFirst(rows([{ id: 1, name: 'first' }]))
-    await stale
+    await lookup.fetchFirstPage()
+    const firstSearch = lookup.search('first')
+    const secondSearch = await lookup.search('second')
+    resolveFirstSearch(rows([{ id: 2, name: 'first search' }]))
 
-    expect(lookup.rows.value).toEqual([{ id: 2, name: 'second' }])
+    expect(await firstSearch).toEqual([{ id: 2, name: 'first search' }])
+    expect(secondSearch).toEqual([{ id: 3, name: 'second search' }])
+    expect(lookup.rows.value).toEqual([{ id: 1, name: 'first page' }])
   })
 
-  it('keeps pinned ids in the list across searches', async () => {
+  it('keeps pinned ids in the shared list while returning search results separately', async () => {
     const fetchRows = vi.fn()
       .mockResolvedValueOnce(rows([{ id: 7, name: 'pinned' }]))
       .mockResolvedValueOnce(rows([{ id: 1, name: 'a' }]))
     const lookup = createRemoteLookup({ fetchRows, onError: vi.fn() })
 
     await lookup.ensureIDs([7])
-    await lookup.search('a')
+    const found = await lookup.search('a')
 
-    expect(lookup.rows.value).toEqual([{ id: 1, name: 'a' }, { id: 7, name: 'pinned' }])
+    expect(found).toEqual([{ id: 1, name: 'a' }])
+    expect(lookup.rows.value).toEqual([{ id: 7, name: 'pinned' }])
   })
 
   it('resolves ids from the first page instead of fetching them separately', async () => {
@@ -94,7 +99,7 @@ describe('createRemoteLookup', () => {
     expect(lookup.rows.value).toEqual([{ id: 1, name: 'a' }, { id: 9, name: 'z' }])
   })
 
-  it('restores the cached first page when a search is cleared', async () => {
+  it('returns the cached first page for an empty search', async () => {
     const fetchRows = vi.fn()
       .mockResolvedValueOnce(rows([{ id: 1, name: 'a' }]))
       .mockResolvedValueOnce(rows([{ id: 9, name: 'zebra' }]))
@@ -102,9 +107,10 @@ describe('createRemoteLookup', () => {
 
     await lookup.fetchFirstPage()
     await lookup.search('zeb')
-    await lookup.search('')
+    const found = await lookup.search('')
 
     expect(fetchRows).toHaveBeenCalledTimes(2)
+    expect(found).toEqual([{ id: 1, name: 'a' }])
     expect(lookup.rows.value).toEqual([{ id: 1, name: 'a' }])
   })
 
