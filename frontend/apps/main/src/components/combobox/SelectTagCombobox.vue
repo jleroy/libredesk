@@ -2,6 +2,7 @@
   <SelectTag
     v-if="multiple"
     v-bind="$attrs"
+    :model-value="modelValue"
     :items="items"
     :placeholder="placeholderText"
     :search="searchTags"
@@ -9,6 +10,7 @@
   <SelectComboBox
     v-else
     v-bind="$attrs"
+    :model-value="modelValue"
     :items="items"
     :placeholder="placeholderText"
     :search="searchTags"
@@ -20,7 +22,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, useAttrs, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTagStore } from '@/stores/tag'
 import SelectComboBox from '@/components/combobox/SelectCombobox.vue'
@@ -29,6 +31,10 @@ import { SelectTag } from '@shared-ui/components/ui/select'
 defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
+  modelValue: {
+    type: [String, Number, Array],
+    default: undefined
+  },
   placeholder: {
     type: String,
     default: ''
@@ -47,7 +53,6 @@ const props = defineProps({
 
 const { t } = useI18n()
 const tagStore = useTagStore()
-const attrs = useAttrs()
 
 const placeholderText = computed(() => props.placeholder || t('placeholders.selectTags'))
 
@@ -65,7 +70,7 @@ const searchTags = (query) =>
 onMounted(tagStore.fetchTags)
 
 watch(
-  () => attrs.modelValue,
+  () => props.modelValue,
   (value) => {
     if (props.valueField !== 'id') return
     const ids = Array.isArray(value) ? value : [value]

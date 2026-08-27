@@ -2,6 +2,7 @@
   <SelectTag
     v-if="multiple"
     v-bind="$attrs"
+    :model-value="modelValue"
     :items="items"
     :placeholder="placeholderText"
     :search="usersStore.searchUsers"
@@ -9,6 +10,7 @@
   <SelectComboBox
     v-else
     v-bind="$attrs"
+    :model-value="modelValue"
     :items="items"
     :placeholder="placeholderText"
     :search="usersStore.searchUsers"
@@ -21,7 +23,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, useAttrs, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUsersStore } from '@/stores/users'
 import { useUserStore } from '@/stores/user'
@@ -31,6 +33,10 @@ import { SelectTag } from '@shared-ui/components/ui/select'
 defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
+  modelValue: {
+    type: [String, Number, Array],
+    default: undefined
+  },
   placeholder: {
     type: String,
     default: ''
@@ -60,7 +66,6 @@ const props = defineProps({
 const { t } = useI18n()
 const usersStore = useUsersStore()
 const userStore = useUserStore()
-const attrs = useAttrs()
 
 const placeholderText = computed(() => props.placeholder || t('placeholders.selectAgent'))
 
@@ -82,7 +87,7 @@ const items = computed(() => {
 onMounted(usersStore.fetchUsers)
 
 watch(
-  () => attrs.modelValue,
+  () => props.modelValue,
   (value) => {
     const ids = Array.isArray(value) ? value : [value]
     usersStore.ensureUserIDs(ids)

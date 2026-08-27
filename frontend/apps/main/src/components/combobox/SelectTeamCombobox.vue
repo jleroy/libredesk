@@ -2,6 +2,7 @@
   <SelectTag
     v-if="multiple"
     v-bind="$attrs"
+    :model-value="modelValue"
     :items="items"
     :placeholder="placeholderText"
     :search="teamStore.searchTeams"
@@ -9,6 +10,7 @@
   <SelectComboBox
     v-else
     v-bind="$attrs"
+    :model-value="modelValue"
     :items="items"
     :placeholder="placeholderText"
     :search="teamStore.searchTeams"
@@ -21,7 +23,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, useAttrs, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTeamStore } from '@/stores/team'
 import SelectComboBox from '@/components/combobox/SelectCombobox.vue'
@@ -30,6 +32,10 @@ import { SelectTag } from '@shared-ui/components/ui/select'
 defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
+  modelValue: {
+    type: [String, Number, Array],
+    default: undefined
+  },
   placeholder: {
     type: String,
     default: ''
@@ -50,7 +56,6 @@ const props = defineProps({
 
 const { t } = useI18n()
 const teamStore = useTeamStore()
-const attrs = useAttrs()
 
 const placeholderText = computed(() => props.placeholder || t('placeholders.selectTeam'))
 
@@ -64,7 +69,7 @@ const items = computed(() => {
 onMounted(teamStore.fetchTeams)
 
 watch(
-  () => attrs.modelValue,
+  () => props.modelValue,
   (value) => {
     const ids = Array.isArray(value) ? value : [value]
     teamStore.ensureTeamIDs(ids)

@@ -59,7 +59,6 @@
         <!-- Mounted only with results: radix's group counts its items once on mount and stays hidden when they arrive async. -->
         <CommandGroup
           v-if="visibleMacros.length"
-          :heading="$t('actions.applyMacro')"
           class="flex h-full min-h-0 flex-col"
         >
           <div class="min-h-0 flex-1">

@@ -8,6 +8,9 @@ const viewName = `ZZ late view ${stamp}`
 const sharedViewName = `ZZ late shared view ${stamp}`
 const ruleName = `ZZ late rule ${stamp}`
 const macroName = `ZZ late macro ${stamp}`
+const tagName = `zz-late-tag-${stamp}`
+const inboxName = `ZZ late inbox ${stamp}`
+const contactLastName = `LateCustomer${stamp}`
 
 const leafFilters = (agentId) => ({
   logic: 'AND',
@@ -126,6 +129,52 @@ describe('Saved lookup values outside the first page', () => {
           visible_when: ['replying'],
           actions: [{ type: 'assign_user', value: [String(ids.agent)] }]
         }).then(({ body: macroBody }) => (ids.macro = macroBody.data.id))
+
+        cy.api('POST', '/api/v1/tags', { name: tagName }).then(({ body: tagBody }) => {
+          ids.tag = tagBody.data.id
+        })
+
+        cy.api('POST', '/api/v1/inboxes', {
+          name: inboxName,
+          channel: 'email',
+          enabled: true,
+          from: `Late <late+${stamp}@cypress.test>`,
+          config: {
+            auth_type: 'password',
+            imap: [],
+            smtp: [
+              {
+                host: '127.0.0.1',
+                port: 1025,
+                auth_protocol: 'none',
+                max_conns: 2,
+                idle_timeout: '5s',
+                pool_wait_timeout: '5s',
+                max_msg_retries: 1,
+                tls_type: 'none'
+              }
+            ]
+          }
+        }).then(({ body: inboxBody }) => {
+          ids.inbox = inboxBody.data.id
+          cy.api('POST', '/api/v1/conversations', {
+            inbox_id: ids.inbox,
+            agent_id: ids.agent,
+            team_id: ids.team,
+            contact_email: `zz-late-customer-${stamp}@example.com`,
+            first_name: 'ZZ',
+            last_name: contactLastName,
+            subject: `ZZ late conversation ${stamp}`,
+            content: '<p>Saved lookup values probe.</p>',
+            initiator: 'contact'
+          }).then(({ body: convBody }) => {
+            ids.conversation = convBody.data.uuid
+            cy.api('POST', `/api/v1/conversations/${ids.conversation}/tags`, {
+              action: 'set_tags',
+              tags: [tagName]
+            })
+          })
+        })
       })
     })
   })
@@ -267,6 +316,57 @@ describe('Saved lookup values outside the first page', () => {
     })
   })
 
+  describe('conversation sidebar', () => {
+    const openConversation = () => {
+      cy.intercept('GET', '**/messages?page=*').as('loadMessages')
+      cy.visit(`/inboxes/all/conversation/${ids.conversation}`)
+      cy.wait('@loadMessages')
+      // The open set of sidebar sections is remembered per browser, so blind toggling closes it.
+      cy.contains('button', 'Actions').then(($trigger) => {
+        if ($trigger.attr('aria-expanded') !== 'true') cy.wrap($trigger).click()
+      })
+    }
+
+    it('labels the assigned team by asking for it by id', () => {
+      blankFirstPage('teams/compact')
+      cy.intercept('GET', '**/api/v1/teams/compact?*ids=*').as('teamById')
+
+      openConversation()
+
+      cy.wait('@teamById').its('response.statusCode').should('eq', 200)
+      cy.contains('button[role="combobox"]', teamName).should('exist')
+    })
+
+    it('labels the assigned agent by asking for it by id', () => {
+      blankFirstPage('agents/compact')
+      cy.intercept('GET', '**/api/v1/agents/compact?*ids=*').as('agentById')
+
+      openConversation()
+
+      cy.wait('@agentById').its('response.statusCode').should('eq', 200)
+      cy.contains('button[role="combobox"]', agentName).should('exist')
+    })
+
+    it('shows the assigned tag while the tag list page is empty', () => {
+      blankFirstPage('tags')
+
+      openConversation()
+
+      cy.contains('[data-radix-vue-collection-item]', tagName).should('exist')
+    })
+
+    it('searches teams on the server', () => {
+      cy.intercept('GET', '**/api/v1/teams/compact?*q=*').as('teamSearch')
+
+      openConversation()
+      cy.contains('button[role="combobox"]', teamName).click()
+      typeInPicker(teamName)
+
+      cy.wait('@teamSearch').its('request.url').should('include', 'q=')
+      cy.contains('[role="option"]', teamName).should('exist')
+    })
+  })
+
   after(() => {
     cy.login()
     if (ids.view) cy.api('DELETE', `/api/v1/views/me/${ids.view}`)
@@ -275,5 +375,7 @@ describe('Saved lookup values outside the first page', () => {
     if (ids.macro) cy.api('DELETE', `/api/v1/macros/${ids.macro}`)
     if (ids.team) cy.api('DELETE', `/api/v1/teams/${ids.team}`)
     if (ids.agent) cy.api('DELETE', `/api/v1/agents/${ids.agent}`)
+    if (ids.tag) cy.api('DELETE', `/api/v1/tags/${ids.tag}`)
+    if (ids.inbox) cy.api('DELETE', `/api/v1/inboxes/${ids.inbox}`)
   })
 })
