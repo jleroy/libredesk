@@ -32,8 +32,12 @@ const blankFirstPage = (resource) => {
 
 const valueCombobox = () => cy.get('[data-cy="filter-value"] button[role="combobox"]')
 
-// Opening the picker focuses its input; a dialog can hold a second popper, so target focus, not the wrapper.
-const typeInPicker = (text) => cy.focused().type(text)
+const typeInPicker = (text) =>
+  cy
+    .get('[data-radix-popper-content-wrapper]:visible input')
+    .last()
+    .invoke('val', text)
+    .trigger('input')
 
 describe('Saved lookup values outside the first page', () => {
   const ids = {}

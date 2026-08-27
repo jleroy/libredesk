@@ -301,6 +301,10 @@ describe('Shared view form', () => {
   })
 
   it('resolves the saved team by id even though it sits outside the first page', () => {
+    cy.intercept(
+      { method: 'GET', url: '**/api/v1/teams/compact*', query: { page: '1' } },
+      { body: { data: [] } }
+    )
     cy.intercept('GET', '**/api/v1/teams/compact?*ids=*').as('teamById')
 
     cy.visit(`${listPath}/${viewId}/edit`)
