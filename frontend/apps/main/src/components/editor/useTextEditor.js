@@ -12,6 +12,7 @@ export function useTextEditor({
   isInlineEnabled = () => false,
   linkedModel = 'messages',
   getSuggestions = null,
+  enableMentions = () => false,
   onSend = () => {},
   onUpdate = () => {},
   onBlur = () => {},
@@ -50,6 +51,7 @@ export function useTextEditor({
     editorProps: {
       attributes: { class: 'outline-none' },
       getSuggestions,
+      enableMentions,
       handlePaste,
       handleDrop,
       handleKeyDown: (view, event) => {
