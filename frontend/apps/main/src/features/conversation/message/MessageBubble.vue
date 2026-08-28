@@ -404,8 +404,10 @@ const showCheckCheck = computed(
   () => isOutgoing.value && props.message.status === 'sent' && !isPrivateMessage.value
 )
 const isReadByContact = computed(() => {
-  const lastSeenAt = convStore.current?.contact_last_seen_at
-  if (!showCheckCheck.value || !lastSeenAt) return false
+  const conversation = convStore.current;
+  const lastSeenAt = conversation?.contact_last_seen_at
+  const isLiveChat = conversation?.inbox_channel == 'livechat'
+  if (!showCheckCheck.value || !lastSeenAt || !isLiveChat) return false
   return new Date(props.message.created_at) <= new Date(lastSeenAt)
 })
 const showRetry = computed(() => isOutgoing.value && props.message.status === 'failed' && props.message.sender_id === userStore.userID)
