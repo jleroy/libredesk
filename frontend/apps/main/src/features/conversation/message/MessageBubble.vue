@@ -405,7 +405,6 @@ const showCheckCheck = computed(
 )
 const isReadByContact = computed(() => {
   const lastSeenAt = convStore.current?.contact_last_seen_at
-  console.log("lastSeenAt:", lastSeenAt)
   if (!showCheckCheck.value || !lastSeenAt) return false
   return new Date(props.message.created_at) <= new Date(lastSeenAt)
 })
