@@ -68,7 +68,7 @@ func GetDimensions(r io.Reader) (int, int, error) {
 // CreateThumb generates a thumbnail of the given image file with the specified maximum dimension.
 // The thumbnail's width will be resized to `thumbPxSize` while maintaining the aspect ratio.
 func CreateThumb(thumbPxSize int, r io.Reader) (*bytes.Reader, error) {
-	img, err := imaging.Decode(r)
+	img, err := imaging.Decode(r, imaging.AutoOrientation(true))
 	if err != nil {
 		return nil, err
 	}
