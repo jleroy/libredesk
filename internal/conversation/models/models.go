@@ -166,6 +166,7 @@ type Conversation struct {
 	InboxID                   int                    `db:"inbox_id" json:"inbox_id"`
 	ClosedAt                  null.Time              `db:"closed_at" json:"closed_at"`
 	ResolvedAt                null.Time              `db:"resolved_at" json:"resolved_at"`
+	ContactLastSeenAt         null.Time              `db:"contact_last_seen_at" json:"contact_last_seen_at"`
 	ReferenceNumber           string                 `db:"reference_number" json:"reference_number"`
 	Priority                  null.String            `db:"priority" json:"priority"`
 	PriorityID                null.Int               `db:"priority_id" json:"priority_id"`

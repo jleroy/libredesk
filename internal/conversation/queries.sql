@@ -186,6 +186,7 @@ SELECT
    c.updated_at,
    c.closed_at,
    c.resolved_at,
+   c.contact_last_seen_at,
    c.inbox_id,
    inb.name as inbox_name,
    COALESCE(inb.from, '') as inbox_mail,

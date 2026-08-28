@@ -164,7 +164,8 @@
             <!-- Status Icons (outgoing only) -->
             <div v-if="isOutgoing" class="flex items-center space-x-2 mt-2 self-end">
               <Lock :size="12" v-if="isPrivateMessage" class="text-muted-foreground" />
-              <Check :size="14" v-if="showCheckCheck" class="text-success" />
+              <CheckCheck :size="14" v-if="isReadByContact" class="text-success" />
+              <Check :size="14" v-else-if="showCheckCheck" class="text-success" />
               <Tooltip v-if="message.meta?.continuity_emailed">
                 <TooltipTrigger>
                   <Mail :size="12" class="text-muted-foreground" />
@@ -256,7 +257,7 @@ import { computed, ref, onMounted, nextTick } from 'vue'
 import { useConversationStore } from '@main/stores/conversation'
 import { useUserStore } from '@main/stores/user'
 import { useI18n } from 'vue-i18n'
-import { Lock, Mail, RotateCcw, Check, Maximize2, Trash2, MoreHorizontal } from 'lucide-vue-next'
+import { Lock, Mail, RotateCcw, Check, CheckCheck, Maximize2, Trash2, MoreHorizontal } from 'lucide-vue-next'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -402,6 +403,12 @@ const canDeleteNote = computed(
 const showCheckCheck = computed(
   () => isOutgoing.value && props.message.status === 'sent' && !isPrivateMessage.value
 )
+const isReadByContact = computed(() => {
+  const lastSeenAt = convStore.current?.contact_last_seen_at
+  console.log("lastSeenAt:", lastSeenAt)
+  if (!showCheckCheck.value || !lastSeenAt) return false
+  return new Date(props.message.created_at) <= new Date(lastSeenAt)
+})
 const showRetry = computed(() => isOutgoing.value && props.message.status === 'failed' && props.message.sender_id === userStore.userID)
 
 const retryMessage = (msg) => {
