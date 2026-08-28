@@ -375,13 +375,16 @@ func (e *Engine) handleTimeTrigger() {
 		thirtyDaysAgo = time.Now().Add(-30 * 24 * time.Hour)
 		afterID       = 0
 		total         = 0
+		batch         = 0
 	)
 	for {
 		refs, err := e.conversationStore.GetConversationsCreatedAfter(thirtyDaysAgo, afterID, timeTriggerBatchSize)
 		if err != nil {
-			e.lo.Error("error fetching conversations for time trigger", "error", err)
+			e.lo.Error("error fetching conversations for time trigger", "after_id", afterID, "batch", batch, "error", err)
 			return
 		}
+		batch++
+		e.lo.Info("fetched conversation batch for time trigger", "batch", batch, "after_id", afterID, "count", len(refs))
 		if len(refs) == 0 {
 			break
 		}
@@ -399,7 +402,7 @@ func (e *Engine) handleTimeTrigger() {
 			break
 		}
 	}
-	e.lo.Info("evaluated conversations for time triggers", "conversations_count", total, "rules_count", len(rules))
+	e.lo.Info("evaluated conversations for time triggers", "conversations_count", total, "batches", batch, "rules_count", len(rules))
 }
 
 // suppress marks a conversation as having automation actions in flight.
