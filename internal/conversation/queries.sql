@@ -291,7 +291,9 @@ SELECT
     c.id,
     c.uuid
 FROM conversations c
-WHERE c.created_at > $1;
+WHERE c.created_at > $1 AND c.id > $2
+ORDER BY c.id
+LIMIT $3;
 
 -- name: get-contact-previous-conversations
 SELECT

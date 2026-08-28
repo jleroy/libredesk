@@ -523,14 +523,14 @@ func (c *Manager) SignAvatarURL(avatarURL *null.String) {
 	}
 }
 
-// GetConversationsCreatedAfter retrieves conversations created after the specified time.
-func (c *Manager) GetConversationsCreatedAfter(time time.Time) ([]models.Conversation, error) {
-	var conversations = make([]models.Conversation, 0)
-	if err := c.q.GetConversationsCreatedAfter.Select(&conversations, time); err != nil {
-		c.lo.Error("error fetching conversation", "error", err)
-		return conversations, err
+// GetConversationsCreatedAfter retrieves a batch of conversation refs created after the given time, keyset-paged by id.
+func (c *Manager) GetConversationsCreatedAfter(after time.Time, afterID, limit int) ([]models.ConversationRef, error) {
+	var refs = make([]models.ConversationRef, 0, limit)
+	if err := c.q.GetConversationsCreatedAfter.Select(&refs, after, afterID, limit); err != nil {
+		c.lo.Error("error fetching conversation refs", "error", err)
+		return refs, err
 	}
-	return conversations, nil
+	return refs, nil
 }
 
 // UpdateUserLastSeen updates the last seen timestamp for a specific user on a conversation.
