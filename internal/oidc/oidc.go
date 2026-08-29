@@ -90,6 +90,18 @@ func (o *Manager) Get(id int) (models.OIDC, error) {
 	return oidc, nil
 }
 
+// RedirectURL returns the OIDC redirect URI for the given provider, computed
+// from the current app root URL. It is intended for live lookup so callers
+// that capture the redirect URL (e.g. auth providers) do not go stale when
+// the root URL changes; it does not read the OIDC row, only the setting.
+func (o *Manager) RedirectURL(id int) (string, error) {
+	rootURL, err := o.setting.GetAppRootURL()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(rootURL+redirectURL, id), nil
+}
+
 // GetAll retrieves all oidc.
 func (o *Manager) GetAll() ([]models.OIDC, error) {
 	var oidc = make([]models.OIDC, 0)

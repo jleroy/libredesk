@@ -881,11 +881,16 @@ func buildProviders(o *oidc.Manager) ([]auth_.Provider, error) {
 		if !config.Enabled {
 			continue
 		}
+		// Capture the redirect URL as a closure over the live root URL rather
+		// than the value at build time, so a Root URL change takes effect
+		// without an explicit reload. Other fields (client ID, provider URL)
+		// are still snapshotted and refreshed by reloadAuth on OIDC changes.
+		providerID := config.ID
 		providers = append(providers, auth_.Provider{
 			ID:           config.ID,
 			Provider:     config.Provider,
 			ProviderURL:  config.ProviderURL,
-			RedirectURL:  config.RedirectURI,
+			RedirectURL:  func() string { u, _ := o.RedirectURL(providerID); return u },
 			ClientID:     config.ClientID,
 			ClientSecret: config.ClientSecret,
 		})
