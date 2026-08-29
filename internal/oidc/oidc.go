@@ -94,12 +94,15 @@ func (o *Manager) Get(id int) (models.OIDC, error) {
 // from the current app root URL. It is intended for live lookup so callers
 // that capture the redirect URL (e.g. auth providers) do not go stale when
 // the root URL changes; it does not read the OIDC row, only the setting.
+// rootURL is passed as a formatting argument, not concatenated into the
+// format string, so a root URL containing a %-sequence (e.g. %2F) is not
+// interpreted as a verb.
 func (o *Manager) RedirectURL(id int) (string, error) {
 	rootURL, err := o.setting.GetAppRootURL()
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(rootURL+redirectURL, id), nil
+	return fmt.Sprintf("%s"+redirectURL, rootURL, id), nil
 }
 
 // GetAll retrieves all oidc.

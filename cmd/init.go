@@ -890,7 +890,7 @@ func buildProviders(o *oidc.Manager) ([]auth_.Provider, error) {
 			ID:           config.ID,
 			Provider:     config.Provider,
 			ProviderURL:  config.ProviderURL,
-			RedirectURL:  func() string { u, _ := o.RedirectURL(providerID); return u },
+			RedirectURL:  func() (string, error) { return o.RedirectURL(providerID) },
 			ClientID:     config.ClientID,
 			ClientSecret: config.ClientSecret,
 		})

@@ -44,7 +44,7 @@ type Provider struct {
 	ID           int
 	Provider     string
 	ProviderURL  string
-	RedirectURL  func() string
+	RedirectURL  func() (string, error)
 	ClientID     string
 	ClientSecret string
 }
@@ -66,7 +66,7 @@ type Auth struct {
 	i18n         *i18n.I18n
 	oauthCfgs    map[int]oauth2.Config
 	verifiers    map[int]*oidc.IDTokenVerifier
-	redirectURLs map[int]func() string
+	redirectURLs map[int]func() (string, error)
 	sess         *simplesessions.Manager
 	logger       *logf.Logger
 	rd           *redis.Client
@@ -77,7 +77,7 @@ type Auth struct {
 func New(cfg Config, i18n *i18n.I18n, rd *redis.Client, logger *logf.Logger, dialControl ssrf.Control) (*Auth, error) {
 	oauthCfgs := make(map[int]oauth2.Config)
 	verifiers := make(map[int]*oidc.IDTokenVerifier)
-	redirectURLs := make(map[int]func() string)
+	redirectURLs := make(map[int]func() (string, error))
 
 	oidcClient := newOIDCClient(dialControl)
 
@@ -165,7 +165,7 @@ func (a *Auth) Reload(cfg Config) error {
 
 	oauthCfgs := make(map[int]oauth2.Config)
 	verifiers := make(map[int]*oidc.IDTokenVerifier)
-	redirectURLs := make(map[int]func() string)
+	redirectURLs := make(map[int]func() (string, error))
 
 	for _, provider := range cfg.Providers {
 		oidcProv, err := oidc.NewProvider(oidc.ClientContext(context.Background(), a.oidcClient), provider.ProviderURL)
@@ -196,24 +196,34 @@ func (a *Auth) Reload(cfg Config) error {
 	return nil
 }
 
-// LoginURL returns the login URL for the given provider.
-func (a *Auth) LoginURL(providerID int, state string) (string, error) {
+// LoginURL returns the login URL for the given provider, along with the
+// redirect URI it was built with. The caller must persist that URI and pass it
+// to ExchangeOIDCToken so the token exchange sends the same redirect_uri the
+// provider saw at login (RFC 6749 4.1.3) -- resolving it twice would let a Root
+// URL change between the two requests produce a mismatch the IdP rejects.
+func (a *Auth) LoginURL(providerID int, state string) (string, string, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	oauthCfg, ok := a.oauthCfgs[providerID]
 	if !ok {
-		return "", envelope.NewError(envelope.InputError, a.i18n.T("validation.notFoundProvider"), nil)
+		return "", "", envelope.NewError(envelope.InputError, a.i18n.T("validation.notFoundProvider"), nil)
 	}
-	// Resolve redirect URL on use so a Root URL change takes effect without a
-	// reload: providers capture the closure, not the value, at build time.
+	// Resolve the redirect URL live from the current root URL so a change takes
+	// effect without a reload. The closure reads the setting, not a snapshot.
 	if fn, ok := a.redirectURLs[providerID]; ok && fn != nil {
-		oauthCfg.RedirectURL = fn()
+		redirectURL, err := fn()
+		if err != nil {
+			return "", "", envelope.NewError(envelope.GeneralError, a.i18n.T("globals.messages.somethingWentWrong"), nil)
+		}
+		oauthCfg.RedirectURL = redirectURL
 	}
-	return oauthCfg.AuthCodeURL(state), nil
+	return oauthCfg.AuthCodeURL(state), oauthCfg.RedirectURL, nil
 }
 
 // ExchangeOIDCToken takes an OIDC authorization code, validates it, and returns an OIDC token for subsequent auth.
-func (a *Auth) ExchangeOIDCToken(ctx context.Context, providerID int, code string) (string, OIDCclaim, error) {
+// redirectURI must be the URI LoginURL returned at the start of this login, so
+// the token exchange sends the same redirect_uri the provider saw then.
+func (a *Auth) ExchangeOIDCToken(ctx context.Context, providerID int, code, redirectURI string) (string, OIDCclaim, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -222,11 +232,9 @@ func (a *Auth) ExchangeOIDCToken(ctx context.Context, providerID int, code strin
 		a.logger.Error("oidc provider not configured, it may have failed to initialize at startup", "provider_id", providerID)
 		return "", OIDCclaim{}, fmt.Errorf("invalid provider ID: %d", providerID)
 	}
-	// Resolve redirect URL on use so a Root URL change takes effect without a
-	// reload (see LoginURL).
-	if fn, ok := a.redirectURLs[providerID]; ok && fn != nil {
-		oauthCfg.RedirectURL = fn()
-	}
+	// Reuse the redirect URI captured at login, not a fresh resolution: the
+	// exchange redirect_uri must match the one in the auth request.
+	oauthCfg.RedirectURL = redirectURI
 
 	verifier, ok := a.verifiers[providerID]
 	if !ok {
