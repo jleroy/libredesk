@@ -483,6 +483,9 @@ func TestNormalizeMessageID(t *testing.T) {
 		{"surrounding whitespace", "  <abc@example.com>  ", "abc@example.com"},
 		{"empty stays empty", "", ""},
 		{"brackets only", "<>", ""},
+		{"line feed is rejected", "a\nb@example.com", ""},
+		{"carriage return is rejected", "a\rb@example.com", ""},
+		{"crlf inside brackets is rejected", "<a\r\nb@host>", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := NormalizeMessageID(tc.in); got != tc.want {
