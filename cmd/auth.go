@@ -119,9 +119,19 @@ func handleOIDCCallback(r *fastglue.Request) error {
 	}
 
 	// Reuse the redirect URI stored at login so the token exchange sends the
-	// same one the provider saw (RFC 6749 4.1.3).
-	storedRedirectURI, _ := app.auth.GetSessionValue(r, oidcRedirectURISessKey)
-	redirectURI, _ := storedRedirectURI.(string)
+	// same one the provider saw (RFC 6749 4.1.3). A missing or unreadable value
+	// means the session is stale or login never completed, so fail the same
+	// way as a state mismatch rather than sending an empty redirect_uri.
+	storedRedirectURI, err := app.auth.GetSessionValue(r, oidcRedirectURISessKey)
+	if err != nil {
+		app.lo.Error("error getting oidc redirect uri from session", "provider_id", providerID, "error", err)
+		return redirectLoginError(r, oidcErrSessionExpired, nextStr)
+	}
+	redirectURI, ok := storedRedirectURI.(string)
+	if !ok || redirectURI == "" {
+		app.lo.Error("oidc redirect uri missing from session", "provider_id", providerID)
+		return redirectLoginError(r, oidcErrSessionExpired, nextStr)
+	}
 
 	_, claims, err := app.auth.ExchangeOIDCToken(r.RequestCtx, providerID, code, redirectURI)
 	if err != nil {
