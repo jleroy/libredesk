@@ -473,3 +473,21 @@ func TestHTML2TextMarkdownLinks(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeMessageID(t *testing.T) {
+	for _, tc := range []struct {
+		name, in, want string
+	}{
+		{"bracketed", "<abc@example.com>", "abc@example.com"},
+		{"already bare", "abc@example.com", "abc@example.com"},
+		{"surrounding whitespace", "  <abc@example.com>  ", "abc@example.com"},
+		{"empty stays empty", "", ""},
+		{"brackets only", "<>", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := NormalizeMessageID(tc.in); got != tc.want {
+				t.Errorf("NormalizeMessageID(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}

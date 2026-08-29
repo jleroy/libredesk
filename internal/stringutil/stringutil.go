@@ -138,6 +138,11 @@ func RemoveEmpty(s []string) []string {
 	return r
 }
 
+// NormalizeMessageID strips surrounding whitespace and the optional angle brackets from an RFC 5322 Message-ID. source_id is stored unbracketed; BuildEmailThreadingHeaders re-adds the brackets when composing In-Reply-To/References.
+func NormalizeMessageID(id string) string {
+	return strings.Trim(strings.TrimSpace(id), "<>")
+}
+
 // GenerateEmailMessageID generates an RFC-compliant Message-ID for an email without angle brackets.
 func GenerateEmailMessageID(uuid string, fromAddress string) (string, error) {
 	if uuid == "" {
