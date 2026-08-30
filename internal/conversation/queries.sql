@@ -444,7 +444,8 @@ WHERE uuid = $1 AND assigned_user_id IS NULL AND assigned_team_id = $3;
 UPDATE conversations
 SET contact_last_seen_at = NOW(),
 updated_at = NOW()
-WHERE uuid = $1;
+WHERE uuid = $1
+RETURNING contact_last_seen_at;
 
 -- name: update-conversation-assigned-team
 UPDATE conversations
