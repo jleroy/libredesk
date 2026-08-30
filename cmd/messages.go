@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
@@ -22,6 +23,16 @@ type messageReq struct {
 	SenderType  string                 `json:"sender_type"`
 	Mentions    []cmodels.MentionInput `json:"mentions"`
 	EchoID      string                 `json:"echo_id"`
+}
+
+// canCreateConversationMessage selects the permission based on the requested
+// message visibility. Contact impersonation has an additional permission check.
+func canCreateConversationMessage(user umodels.User, req messageReq) bool {
+	requiredPermission := authzModels.PermMessagesWrite
+	if req.Private {
+		requiredPermission = authzModels.PermMessagesWritePrivate
+	}
+	return slices.Contains(user.Permissions, requiredPermission)
 }
 
 // handleGetMessages returns messages for a conversation.
@@ -196,6 +207,10 @@ func handleSendMessage(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		app.lo.Error("error unmarshalling message request", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+
+	if !canCreateConversationMessage(user, req) {
+		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
 	}
 
 	// Make sure the inbox is enabled.

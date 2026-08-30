@@ -67,7 +67,7 @@
               {{ t('conversation.downloadTranscript') }}
             </DropdownMenuItem>
             <DropdownMenuItem
-              v-if="userStore.can('messages:write')"
+              v-if="userStore.can(perms.MESSAGES_WRITE_PRIVATE)"
               :disabled="isSummarizing"
               @click="summarize"
             >
@@ -81,7 +81,7 @@
     <!-- Messages & reply box -->
     <div class="flex flex-col flex-grow overflow-hidden">
       <MessageList class="flex-1 overflow-y-auto" />
-      <ReplyBox />
+      <ReplyBox v-if="canCompose" />
     </div>
   </div>
 </template>
@@ -111,6 +111,7 @@ import { useI18n } from 'vue-i18n'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { downloadBlobResponse, parseBlobError } from '@shared-ui/utils/file'
 import api from '@main/api'
+import { permissions as perms } from '@main/constants/permissions.js'
 const conversationStore = useConversationStore()
 const userStore = useUserStore()
 const emitter = useEmitter()
@@ -118,6 +119,9 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const isMobile = useIsMobile()
+const canCompose = computed(
+  () => userStore.can(perms.MESSAGES_WRITE) || userStore.can(perms.MESSAGES_WRITE_PRIVATE)
+)
 
 // Each detail route is `<list route name>-conversation`.
 const goBackToList = () => {

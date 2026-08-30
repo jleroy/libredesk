@@ -9,6 +9,7 @@
       <Tabs v-model="messageType" class="rounded-md border">
         <TabsList class="bg-muted p-1 rounded-md">
           <TabsTrigger
+            v-if="canSendReply"
             value="reply"
             class="px-3 py-1 max-md:py-2.5 rounded-md transition-colors duration-200"
             :class="{ 'bg-background text-foreground': messageType === 'reply' }"
@@ -16,6 +17,7 @@
             {{ $t('globals.terms.reply') }}
           </TabsTrigger>
           <TabsTrigger
+            v-if="canSendPrivateNote"
             value="private_note"
             class="px-3 py-1 max-md:py-2.5 rounded-md transition-colors duration-200"
             :class="{ 'bg-background text-foreground': messageType === 'private_note' }"
@@ -242,6 +244,14 @@ const props = defineProps({
   isGenerating: {
     type: Boolean,
     default: false
+  },
+  canSendReply: {
+    type: Boolean,
+    required: true
+  },
+  canSendPrivateNote: {
+    type: Boolean,
+    required: true
   }
 })
 
