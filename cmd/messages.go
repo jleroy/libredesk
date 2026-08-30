@@ -23,6 +23,7 @@ type messageReq struct {
 	SenderType  string                 `json:"sender_type"`
 	Mentions    []cmodels.MentionInput `json:"mentions"`
 	EchoID      string                 `json:"echo_id"`
+	SourceID    string                 `json:"source_id"` // RFC 5322 Message-ID of the inbound message; stored on the created contact message so replies thread on it. Contact sender only.
 }
 
 // handleGetMessages returns messages for a conversation.
@@ -248,7 +249,7 @@ func handleSendMessage(r *fastglue.Request) error {
 
 	// Create contact message.
 	if req.SenderType == umodels.UserTypeContact {
-		message, err := app.conversation.CreateContactMessage(media, int(conv.ContactID), cuuid, req.Message, cmodels.ContentTypeHTML, false)
+		message, err := app.conversation.CreateContactMessage(media, int(conv.ContactID), cuuid, req.Message, cmodels.ContentTypeHTML, false, req.SourceID)
 		if err != nil {
 			return sendErrorEnvelope(r, err)
 		}

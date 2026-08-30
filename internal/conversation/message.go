@@ -476,7 +476,9 @@ func (m *Manager) SendPrivateNote(media []mmodels.Media, senderID int, conversat
 }
 
 // CreateContactMessage creates a contact message in a conversation.
-func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, conversationUUID, content, contentType string, isNewConversation bool) (models.Message, error) {
+// sourceID is the bare RFC 5322 Message-ID of the inbound message; it is normalized and stored on the message so replies thread on it, mirroring the IMAP ingestion path. Empty leaves the column NULL.
+func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, conversationUUID, content, contentType string, isNewConversation bool, sourceID string) (models.Message, error) {
+	sourceID = stringutil.NormalizeMessageID(sourceID)
 	message := models.Message{
 		ConversationUUID: conversationUUID,
 		SenderID:         contactID,
@@ -487,6 +489,7 @@ func (m *Manager) CreateContactMessage(media []mmodels.Media, contactID int, con
 		ContentType:      contentType,
 		Private:          false,
 		Media:            media,
+		SourceID:         null.NewString(sourceID, sourceID != ""),
 	}
 	if err := m.InsertMessage(&message); err != nil {
 		return models.Message{}, err
