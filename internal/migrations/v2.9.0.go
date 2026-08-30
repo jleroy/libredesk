@@ -6,8 +6,6 @@ import (
 	"github.com/knadh/stuffbin"
 )
 
-// V2_9_0 grants the private-note permission to roles that could previously
-// create private notes through the general message-write permission.
 func V2_9_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 	_, err := db.Exec(`
 		UPDATE roles
