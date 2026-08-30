@@ -46,6 +46,7 @@ describe('Private note permissions', () => {
   }))
 
   let conversationUUID
+  let adminNoteUUID
   let inboxID
   const roleIDs = []
   const agentIDs = []
@@ -87,6 +88,19 @@ describe('Private note permissions', () => {
       { failOnStatusCode: false }
     )
 
+  const deleteMessage = (messageUUID) =>
+    cy.api('DELETE', `/api/v1/conversations/${conversationUUID}/messages/${messageUUID}`, null, {
+      failOnStatusCode: false
+    })
+
+  const summarize = () =>
+    cy.api(
+      'POST',
+      '/api/v1/ai/summarize',
+      { conversation_uuid: conversationUUID },
+      { failOnStatusCode: false }
+    )
+
   const expectPermissionResult = (response, allowed) => {
     expect(response.status).to.eq(allowed ? 200 : 403)
     if (!allowed) expect(response.body.error_type).to.eq('PermissionException')
@@ -94,6 +108,10 @@ describe('Private note permissions', () => {
 
   const openConversation = () => {
     cy.intercept('GET', '**/messages?page=*').as('loadMessages')
+    // Stubbed so the copilot answer renders without a configured AI provider.
+    cy.intercept('GET', '**/ai/copilot/messages*', {
+      body: { data: [{ role: 'assistant', content: '<p>copilot answer</p>' }] }
+    }).as('loadCopilot')
     cy.visit(`/inboxes/all/conversation/${conversationUUID}`)
     cy.wait('@loadMessages')
   }
@@ -134,6 +152,18 @@ describe('Private note permissions', () => {
         initiator: 'contact'
       }).then((response) => {
         conversationUUID = response.body.data.uuid
+        cy.api('POST', `/api/v1/conversations/${conversationUUID}/messages`, {
+          sender_type: 'agent',
+          private: true,
+          message: `<p>admin-note-${stamp}</p>`,
+          attachments: [],
+          mentions: [],
+          to: [],
+          cc: [],
+          bcc: []
+        }).then(({ body }) => {
+          adminNoteUUID = body.data.uuid
+        })
       })
     })
 
@@ -184,6 +214,19 @@ describe('Private note permissions', () => {
       })
       sendMessage(combination, true).then((response) => {
         expectPermissionResult(response, combination.canPrivateNote)
+        if (combination.canPrivateNote) {
+          deleteMessage(response.body.data.uuid).its('status').should('eq', 200)
+        } else {
+          deleteMessage(adminNoteUUID).then((deleteResponse) => {
+            expectPermissionResult(deleteResponse, false)
+          })
+        }
+      })
+
+      // AI is not configured in CI, so an allowed agent fails later than the permission gate.
+      summarize().then((response) => {
+        if (combination.canPrivateNote) expect(response.status).to.not.eq(403)
+        else expectPermissionResult(response, false)
       })
 
       openConversation()
@@ -198,6 +241,23 @@ describe('Private note permissions', () => {
       if (!combination.canReply && combination.canPrivateNote) {
         cy.contains('button', /^Private note$/).should('have.attr', 'data-state', 'active')
       }
+
+      cy.get('button.w-11.h-11.p-0').click()
+      cy.contains('[role="menuitem"]', 'Download transcript').should('exist')
+      cy.contains('[role="menuitem"]', 'Summarize with AI').should(
+        combination.canPrivateNote ? 'exist' : 'not.exist'
+      )
+
+      cy.get('body').type('{esc}')
+      cy.contains('button', 'Juno').click()
+      cy.wait('@loadCopilot')
+      cy.contains('copilot answer')
+        .closest('.flex.flex-col.gap-1')
+        .find('button')
+        .should(
+          'have.length',
+          1 + Number(combination.canReply) + Number(combination.canPrivateNote)
+        )
     })
   })
 })
