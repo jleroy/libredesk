@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
@@ -198,6 +199,10 @@ func handleSendMessage(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 
+	if !canCreateConversationMessage(user, req) {
+		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
+	}
+
 	// Make sure the inbox is enabled.
 	inbox, err := app.inbox.GetDBRecord(conv.InboxID)
 	if err != nil {
@@ -302,4 +307,13 @@ func resolveQuotedCIDs(app *App, msg *cmodels.Message) {
 		url := app.media.GetURL(ref.UUID, ref.ContentType, ref.Filename)
 		msg.Content = strings.ReplaceAll(msg.Content, "cid:"+ref.ContentID, url)
 	}
+}
+
+// canCreateConversationMessage returns whether the user may create a message of the requested visibility.
+func canCreateConversationMessage(user umodels.User, req messageReq) bool {
+	requiredPermission := authzModels.PermMessagesWrite
+	if req.Private {
+		requiredPermission = authzModels.PermMessagesWritePrivate
+	}
+	return slices.Contains(user.Permissions, requiredPermission)
 }
