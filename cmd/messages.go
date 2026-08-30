@@ -25,16 +25,6 @@ type messageReq struct {
 	EchoID      string                 `json:"echo_id"`
 }
 
-// canCreateConversationMessage selects the permission based on the requested
-// message visibility. Contact impersonation has an additional permission check.
-func canCreateConversationMessage(user umodels.User, req messageReq) bool {
-	requiredPermission := authzModels.PermMessagesWrite
-	if req.Private {
-		requiredPermission = authzModels.PermMessagesWritePrivate
-	}
-	return slices.Contains(user.Permissions, requiredPermission)
-}
-
 // handleGetMessages returns messages for a conversation.
 func handleGetMessages(r *fastglue.Request) error {
 	var (
@@ -317,4 +307,13 @@ func resolveQuotedCIDs(app *App, msg *cmodels.Message) {
 		url := app.media.GetURL(ref.UUID, ref.ContentType, ref.Filename)
 		msg.Content = strings.ReplaceAll(msg.Content, "cid:"+ref.ContentID, url)
 	}
+}
+
+// canCreateConversationMessage returns whether the user may create a message of the requested visibility.
+func canCreateConversationMessage(user umodels.User, req messageReq) bool {
+	requiredPermission := authzModels.PermMessagesWrite
+	if req.Private {
+		requiredPermission = authzModels.PermMessagesWritePrivate
+	}
+	return slices.Contains(user.Permissions, requiredPermission)
 }
