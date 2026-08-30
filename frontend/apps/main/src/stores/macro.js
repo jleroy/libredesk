@@ -43,13 +43,14 @@ export const useMacroStore = defineStore('macroStore', () => {
         }
 
         // Filter macros based on permissions.
-        filtered.forEach(macro => {
-            macro.actions = macro.actions.filter(action => {
+        filtered = filtered.map(macro => ({
+            ...macro,
+            actions: macro.actions.filter(action => {
                 const permission = actionPermissions[action.type]
                 if (!permission) return true
                 return userStore.can(permission)
             })
-        })
+        }))
 
         // Skip macros that do not have any actions left AND the macro field `message_content` is empty.
         filtered = filtered.filter(macro => !(macro.actions.length === 0 && macro.message_content === ""))
