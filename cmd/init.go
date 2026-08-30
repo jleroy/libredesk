@@ -860,7 +860,8 @@ func reloadAuth(app *App) error {
 	app.lo.Info("reloading auth manager")
 	providers, err := buildProviders(app.oidc)
 	if err != nil {
-		log.Fatalf("error reloading auth: %v", err)
+		app.lo.Error("error reloading auth", "error", err)
+		return err
 	}
 	if err := app.auth.Reload(auth_.Config{Providers: providers}); err != nil {
 		app.lo.Error("error reloading auth", "error", err)
@@ -881,16 +882,11 @@ func buildProviders(o *oidc.Manager) ([]auth_.Provider, error) {
 		if !config.Enabled {
 			continue
 		}
-		// Capture the redirect URL as a closure over the live root URL rather
-		// than the value at build time, so a Root URL change takes effect
-		// without an explicit reload. Other fields (client ID, provider URL)
-		// are still snapshotted and refreshed by reloadAuth on OIDC changes.
-		providerID := config.ID
 		providers = append(providers, auth_.Provider{
 			ID:           config.ID,
 			Provider:     config.Provider,
 			ProviderURL:  config.ProviderURL,
-			RedirectURL:  func() (string, error) { return o.RedirectURL(providerID) },
+			RedirectURL:  func() (string, error) { return o.RedirectURL(config.ID) },
 			ClientID:     config.ClientID,
 			ClientSecret: config.ClientSecret,
 		})

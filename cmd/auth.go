@@ -25,9 +25,8 @@ const (
 )
 
 var (
-	oidcStateSessKey       = "oidc_state"
-	oidcNextSessKey        = "oidc_next"
-	oidcRedirectURISessKey = "oidc_redirect_uri"
+	oidcStateSessKey = "oidc_state"
+	oidcNextSessKey  = "oidc_next"
 )
 
 // handleOIDCLogin redirects to the OIDC provider for login.
@@ -60,17 +59,9 @@ func handleOIDCLogin(r *fastglue.Request) error {
 		return redirectLoginError(r, oidcErrLoginFailed, next)
 	}
 
-	authURL, redirectURI, err := app.auth.LoginURL(providerID, state)
+	authURL, err := app.auth.LoginURL(providerID, state)
 	if err != nil {
 		app.lo.Error("error getting oidc login url", "provider_id", providerID, "error", err)
-		return redirectLoginError(r, oidcErrLoginFailed, next)
-	}
-	// Persist the redirect URI used at login so the callback's token exchange
-	// sends the same one (RFC 6749 4.1.3). It is resolved live from the current
-	// root URL, so a Root URL change between login and callback would otherwise
-	// produce a mismatch the IdP rejects.
-	if err = app.auth.SetSessionValues(r, map[string]any{oidcRedirectURISessKey: redirectURI}); err != nil {
-		app.lo.Error("error saving redirect uri in session", "error", err)
 		return redirectLoginError(r, oidcErrLoginFailed, next)
 	}
 	app.lo.Debug("redirecting to oidc provider for login", "provider_id", providerID)
@@ -118,22 +109,7 @@ func handleOIDCCallback(r *fastglue.Request) error {
 		return redirectLoginError(r, oidcErrSessionExpired, nextStr)
 	}
 
-	// Reuse the redirect URI stored at login so the token exchange sends the
-	// same one the provider saw (RFC 6749 4.1.3). A missing or unreadable value
-	// means the session is stale or login never completed, so fail the same
-	// way as a state mismatch rather than sending an empty redirect_uri.
-	storedRedirectURI, err := app.auth.GetSessionValue(r, oidcRedirectURISessKey)
-	if err != nil {
-		app.lo.Error("error getting oidc redirect uri from session", "provider_id", providerID, "error", err)
-		return redirectLoginError(r, oidcErrSessionExpired, nextStr)
-	}
-	redirectURI, ok := storedRedirectURI.(string)
-	if !ok || redirectURI == "" {
-		app.lo.Error("oidc redirect uri missing from session", "provider_id", providerID)
-		return redirectLoginError(r, oidcErrSessionExpired, nextStr)
-	}
-
-	_, claims, err := app.auth.ExchangeOIDCToken(r.RequestCtx, providerID, code, redirectURI)
+	_, claims, err := app.auth.ExchangeOIDCToken(r.RequestCtx, providerID, code)
 	if err != nil {
 		if errors.Is(err, auth_.ErrOIDCInvalidClient) {
 			return redirectLoginError(r, oidcErrInvalidClient, nextStr)
