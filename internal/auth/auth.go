@@ -212,17 +212,6 @@ func (a *Auth) LoginURL(providerID int, state string) (string, error) {
 	oauthCfg.RedirectURL = redirectURL
 	return oauthCfg.AuthCodeURL(state), nil
 }
-
-// resolveRedirectURL reads the provider's redirect URL from the current root URL setting.
-func (a *Auth) resolveRedirectURL(providerID int) (string, error) {
-	fn, ok := a.redirectURLs[providerID]
-	if !ok || fn == nil {
-		return "", fmt.Errorf("no redirect URL resolver for provider: %d", providerID)
-	}
-	return fn()
-}
-
-// ExchangeOIDCToken takes an OIDC authorization code, validates it, and returns an OIDC token for subsequent auth.
 func (a *Auth) ExchangeOIDCToken(ctx context.Context, providerID int, code string) (string, OIDCclaim, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -413,6 +402,15 @@ func (a *Auth) DestroySession(r *fastglue.Request) error {
 		return err
 	}
 	return nil
+}
+
+// resolveRedirectURL reads the provider's redirect URL from the current root URL setting.
+func (a *Auth) resolveRedirectURL(providerID int) (string, error) {
+	fn, ok := a.redirectURLs[providerID]
+	if !ok || fn == nil {
+		return "", fmt.Errorf("no redirect URL resolver for provider: %d", providerID)
+	}
+	return fn()
 }
 
 // generateCSRFToken creates a random base64 encoded str.
