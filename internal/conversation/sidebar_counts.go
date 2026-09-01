@@ -24,8 +24,10 @@ const sidebarCountsScanCap = 100
 // GetSidebarCounts returns open counts for the standard inboxes and a count per accessible view.
 func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, teamIDs []int, views []vmodels.View) (models.SidebarCounts, error) {
 	out := models.SidebarCounts{Views: map[int]int{}}
+	ctx, cancel := context.WithTimeout(context.Background(), sidebarCountsQueryTimeout)
+	defer cancel()
 
-	if err := c.fillStandardSidebarCounts(&out, viewingUserID, permissions); err != nil {
+	if err := c.fillStandardSidebarCounts(ctx, &out, viewingUserID, permissions); err != nil {
 		return out, err
 	}
 
@@ -42,7 +44,7 @@ func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, team
 	}
 	for start := 0; start < len(accessible); start += sidebarCountsViewBatchSize {
 		batch := accessible[start:min(start+sidebarCountsViewBatchSize, len(accessible))]
-		viewCounts, err := c.getViewCounts(viewingUserID, teamIDs, lists, batch)
+		viewCounts, err := c.getViewCounts(ctx, viewingUserID, teamIDs, lists, batch)
 		if err != nil {
 			return out, err
 		}
@@ -51,7 +53,7 @@ func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, team
 	return out, nil
 }
 
-func (c *Manager) fillStandardSidebarCounts(out *models.SidebarCounts, userID int, permissions []string) error {
+func (c *Manager) fillStandardSidebarCounts(ctx context.Context, out *models.SidebarCounts, userID int, permissions []string) error {
 	var row struct {
 		Assigned   int `db:"assigned"`
 		Unassigned int `db:"unassigned"`
@@ -59,7 +61,7 @@ func (c *Manager) fillStandardSidebarCounts(out *models.SidebarCounts, userID in
 		All        int `db:"all"`
 	}
 
-	if err := c.q.GetSidebarStandardCounts.Get(&row, userID); err != nil {
+	if err := c.q.GetSidebarStandardCounts.GetContext(ctx, &row, userID); err != nil {
 		c.lo.Error("error fetching sidebar standard counts", "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -80,7 +82,7 @@ func (c *Manager) fillStandardSidebarCounts(out *models.SidebarCounts, userID in
 }
 
 // getViewCounts returns the conversation count per view ID in one round trip.
-func (c *Manager) getViewCounts(userID int, teamIDs []int, listTypes []string, views []vmodels.View) (map[int]int, error) {
+func (c *Manager) getViewCounts(ctx context.Context, userID int, teamIDs []int, listTypes []string, views []vmodels.View) (map[int]int, error) {
 	counts := map[int]int{}
 	if len(views) == 0 {
 		return counts, nil
@@ -96,8 +98,6 @@ func (c *Manager) getViewCounts(userID int, teamIDs []int, listTypes []string, v
 		ViewID int `db:"view_id"`
 		Count  int `db:"count"`
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), sidebarCountsQueryTimeout)
-	defer cancel()
 	if err := c.db.SelectContext(ctx, &rows, query, qArgs...); err != nil {
 		c.lo.Error("error fetching view counts", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
