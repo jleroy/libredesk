@@ -58,6 +58,7 @@ type createConversationRequest struct {
 	Content          string         `json:"content"`
 	Attachments      []int          `json:"attachments"`
 	Initiator        string         `json:"initiator"` // "contact" | "agent"
+	SourceID         string         `json:"source_id"` // RFC 5322 Message-ID of the inbound message; stored on the created contact message so replies thread on it. Contact-initiated only.
 	CustomAttributes map[string]any `json:"custom_attributes"`
 }
 
@@ -882,7 +883,7 @@ func handleCreateConversation(r *fastglue.Request) error {
 		}
 	case umodels.UserTypeContact:
 		// Create contact message.
-		if _, err := app.conversation.CreateContactMessage(media, contact.ID, conversationUUID, req.Content, cmodels.ContentTypeHTML, true); err != nil {
+		if _, err := app.conversation.CreateContactMessage(media, contact.ID, conversationUUID, req.Content, cmodels.ContentTypeHTML, true, req.SourceID); err != nil {
 			// Delete the conversation if message creation fails.
 			if err := app.conversation.DeleteConversation(conversationUUID); err != nil {
 				app.lo.Error("error deleting conversation", "error", err)

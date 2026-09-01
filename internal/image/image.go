@@ -72,7 +72,7 @@ func CreateThumb(thumbPxSize int, r io.ReadSeeker) (*bytes.Reader, error) {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
-	img, err := imaging.Decode(r)
+	img, err := imaging.Decode(r, imaging.AutoOrientation(true))
 	if err != nil {
 		return nil, err
 	}

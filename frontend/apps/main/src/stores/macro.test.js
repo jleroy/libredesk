@@ -12,8 +12,14 @@ vi.mock('@main/composables/useEmitter', () => ({
   useEmitter: () => ({ emit: vi.fn(), on: vi.fn(), off: vi.fn() })
 }))
 
+const userMock = vi.hoisted(() => ({ allowed: null }))
+
 vi.mock('@main/stores/user', () => ({
-  useUserStore: () => ({ teams: [], userID: 1, can: () => true })
+  useUserStore: () => ({
+    teams: [],
+    userID: 1,
+    can: (permission) => userMock.allowed === null || userMock.allowed.includes(permission)
+  })
 }))
 
 import api from '@main/api'
@@ -36,6 +42,7 @@ describe('macro store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    userMock.allowed = null
   })
 
   it('searches with the query and the current view', async () => {
@@ -155,6 +162,29 @@ describe('macro store', () => {
     await fetch
 
     expect(store.macroContents[7]).toBeUndefined()
+  })
+
+  it('restores filtered actions when permissions change', () => {
+    userMock.allowed = ['messages:write']
+    const store = useMacroStore()
+    store.searchResults = [
+      compactMacro({
+        name: 'Reply and note',
+        has_message_content: false,
+        actions: [{ type: 'send_reply' }, { type: 'send_private_note' }]
+      })
+    ]
+
+    expect(store.macroOptions[0].actions).toEqual([{ type: 'send_reply' }])
+    expect(store.searchResults[0].actions).toHaveLength(2)
+
+    userMock.allowed = ['messages:write', 'messages:write_private']
+    store.searchResults = [...store.searchResults]
+
+    expect(store.macroOptions[0].actions).toEqual([
+      { type: 'send_reply' },
+      { type: 'send_private_note' }
+    ])
   })
 
   it('clears results and cached content on clearCache', async () => {

@@ -9,12 +9,14 @@
       <Tabs v-model="messageType" class="rounded-lg">
         <TabsList class="rounded-lg border bg-muted/50 p-0.5">
           <TabsTrigger
+            v-if="canSendReply"
             value="reply"
             :class="TAB_TRIGGER_CLASS"
           >
             {{ $t('globals.terms.reply') }}
           </TabsTrigger>
           <TabsTrigger
+            v-if="canSendPrivateNote"
             value="private_note"
             :class="TAB_TRIGGER_CLASS"
           >
@@ -247,6 +249,14 @@ const props = defineProps({
   isGenerating: {
     type: Boolean,
     default: false
+  },
+  canSendReply: {
+    type: Boolean,
+    required: true
+  },
+  canSendPrivateNote: {
+    type: Boolean,
+    required: true
   }
 })
 

@@ -84,6 +84,7 @@ const { editor, extractMentions, focus } = useTextEditor({
   isInlineEnabled: () => props.enableInlineImages,
   linkedModel: props.linkedModel,
   getSuggestions: props.getSuggestions,
+  enableMentions: () => props.enableMentions,
   onSend: () => {
     emit('send')
     stopTyping()

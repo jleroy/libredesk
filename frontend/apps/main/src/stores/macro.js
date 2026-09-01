@@ -24,7 +24,7 @@ export const useMacroStore = defineStore('macroStore', () => {
         assign_user: perms.CONVERSATIONS_UPDATE_USER_ASSIGNEE,
         set_status: perms.CONVERSATIONS_UPDATE_STATUS,
         set_priority: perms.CONVERSATIONS_UPDATE_PRIORITY,
-        send_private_note: perms.MESSAGES_WRITE,
+        send_private_note: perms.MESSAGES_WRITE_PRIVATE,
         send_reply: perms.MESSAGES_WRITE,
         add_tags: perms.CONVERSATIONS_UPDATE_TAGS,
         set_tags: perms.CONVERSATIONS_UPDATE_TAGS,

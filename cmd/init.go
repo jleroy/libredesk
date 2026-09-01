@@ -860,7 +860,8 @@ func reloadAuth(app *App) error {
 	app.lo.Info("reloading auth manager")
 	providers, err := buildProviders(app.oidc)
 	if err != nil {
-		log.Fatalf("error reloading auth: %v", err)
+		app.lo.Error("error reloading auth", "error", err)
+		return err
 	}
 	if err := app.auth.Reload(auth_.Config{Providers: providers}); err != nil {
 		app.lo.Error("error reloading auth", "error", err)
@@ -885,7 +886,7 @@ func buildProviders(o *oidc.Manager) ([]auth_.Provider, error) {
 			ID:           config.ID,
 			Provider:     config.Provider,
 			ProviderURL:  config.ProviderURL,
-			RedirectURL:  config.RedirectURI,
+			RedirectURL:  func() (string, error) { return o.RedirectURL(config.ID) },
 			ClientID:     config.ClientID,
 			ClientSecret: config.ClientSecret,
 		})

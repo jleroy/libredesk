@@ -553,13 +553,17 @@ func (c *Manager) MarkAsUnread(uuid string, userID int) error {
 
 // UpdateContactLastSeen updates the last seen timestamp of the contact in the conversation.
 func (c *Manager) UpdateConversationContactLastSeen(uuid string) error {
-	if _, err := c.q.UpdateConversationContactLastSeen.Exec(uuid); err != nil {
+	var lastSeenAt time.Time
+	if err := c.q.UpdateConversationContactLastSeen.Get(&lastSeenAt, uuid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		c.lo.Error("error updating contact last seen timestamp", "conversation_id", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	// Broadcast the property update to all subscribers.
-	c.BroadcastConversationUpdate(uuid, map[string]any{"contact_last_seen_at": time.Now().Format(time.RFC3339)})
+	c.BroadcastConversationUpdate(uuid, map[string]any{"contact_last_seen_at": lastSeenAt.Format(time.RFC3339Nano)})
 	return nil
 }
 
