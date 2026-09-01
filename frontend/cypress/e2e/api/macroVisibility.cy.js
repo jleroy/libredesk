@@ -8,6 +8,10 @@ const agentTwoEmail = `macro.vis.two.${stamp}@example.com`
 
 const macroName = (suffix) => `${prefix} ${suffix}`
 
+const viewPrefix = `macro-view-${stamp}`
+const views = ['replying', 'starting_conversation', 'adding_private_note']
+const viewMacroName = (suffix) => `${viewPrefix} ${suffix}`
+
 const createTeam = (name) =>
   cy.api('POST', '/api/v1/teams', {
     name,
@@ -104,6 +108,16 @@ describe('API: macro visibility scoping', () => {
         }).then(({ body }) => macroIds.push(body.data.id))
       })
     })
+
+    views.concat('every view').forEach((suffix) => {
+      cy.api('POST', '/api/v1/macros', {
+        name: viewMacroName(suffix),
+        message_content: `<p>${suffix}</p>`,
+        visibility: 'all',
+        visible_when: suffix === 'every view' ? views : [suffix],
+        actions: []
+      }).then(({ body }) => macroIds.push(body.data.id))
+    })
   })
 
   after(() => {
@@ -138,5 +152,27 @@ describe('API: macro visibility scoping', () => {
   it('hides every scoped macro from an agent who owns none of them', () => {
     cy.login()
     searchNames().should('deep.eq', [macroName('everyone')])
+  })
+
+  it('lists every macro when no view is given', () => {
+    cy.login()
+    cy.api('GET', `/api/v1/macros/search?q=${encodeURIComponent(viewPrefix)}`).then(({ body }) => {
+      expect(body.data.map((m) => m.name).sort()).to.deep.eq(
+        views.concat('every view').map(viewMacroName).sort()
+      )
+    })
+  })
+
+  views.forEach((view) => {
+    it(`lists only the macros marked visible while ${view}`, () => {
+      cy.login()
+      cy.api('GET', `/api/v1/macros/search?q=${encodeURIComponent(viewPrefix)}&view=${view}`).then(
+        ({ body }) => {
+          expect(body.data.map((m) => m.name).sort()).to.deep.eq(
+            [viewMacroName('every view'), viewMacroName(view)].sort()
+          )
+        }
+      )
+    })
   })
 })
