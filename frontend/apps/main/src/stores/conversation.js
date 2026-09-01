@@ -52,10 +52,15 @@ export const useConversationStore = defineStore('conversation', () => {
   // `force` skips the TTL for events that are known to change the counts.
   const SIDEBAR_COUNTS_TTL = 45_000
   let sidebarCountsRequest = null
+  let sidebarCountsRefetchQueued = false
   let sidebarCountsFetchedAt = 0
 
   async function fetchSidebarCounts ({ force = false } = {}) {
-    if (sidebarCountsRequest) return sidebarCountsRequest
+    if (sidebarCountsRequest) {
+      // The in-flight response may predate the mutation that forced this call.
+      if (force) sidebarCountsRefetchQueued = true
+      return sidebarCountsRequest
+    }
     if (!force && Date.now() - sidebarCountsFetchedAt < SIDEBAR_COUNTS_TTL) return
 
     sidebarCountsRequest = (async () => {
@@ -73,6 +78,10 @@ export const useConversationStore = defineStore('conversation', () => {
         // Non-blocking; the sidebar works without counts.
       } finally {
         sidebarCountsRequest = null
+        if (sidebarCountsRefetchQueued) {
+          sidebarCountsRefetchQueued = false
+          fetchSidebarCounts({ force: true })
+        }
       }
     })()
 

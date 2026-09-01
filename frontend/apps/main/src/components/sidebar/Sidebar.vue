@@ -110,6 +110,7 @@ import {
 } from '@shared-ui/components/ui/alert-dialog'
 import MobileDrawerNav from './MobileDrawerNav.vue'
 import MobileDrawerFooter from './MobileDrawerFooter.vue'
+import SidebarCountBadge from './SidebarCountBadge.vue'
 import { filterNavItems } from '@main/utils/nav-permissions'
 import { permissions } from '@main/constants/permissions'
 import { useStorage } from '@vueuse/core'
@@ -251,10 +252,6 @@ const sharedViewInboxOpen = useStorage('sharedViewInboxOpen', true)
 // Track delete confirmation dialog state
 const isDeleteOpen = ref(false)
 const viewToDelete = ref(null)
-
-const showSidebarCount = (count) => count > 0
-
-const formatSidebarCount = (count) => (count > 99 ? '99+' : String(count))
 
 const viewSidebarCount = (viewID) => {
   return conversationStore.sidebarCounts.views?.[String(viewID)] ?? 0
@@ -490,14 +487,10 @@ onMounted(() => {
                 <SidebarMenuButton :isActive="isActiveParent('/inboxes/assigned')" @click="navigateToInbox('assigned')">
                     <User />
                     <span class="flex-1 truncate">{{ t('globals.terms.myInbox') }}</span>
-                    <Badge
-                      v-if="showSidebarCount(conversationStore.sidebarCounts.assigned)"
-                      variant="secondary"
-                      class="ml-auto shrink-0 tabular-nums"
-                      :aria-label="t('conversation.sidebarCounts.assigned', conversationStore.sidebarCounts.assigned)"
-                    >
-                      {{ formatSidebarCount(conversationStore.sidebarCounts.assigned) }}
-                    </Badge>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.assigned"
+                      :ariaLabel="t('conversation.sidebarCounts.assigned', conversationStore.sidebarCounts.assigned)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -507,14 +500,10 @@ onMounted(() => {
                     <span class="flex-1 truncate">
                       {{ t('globals.terms.mention', 2) }}
                     </span>
-                    <Badge
-                      v-if="showSidebarCount(conversationStore.sidebarCounts.mentioned)"
-                      variant="secondary"
-                      class="ml-auto shrink-0 tabular-nums"
-                      :aria-label="t('conversation.sidebarCounts.mentioned', conversationStore.sidebarCounts.mentioned)"
-                    >
-                      {{ formatSidebarCount(conversationStore.sidebarCounts.mentioned) }}
-                    </Badge>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.mentioned"
+                      :ariaLabel="t('conversation.sidebarCounts.mentioned', conversationStore.sidebarCounts.mentioned)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -524,14 +513,10 @@ onMounted(() => {
                     <span class="flex-1 truncate">
                       {{ t('globals.terms.unassigned') }}
                     </span>
-                    <Badge
-                      v-if="showSidebarCount(conversationStore.sidebarCounts.unassigned)"
-                      variant="secondary"
-                      class="ml-auto shrink-0 tabular-nums"
-                      :aria-label="t('conversation.sidebarCounts.unassigned', conversationStore.sidebarCounts.unassigned)"
-                    >
-                      {{ formatSidebarCount(conversationStore.sidebarCounts.unassigned) }}
-                    </Badge>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.unassigned"
+                      :ariaLabel="t('conversation.sidebarCounts.unassigned', conversationStore.sidebarCounts.unassigned)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -541,14 +526,10 @@ onMounted(() => {
                     <span class="flex-1 truncate">
                       {{ t('globals.messages.all') }}
                     </span>
-                    <Badge
-                      v-if="showSidebarCount(conversationStore.sidebarCounts.all)"
-                      variant="secondary"
-                      class="ml-auto shrink-0 tabular-nums"
-                      :aria-label="t('conversation.sidebarCounts.all', conversationStore.sidebarCounts.all)"
-                    >
-                      {{ formatSidebarCount(conversationStore.sidebarCounts.all) }}
-                    </Badge>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.all"
+                      :ariaLabel="t('conversation.sidebarCounts.all', conversationStore.sidebarCounts.all)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -616,23 +597,20 @@ onMounted(() => {
                       >
                         <SidebarMenuButton
                           size="sm"
+                          class="group-has-[[data-sidebar=menu-action]]/menu-item:pr-7"
                           :isActive="route.params.viewID == view.id"
                           @click="navigateToViewInbox(view.id)"
                         >
                           <span class="flex-1 truncate" :title="view.name">{{ view.name }}</span>
-                          <Badge
-                            v-if="showSidebarCount(viewSidebarCount(view.id))"
-                            variant="secondary"
-                            class="ml-auto tabular-nums shrink-0"
-                            :aria-label="t('conversation.sidebarCounts.view', viewSidebarCount(view.id))"
-                          >
-                            {{ formatSidebarCount(viewSidebarCount(view.id)) }}
-                          </Badge>
+                          <SidebarCountBadge
+                            :count="viewSidebarCount(view.id)"
+                            :ariaLabel="t('conversation.sidebarCounts.view', viewSidebarCount(view.id))"
+                          />
                         </SidebarMenuButton>
                         <DropdownMenu>
                           <DropdownMenuTrigger as-child>
                             <SidebarMenuAction
-                              class="mr-3 can-hover:opacity-0 can-hover:group-hover/view-item:opacity-100 data-[state=open]:opacity-100"
+                              class="mr-1 can-hover:opacity-0 can-hover:group-hover/view-item:opacity-100 data-[state=open]:opacity-100"
                               @click.prevent
                             >
                               <EllipsisVertical />
@@ -683,14 +661,10 @@ onMounted(() => {
                           <span class="flex-1 truncate" :title="view.name">{{
                             view.name
                           }}</span>
-                          <Badge
-                            v-if="showSidebarCount(viewSidebarCount(view.id))"
-                            variant="secondary"
-                            class="ml-auto tabular-nums shrink-0"
-                            :aria-label="t('conversation.sidebarCounts.view', viewSidebarCount(view.id))"
-                          >
-                            {{ formatSidebarCount(viewSidebarCount(view.id)) }}
-                          </Badge>
+                          <SidebarCountBadge
+                            :count="viewSidebarCount(view.id)"
+                            :ariaLabel="t('conversation.sidebarCounts.view', viewSidebarCount(view.id))"
+                          />
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>

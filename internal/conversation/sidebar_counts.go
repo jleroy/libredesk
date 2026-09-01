@@ -18,11 +18,14 @@ import (
 const sidebarCountsMaxViews = 50
 const sidebarCountsQueryTimeout = 10 * time.Second
 
-// conversationsCountBaseQuery counts conversations matching list-type/view filters.
+// sidebarCountsScanCap bounds each view count's scan, the UI shows anything above 99 as "99+".
+const sidebarCountsScanCap = 100
+
+// conversationsCountBaseQuery matches conversations against list-type/view filters.
 // Unlike the standard inbox badges, view counts intentionally do NOT force
 // category='open' — the badge must match whatever the view's own filters return.
 const conversationsCountBaseQuery = `
-SELECT COUNT(*)
+SELECT 1
 FROM conversations
 JOIN users ON contact_id = users.id
 JOIN inboxes ON inbox_id = inboxes.id
@@ -106,7 +109,6 @@ func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, team
 		return out, err
 	}
 	out.Views = viewCounts
-
 	return out, nil
 }
 
@@ -185,7 +187,7 @@ func (c *Manager) makeViewCountsQuery(userID int, teamIDs []int, listTypes []str
 			return "", nil, err
 		}
 		// view.ID comes from the database, so it is safe to inline as a literal.
-		parts = append(parts, fmt.Sprintf("SELECT %d AS view_id, (%s) AS open_count", view.ID, countQuery))
+		parts = append(parts, fmt.Sprintf("SELECT %d AS view_id, (SELECT COUNT(*) FROM (%s LIMIT %d) capped) AS open_count", view.ID, countQuery, sidebarCountsScanCap))
 		args = nextArgs
 	}
 

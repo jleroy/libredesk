@@ -105,24 +105,9 @@ func BuildPaginatedQuery(baseQuery string, existingArgs []any, opts PaginationOp
 		return "", nil, fmt.Errorf("invalid page size: %d", opts.PageSize)
 	}
 
-	root, err := parseFilters(filtersJSON)
+	query, args, err := BuildFilterQuery(baseQuery, existingArgs, filtersJSON, allowedFields, renderers, opts.Location)
 	if err != nil {
 		return "", nil, err
-	}
-
-	loc := stringutil.NormalizeTimezone(opts.Location)
-
-	whereClause, filterArgs, err := buildWhereClause(root, existingArgs, allowedFields, renderers, loc)
-	if err != nil {
-		return "", nil, err
-	}
-
-	query := baseQuery
-	args := existingArgs
-
-	if whereClause != "" {
-		query += " AND " + whereClause
-		args = append(args, filterArgs...)
 	}
 
 	if opts.OrderBy != "" {

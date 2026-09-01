@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
-	authzModels "github.com/abhinavxd/libredesk/internal/authz/models"
 	"github.com/abhinavxd/libredesk/internal/automation/models"
+	"github.com/abhinavxd/libredesk/internal/conversation"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
@@ -203,46 +202,11 @@ func handleGetViewConversations(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 
-	hasAccess := false
-	switch view.Visibility {
-	case vmodels.VisibilityUser:
-		hasAccess = view.UserID != nil && *view.UserID == auser.ID
-	case vmodels.VisibilityAll:
-		hasAccess = true
-	case vmodels.VisibilityTeam:
-		if view.TeamID != nil {
-			hasAccess = slices.Contains(user.Teams.IDs(), *view.TeamID)
-		}
-	}
-
-	if !hasAccess {
+	if !conversation.UserCanAccessView(view, auser.ID, user.Teams.IDs()) {
 		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("conversation.viewPermissionDenied"), nil, envelope.PermissionError)
 	}
 
-	// Prepare lists user has access to based on user permissions, internally this prepares the SQL query.
-	lists := []string{}
-	hasTeamAll := slices.Contains(user.Permissions, authzModels.PermConversationsReadTeamAll)
-	for _, perm := range user.Permissions {
-		if perm == authzModels.PermConversationsReadAll {
-			// No further lists required as user has access to all conversations.
-			lists = []string{cmodels.AllConversations}
-			break
-		}
-		if perm == authzModels.PermConversationsReadUnassigned {
-			lists = append(lists, cmodels.UnassignedConversations)
-		}
-		if perm == authzModels.PermConversationsReadAssigned {
-			lists = append(lists, cmodels.AssignedConversations)
-		}
-		// Skip TeamUnassignedConversations if user has TeamAllConversations (superset).
-		if perm == authzModels.PermConversationsReadTeamInbox && !hasTeamAll {
-			lists = append(lists, cmodels.TeamUnassignedConversations)
-		}
-		if perm == authzModels.PermConversationsReadTeamAll {
-			lists = append(lists, cmodels.TeamAllConversations)
-		}
-	}
-
+	lists := conversation.ListsForUserPermissions(user.Permissions)
 	// No lists found, user doesn't have access to any conversations.
 	if len(lists) == 0 {
 		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("status.deniedPermission"), nil, envelope.PermissionError)
