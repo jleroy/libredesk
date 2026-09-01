@@ -12,7 +12,7 @@ import { playNotificationSound } from '@shared-ui/composables/useNotificationSou
 import MessageCache from '../utils/conversation-message-cache'
 import { getI18n } from '../i18n'
 import { CONVERSATION_LIST_TYPE, CONVERSATION_DEFAULT_STATUSES, TAG_ACTION } from '@/constants/conversation'
-import { useThrottleFn } from '@vueuse/core'
+import { useThrottleFn, useStorage } from '@vueuse/core'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import { delayedLoading } from '@/utils/delayed-loading'
@@ -145,6 +145,12 @@ export const useConversationStore = defineStore('conversation', () => {
     priority_first: 'conversation.sort.priorityFirst'
   }
 
+  const persistedListStatus = useStorage('conversationListStatus', CONVERSATION_DEFAULT_STATUSES.OPEN)
+  const persistedListSortField = useStorage('conversationListSortField', 'newest')
+  if (!sortFieldMap[persistedListSortField.value]) {
+    persistedListSortField.value = 'newest'
+  }
+
   let typingTimeout = null
   const typingByUUID = reactive({})
   const typingTimeoutsByUUID = new Map()
@@ -152,8 +158,8 @@ export const useConversationStore = defineStore('conversation', () => {
   const conversations = reactive({
     data: [],
     listType: null,
-    status: 'Open',
-    sortField: 'newest',
+    status: persistedListStatus.value,
+    sortField: persistedListSortField.value,
     listFilters: [],
     viewID: 0,
     teamID: 0,
@@ -205,6 +211,10 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function setListStatus (status, fetch = true) {
     conversations.status = status
+    // Views clear the status, so only a real selection updates the remembered one.
+    if (status) {
+      persistedListStatus.value = status
+    }
     if (fetch) {
       resetConversations()
       reFetchConversationsList()
@@ -218,6 +228,7 @@ export const useConversationStore = defineStore('conversation', () => {
   function setListSortField (field) {
     if (conversations.sortField === field) return
     conversations.sortField = field
+    persistedListSortField.value = field
     resetConversations()
     reFetchConversationsList()
   }
@@ -237,6 +248,10 @@ export const useConversationStore = defineStore('conversation', () => {
         ...status,
         id: status.id.toString()
       }))
+      // A remembered status can point at one that has since been deleted.
+      if (conversations.status && !statuses.value.some(s => s.name === conversations.status)) {
+        setListStatus(CONVERSATION_DEFAULT_STATUSES.OPEN)
+      }
     } catch (error) {
       emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
         variant: 'destructive',
@@ -768,8 +783,12 @@ export const useConversationStore = defineStore('conversation', () => {
 
   async function updateAssignee (type, v) {
     try {
+      const teamChanged =
+        type === 'team' && Number(conversation.data.assigned_team_id) !== Number(v.assignee_id)
       await api.updateAssignee(conversation.data.uuid, type, v)
       conversation.data[`assigned_${type}_id`] = v.assignee_id
+      // Backend clears the user assignee when the team changes.
+      if (teamChanged) conversation.data.assigned_user_id = null
     } catch (error) {
       emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
         variant: 'destructive',

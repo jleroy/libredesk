@@ -223,10 +223,11 @@ watch(
       messageType.value = defaultMessageType.value
       return
     }
-    messageType.value = resolveAllowedDraftType(uuid)
+    const initialType = resolveAllowedDraftType(uuid)
+    messageType.value = initialType
     // Prefetch may still be in flight on first load; re-resolve once drafts land.
     await conversationStore.draftsReady
-    if (uuid !== currentConversationUUID.value) return
+    if (uuid !== currentConversationUUID.value || messageType.value !== initialType) return
     messageType.value = resolveAllowedDraftType(uuid)
   },
   { immediate: true }

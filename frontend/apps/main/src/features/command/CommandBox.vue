@@ -4,15 +4,25 @@
     v-model:search-term="searchTerm"
     :filter-function="isMacroMode ? passThroughFilter : undefined"
     @update:open="toggleOpen"
-    class="transform-gpu z-[51] !min-w-[50vw]"
+    :class="[
+      'z-[51] !top-[44%] !w-[calc(100%-1.5rem)] !min-w-0 gap-0 rounded-lg border-border/80 bg-popover shadow-lg [&>button]:right-3 [&>button]:top-3 [&>button]:rounded-md [&>button]:bg-muted/70 [&>button]:opacity-60 [&>button]:hover:opacity-100',
+      isMacroMode ? '!max-w-5xl' : '!max-w-2xl'
+    ]"
+    command-class="rounded-lg bg-popover [&_[cmdk-input-wrapper]]:h-14 [&_[cmdk-input-wrapper]]:border-border/70 [&_[cmdk-input-wrapper]]:px-4 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-14 [&_[cmdk-input]]:pr-10 [&_[cmdk-input]]:text-base [&_[cmdk-group]]:py-2 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:pt-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-item]]:mx-0.5 [&_[cmdk-item]]:rounded-md [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2 [&_[cmdk-item]]:transition-colors [&_[cmdk-item]]:duration-150"
   >
     <CommandInput :placeholder="t('command.typeCmdOrSearch')" @keydown="onInputKeydown" />
     <CommandList
-      class="!min-h-[50vh] h-[50vh] !min-w-[50vw]"
-      :class="{ 'overflow-hidden': nestedCommand === 'apply-macro' }"
+      :class="[
+        isMacroMode
+          ? 'h-[50vh] min-h-[50vh] min-w-[50vw] overflow-hidden [&>div]:h-full'
+          : 'h-auto min-h-[220px] max-h-[min(52vh,440px)]',
+        { 'overflow-hidden': nestedCommand === 'apply-macro' }
+      ]"
     >
-      <CommandEmpty>
-        <p class="text-sm text-muted-foreground">{{ $t('command.noCommandAvailable') }}</p>
+      <CommandEmpty v-if="!isMacroMode || !macroStore.searchLoading">
+        <p class="text-sm text-muted-foreground">
+          {{ $t(isMacroMode ? 'globals.messages.noResultsFound' : 'command.noCommandAvailable') }}
+        </p>
       </CommandEmpty>
 
       <!-- Snooze Options -->
@@ -47,12 +57,18 @@
       </CommandGroup>
 
       <!-- Macros -->
-      <div v-if="isMacroMode">
-        <CommandGroup :heading="$t('actions.applyMacro')">
-          <div class="min-h-[400px]">
-            <div class="h-[60vh] grid grid-cols-12">
-              <!-- Left Column: Macro List (30%) -->
-              <div ref="macroListRef" class="col-span-4 pr-2 border-r overflow-y-auto h-full">
+      <div v-if="isMacroMode" class="h-full">
+        <!-- Mounted only with results: radix's group counts its items once on mount and stays hidden when they arrive async. -->
+        <CommandGroup
+          v-if="visibleMacros.length"
+          class="flex h-full min-h-0 flex-col"
+        >
+          <div class="min-h-0 flex-1">
+            <div class="grid h-full min-h-0 grid-cols-12">
+              <div
+                ref="macroListRef"
+                class="col-span-4 h-full min-h-0 overflow-y-auto border-r border-border/70 pr-2"
+              >
                 <CommandItem
                   v-for="(macro, index) in visibleMacros"
                   :key="macro.value"
@@ -60,10 +76,9 @@
                   :data-index="index"
                   @select="handleApplyMacro(macro)"
                   @pointerenter="highlightedMacro = macro"
-                  class="px-2 py-2 rounded-md cursor-pointer transition-colors duration-150 hover:bg-accent"
+                  class="cursor-pointer"
                 >
-                  <div class="flex items-center gap-2">
-                    <Zap :size="16" class="shrink-0" />
+                  <div class="flex min-w-0 items-center">
                     <span class="text-sm w-full break-words whitespace-normal">{{
                       macro.label
                     }}</span>
@@ -71,35 +86,35 @@
                 </CommandItem>
               </div>
 
-              <!-- Right Column: Macro Details (70%) -->
-              <div class="col-span-8 px-4 overflow-y-auto h-full pb-6">
-                <div class="space-y-3 text-sm">
-                  <!-- Reply Preview -->
-                  <div v-if="replyContent" class="space-y-2">
-                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <div class="col-span-8 h-full min-h-0 overflow-y-auto px-5 pb-5 pt-2">
+                <div class="flex min-h-full flex-col space-y-4 text-sm">
+                  <div v-if="contentPending" class="flex flex-1 items-center justify-center">
+                    <Spinner :absolute="false" />
+                  </div>
+                  <div v-else-if="replyContent" class="space-y-2">
+                    <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       {{ $t('command.replyPreview') }}
                     </p>
                     <Letter
                       :key="highlightedMacro?.value"
                       :html="replyContent"
                       :allowedSchemas="['cid', 'https', 'http', 'mailto']"
-                      class="w-full min-h-[120px] p-3 bg-muted/30 rounded-md border overflow-auto native-html"
+                      class="native-html min-h-[120px] w-full overflow-auto rounded-lg border bg-background p-4 shadow-sm"
                     />
                   </div>
 
-                  <!-- Actions -->
                   <div v-if="otherActions.length > 0" class="space-y-2">
-                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       {{ $t('globals.terms.action', 2) }}
                     </p>
-                    <div class="space-y-1.5">
+                    <div class="grid gap-2 sm:grid-cols-2">
                       <div
                         v-for="action in otherActions"
                         :key="action.type"
-                        class="flex items-center gap-2 px-2.5 py-2 rounded-md text-sm bg-muted/50 hover:bg-accent hover:text-accent-foreground transition-colors duration-150 group"
+                        class="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm"
                       >
                         <div
-                          class="p-1 rounded-md bg-muted/30 group-hover:bg-muted/50 transition-colors duration-150"
+                          class="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-background text-muted-foreground shadow-sm"
                         >
                           <User v-if="action.type === 'assign_user'" :size="14" class="shrink-0" />
                           <Users
@@ -124,12 +139,10 @@
                     </div>
                   </div>
 
-                  <!-- Empty State -->
                   <div
-                    v-if="!replyContent && otherActions.length === 0"
-                    class="flex flex-col items-center justify-center h-32 gap-2"
+                    v-if="!contentPending && !replyContent && otherActions.length === 0"
+                    class="flex min-h-40 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20"
                   >
-                    <Zap :size="20" class="text-muted-foreground/50" />
                     <p class="text-sm text-muted-foreground">
                       {{ $t('command.selectAMacro') }}
                     </p>
@@ -163,21 +176,35 @@
     </CommandList>
 
     <!-- Navigation -->
-    <div class="flex items-center gap-4 border-t px-3 py-2">
+    <div
+      class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/70 bg-muted/30 px-4 py-2"
+    >
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Enter</kbd>
+        <kbd
+          :class="KBD_CLASS"
+          >Enter</kbd
+        >
         {{ $t('globals.terms.select') }}
       </span>
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">&uarr;&darr;</kbd>
+        <kbd
+          :class="KBD_CLASS"
+          >&uarr;&darr;</kbd
+        >
         {{ $t('command.navigate') }}
       </span>
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Esc</kbd>
+        <kbd
+          :class="KBD_CLASS"
+          >Esc</kbd
+        >
         {{ $t('globals.messages.close') }}
       </span>
       <span v-if="nestedCommand" class="flex items-center gap-1 text-xs text-muted-foreground">
-        <kbd class="inline-flex h-5 items-center rounded-md border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Backspace</kbd>
+        <kbd
+          :class="KBD_CLASS"
+          >Backspace</kbd
+        >
         {{ $t('globals.messages.back') }}
       </span>
     </div>
@@ -199,7 +226,11 @@
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0">
-            <Calendar mode="single" v-model="selectedDate" @update:model-value="datePickerOpen = false" />
+            <Calendar
+              mode="single"
+              v-model="selectedDate"
+              @update:model-value="datePickerOpen = false"
+            />
           </PopoverContent>
         </Popover>
         <div class="grid gap-2">
@@ -215,13 +246,16 @@
 </template>
 
 <script setup>
+const KBD_CLASS =
+  'inline-flex h-5 items-center rounded-sm border bg-background px-1.5 font-mono text-xs font-medium text-foreground shadow-sm'
+
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
-import { useMagicKeys } from '@vueuse/core'
+import { useMagicKeys, useDebounceFn } from '@vueuse/core'
 import { CalendarIcon } from 'lucide-vue-next'
 import { useConversationStore } from '@main/stores/conversation'
 import { useMacroStore } from '@main/stores/macro'
 import { CONVERSATION_DEFAULT_STATUSES, MACRO_CONTEXT } from '@main/constants/conversation'
-import { Users, User, Pin, Rocket, Tags, Zap } from 'lucide-vue-next'
+import { Users, User, Pin, Rocket, Tags } from 'lucide-vue-next'
 import {
   CommandDialog,
   CommandInput,
@@ -245,10 +279,10 @@ import { Button } from '@shared-ui/components/ui/button'
 import { Calendar } from '@shared-ui/components/ui/calendar'
 import { Input } from '@shared-ui/components/ui/input'
 import { Label } from '@shared-ui/components/ui/label'
+import { Spinner } from '@shared-ui/components/ui/spinner'
+import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { useI18n } from 'vue-i18n'
 import { Letter } from 'vue-letter'
-
-const RENDER_CAP = 200
 
 const conversationStore = useConversationStore()
 const macroStore = useMacroStore()
@@ -271,22 +305,18 @@ const isMacroMode = computed(
     nestedCommand.value === 'apply-macro-to-new-conversation'
 )
 
-const macroSearchIndex = computed(() =>
-  macroStore.macroOptions.map((m) => ({ macro: m, labelLower: String(m.label).toLowerCase() }))
-)
+const visibleMacros = computed(() => macroStore.macroOptions)
 
-const visibleMacros = computed(() => {
-  const term = searchTerm.value?.trim().toLowerCase()
-  const index = macroSearchIndex.value
-  if (!term) {
-    const all = macroStore.macroOptions
-    return all.length > RENDER_CAP ? all.slice(0, RENDER_CAP) : all
-  }
-  const matched = []
-  for (let i = 0; i < index.length && matched.length < RENDER_CAP; i++) {
-    if (index[i].labelLower.includes(term)) matched.push(index[i].macro)
-  }
-  return matched
+const searchMacrosDebounced = useDebounceFn(() => {
+  macroStore.searchMacros(searchTerm.value?.trim() || '')
+}, 300)
+
+watch(isMacroMode, (on) => {
+  if (on) macroStore.searchMacros(searchTerm.value?.trim() || '')
+})
+
+watch(searchTerm, () => {
+  if (isMacroMode.value) searchMacrosDebounced()
 })
 
 function preventDefaultOnHotkey(key) {
@@ -325,9 +355,29 @@ watch([Meta_M, Ctrl_M], ([mac, win]) => {
 
 const highlightedMacro = ref(null)
 
-function handleApplyMacro(macro) {
+// New search results can drop the highlighted macro without any highlight mutation firing.
+watch(visibleMacros, (macros) => {
+  if (highlightedMacro.value && !macros.some((m) => m.value === highlightedMacro.value.value)) {
+    highlightedMacro.value = null
+  }
+})
+
+async function handleApplyMacro(macro) {
+  let messageContent = ''
+  if (macro.has_message_content) {
+    try {
+      messageContent = await macroStore.fetchMacroContent(macro.id)
+    } catch (error) {
+      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+        variant: 'destructive',
+        description: handleHTTPError(error).message
+      })
+      return
+    }
+  }
   // Create a deep copy.
   const plainMacro = JSON.parse(JSON.stringify(macro))
+  plainMacro.message_content = messageContent
   if (nestedCommand.value === 'apply-macro-to-new-conversation') {
     conversationStore.setMacro(plainMacro, MACRO_CONTEXT.NEW_CONVERSATION)
   } else {
@@ -349,7 +399,29 @@ const getActionLabel = computed(() => (action) => {
   return `${prefixes[action.type]}: ${action.display_value.length > 0 ? action.display_value.join(', ') : action.value.join(', ')}`
 })
 
-const replyContent = computed(() => highlightedMacro.value?.message_content || '')
+const replyContent = computed(() => {
+  const macro = highlightedMacro.value
+  return macro ? macroStore.macroContents[macro.id] || '' : ''
+})
+
+const failedContentIDs = ref(new Set())
+
+const contentPending = computed(() => {
+  const macro = highlightedMacro.value
+  if (!macro?.has_message_content) return false
+  return !(macro.id in macroStore.macroContents) && !failedContentIDs.value.has(macro.id)
+})
+
+let contentFetchTimer = null
+
+watch(highlightedMacro, (macro) => {
+  clearTimeout(contentFetchTimer)
+  if (!macro?.has_message_content || macro.id in macroStore.macroContents) return
+  failedContentIDs.value.delete(macro.id)
+  contentFetchTimer = setTimeout(() => {
+    macroStore.fetchMacroContent(macro.id).catch(() => failedContentIDs.value.add(macro.id))
+  }, 150)
+})
 
 const otherActions = computed(
   () =>
@@ -431,9 +503,13 @@ watch(macroListRef, (el) => {
   if (!el) return
   highlightObserver = new MutationObserver(() => {
     const idx = el.querySelector('[data-highlighted]')?.getAttribute('data-index')
-    highlightedMacro.value = idx != null ? visibleMacros.value[idx] : null
+    if (idx != null) highlightedMacro.value = visibleMacros.value[idx]
   })
-  highlightObserver.observe(el, { attributes: true, attributeFilter: ['data-highlighted'], subtree: true })
+  highlightObserver.observe(el, {
+    attributes: true,
+    attributeFilter: ['data-highlighted'],
+    subtree: true
+  })
 })
 
 onMounted(() => {
@@ -443,5 +519,6 @@ onMounted(() => {
 onUnmounted(() => {
   emitter.off(EMITTER_EVENTS.SET_NESTED_COMMAND, nestedCommandHandler)
   highlightObserver?.disconnect()
+  clearTimeout(contentFetchTimer)
 })
 </script>

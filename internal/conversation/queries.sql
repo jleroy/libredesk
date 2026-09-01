@@ -292,7 +292,9 @@ SELECT
     c.id,
     c.uuid
 FROM conversations c
-WHERE c.created_at > $1;
+WHERE c.created_at > $1 AND c.id > $2
+ORDER BY c.id
+LIMIT $3;
 
 -- name: get-contact-previous-conversations
 SELECT
@@ -585,11 +587,11 @@ SET custom_attributes = $2,
     updated_at = NOW()
 WHERE uuid = $1;
 
--- name: update-conversation-waiting-since
+-- name: start-conversation-waiting-since
 UPDATE conversations
 SET waiting_since = $2,
     updated_at = NOW()
-WHERE uuid = $1;
+WHERE uuid = $1 AND waiting_since IS NULL;
 
 -- name: update-conversation-reply-timestamps
 WITH old AS (
