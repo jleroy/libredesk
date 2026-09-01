@@ -140,10 +140,13 @@ func handleMediaUpload(r *fastglue.Request) error {
 		if prepared.thumbnailErr != nil {
 			app.lo.Error("error creating thumb image", "error", prepared.thumbnailErr)
 		} else {
-			thumbName, _, err = app.media.Upload(thumbName, srcContentType, prepared.thumbnail)
+			// A failed upload returns an empty name, keep the original so cleanup can delete a partial file.
+			uploadedThumb, _, err := app.media.Upload(thumbName, srcContentType, prepared.thumbnail)
 			if err != nil {
+				cleanUp = true
 				return sendErrorEnvelope(r, err)
 			}
+			thumbName = uploadedThumb
 		}
 		meta = prepared.meta
 	}
