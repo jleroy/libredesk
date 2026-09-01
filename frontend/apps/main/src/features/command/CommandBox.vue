@@ -85,8 +85,8 @@
               </div>
 
               <div class="col-span-8 h-full min-h-0 overflow-y-auto px-5 pb-5 pt-2">
-                <div class="h-full space-y-4 text-sm">
-                  <div v-if="contentPending" class="flex items-center justify-center h-full">
+                <div class="flex min-h-full flex-col space-y-4 text-sm">
+                  <div v-if="contentPending" class="flex flex-1 items-center justify-center">
                     <Spinner :absolute="false" />
                   </div>
                   <div v-else-if="replyContent" class="space-y-2">
@@ -139,7 +139,7 @@
 
                   <div
                     v-if="!contentPending && !replyContent && otherActions.length === 0"
-                    class="flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20"
+                    class="flex min-h-40 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20"
                   >
                     <span class="grid h-9 w-9 place-items-center rounded-lg border bg-background">
                       <Zap :size="16" class="text-muted-foreground" />
