@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,20 +18,133 @@ import (
 const sidebarCountsViewBatchSize = 50
 const sidebarCountsQueryTimeout = 10 * time.Second
 
-// sidebarCountsScanCap bounds each view count's scan, the UI shows anything above 99 as "99+".
+// sidebarCountsScanCap bounds each view count's scan; the UI shows anything above 99 as "99+".
 const sidebarCountsScanCap = 100
 
-// conversationsCountBaseQuery matches conversations against list-type/view filters.
-// Unlike the standard inbox badges, view counts intentionally do NOT force
-// category='open' — the badge must match whatever the view's own filters return.
-const conversationsCountBaseQuery = `
-SELECT 1
-FROM conversations
-JOIN users ON contact_id = users.id
-JOIN inboxes ON inbox_id = inboxes.id
-LEFT JOIN conversation_statuses ON status_id = conversation_statuses.id
-WHERE TRUE
-%s`
+// GetSidebarCounts returns open counts for the standard inboxes and a count per accessible view.
+func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, teamIDs []int, views []vmodels.View) (models.SidebarCounts, error) {
+	out := models.SidebarCounts{Views: map[int]int{}}
+
+	if err := c.fillStandardSidebarCounts(&out, viewingUserID, permissions); err != nil {
+		return out, err
+	}
+
+	lists := ListsForUserPermissions(permissions)
+	if len(lists) == 0 {
+		return out, nil
+	}
+
+	accessible := make([]vmodels.View, 0, len(views))
+	for _, view := range views {
+		if UserCanAccessView(view, viewingUserID, teamIDs) {
+			accessible = append(accessible, view)
+		}
+	}
+	for start := 0; start < len(accessible); start += sidebarCountsViewBatchSize {
+		batch := accessible[start:min(start+sidebarCountsViewBatchSize, len(accessible))]
+		viewCounts, err := c.getViewCounts(viewingUserID, teamIDs, lists, batch)
+		if err != nil {
+			return out, err
+		}
+		maps.Copy(out.Views, viewCounts)
+	}
+	return out, nil
+}
+
+func (c *Manager) fillStandardSidebarCounts(out *models.SidebarCounts, userID int, permissions []string) error {
+	var row struct {
+		Assigned   int `db:"assigned"`
+		Unassigned int `db:"unassigned"`
+		Mentioned  int `db:"mentioned"`
+		All        int `db:"all"`
+	}
+
+	if err := c.q.GetSidebarStandardCounts.Get(&row, userID); err != nil {
+		c.lo.Error("error fetching sidebar standard counts", "error", err)
+		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+
+	if slices.Contains(permissions, authzModels.PermConversationsReadAssigned) {
+		out.Assigned = row.Assigned
+	}
+	if slices.Contains(permissions, authzModels.PermConversationsReadUnassigned) {
+		out.Unassigned = row.Unassigned
+	}
+	if slices.Contains(permissions, authzModels.PermConversationsRead) {
+		out.Mentioned = row.Mentioned
+	}
+	if slices.Contains(permissions, authzModels.PermConversationsReadAll) {
+		out.All = row.All
+	}
+	return nil
+}
+
+// getViewCounts returns the conversation count per view ID in one round trip.
+func (c *Manager) getViewCounts(userID int, teamIDs []int, listTypes []string, views []vmodels.View) (map[int]int, error) {
+	counts := map[int]int{}
+	if len(views) == 0 {
+		return counts, nil
+	}
+
+	query, qArgs, err := c.makeViewCountsQuery(userID, teamIDs, listTypes, views)
+	if err != nil {
+		c.lo.Error("error making view counts query", "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+
+	var rows []struct {
+		ViewID int `db:"view_id"`
+		Count  int `db:"count"`
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), sidebarCountsQueryTimeout)
+	defer cancel()
+	if err := c.db.SelectContext(ctx, &rows, query, qArgs...); err != nil {
+		c.lo.Error("error fetching view counts", "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+
+	for _, row := range rows {
+		counts[row.ViewID] = row.Count
+	}
+	return counts, nil
+}
+
+// makeViewCountsQuery unions one counting subquery per view into a single (view_id, count) statement.
+func (c *Manager) makeViewCountsQuery(userID int, teamIDs []int, listTypes []string, views []vmodels.View) (string, []any, error) {
+	var (
+		args  = []any{}
+		parts = make([]string, 0, len(views))
+		loc   = c.filterLocation()
+	)
+
+	for _, view := range views {
+		countQuery, nextArgs, err := c.makeConversationsCountQuery(args, userID, teamIDs, listTypes, string(view.Filters), loc)
+		if err != nil {
+			return "", nil, err
+		}
+		parts = append(parts, fmt.Sprintf("SELECT %d AS view_id, (SELECT COUNT(*) FROM (%s LIMIT %d) capped) AS count", view.ID, countQuery, sidebarCountsScanCap))
+		args = nextArgs
+	}
+
+	return strings.Join(parts, " UNION ALL "), args, nil
+}
+
+// makeConversationsCountQuery builds a query selecting matching conversations, with placeholders continuing after existingArgs.
+func (c *Manager) makeConversationsCountQuery(existingArgs []any, userID int, teamIDs []int, listTypes []string, filtersJSON, loc string) (string, []any, error) {
+	if len(listTypes) == 0 {
+		return "", nil, fmt.Errorf("no conversation list types specified")
+	}
+
+	qArgs := existingArgs
+	conditions, err := appendListTypeConditions(listTypes, userID, userID, teamIDs, &qArgs)
+	if err != nil {
+		return "", nil, err
+	}
+
+	baseQuery := fmt.Sprintf(c.q.GetConversationsCountBase, listTypeWhereClause(conditions))
+
+	return dbutil.BuildFilterQuery(baseQuery, qArgs, filtersJSON, conversationListAllowedFields, conversationFilterRenderers, loc)
+}
 
 // ListsForUserPermissions returns conversation list types the user may access.
 func ListsForUserPermissions(permissions []string) []string {
@@ -74,145 +186,4 @@ func UserCanAccessView(view vmodels.View, userID int, teamIDs []int) bool {
 	default:
 		return false
 	}
-}
-
-// GetSidebarCounts returns sidebar badge counts for standard inboxes (open only)
-// and for each accessible view (matching the view filters exactly).
-func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, teamIDs []int, views []vmodels.View) (models.SidebarCounts, error) {
-	out := models.SidebarCounts{Views: map[string]int{}}
-
-	standard, err := c.getStandardSidebarCounts(viewingUserID, permissions)
-	if err != nil {
-		return out, err
-	}
-	out.Assigned = standard.Assigned
-	out.Mentioned = standard.Mentioned
-	out.Unassigned = standard.Unassigned
-	out.All = standard.All
-
-	lists := ListsForUserPermissions(permissions)
-	if len(lists) == 0 {
-		return out, nil
-	}
-
-	accessible := make([]vmodels.View, 0, len(views))
-	for _, view := range views {
-		if UserCanAccessView(view, viewingUserID, teamIDs) {
-			accessible = append(accessible, view)
-		}
-	}
-	for start := 0; start < len(accessible); start += sidebarCountsViewBatchSize {
-		batch := accessible[start:min(start+sidebarCountsViewBatchSize, len(accessible))]
-		viewCounts, err := c.getViewOpenCounts(viewingUserID, teamIDs, lists, batch)
-		if err != nil {
-			return out, err
-		}
-		maps.Copy(out.Views, viewCounts)
-	}
-	return out, nil
-}
-
-func (c *Manager) getStandardSidebarCounts(userID int, permissions []string) (models.SidebarCounts, error) {
-	var row struct {
-		Assigned   int `db:"assigned"`
-		Unassigned int `db:"unassigned"`
-		Mentioned  int `db:"mentioned"`
-		All        int `db:"all"`
-	}
-
-	if err := c.q.GetSidebarStandardCounts.Get(&row, userID); err != nil {
-		c.lo.Error("error fetching sidebar standard counts", "error", err)
-		return models.SidebarCounts{}, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-
-	out := models.SidebarCounts{}
-	if slices.Contains(permissions, authzModels.PermConversationsReadAssigned) {
-		out.Assigned = row.Assigned
-	}
-	if slices.Contains(permissions, authzModels.PermConversationsReadUnassigned) {
-		out.Unassigned = row.Unassigned
-	}
-	if slices.Contains(permissions, authzModels.PermConversationsRead) {
-		out.Mentioned = row.Mentioned
-	}
-	if slices.Contains(permissions, authzModels.PermConversationsReadAll) {
-		out.All = row.All
-	}
-	return out, nil
-}
-
-// getViewOpenCounts returns the conversation count per view, keyed by view ID, using a
-// single round trip so the number of views does not drive the number of queries.
-// Counts follow each view's filters (no forced open category).
-func (c *Manager) getViewOpenCounts(userID int, teamIDs []int, listTypes []string, views []vmodels.View) (map[string]int, error) {
-	counts := map[string]int{}
-	if len(views) == 0 {
-		return counts, nil
-	}
-
-	query, qArgs, err := c.makeViewCountsQuery(userID, teamIDs, listTypes, views)
-	if err != nil {
-		c.lo.Error("error making view counts query", "error", err)
-		return nil, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-
-	var rows []struct {
-		ViewID    int `db:"view_id"`
-		OpenCount int `db:"open_count"`
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), sidebarCountsQueryTimeout)
-	defer cancel()
-	if err := c.db.SelectContext(ctx, &rows, query, qArgs...); err != nil {
-		c.lo.Error("error fetching view open counts", "error", err)
-		return nil, envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-
-	for _, row := range rows {
-		counts[strconv.Itoa(row.ViewID)] = row.OpenCount
-	}
-	return counts, nil
-}
-
-// makeViewCountsQuery unions one counting subquery per view into a single statement
-// returning (view_id, open_count) rows.
-func (c *Manager) makeViewCountsQuery(userID int, teamIDs []int, listTypes []string, views []vmodels.View) (string, []any, error) {
-	var (
-		args  = []any{}
-		parts = make([]string, 0, len(views))
-	)
-
-	for _, view := range views {
-		countQuery, nextArgs, err := c.makeConversationsCountQuery(args, userID, teamIDs, listTypes, string(view.Filters))
-		if err != nil {
-			return "", nil, err
-		}
-		// view.ID comes from the database, so it is safe to inline as a literal.
-		parts = append(parts, fmt.Sprintf("SELECT %d AS view_id, (SELECT COUNT(*) FROM (%s LIMIT %d) capped) AS open_count", view.ID, countQuery, sidebarCountsScanCap))
-		args = nextArgs
-	}
-
-	return strings.Join(parts, " UNION ALL "), args, nil
-}
-
-// makeConversationsCountQuery prepares a scalar query counting conversations that match
-// the given list types and filters. Bind parameters continue from existingArgs so several
-// count queries can share one statement.
-func (c *Manager) makeConversationsCountQuery(existingArgs []any, userID int, teamIDs []int, listTypes []string, filtersJSON string) (string, []any, error) {
-	if filtersJSON == "" {
-		filtersJSON = "[]"
-	}
-
-	if len(listTypes) == 0 {
-		return "", nil, fmt.Errorf("no conversation list types specified")
-	}
-
-	qArgs := existingArgs
-	conditions, err := appendListTypeConditions(listTypes, userID, userID, teamIDs, &qArgs)
-	if err != nil {
-		return "", nil, err
-	}
-
-	baseQuery := fmt.Sprintf(conversationsCountBaseQuery, listTypeWhereClause(conditions))
-
-	return dbutil.BuildFilterQuery(baseQuery, qArgs, filtersJSON, conversationListAllowedFields, conversationFilterRenderers, c.filterLocation())
 }

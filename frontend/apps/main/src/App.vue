@@ -133,8 +133,7 @@ watch(
   { immediate: true }
 )
 
-// Refresh sidebar counts when switching between inboxes, but not when opening a
-// conversation within one, so the counts are not recomputed on every click.
+// Opening a conversation inside an inbox does not change the inbox path used here.
 watch(
   () => route.path.replace(/\/conversation\/.*$/, ''),
   (inboxPath) => {

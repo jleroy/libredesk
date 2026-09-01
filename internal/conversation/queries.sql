@@ -483,6 +483,16 @@ SELECT
 FROM conversations
 WHERE conversations.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'open');
 
+-- name: get-conversations-count-base
+-- The list-type WHERE clause is appended at %s; view filters are added by BuildFilterQuery.
+SELECT 1
+FROM conversations
+JOIN users ON contact_id = users.id
+JOIN inboxes ON inbox_id = inboxes.id
+LEFT JOIN conversation_statuses ON status_id = conversation_statuses.id
+WHERE TRUE
+%s
+
 -- name: update-conversation-priority
 UPDATE conversations 
 SET priority_id = (SELECT id FROM conversation_priorities WHERE name = $2),

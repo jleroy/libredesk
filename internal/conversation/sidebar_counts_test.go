@@ -61,14 +61,7 @@ func TestListsForUserPermissions(t *testing.T) {
 		t.Fatalf("got %d list types, want %d: %v", len(lists), len(want), lists)
 	}
 	for _, w := range want {
-		found := false
-		for _, got := range lists {
-			if got == w {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(lists, w) {
 			t.Fatalf("missing list type %q in %v", w, lists)
 		}
 	}
@@ -110,7 +103,7 @@ func TestUserCanAccessView(t *testing.T) {
 func TestMakeConversationsCountQueryOpenAndInboxFilter(t *testing.T) {
 	m := newTestManager()
 	filters := `[{"model":"conversations","field":"inbox_id","operator":"equals","value":"4"}]`
-	query, args, err := m.makeConversationsCountQuery(nil, 1, []int{}, []string{models.AllConversations}, filters)
+	query, args, err := m.makeConversationsCountQuery(nil, 1, []int{}, []string{models.AllConversations}, filters, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -127,7 +120,7 @@ func TestMakeConversationsCountQueryOpenAndInboxFilter(t *testing.T) {
 
 func TestMakeConversationsCountQueryAssignedList(t *testing.T) {
 	m := newTestManager()
-	query, args, err := m.makeConversationsCountQuery(nil, 7, []int{}, []string{models.AssignedConversations}, "[]")
+	query, args, err := m.makeConversationsCountQuery(nil, 7, []int{}, []string{models.AssignedConversations}, "[]", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -141,7 +134,7 @@ func TestMakeConversationsCountQueryAssignedList(t *testing.T) {
 
 func TestMakeConversationsCountQueryEmptyListTypes(t *testing.T) {
 	m := newTestManager()
-	_, _, err := m.makeConversationsCountQuery(nil, 1, []int{}, []string{}, "[]")
+	_, _, err := m.makeConversationsCountQuery(nil, 1, []int{}, []string{}, "[]", "")
 	if err == nil {
 		t.Fatal("expected error for empty list types")
 	}
@@ -179,7 +172,7 @@ func TestMakeViewCountsQuerySingleStatement(t *testing.T) {
 func TestMakeConversationsCountQueryEmptyTeamIDs(t *testing.T) {
 	m := newTestManager()
 	// A user with the team permission but no teams must still produce valid SQL.
-	query, _, err := m.makeConversationsCountQuery(nil, 1, []int{}, []string{models.TeamAllConversations}, "[]")
+	query, _, err := m.makeConversationsCountQuery(nil, 1, []int{}, []string{models.TeamAllConversations}, "[]", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

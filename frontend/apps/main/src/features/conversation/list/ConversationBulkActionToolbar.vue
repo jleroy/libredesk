@@ -188,6 +188,7 @@ const runBulkAction = async (actionFn) => {
 
   conversationStore.clearSelection()
   conversationStore.fetchFirstPageConversations()
+  conversationStore.fetchSidebarCounts({ force: true })
 
   if (hasFailures) {
     emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {

@@ -254,10 +254,9 @@ const isDeleteOpen = ref(false)
 const viewToDelete = ref(null)
 
 const viewSidebarCount = (viewID) => {
-  return conversationStore.sidebarCounts.views?.[String(viewID)] ?? 0
+  return conversationStore.sidebarCounts.views?.[viewID] ?? 0
 }
 
-// Load counts when the inbox sidebar mounts.
 onMounted(() => {
   conversationStore.fetchSidebarCounts({ force: true })
 })

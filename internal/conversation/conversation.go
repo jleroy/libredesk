@@ -311,6 +311,7 @@ type queries struct {
 	GetConversationParticipants         *sqlx.Stmt `query:"get-conversation-participants"`
 	GetUserActiveConversationsCount     *sqlx.Stmt `query:"get-user-active-conversations-count"`
 	GetSidebarStandardCounts            *sqlx.Stmt `query:"get-sidebar-standard-counts"`
+	GetConversationsCountBase           string     `query:"get-conversations-count-base"`
 	UpdateConversationWaitingSince      *sqlx.Stmt `query:"update-conversation-waiting-since"`
 	UpdateConversationReplyTimestamps   *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
 	UpdateConversationContactLastSeen   *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
@@ -1834,65 +1835,6 @@ func (c *Manager) getConversationTags(uuid string) ([]string, error) {
 	return tags, nil
 }
 
-// appendListTypeConditions returns the SQL conditions matching the given conversation
-// list types, appending any bind parameters to args. Shared by the list and count
-// queries so both stay in sync on what each list type means.
-func appendListTypeConditions(listTypes []string, viewingUserID, userID int, teamIDs []int, args *[]any) ([]string, error) {
-	conditions := make([]string, 0, len(listTypes))
-	for _, lt := range listTypes {
-		switch lt {
-		case models.AssignedConversations:
-			*args = append(*args, userID)
-			conditions = append(conditions, fmt.Sprintf("conversations.assigned_user_id = $%d", len(*args)))
-		case models.UnassignedConversations:
-			conditions = append(conditions, "conversations.assigned_user_id IS NULL AND conversations.assigned_team_id IS NULL")
-		case models.TeamUnassignedConversations:
-			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s) AND conversations.assigned_user_id IS NULL)", appendTeamIDArgs(teamIDs, args)))
-		case models.TeamAllConversations:
-			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s))", appendTeamIDArgs(teamIDs, args)))
-		case models.AllConversations:
-			// No conditions needed for all conversations.
-		case models.MentionedConversations:
-			// Filter to only conversations where user is mentioned (directly or via team)
-			*args = append(*args, viewingUserID)
-			conditions = append(conditions, fmt.Sprintf(`conversations.id IN (
-				SELECT cm.conversation_id
-				FROM conversation_mentions cm
-				WHERE cm.mentioned_user_id = $%d
-				   OR EXISTS(
-					   SELECT 1 FROM team_members tm
-					   WHERE tm.team_id = cm.mentioned_team_id AND tm.user_id = $%d
-				   )
-			)`, len(*args), len(*args)))
-		default:
-			return nil, fmt.Errorf("unknown conversation type: %s", lt)
-		}
-	}
-	return conditions, nil
-}
-
-// appendTeamIDArgs appends team IDs to args and returns their placeholder list. An empty
-// team list yields NULL so the enclosing IN () stays valid SQL and matches nothing.
-func appendTeamIDArgs(teamIDs []int, args *[]any) string {
-	if len(teamIDs) == 0 {
-		return "NULL"
-	}
-	placeholders := make([]string, len(teamIDs))
-	for i, id := range teamIDs {
-		*args = append(*args, id)
-		placeholders[i] = fmt.Sprintf("$%d", len(*args))
-	}
-	return strings.Join(placeholders, ",")
-}
-
-// listTypeWhereClause combines list type conditions into a clause appendable to a base query.
-func listTypeWhereClause(conditions []string) string {
-	if len(conditions) == 0 {
-		return ""
-	}
-	return "AND (" + strings.Join(conditions, " OR ") + ")"
-}
-
 // makeConversationsListQuery prepares a SQL query string for conversations list
 // viewingUserID is used as $1 for per-agent unread count calculation
 // $2 is includeMentions bool for conditional mentioned_message_uuid column
@@ -2284,4 +2226,60 @@ func renderTagFilter(operator, value string, paramIndex int) (string, []any, err
 	default:
 		return "", nil, fmt.Errorf("invalid operator for tags: %s", operator)
 	}
+}
+
+// appendListTypeConditions returns the SQL conditions for the list types, appending their bind parameters to args.
+func appendListTypeConditions(listTypes []string, viewingUserID, userID int, teamIDs []int, args *[]any) ([]string, error) {
+	conditions := make([]string, 0, len(listTypes))
+	for _, lt := range listTypes {
+		switch lt {
+		case models.AssignedConversations:
+			*args = append(*args, userID)
+			conditions = append(conditions, fmt.Sprintf("conversations.assigned_user_id = $%d", len(*args)))
+		case models.UnassignedConversations:
+			conditions = append(conditions, "conversations.assigned_user_id IS NULL AND conversations.assigned_team_id IS NULL")
+		case models.TeamUnassignedConversations:
+			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s) AND conversations.assigned_user_id IS NULL)", appendTeamIDArgs(teamIDs, args)))
+		case models.TeamAllConversations:
+			conditions = append(conditions, fmt.Sprintf("(conversations.assigned_team_id IN (%s))", appendTeamIDArgs(teamIDs, args)))
+		case models.AllConversations:
+			// No conditions needed for all conversations.
+		case models.MentionedConversations:
+			// Filter to only conversations where user is mentioned (directly or via team)
+			*args = append(*args, viewingUserID)
+			conditions = append(conditions, fmt.Sprintf(`conversations.id IN (
+				SELECT cm.conversation_id
+				FROM conversation_mentions cm
+				WHERE cm.mentioned_user_id = $%d
+				   OR EXISTS(
+					   SELECT 1 FROM team_members tm
+					   WHERE tm.team_id = cm.mentioned_team_id AND tm.user_id = $%d
+				   )
+			)`, len(*args), len(*args)))
+		default:
+			return nil, fmt.Errorf("unknown conversation type: %s", lt)
+		}
+	}
+	return conditions, nil
+}
+
+// appendTeamIDArgs appends team IDs to args and returns their placeholders, or NULL when there are none.
+func appendTeamIDArgs(teamIDs []int, args *[]any) string {
+	if len(teamIDs) == 0 {
+		return "NULL"
+	}
+	placeholders := make([]string, len(teamIDs))
+	for i, id := range teamIDs {
+		*args = append(*args, id)
+		placeholders[i] = fmt.Sprintf("$%d", len(*args))
+	}
+	return strings.Join(placeholders, ",")
+}
+
+// listTypeWhereClause ORs the conditions into an AND (...) clause for the base query.
+func listTypeWhereClause(conditions []string) string {
+	if len(conditions) == 0 {
+		return ""
+	}
+	return "AND (" + strings.Join(conditions, " OR ") + ")"
 }
