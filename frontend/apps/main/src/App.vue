@@ -261,6 +261,7 @@ const refreshViews = async (data) => {
   // TODO: move model to constants.
   if (data?.model === 'view') {
     await getUserViews()
+    conversationStore.fetchSidebarCounts({ force: true })
     const openID = route.params.viewID
     // If the open view was edited its filters may have changed, refetch.
     if (openID && userViews.value.some((v) => String(v.id) === String(openID))) {

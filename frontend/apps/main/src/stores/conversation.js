@@ -51,9 +51,14 @@ export const useConversationStore = defineStore('conversation', () => {
   const SIDEBAR_COUNTS_TTL = 45_000
   let sidebarCountsRequest = null
   let sidebarCountsFetchedAt = 0
+  let sidebarCountsForceQueued = false
 
   async function fetchSidebarCounts ({ force = false } = {}) {
-    if (sidebarCountsRequest) return sidebarCountsRequest
+    if (sidebarCountsRequest) {
+      // A request already in flight may have read the DB before this caller's mutation committed.
+      if (force) sidebarCountsForceQueued = true
+      return sidebarCountsRequest
+    }
     if (!force && Date.now() - sidebarCountsFetchedAt < SIDEBAR_COUNTS_TTL) return
 
     sidebarCountsRequest = (async () => {
@@ -71,6 +76,10 @@ export const useConversationStore = defineStore('conversation', () => {
         // The sidebar works without counts.
       } finally {
         sidebarCountsRequest = null
+        if (sidebarCountsForceQueued) {
+          sidebarCountsForceQueued = false
+          fetchSidebarCounts({ force: true })
+        }
       }
     })()
 
