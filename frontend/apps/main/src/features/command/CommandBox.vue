@@ -20,7 +20,9 @@
       ]"
     >
       <CommandEmpty v-if="!isMacroMode || !macroStore.searchLoading">
-        <p class="text-sm text-muted-foreground">{{ $t('command.noCommandAvailable') }}</p>
+        <p class="text-sm text-muted-foreground">
+          {{ $t(isMacroMode ? 'globals.messages.noResultsFound' : 'command.noCommandAvailable') }}
+        </p>
       </CommandEmpty>
 
       <!-- Snooze Options -->
@@ -141,9 +143,6 @@
                     v-if="!contentPending && !replyContent && otherActions.length === 0"
                     class="flex min-h-40 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20"
                   >
-                    <span class="grid h-9 w-9 place-items-center rounded-lg border bg-background">
-                      <Zap :size="16" class="text-muted-foreground" />
-                    </span>
                     <p class="text-sm text-muted-foreground">
                       {{ $t('command.selectAMacro') }}
                     </p>
@@ -256,7 +255,7 @@ import { CalendarIcon } from 'lucide-vue-next'
 import { useConversationStore } from '@main/stores/conversation'
 import { useMacroStore } from '@main/stores/macro'
 import { CONVERSATION_DEFAULT_STATUSES, MACRO_CONTEXT } from '@main/constants/conversation'
-import { Users, User, Pin, Rocket, Tags, Zap } from 'lucide-vue-next'
+import { Users, User, Pin, Rocket, Tags } from 'lucide-vue-next'
 import {
   CommandDialog,
   CommandInput,

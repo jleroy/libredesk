@@ -110,5 +110,10 @@ describe('Command palette macros', () => {
       const ours = calls.filter((c) => c.request.url.endsWith(`/${contentMacroId}`))
       expect(ours).to.have.length(1)
     })
+
+    cy.get('[cmdk-input-wrapper] input').clear()
+    cy.get('[cmdk-input-wrapper] input').type(`Missing macro ${stamp}`)
+    cy.wait('@macroSearch')
+    cy.contains('No results found').should('be.visible')
   })
 })
