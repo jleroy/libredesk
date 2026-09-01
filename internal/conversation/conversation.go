@@ -312,7 +312,7 @@ type queries struct {
 	GetUserActiveConversationsCount     *sqlx.Stmt `query:"get-user-active-conversations-count"`
 	GetSidebarStandardCounts            *sqlx.Stmt `query:"get-sidebar-standard-counts"`
 	GetConversationsCountBase           string     `query:"get-conversations-count-base"`
-	UpdateConversationWaitingSince      *sqlx.Stmt `query:"update-conversation-waiting-since"`
+	StartConversationWaitingSince       *sqlx.Stmt `query:"start-conversation-waiting-since"`
 	UpdateConversationReplyTimestamps   *sqlx.Stmt `query:"update-conversation-reply-timestamps"`
 	UpdateConversationContactLastSeen   *sqlx.Stmt `query:"update-conversation-contact-last-seen"`
 	UpsertUserLastSeen                  *sqlx.Stmt `query:"upsert-user-last-seen"`
@@ -525,14 +525,14 @@ func (c *Manager) SignAvatarURL(avatarURL *null.String) {
 	}
 }
 
-// GetConversationsCreatedAfter retrieves conversations created after the specified time.
-func (c *Manager) GetConversationsCreatedAfter(time time.Time) ([]models.Conversation, error) {
-	var conversations = make([]models.Conversation, 0)
-	if err := c.q.GetConversationsCreatedAfter.Select(&conversations, time); err != nil {
-		c.lo.Error("error fetching conversation", "error", err)
-		return conversations, err
+// GetConversationsCreatedAfter retrieves a batch of conversation refs created after the given time, keyset-paged by id.
+func (c *Manager) GetConversationsCreatedAfter(after time.Time, afterID, limit int) ([]models.ConversationRef, error) {
+	var refs = make([]models.ConversationRef, 0, limit)
+	if err := c.q.GetConversationsCreatedAfter.Select(&refs, after, afterID, limit); err != nil {
+		c.lo.Error("error fetching conversation refs", "error", err)
+		return refs, err
 	}
-	return conversations, nil
+	return refs, nil
 }
 
 // UpdateUserLastSeen updates the last seen timestamp for a specific user on a conversation.
@@ -555,13 +555,17 @@ func (c *Manager) MarkAsUnread(uuid string, userID int) error {
 
 // UpdateContactLastSeen updates the last seen timestamp of the contact in the conversation.
 func (c *Manager) UpdateConversationContactLastSeen(uuid string) error {
-	if _, err := c.q.UpdateConversationContactLastSeen.Exec(uuid); err != nil {
+	var lastSeenAt time.Time
+	if err := c.q.UpdateConversationContactLastSeen.Get(&lastSeenAt, uuid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		c.lo.Error("error updating contact last seen timestamp", "conversation_id", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
 	// Broadcast the property update to all subscribers.
-	c.BroadcastConversationUpdate(uuid, map[string]any{"contact_last_seen_at": time.Now().Format(time.RFC3339)})
+	c.BroadcastConversationUpdate(uuid, map[string]any{"contact_last_seen_at": lastSeenAt.Format(time.RFC3339Nano)})
 	return nil
 }
 
@@ -722,21 +726,16 @@ func (c *Manager) UpdateConversationLastMessage(conversation int, conversationUU
 	return nil
 }
 
-// UpdateConversationWaitingSince updates the waiting since timestamp for a conversation.
-func (c *Manager) UpdateConversationWaitingSince(conversationUUID string, at *time.Time) error {
-	res, err := c.q.UpdateConversationWaitingSince.Exec(conversationUUID, at)
+// StartConversationWaitingSince stamps the waiting since timestamp only if the conversation isn't already waiting.
+func (c *Manager) StartConversationWaitingSince(conversationUUID string, at time.Time) error {
+	res, err := c.q.StartConversationWaitingSince.Exec(conversationUUID, at)
 	if err != nil {
 		c.lo.Error("error updating conversation waiting since", "error", err)
 		return err
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows > 0 {
-		if at != nil {
-			c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": at.Format(time.RFC3339)})
-		} else {
-			c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": nil})
-		}
+	if rows, _ := res.RowsAffected(); rows > 0 {
+		c.BroadcastConversationUpdate(conversationUUID, map[string]any{"waiting_since": at.Format(time.RFC3339)})
 	}
 	return nil
 }

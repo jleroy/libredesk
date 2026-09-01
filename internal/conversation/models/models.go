@@ -157,6 +157,12 @@ type ConversationListContact struct {
 	AvatarURL null.String `db:"avatar_url" json:"avatar_url"`
 }
 
+// ConversationRef is a lightweight (id, uuid) reference to a conversation.
+type ConversationRef struct {
+	ID   int    `db:"id" json:"id"`
+	UUID string `db:"uuid" json:"uuid"`
+}
+
 type Conversation struct {
 	ID                        int                    `db:"id" json:"id"`
 	CreatedAt                 time.Time              `db:"created_at" json:"created_at"`
@@ -166,6 +172,7 @@ type Conversation struct {
 	InboxID                   int                    `db:"inbox_id" json:"inbox_id"`
 	ClosedAt                  null.Time              `db:"closed_at" json:"closed_at"`
 	ResolvedAt                null.Time              `db:"resolved_at" json:"resolved_at"`
+	ContactLastSeenAt         null.Time              `db:"contact_last_seen_at" json:"contact_last_seen_at"`
 	ReferenceNumber           string                 `db:"reference_number" json:"reference_number"`
 	Priority                  null.String            `db:"priority" json:"priority"`
 	PriorityID                null.Int               `db:"priority_id" json:"priority_id"`

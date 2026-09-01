@@ -558,7 +558,7 @@ onMounted(() => {
                           :is-active="route.params.teamID == team.id"
                           @click="navigateToTeamInbox(team.id)"
                         >
-                          {{ team.emoji }}<span>{{ team.name }}</span>
+                          {{ team.emoji }}<span class="flex-1 truncate" :title="team.name">{{ team.name }}</span>
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>

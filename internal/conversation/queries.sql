@@ -186,6 +186,7 @@ SELECT
    c.updated_at,
    c.closed_at,
    c.resolved_at,
+   c.contact_last_seen_at,
    c.inbox_id,
    inb.name as inbox_name,
    COALESCE(inb.from, '') as inbox_mail,
@@ -291,7 +292,9 @@ SELECT
     c.id,
     c.uuid
 FROM conversations c
-WHERE c.created_at > $1;
+WHERE c.created_at > $1 AND c.id > $2
+ORDER BY c.id
+LIMIT $3;
 
 -- name: get-contact-previous-conversations
 SELECT
@@ -443,7 +446,8 @@ WHERE uuid = $1 AND assigned_user_id IS NULL AND assigned_team_id = $3;
 UPDATE conversations
 SET contact_last_seen_at = NOW(),
 updated_at = NOW()
-WHERE uuid = $1;
+WHERE uuid = $1
+RETURNING contact_last_seen_at;
 
 -- name: update-conversation-assigned-team
 UPDATE conversations
@@ -609,11 +613,11 @@ SET custom_attributes = $2,
     updated_at = NOW()
 WHERE uuid = $1;
 
--- name: update-conversation-waiting-since
+-- name: start-conversation-waiting-since
 UPDATE conversations
 SET waiting_since = $2,
     updated_at = NOW()
-WHERE uuid = $1;
+WHERE uuid = $1 AND waiting_since IS NULL;
 
 -- name: update-conversation-reply-timestamps
 WITH old AS (
