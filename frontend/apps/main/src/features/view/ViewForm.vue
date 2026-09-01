@@ -163,18 +163,17 @@ const onSubmit = form.handleSubmit(async (values) => {
   try {
     const payload = { ...values, filters: serializeFilterTree(values.filters) }
 
-    if (payload.id) {
-      await api.updateView(payload.id, payload)
-      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-        description: t('globals.messages.savedSuccessfully')
-      })
+    let viewID = payload.id
+    if (viewID) {
+      await api.updateView(viewID, payload)
     } else {
-      await api.createView(payload)
-      emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
-        description: t('globals.messages.savedSuccessfully')
-      })
+      const resp = await api.createView(payload)
+      viewID = resp?.data?.data?.id
     }
-    emitter.emit(EMITTER_EVENTS.REFRESH_LIST, { model: 'view' })
+    emitter.emit(EMITTER_EVENTS.SHOW_TOAST, {
+      description: t('globals.messages.savedSuccessfully')
+    })
+    emitter.emit(EMITTER_EVENTS.REFRESH_LIST, { model: 'view', id: viewID })
     openDialog.value = false
     form.resetForm()
   } catch (error) {

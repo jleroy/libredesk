@@ -381,6 +381,8 @@ const getAllConversations = (params) =>
   http.get('/api/v1/conversations/all', { params, abortOnRoute: true })
 const getMentionedConversations = (params) =>
   http.get('/api/v1/conversations/mentioned', { params, abortOnRoute: true })
+const getSidebarCounts = () => http.get('/api/v1/conversations/sidebar-counts')
+const getViewCount = (id) => http.get(`/api/v1/views/${id}/count`)
 const getViewConversations = (id, params) =>
   http.get(`/api/v1/views/${id}/conversations`, { params, abortOnRoute: true })
 const uploadMedia = (data) =>
@@ -653,6 +655,8 @@ export default {
   getUnassignedConversations,
   getAllConversations,
   getMentionedConversations,
+  getSidebarCounts,
+  getViewCount,
   getTeamUnassignedConversations,
   getViewConversations,
   getOverviewCharts,

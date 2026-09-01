@@ -110,10 +110,11 @@ import {
 } from '@shared-ui/components/ui/alert-dialog'
 import MobileDrawerNav from './MobileDrawerNav.vue'
 import MobileDrawerFooter from './MobileDrawerFooter.vue'
+import SidebarCountBadge from './SidebarCountBadge.vue'
 import { filterNavItems } from '@main/utils/nav-permissions'
 import { permissions } from '@main/constants/permissions'
 import { useStorage } from '@vueuse/core'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@main/stores/user'
 import { useConversationStore } from '@main/stores/conversation'
@@ -251,6 +252,14 @@ const sharedViewInboxOpen = useStorage('sharedViewInboxOpen', true)
 // Track delete confirmation dialog state
 const isDeleteOpen = ref(false)
 const viewToDelete = ref(null)
+
+const viewSidebarCount = (viewID) => {
+  return conversationStore.sidebarCounts.views?.[viewID] ?? 0
+}
+
+onMounted(() => {
+  conversationStore.fetchSidebarCounts({ force: true })
+})
 </script>
 
 <template>
@@ -476,34 +485,50 @@ const viewToDelete = ref(null)
               <SidebarMenuItem>
                 <SidebarMenuButton :isActive="isActiveParent('/inboxes/assigned')" @click="navigateToInbox('assigned')">
                     <User />
-                    <span>{{ t('globals.terms.myInbox') }}</span>
+                    <span class="flex-1 truncate">{{ t('globals.terms.myInbox') }}</span>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.assigned"
+                      :ariaLabel="t('conversation.sidebarCounts.assigned', conversationStore.sidebarCounts.assigned)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
                 <SidebarMenuButton :isActive="isActiveParent('/inboxes/mentioned')" @click="navigateToInbox('mentioned')">
                     <AtSign />
-                    <span>
+                    <span class="flex-1 truncate">
                       {{ t('globals.terms.mention', 2) }}
                     </span>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.mentioned"
+                      :ariaLabel="t('conversation.sidebarCounts.mentioned', conversationStore.sidebarCounts.mentioned)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
                 <SidebarMenuButton :isActive="isActiveParent('/inboxes/unassigned')" @click="navigateToInbox('unassigned')">
                     <CircleDashed />
-                    <span>
+                    <span class="flex-1 truncate">
                       {{ t('globals.terms.unassigned') }}
                     </span>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.unassigned"
+                      :ariaLabel="t('conversation.sidebarCounts.unassigned', conversationStore.sidebarCounts.unassigned)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
                 <SidebarMenuButton :isActive="isActiveParent('/inboxes/all')" @click="navigateToInbox('all')">
                     <List />
-                    <span>
+                    <span class="flex-1 truncate">
                       {{ t('globals.messages.all') }}
                     </span>
+                    <SidebarCountBadge
+                      :count="conversationStore.sidebarCounts.all"
+                      :ariaLabel="t('conversation.sidebarCounts.all', conversationStore.sidebarCounts.all)"
+                    />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -571,15 +596,20 @@ const viewToDelete = ref(null)
                       >
                         <SidebarMenuButton
                           size="sm"
+                          class="group-has-[[data-sidebar=menu-action]]/menu-item:pr-7"
                           :isActive="route.params.viewID == view.id"
                           @click="navigateToViewInbox(view.id)"
                         >
                           <span class="flex-1 truncate" :title="view.name">{{ view.name }}</span>
+                          <SidebarCountBadge
+                            :count="viewSidebarCount(view.id)"
+                            :ariaLabel="t('conversation.sidebarCounts.view', viewSidebarCount(view.id))"
+                          />
                         </SidebarMenuButton>
                         <DropdownMenu>
                           <DropdownMenuTrigger as-child>
                             <SidebarMenuAction
-                              class="mr-3 can-hover:opacity-0 can-hover:group-hover/view-item:opacity-100 data-[state=open]:opacity-100"
+                              class="mr-1 can-hover:opacity-0 can-hover:group-hover/view-item:opacity-100 data-[state=open]:opacity-100"
                               @click.prevent
                             >
                               <EllipsisVertical />
@@ -630,6 +660,10 @@ const viewToDelete = ref(null)
                           <span class="flex-1 truncate" :title="view.name">{{
                             view.name
                           }}</span>
+                          <SidebarCountBadge
+                            :count="viewSidebarCount(view.id)"
+                            :ariaLabel="t('conversation.sidebarCounts.view', viewSidebarCount(view.id))"
+                          />
                         </SidebarMenuButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>

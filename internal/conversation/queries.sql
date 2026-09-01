@@ -471,6 +471,32 @@ WHERE uuid = $1;
 -- name: get-user-active-conversations-count
 SELECT COUNT(*) FROM conversations WHERE status_id IN (SELECT id FROM conversation_statuses WHERE category = 'open') AND assigned_user_id = $1;
 
+-- name: get-sidebar-standard-counts
+SELECT
+    COUNT(*) FILTER (WHERE conversations.assigned_user_id = $1) AS assigned,
+    COUNT(*) FILTER (WHERE conversations.assigned_user_id IS NULL AND conversations.assigned_team_id IS NULL) AS unassigned,
+    COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM conversation_mentions cm
+        WHERE cm.conversation_id = conversations.id
+          AND (cm.mentioned_user_id = $1 OR EXISTS (
+              SELECT 1 FROM team_members tm
+              WHERE tm.team_id = cm.mentioned_team_id AND tm.user_id = $1
+          ))
+    )) AS mentioned,
+    COUNT(*) AS "all"
+FROM conversations
+WHERE conversations.status_id IN (SELECT id FROM conversation_statuses WHERE category = 'open');
+
+-- name: get-conversations-count-base
+-- The list-type WHERE clause is appended at %s; view filters are added by BuildFilterQuery.
+SELECT 1
+FROM conversations
+JOIN users ON contact_id = users.id
+JOIN inboxes ON inbox_id = inboxes.id
+LEFT JOIN conversation_statuses ON status_id = conversation_statuses.id
+WHERE TRUE
+%s
+
 -- name: update-conversation-priority
 UPDATE conversations 
 SET priority_id = (SELECT id FROM conversation_priorities WHERE name = $2),

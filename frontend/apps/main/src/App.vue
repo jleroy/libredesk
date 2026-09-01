@@ -120,6 +120,8 @@ const isMobile = useIsMobile()
 
 // Remember last inbox path so navigating back from admin/contacts/reports restores it
 const lastInboxPath = useStorage('lastInboxPath', '')
+const userStore = useUserStore()
+const conversationStore = useConversationStore()
 watch(
   () => route.path,
   (path) => {
@@ -129,8 +131,16 @@ watch(
   },
   { immediate: true }
 )
-const userStore = useUserStore()
-const conversationStore = useConversationStore()
+
+// Opening a conversation inside an inbox does not change the inbox path used here.
+watch(
+  () => route.path.replace(/\/conversation\/.*$/, ''),
+  (inboxPath) => {
+    if (inboxPath.startsWith('/inboxes') && inboxPath !== '/inboxes/search') {
+      conversationStore.fetchSidebarCounts()
+    }
+  }
+)
 const usersStore = useUsersStore()
 const teamStore = useTeamStore()
 const inboxStore = useInboxStore()
@@ -251,6 +261,8 @@ const refreshViews = async (data) => {
   // TODO: move model to constants.
   if (data?.model === 'view') {
     await getUserViews()
+    if (data.id) conversationStore.fetchViewCount(data.id)
+    else conversationStore.fetchSidebarCounts({ force: true })
     const openID = route.params.viewID
     // If the open view was edited its filters may have changed, refetch.
     if (openID && userViews.value.some((v) => String(v.id) === String(openID))) {

@@ -1534,5 +1534,10 @@
   "webhook.sentSuccessfully": "Webhook sent successfully",
   "widget.conversationClosed": "This conversation has been closed",
   "widget.ipBlocked": "Access denied",
-  "widget.prechatForm.startChat": "Start chat"
+  "widget.prechatForm.startChat": "Start chat",
+  "conversation.sidebarCounts.all": "{count} open conversation in all | {count} open conversations in all",
+  "conversation.sidebarCounts.assigned": "{count} open conversation in my inbox | {count} open conversations in my inbox",
+  "conversation.sidebarCounts.mentioned": "{count} open conversation with mentions | {count} open conversations with mentions",
+  "conversation.sidebarCounts.view": "{count} conversation in this view | {count} conversations in this view",
+  "conversation.sidebarCounts.unassigned": "{count} open unassigned conversation | {count} open unassigned conversations"
 }
