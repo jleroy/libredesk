@@ -264,6 +264,39 @@ func handleGetSidebarCounts(r *fastglue.Request) error {
 	return r.SendEnvelope(counts)
 }
 
+// handleGetViewCount returns the sidebar badge count for one view.
+func handleGetViewCount(r *fastglue.Request) error {
+	var (
+		app       = r.Context.(*App)
+		auser     = r.RequestCtx.UserValue("user").(amodels.User)
+		viewID, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
+	)
+	if viewID < 1 {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.InputError)
+	}
+
+	view, err := app.view.Get(viewID)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	user, err := app.user.GetAgentCachedOrLoad(auser.ID)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	if !conversation.UserCanAccessView(view, auser.ID, user.Teams.IDs()) {
+		return r.SendErrorEnvelope(fasthttp.StatusForbidden, app.i18n.T("conversation.viewPermissionDenied"), nil, envelope.PermissionError)
+	}
+
+	count, err := app.conversation.GetViewCount(user.ID, user.Permissions, user.Teams.IDs(), view)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	return r.SendEnvelope(map[string]int{"count": count})
+}
+
 // handleGetTeamUnassignedConversations returns conversations assigned to a team but not to any user.
 func handleGetTeamUnassignedConversations(r *fastglue.Request) error {
 	var (

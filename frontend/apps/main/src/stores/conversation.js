@@ -86,6 +86,15 @@ export const useConversationStore = defineStore('conversation', () => {
     return sidebarCountsRequest
   }
 
+  async function fetchViewCount (viewID) {
+    try {
+      const resp = await api.getViewCount(viewID)
+      sidebarCounts.views[viewID] = resp?.data?.data?.count || 0
+    } catch {
+      // The sidebar works without counts.
+    }
+  }
+
   // WS events burst one per conversation; leading + trailing keeps it to two requests per burst.
   const SIDEBAR_COUNTS_EVENT_THROTTLE = 45_000
   const refreshSidebarCounts = useThrottleFn(
@@ -1312,6 +1321,7 @@ export const useConversationStore = defineStore('conversation', () => {
     isSelected,
     sidebarCounts,
     fetchSidebarCounts,
+    fetchViewCount,
     refreshSidebarCounts
   }
 })

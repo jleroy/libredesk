@@ -53,6 +53,22 @@ func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, team
 	return out, nil
 }
 
+// GetViewCount returns the capped open count for one view.
+func (c *Manager) GetViewCount(viewingUserID int, permissions []string, teamIDs []int, view vmodels.View) (int, error) {
+	lists := ListsForUserPermissions(permissions)
+	if len(lists) == 0 {
+		return 0, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), sidebarCountsQueryTimeout)
+	defer cancel()
+
+	counts, err := c.getViewCounts(ctx, viewingUserID, teamIDs, lists, []vmodels.View{view})
+	if err != nil {
+		return 0, err
+	}
+	return counts[view.ID], nil
+}
+
 func (c *Manager) fillStandardSidebarCounts(ctx context.Context, out *models.SidebarCounts, userID int, permissions []string) error {
 	var row struct {
 		Assigned   int `db:"assigned"`
