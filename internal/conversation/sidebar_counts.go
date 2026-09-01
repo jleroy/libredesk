@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,7 +16,7 @@ import (
 	vmodels "github.com/abhinavxd/libredesk/internal/view/models"
 )
 
-const sidebarCountsMaxViews = 50
+const sidebarCountsViewBatchSize = 50
 const sidebarCountsQueryTimeout = 10 * time.Second
 
 // sidebarCountsScanCap bounds each view count's scan, the UI shows anything above 99 as "99+".
@@ -100,15 +101,14 @@ func (c *Manager) GetSidebarCounts(viewingUserID int, permissions []string, team
 			accessible = append(accessible, view)
 		}
 	}
-	if len(accessible) > sidebarCountsMaxViews {
-		accessible = accessible[:sidebarCountsMaxViews]
+	for start := 0; start < len(accessible); start += sidebarCountsViewBatchSize {
+		batch := accessible[start:min(start+sidebarCountsViewBatchSize, len(accessible))]
+		viewCounts, err := c.getViewOpenCounts(viewingUserID, teamIDs, lists, batch)
+		if err != nil {
+			return out, err
+		}
+		maps.Copy(out.Views, viewCounts)
 	}
-
-	viewCounts, err := c.getViewOpenCounts(viewingUserID, teamIDs, lists, accessible)
-	if err != nil {
-		return out, err
-	}
-	out.Views = viewCounts
 	return out, nil
 }
 
