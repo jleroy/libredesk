@@ -50,13 +50,6 @@
       />
 
       <template v-else>
-        <div
-          v-if="loading && !visibleCommands.length"
-          class="py-6 text-center text-sm text-muted-foreground"
-        >
-          {{ $t('globals.terms.loading') }}
-        </div>
-
         <CommandGroup
           v-for="group in groups"
           :key="group.section"
@@ -91,6 +84,10 @@
             </span>
           </CommandItem>
         </CommandGroup>
+
+        <div v-if="loading" class="py-6 text-center text-sm text-muted-foreground">
+          {{ $t('globals.terms.loading') }}
+        </div>
       </template>
     </CommandList>
 
