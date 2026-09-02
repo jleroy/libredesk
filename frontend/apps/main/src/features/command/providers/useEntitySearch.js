@@ -7,6 +7,8 @@ import { SECTIONS } from '../sections'
 
 export const ENTITY_SEARCH_MIN_LENGTH = 3
 
+const RESULT_LIMIT = 10
+
 const contactLabel = (contact) =>
   [contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email
 
@@ -17,7 +19,7 @@ export function useEntitySearch() {
 
   const searchContacts = async (term) => {
     if (!userStore.can(perms.CONTACTS_READ_ALL)) return []
-    const response = await api.searchContacts({ query: term })
+    const response = await api.searchContacts({ query: term, limit: RESULT_LIMIT })
     return (response.data.data || []).map((contact) => ({
       id: `search.contact.${contact.id}`,
       label: contactLabel(contact),
@@ -29,7 +31,7 @@ export function useEntitySearch() {
   }
 
   const searchConversations = async (term) => {
-    const response = await api.searchConversations({ query: term })
+    const response = await api.searchConversations({ query: term, limit: RESULT_LIMIT })
     return (response.data.data || []).map((conversation) => ({
       id: `search.conversation.${conversation.uuid}`,
       label: conversation.subject || `#${conversation.reference_number}`,

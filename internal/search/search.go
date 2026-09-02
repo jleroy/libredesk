@@ -49,7 +49,7 @@ func New(opts Opts) (*Manager, error) {
 }
 
 // Conversations searches conversations based on the query
-func (s *Manager) Conversations(query string) ([]models.ConversationResult, error) {
+func (s *Manager) Conversations(query string, limit int) ([]models.ConversationResult, error) {
 	var refNumResults = make([]models.ConversationResult, 0)
 	if err := s.q.SearchConversationsByRefNum.Select(&refNumResults, query); err != nil {
 		s.lo.Error("error searching conversations", "error", err)
@@ -57,7 +57,7 @@ func (s *Manager) Conversations(query string) ([]models.ConversationResult, erro
 	}
 
 	var emailResults = make([]models.ConversationResult, 0)
-	if err := s.q.SearchConversationsByContactEmail.Select(&emailResults, query); err != nil {
+	if err := s.q.SearchConversationsByContactEmail.Select(&emailResults, query, limit); err != nil {
 		s.lo.Error("error searching conversations", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, s.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -65,9 +65,9 @@ func (s *Manager) Conversations(query string) ([]models.ConversationResult, erro
 }
 
 // Messages searches messages based on the query
-func (s *Manager) Messages(query string) ([]models.MessageResult, error) {
+func (s *Manager) Messages(query string, limit int) ([]models.MessageResult, error) {
 	var results = make([]models.MessageResult, 0)
-	if err := s.q.SearchMessages.Select(&results, query); err != nil {
+	if err := s.q.SearchMessages.Select(&results, query, limit); err != nil {
 		s.lo.Error("error searching messages", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, s.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -75,9 +75,9 @@ func (s *Manager) Messages(query string) ([]models.MessageResult, error) {
 }
 
 // Contacts searches contacts based on the query
-func (s *Manager) Contacts(query string) ([]models.ContactResult, error) {
+func (s *Manager) Contacts(query string, limit int) ([]models.ContactResult, error) {
 	var results = make([]models.ContactResult, 0)
-	if err := s.q.SearchContacts.Select(&results, query); err != nil {
+	if err := s.q.SearchContacts.Select(&results, query, limit); err != nil {
 		s.lo.Error("error searching contacts", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, s.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}

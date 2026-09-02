@@ -189,15 +189,19 @@ const asyncResults = ref([])
 const loading = ref(false)
 let searchSeq = 0
 
-const runAsyncSearch = async () => {
-  const seq = ++searchSeq
+const asyncSource = () => {
   const term = searchTerm.value.trim()
   const group = parentCommand.value
-  let source = null
-  if (group?.search) source = () => group.search(term)
-  else if (!parent.value && term.length >= ENTITY_SEARCH_MIN_LENGTH) {
-    source = () => entitySearch.search(term)
+  if (group?.search) return () => group.search(term)
+  if (!parent.value && term.length >= ENTITY_SEARCH_MIN_LENGTH) {
+    return () => entitySearch.search(term)
   }
+  return null
+}
+
+const runAsyncSearch = async () => {
+  const seq = ++searchSeq
+  const source = asyncSource()
   if (!source) {
     asyncResults.value = []
     loading.value = false
@@ -233,7 +237,10 @@ watch(
 watch(
   () => searchTerm.value,
   () => {
-    if (open.value && !isMacroMode.value) runAsyncSearchDebounced()
+    if (!open.value || isMacroMode.value) return
+    // The request only fires after the debounce, the empty state would show until then.
+    loading.value = Boolean(asyncSource())
+    runAsyncSearchDebounced()
   }
 )
 

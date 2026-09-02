@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
@@ -11,6 +12,10 @@ import (
 
 const (
 	minSearchQueryLength = 3
+
+	maxConversationSearchLimit = 1000
+	maxMessageSearchLimit      = 30
+	maxContactSearchLimit      = 15
 )
 
 // handleSearchConversations searches conversations based on the query.
@@ -19,7 +24,7 @@ func handleSearchConversations(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	results, err := app.search.Conversations(q)
+	results, err := app.search.Conversations(q, searchLimit(r, maxConversationSearchLimit))
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -47,7 +52,7 @@ func handleSearchMessages(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	results, err := app.search.Messages(q)
+	results, err := app.search.Messages(q, searchLimit(r, maxMessageSearchLimit))
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -75,7 +80,7 @@ func handleSearchContacts(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	results, err := app.search.Contacts(q)
+	results, err := app.search.Contacts(q, searchLimit(r, maxContactSearchLimit))
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -90,6 +95,14 @@ func searchInputs(r *fastglue.Request) (*App, amodels.User, string, error) {
 		return app, user, "", envelope.NewError(envelope.InputError, app.i18n.Ts("search.minQueryLength", "length", fmt.Sprintf("%d", minSearchQueryLength)), nil)
 	}
 	return app, user, q, nil
+}
+
+func searchLimit(r *fastglue.Request, max int) int {
+	limit, err := strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("limit")))
+	if err != nil || limit < 1 || limit > max {
+		return max
+	}
+	return limit
 }
 
 func uuidSet(uuids []string) map[string]struct{} {

@@ -21,7 +21,7 @@ JOIN users ON conversations.contact_id = users.id
 LEFT JOIN conversation_statuses cs ON conversations.status_id = cs.id
 WHERE users.email ILIKE '%' || $1 || '%'
 ORDER BY conversations.created_at DESC
-LIMIT 1000;
+LIMIT $2;
 
 -- name: search-messages
 SELECT
@@ -34,7 +34,7 @@ FROM conversation_messages m
     JOIN conversations c ON m.conversation_id = c.id
     LEFT JOIN conversation_statuses cs ON c.status_id = cs.id
 WHERE m.type != 'activity' and m.text_content ILIKE '%' || $1 || '%'
-LIMIT 30;
+LIMIT $2;
 
 -- name: search-contacts
 SELECT
@@ -48,4 +48,4 @@ FROM users
 WHERE type = 'contact'
 AND deleted_at IS NULL
 AND email ILIKE '%' || $1 || '%'
-LIMIT 15;
+LIMIT $2;
