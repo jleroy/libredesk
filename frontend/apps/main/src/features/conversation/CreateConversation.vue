@@ -371,6 +371,13 @@ onMounted(() => {
   })
 })
 
+watch(
+  () => props.initialContact,
+  (contact) => {
+    if (contact?.email) selectContact(contact)
+  }
+)
+
 const form = useForm({
   validationSchema: toTypedSchema(formSchema),
   initialValues: {

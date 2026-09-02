@@ -101,11 +101,13 @@ export function useGlobalShortcuts() {
   const onKeydown = (event) => {
     if (event.isComposing || event.repeat) return
     let handled = false
-    if (isMod(event) && !event.shiftKey && !event.altKey) {
+    if (isMod(event) && !event.altKey) {
       const key = event.key.toLowerCase()
-      if (key === 'k') handled = (palette.togglePalette(), true)
+      // Layouts like German put "/" on a shifted key, so it cannot require an unshifted event.
+      if (event.key === '/') handled = showShortcuts()
+      else if (event.shiftKey) handled = false
+      else if (key === 'k') handled = (palette.togglePalette(), true)
       else if (key === 'm') handled = openMacros()
-      else if (event.key === '/') handled = showShortcuts()
     } else if (onlyAlt(event) && altKeys[event.code] && !dialogIsOpen()) {
       handled = altKeys[event.code]()
     }

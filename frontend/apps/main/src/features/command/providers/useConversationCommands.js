@@ -57,7 +57,7 @@ const REOPENABLE_STATUSES = [
 ]
 
 export const formatSnoozeDuration = (minutes) =>
-  minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h`
+  minutes % 60 === 0 && minutes >= 60 ? `${minutes / 60}h` : `${minutes}m`
 
 export function useConversationCommands({ openSnoozeDatePicker }) {
   const router = useRouter()
