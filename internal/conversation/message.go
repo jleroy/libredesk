@@ -688,6 +688,19 @@ func (m *Manager) RecordAssigneeUserChange(conversationUUID string, assigneeID i
 	return m.InsertConversationActivity(models.ActivityAssignedUserChange, conversationUUID, assignee.FullName(), actor)
 }
 
+// RecordAssigneeUserRemoval records an activity for the removal of a user assignee.
+func (m *Manager) RecordAssigneeUserRemoval(conversationUUID string, assigneeID int, actor umodels.User) error {
+	if assigneeID == actor.ID {
+		return m.InsertConversationActivity(models.ActivitySelfUnassign, conversationUUID, actor.FullName(), actor)
+	}
+
+	assignee, err := m.userStore.GetAgent(assigneeID, "")
+	if err != nil {
+		return err
+	}
+	return m.InsertConversationActivity(models.ActivityAssigneeUserRemoved, conversationUUID, assignee.FullName(), actor)
+}
+
 // RecordAssigneeTeamChange records an activity for a team assignee change.
 func (m *Manager) RecordAssigneeTeamChange(conversationUUID string, teamID int, actor umodels.User) error {
 	team, err := m.teamStore.Get(teamID)
@@ -770,8 +783,12 @@ func (m *Manager) getMessageActivityContent(activityType, newValue, actorName st
 		content = fmt.Sprintf("Assigned to %s by %s", newValue, actorName)
 	case models.ActivityAssignedTeamChange:
 		content = fmt.Sprintf("Assigned to %s team by %s", newValue, actorName)
+	case models.ActivityAssigneeUserRemoved:
+		content = fmt.Sprintf("%s removed %s as assignee", actorName, newValue)
 	case models.ActivitySelfAssign:
 		content = fmt.Sprintf("%s self-assigned this conversation", actorName)
+	case models.ActivitySelfUnassign:
+		content = fmt.Sprintf("%s unassigned themselves", actorName)
 	case models.ActivityPriorityChange:
 		content = fmt.Sprintf("%s set priority to %s", actorName, newValue)
 	case models.ActivityStatusChange:

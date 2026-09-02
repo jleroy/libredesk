@@ -289,11 +289,16 @@ import { IdCard } from 'lucide-vue-next'
 import api from '@/api'
 import { hasPendingInlineUpload } from '@main/composables/useInlineImageUpload'
 import { useIsComposerCramped } from '@main/composables/useIsComposerCramped'
+import { useCommandPalette } from '@/features/command/useCommandPalette'
 
 const dialogOpen = defineModel({
   required: false,
   default: () => false
 })
+const props = defineProps({
+  initialContact: { type: Object, default: null }
+})
+const palette = useCommandPalette()
 
 const inboxStore = useInboxStore()
 const { t } = useI18n()
@@ -353,19 +358,14 @@ onUnmounted(() => {
   clearMediaFiles()
   conversationStore.resetMacro(MACRO_CONTEXT.NEW_CONVERSATION)
   macroStore.setCurrentView(previousMacroView)
-  emitter.emit(EMITTER_EVENTS.SET_NESTED_COMMAND, {
-    command: null,
-    open: false
-  })
+  palette.setMacroContext(MACRO_CONTEXT.REPLY)
 })
 
 onMounted(() => {
   previousMacroView = macroStore.currentView
   macroStore.setCurrentView('starting_conversation')
-  emitter.emit(EMITTER_EVENTS.SET_NESTED_COMMAND, {
-    command: 'apply-macro-to-new-conversation',
-    open: false
-  })
+  palette.setMacroContext(MACRO_CONTEXT.NEW_CONVERSATION)
+  if (props.initialContact?.email) selectContact(props.initialContact)
   nextTick(() => {
     emailInputRef.value?.$el?.focus()
   })

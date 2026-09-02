@@ -298,12 +298,23 @@ const handleCopilotInsertReply = (html) => {
   htmlContent.value = html
 }
 
+const setMessageTypeFromPalette = (type) => {
+  if (isGenerating.value || !isAllowedMessageType(type)) return
+  messageType.value = type
+}
+
+const focusFromPalette = () => replyBoxContentRef.value?.focus()
+
 onMounted(() => {
   emitter.on(EMITTER_EVENTS.COPILOT_INSERT_REPLY, handleCopilotInsertReply)
+  emitter.on(EMITTER_EVENTS.REPLY_BOX_SET_TYPE, setMessageTypeFromPalette)
+  emitter.on(EMITTER_EVENTS.REPLY_BOX_FOCUS, focusFromPalette)
 })
 
 onUnmounted(() => {
   emitter.off(EMITTER_EVENTS.COPILOT_INSERT_REPLY, handleCopilotInsertReply)
+  emitter.off(EMITTER_EVENTS.REPLY_BOX_SET_TYPE, setMessageTypeFromPalette)
+  emitter.off(EMITTER_EVENTS.REPLY_BOX_FOCUS, focusFromPalette)
 })
 
 /**

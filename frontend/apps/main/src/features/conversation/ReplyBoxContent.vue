@@ -102,6 +102,7 @@
         @send="handleSend"
         @mentionsChanged="handleMentionsChanged"
         @filesDropped="handleFilesDropped"
+        @toggleMessageType="toggleMessageType"
       />
     </div>
 
@@ -217,6 +218,11 @@ const getSuggestions = async (query) => {
 // Handle mentions changed from editor
 const handleMentionsChanged = (newMentions) => {
   mentions.value = newMentions
+}
+
+const toggleMessageType = () => {
+  if (props.isGenerating || !props.canSendReply || !props.canSendPrivateNote) return
+  messageType.value = messageType.value === 'private_note' ? 'reply' : 'private_note'
 }
 
 const props = defineProps({

@@ -132,6 +132,24 @@ describe('Conversation lifecycle', () => {
     statusBadge().should('contain.text', 'Open')
   })
 
+  it('focuses the date button when the custom snooze picker opens', () => {
+    openConversation()
+    cy.get('body').trigger('keydown', { key: 'z', code: 'KeyZ', altKey: true })
+    cy.get('[cmdk-input-wrapper] input').type('pick{enter}')
+    cy.contains('button', 'Pick a date').should('be.focused')
+  })
+
+  it('suggests tags from the command palette for an open conversation', () => {
+    cy.intercept('POST', '**/api/v1/ai/suggest-tags', { body: { data: [] } }).as('suggestTags')
+
+    openConversation()
+    cy.get('body').trigger('keydown', { key: 'k', code: 'KeyK', ctrlKey: true })
+    cy.get('[cmdk-input-wrapper] input').type('suggest tags')
+    cy.contains('[role="option"]', 'Suggest tags').click()
+
+    cy.wait('@suggestTags').its('request.body.conversation_uuid').should('eq', conversationUuid)
+  })
+
   it('assigns the conversation to an agent', () => {
     cy.intercept('PUT', `**/conversations/${conversationUuid}/assignee/user`).as('assignAgent')
 

@@ -1287,6 +1287,7 @@ export const useConversationStore = defineStore('conversation', () => {
     setMacroActions,
     removeAssignee,
     getListSortField,
+    sortFieldI18nKeys,
     getListStatus,
     statuses,
     priorities,

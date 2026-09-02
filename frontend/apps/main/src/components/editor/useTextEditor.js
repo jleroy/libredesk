@@ -14,6 +14,7 @@ export function useTextEditor({
   getSuggestions = null,
   enableMentions = () => false,
   onSend = () => {},
+  onToggleMessageType = null,
   onUpdate = () => {},
   onBlur = () => {},
   onOtherFiles = () => {}
@@ -61,6 +62,17 @@ export function useTextEditor({
         }
         if (event.ctrlKey && event.key === 'Enter') {
           onSend()
+          return true
+        }
+        if (
+          onToggleMessageType &&
+          (event.ctrlKey || event.metaKey) &&
+          !event.shiftKey &&
+          !event.altKey &&
+          event.key.toLowerCase() === 'p'
+        ) {
+          event.preventDefault()
+          onToggleMessageType()
           return true
         }
       }
