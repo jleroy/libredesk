@@ -53,6 +53,7 @@
       >
         <ReplyBoxContent
           v-if="isEditorFullscreen"
+          ref="fullscreenContentRef"
           :isFullscreen="true"
           :aiPrompts="aiPrompts"
           :isSending="isSending"
@@ -147,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, toRaw, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, toRaw, nextTick, onMounted, onUnmounted } from 'vue'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import { MACRO_CONTEXT } from '@main/constants/conversation'
@@ -256,6 +257,9 @@ const emailErrors = ref([])
 const aiPromptStore = useAiPromptStore()
 const aiPrompts = computed(() => aiPromptStore.prompts)
 const replyBoxContentRef = ref(null)
+const fullscreenContentRef = ref(null)
+const activeContentRef = () =>
+  isEditorFullscreen.value ? fullscreenContentRef.value : replyBoxContentRef.value
 const showContactEmailWarning = ref(false)
 const showMissingTagsWarning = ref(false)
 const deferredStatus = ref(null)
@@ -298,12 +302,31 @@ const handleCopilotInsertReply = (html) => {
   htmlContent.value = html
 }
 
+const setMessageTypeFromPalette = (type) => {
+  if (isGenerating.value || !isAllowedMessageType(type)) return
+  messageType.value = type
+}
+
+const focusFromPalette = () => {
+  // The cramped layout renders no editor until the fullscreen dialog opens.
+  if (isCramped.value && !isEditorFullscreen.value) {
+    isEditorFullscreen.value = true
+    nextTick(() => fullscreenContentRef.value?.focus())
+    return
+  }
+  activeContentRef()?.focus()
+}
+
 onMounted(() => {
   emitter.on(EMITTER_EVENTS.COPILOT_INSERT_REPLY, handleCopilotInsertReply)
+  emitter.on(EMITTER_EVENTS.REPLY_BOX_SET_TYPE, setMessageTypeFromPalette)
+  emitter.on(EMITTER_EVENTS.REPLY_BOX_FOCUS, focusFromPalette)
 })
 
 onUnmounted(() => {
   emitter.off(EMITTER_EVENTS.COPILOT_INSERT_REPLY, handleCopilotInsertReply)
+  emitter.off(EMITTER_EVENTS.REPLY_BOX_SET_TYPE, setMessageTypeFromPalette)
+  emitter.off(EMITTER_EVENTS.REPLY_BOX_FOCUS, focusFromPalette)
 })
 
 /**
@@ -558,7 +581,7 @@ watch(
   () => conversationStore.current?.uuid,
   () => {
     setTimeout(() => {
-      replyBoxContentRef.value?.focus()
+      activeContentRef()?.focus()
     }, 100)
   }
 )

@@ -87,7 +87,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useConversationStore } from '@main/stores/conversation'
 import { useUserStore } from '@main/stores/user'
 import { Clock, MoreHorizontal, ChevronLeft, PanelRight } from 'lucide-vue-next'
@@ -104,7 +104,9 @@ import { formatMessageTimestamp } from '@shared-ui/utils/datetime.js'
 import { Button } from '@shared-ui/components/ui/button'
 import MessageList from '@/features/conversation/message/MessageList.vue'
 import ReplyBox from './ReplyBox.vue'
-import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
+import { EMITTER_EVENTS, CONVERSATION_ACTIONS } from '@main/constants/emitterEvents.js'
+import { useCommandPalette } from '@/features/command/useCommandPalette'
+import { SNOOZE_COMMAND } from '@/features/command/providers/useConversationCommands'
 import { CONVERSATION_DEFAULT_STATUSES } from '@main/constants/conversation'
 import { useEmitter } from '@main/composables/useEmitter'
 import { useI18n } from 'vue-i18n'
@@ -115,6 +117,7 @@ import { permissions as perms } from '@main/constants/permissions.js'
 const conversationStore = useConversationStore()
 const userStore = useUserStore()
 const emitter = useEmitter()
+const palette = useCommandPalette()
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -182,12 +185,18 @@ const summarize = async () => {
 
 const handleUpdateStatus = (status) => {
   if (status === CONVERSATION_DEFAULT_STATUSES.SNOOZED) {
-    emitter.emit(EMITTER_EVENTS.SET_NESTED_COMMAND, {
-      command: 'snooze',
-      open: true
-    })
+    palette.openPalette({ parent: SNOOZE_COMMAND })
     return
   }
   conversationStore.updateStatus(status)
 }
+
+const paletteActions = {
+  [CONVERSATION_ACTIONS.DOWNLOAD_TRANSCRIPT]: downloadTranscript,
+  [CONVERSATION_ACTIONS.SUMMARIZE]: summarize
+}
+const onPaletteAction = (action) => paletteActions[action]?.()
+
+onMounted(() => emitter.on(EMITTER_EVENTS.CONVERSATION_ACTION, onPaletteAction))
+onUnmounted(() => emitter.off(EMITTER_EVENTS.CONVERSATION_ACTION, onPaletteAction))
 </script>

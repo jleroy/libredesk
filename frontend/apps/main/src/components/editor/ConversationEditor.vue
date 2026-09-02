@@ -49,7 +49,13 @@ const props = defineProps({
   linkedModel: { type: String, default: 'messages' }
 })
 
-const emit = defineEmits(['send', 'aiPromptSelected', 'mentionsChanged', 'filesDropped'])
+const emit = defineEmits([
+  'send',
+  'aiPromptSelected',
+  'mentionsChanged',
+  'filesDropped',
+  'toggleMessageType'
+])
 
 const linkDialog = ref(null)
 
@@ -89,6 +95,7 @@ const { editor, extractMentions, focus } = useTextEditor({
     emit('send')
     stopTyping()
   },
+  onToggleMessageType: () => emit('toggleMessageType'),
   onUpdate: () => {
     startTyping()
     if (props.enableMentions) emit('mentionsChanged', extractMentions())

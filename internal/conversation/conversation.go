@@ -1672,6 +1672,26 @@ func (m *Manager) resolveNotifyRecipients(entries []string, conv models.Conversa
 	return ids
 }
 
+// UnassignConversationUser removes the assigned user and records the removal activity.
+func (m *Manager) UnassignConversationUser(uuid string, actor umodels.User) error {
+	conversation, err := m.GetConversation(0, uuid, "")
+	if err != nil {
+		return err
+	}
+	previousAssigneeID := conversation.AssignedUserID.Int
+
+	if err := m.RemoveConversationAssignee(uuid, models.AssigneeTypeUser, actor); err != nil {
+		return err
+	}
+
+	if previousAssigneeID > 0 {
+		if err := m.RecordAssigneeUserRemoval(uuid, previousAssigneeID, actor); err != nil {
+			m.lo.Error("error recording assignee removal", "uuid", uuid, "assignee_id", previousAssigneeID, "error", err)
+		}
+	}
+	return nil
+}
+
 // RemoveConversationAssignee removes assigned user from a conversation.
 func (m *Manager) RemoveConversationAssignee(uuid, typ string, actor umodels.User) error {
 	prev, prevErr := m.GetConversationListItem(uuid)
