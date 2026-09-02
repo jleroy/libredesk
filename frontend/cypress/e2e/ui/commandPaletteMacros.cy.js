@@ -78,6 +78,7 @@ describe('Command palette macros', () => {
     cy.login()
     if (contentMacroId) cy.api('DELETE', `/api/v1/macros/${contentMacroId}`)
     if (actionMacroId) cy.api('DELETE', `/api/v1/macros/${actionMacroId}`)
+    if (inboxId) cy.api('DELETE', `/api/v1/inboxes/${inboxId}`, null, { failOnStatusCode: false })
   })
 
   it('serves the compact list without message content', () => {
