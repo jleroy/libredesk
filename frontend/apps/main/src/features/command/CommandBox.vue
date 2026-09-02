@@ -84,10 +84,6 @@
             </span>
           </CommandItem>
         </CommandGroup>
-
-        <div v-if="loading" class="py-6 text-center text-sm text-muted-foreground">
-          {{ $t('globals.terms.loading') }}
-        </div>
       </template>
     </CommandList>
 
