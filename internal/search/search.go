@@ -61,7 +61,11 @@ func (s *Manager) Conversations(query string, limit int) ([]models.ConversationR
 		s.lo.Error("error searching conversations", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, s.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	return append(refNumResults, emailResults...), nil
+	results := append(refNumResults, emailResults...)
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
 }
 
 // Messages searches messages based on the query

@@ -238,7 +238,9 @@ watch(
   () => searchTerm.value,
   () => {
     if (!open.value || isMacroMode.value) return
-    // The request only fires after the debounce, the empty state would show until then.
+    // The request only fires after the debounce, stale results would stay selectable until then.
+    searchSeq++
+    asyncResults.value = []
     loading.value = Boolean(asyncSource())
     runAsyncSearchDebounced()
   }

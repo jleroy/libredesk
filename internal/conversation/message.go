@@ -246,7 +246,7 @@ func (m *Manager) BuildTemplateData(conversationUUID string, senderID int) (map[
 		return nil, fmt.Errorf("fetching conversation: %w", err)
 	}
 
-	sender, err := m.userStore.GetAgent(senderID, "")
+	sender, err := m.userStore.GetAgentCachedOrLoad(senderID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching message sender user: %w", err)
 	}
@@ -681,7 +681,7 @@ func (m *Manager) RecordAssigneeUserChange(conversationUUID string, assigneeID i
 	}
 
 	// Assignment to another user.
-	assignee, err := m.userStore.GetAgent(assigneeID, "")
+	assignee, err := m.userStore.GetAgentCachedOrLoad(assigneeID)
 	if err != nil {
 		return err
 	}
@@ -694,7 +694,7 @@ func (m *Manager) RecordAssigneeUserRemoval(conversationUUID string, assigneeID 
 		return m.InsertConversationActivity(models.ActivitySelfUnassign, conversationUUID, actor.FullName(), actor)
 	}
 
-	assignee, err := m.userStore.GetAgent(assigneeID, "")
+	assignee, err := m.userStore.GetAgentCachedOrLoad(assigneeID)
 	if err != nil {
 		return err
 	}

@@ -13,6 +13,9 @@ import (
 const (
 	minSearchQueryLength = 3
 
+	// Read permissions are applied in Go after the query, so fetch a margin above the caller's limit.
+	searchOverFetchFactor = 5
+
 	maxConversationSearchLimit = 1000
 	maxMessageSearchLimit      = 30
 	maxContactSearchLimit      = 15
@@ -24,7 +27,8 @@ func handleSearchConversations(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	results, err := app.search.Conversations(q, searchLimit(r, maxConversationSearchLimit))
+	limit := searchLimit(r, maxConversationSearchLimit)
+	results, err := app.search.Conversations(q, overFetch(limit, maxConversationSearchLimit))
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -42,6 +46,9 @@ func handleSearchConversations(r *fastglue.Request) error {
 		if _, ok := set[c.UUID]; ok {
 			out = append(out, c)
 		}
+		if len(out) == limit {
+			break
+		}
 	}
 	return r.SendEnvelope(out)
 }
@@ -52,7 +59,8 @@ func handleSearchMessages(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	results, err := app.search.Messages(q, searchLimit(r, maxMessageSearchLimit))
+	limit := searchLimit(r, maxMessageSearchLimit)
+	results, err := app.search.Messages(q, overFetch(limit, maxMessageSearchLimit))
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
@@ -69,6 +77,9 @@ func handleSearchMessages(r *fastglue.Request) error {
 	for _, m := range results {
 		if _, ok := set[m.ConversationUUID]; ok {
 			out = append(out, m)
+		}
+		if len(out) == limit {
+			break
 		}
 	}
 	return r.SendEnvelope(out)
@@ -103,6 +114,13 @@ func searchLimit(r *fastglue.Request, max int) int {
 		return max
 	}
 	return limit
+}
+
+func overFetch(limit, max int) int {
+	if limit > max/searchOverFetchFactor {
+		return max
+	}
+	return limit * searchOverFetchFactor
 }
 
 func uuidSet(uuids []string) map[string]struct{} {
