@@ -52,10 +52,10 @@
         v-if="messageType === 'reply'"
       >
         <div v-if="conversationStore.currentFromOptions.length > 1" :class="RECIPIENT_ROW_CLASS">
-          <label :class="RECIPIENT_LABEL_CLASS">{{ $t('globals.terms.from') }}</label>
+          <label :for="`${recipientId}-from`" :class="RECIPIENT_LABEL_CLASS">{{ $t('globals.terms.from') }}</label>
           <div class="flex min-w-0 items-center gap-2">
             <Select v-model="sendFrom">
-              <SelectTrigger :class="RECIPIENT_INPUT_CLASS"><SelectValue /></SelectTrigger>
+              <SelectTrigger :id="`${recipientId}-from`" :class="RECIPIENT_INPUT_CLASS"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="address in conversationStore.currentFromOptions" :key="address" :value="address">
                   {{ address }}
@@ -65,9 +65,10 @@
           </div>
         </div>
         <div :class="RECIPIENT_ROW_CLASS">
-          <label :class="RECIPIENT_LABEL_CLASS">{{ $t('globals.terms.to') }}</label>
+          <label :for="`${recipientId}-to`" :class="RECIPIENT_LABEL_CLASS">{{ $t('globals.terms.to') }}</label>
           <div class="flex min-w-0 items-center gap-2">
             <Input
+              :id="`${recipientId}-to`"
               type="text"
               :placeholder="t('replyBox.emailAddresess')"
               v-model="to"
@@ -97,10 +98,11 @@
           </div>
         </div>
         <div v-if="showCc" :class="RECIPIENT_ROW_CLASS">
-          <label :class="RECIPIENT_LABEL_CLASS">{{ $t('replyBox.cc') }}</label>
+          <label :for="`${recipientId}-cc`" :class="RECIPIENT_LABEL_CLASS">{{ $t('replyBox.cc') }}</label>
           <div class="flex min-w-0 items-center gap-2">
             <Input
               ref="ccInputRef"
+              :id="`${recipientId}-cc`"
               type="text"
               :placeholder="t('replyBox.emailAddresess')"
               v-model="cc"
@@ -120,10 +122,11 @@
           </div>
         </div>
         <div v-if="showBcc" :class="RECIPIENT_ROW_CLASS">
-          <label :class="RECIPIENT_LABEL_CLASS">{{ $t('replyBox.bcc') }}</label>
+          <label :for="`${recipientId}-bcc`" :class="RECIPIENT_LABEL_CLASS">{{ $t('replyBox.bcc') }}</label>
           <div class="flex min-w-0 items-center gap-2">
             <Input
               ref="bccInputRef"
+              :id="`${recipientId}-bcc`"
               type="text"
               :placeholder="t('replyBox.emailAddresess')"
               v-model="bcc"
@@ -220,7 +223,7 @@ const RECIPIENT_INPUT_CLASS =
   'min-w-0 flex-1 border-input bg-card px-2 py-2 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-ring'
 const RECIPIENT_TOGGLE_CLASS = 'shrink-0 px-2 text-muted-foreground'
 
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, useId } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import { MACRO_CONTEXT } from '@main/constants/conversation'
@@ -377,6 +380,7 @@ const isWhatsAppReply = computed(
 const isCramped = useIsComposerCramped()
 const emitter = useEmitter()
 const { t } = useI18n()
+const recipientId = useId()
 const insertContent = ref(null)
 const editorRef = ref(null)
 const ccInputRef = ref(null)

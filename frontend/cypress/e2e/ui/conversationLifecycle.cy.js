@@ -308,6 +308,11 @@ describe('Conversation lifecycle', () => {
     cy.get('.tiptap.ProseMirror').first().then(($editor) => {
       const originalEditor = $editor[0]
       const checkEdits = () => {
+        for (const name of ['From', 'To', 'CC', 'BCC']) {
+          cy.contains('label', new RegExp(`^${name}$`)).should(($label) => {
+            expect($label[0].control, `${name} label control`).not.to.equal(null)
+          })
+        }
         recipientRow(/^From$/).find('[role="combobox"]').should('contain', sender)
         recipientRow(/^To$/).find('input').should('have.value', to)
         recipientRow(/^CC$/).find('input').should('have.value', 'edited.cc@example.com')
