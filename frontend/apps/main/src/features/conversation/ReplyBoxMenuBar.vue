@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative flex h-14 justify-between"
+    class="relative flex min-h-14 flex-wrap justify-between gap-y-2"
     :class="{ 'items-end': isFullscreen, 'items-center': !isFullscreen }"
   >
     <EmojiPicker
@@ -101,7 +101,7 @@
         <TooltipContent>{{ $t('replyBox.generateReply') }}</TooltipContent>
       </Tooltip>
     </div>
-    <div class="flex items-center rounded-md shadow-sm">
+    <div class="ml-auto flex items-center rounded-md shadow-sm">
       <Button
         class="h-8 max-md:h-11 px-4 rounded-r-none"
         @click="handleSend"
