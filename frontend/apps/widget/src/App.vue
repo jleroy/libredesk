@@ -110,6 +110,9 @@ const setLanguage = async (requested) => {
     setLocaleMessage(code, messages.data)
     locale.value = code
     if (widgetStore.config.help?.help_center_id) {
+      if (widgetStore.currentView === 'help' && widgetStore.isExpanded) {
+        widgetStore.collapseWidget()
+      }
       help.reset()
       await help.load(code)
     }
