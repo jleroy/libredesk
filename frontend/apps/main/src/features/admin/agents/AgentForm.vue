@@ -65,8 +65,8 @@
     </FormField>
 
     <!-- Form Fields -->
-    <div class="grid gap-6 md:grid-cols-2">
-      <FormField v-slot="{ field }" name="first_name">
+    <FormGrid
+      ><FormField v-slot="{ field }" name="first_name">
         <FormItem v-auto-animate>
           <FormLabel>{{ $t('globals.terms.firstName') }}</FormLabel>
           <FormControl>
@@ -75,7 +75,6 @@
           <FormMessage />
         </FormItem>
       </FormField>
-
       <FormField v-slot="{ field }" name="last_name">
         <FormItem>
           <FormLabel>{{ $t('globals.terms.lastName') }}</FormLabel>
@@ -85,7 +84,6 @@
           <FormMessage />
         </FormItem>
       </FormField>
-
       <FormField v-slot="{ field }" name="email">
         <FormItem v-auto-animate>
           <FormLabel>{{ $t('globals.terms.email') }}</FormLabel>
@@ -93,10 +91,10 @@
             <Input type="email" placeholder="" v-bind="field" />
           </FormControl>
           <FormMessage />
-        </FormItem>
-      </FormField>
-
-      <FormField v-slot="{ componentField, handleChange }" name="teams">
+        </FormItem> </FormField
+    ></FormGrid>
+    <FormGrid
+      ><FormField v-slot="{ componentField, handleChange }" name="teams">
         <FormItem v-auto-animate>
           <FormLabel>{{ $t('globals.terms.team', 2) }}</FormLabel>
           <FormControl>
@@ -110,7 +108,6 @@
           <FormMessage />
         </FormItem>
       </FormField>
-
       <FormField v-slot="{ componentField, handleChange }" name="roles">
         <FormItem v-auto-animate>
           <FormLabel>{{ $t('globals.terms.role', 2) }}</FormLabel>
@@ -125,7 +122,6 @@
           <FormMessage />
         </FormItem>
       </FormField>
-
       <FormField v-slot="{ componentField }" name="availability_status" v-if="!isNewForm">
         <FormItem>
           <FormLabel>{{ t('globals.terms.availabilityStatus') }}</FormLabel>
@@ -146,19 +142,17 @@
             </Select>
           </FormControl>
           <FormMessage />
-        </FormItem>
-      </FormField>
-
-      <FormField v-slot="{ field }" name="new_password" v-if="!isNewForm">
-        <FormItem v-auto-animate>
-          <FormLabel>{{ t('globals.terms.setPassword') }}</FormLabel>
-          <FormControl>
-            <Input type="password" placeholder="" v-bind="field" />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      </FormField>
-    </div>
+        </FormItem> </FormField
+    ></FormGrid>
+    <FormField v-slot="{ field }" name="new_password" v-if="!isNewForm">
+      <FormItem class="max-w-xl">
+        <FormLabel>{{ t('globals.terms.setPassword') }}</FormLabel>
+        <FormControl>
+          <Input type="password" placeholder="" v-bind="field" />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    </FormField>
 
     <!-- API Key Management Section -->
     <div class="bg-muted/30 box p-4 space-y-4" v-if="!isNewForm">
@@ -269,7 +263,9 @@
           </Alert>
         </div>
         <DialogFooter>
-          <Button @click="closeAPIKeyModal">{{ $t('globals.messages.close') }}</Button>
+          <Button type="button" @click="closeAPIKeyModal">{{
+            $t('globals.messages.close')
+          }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -291,6 +287,7 @@
 </template>
 
 <script setup>
+import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, onMounted, ref, computed } from 'vue'
 import { Button } from '@shared-ui/components/ui/button/index.js'
 import { useForm } from 'vee-validate'
@@ -330,10 +327,10 @@ import {
 } from '@shared-ui/components/ui/dialog/index.js'
 import { Alert, AlertDescription, AlertTitle } from '@shared-ui/components/ui/alert/index.js'
 import { useI18n } from 'vue-i18n'
-import { useEmitter } from '../../../composables/useEmitter.js'
-import { EMITTER_EVENTS } from '../../../constants/emitterEvents.js'
+import { useEmitter } from '@main/composables/useEmitter.js'
+import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import { format } from 'date-fns'
-import api from '../../../api/index.js'
+import api from '@main/api/index.js'
 
 const props = defineProps({
   initialValues: {

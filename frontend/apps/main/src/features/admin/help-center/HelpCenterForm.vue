@@ -8,95 +8,107 @@
 
       <div class="mt-8">
         <div v-show="activeTab === 'general'" class="space-y-6">
-          <FormField v-slot="{ componentField }" name="name">
-            <FormItem>
-              <FormLabel>{{ t('globals.terms.name') }}</FormLabel>
-              <FormControl>
-                <Input type="text" v-bind="componentField" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+          <FormGrid>
+            <FormField v-slot="{ componentField }" name="name">
+              <FormItem>
+                <FormLabel>{{ t('globals.terms.name') }}</FormLabel>
+                <FormControl>
+                  <Input type="text" v-bind="componentField" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </FormField>
 
-          <FormField v-slot="{ componentField }" name="slug">
-            <FormItem>
-              <FormLabel>{{ t('globals.terms.slug') }}</FormLabel>
-              <FormControl>
-                <Input type="text" v-bind="componentField" />
-              </FormControl>
-              <FormDescription>{{ t('helpCenter.slugHint') }}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+            <FormField v-slot="{ componentField }" name="slug">
+              <FormItem>
+                <FormLabel>{{ t('globals.terms.slug') }}</FormLabel>
+                <FormControl>
+                  <Input type="text" v-bind="componentField" />
+                </FormControl>
+                <FormDescription>{{ t('helpCenter.slugHint') }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+          </FormGrid>
 
-          <FormField v-slot="{ componentField }" name="custom_domain">
-            <FormItem>
-              <FormLabel>{{ t('helpCenter.customDomain') }}</FormLabel>
-              <FormControl>
-                <Input type="text" placeholder="https://help.example.com" v-bind="componentField" />
-              </FormControl>
-              <FormDescription>{{ t('helpCenter.customDomainHint') }}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+          <FormGrid>
+            <FormField v-slot="{ componentField }" name="custom_domain">
+              <FormItem>
+                <FormLabel>{{ t('helpCenter.customDomain') }}</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    placeholder="https://help.example.com"
+                    v-bind="componentField"
+                  />
+                </FormControl>
+                <FormDescription>{{ t('helpCenter.customDomainHint') }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
 
-          <FormField v-slot="{ componentField }" name="livechat_inbox_id">
-            <FormItem>
-              <FormLabel>{{ t('globals.terms.liveChatInbox') }}</FormLabel>
-              <FormControl>
-                <Select v-bind="componentField">
-                  <SelectTrigger>
-                    <SelectValue :placeholder="t('placeholders.selectInbox')" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{{ t('globals.terms.none') }}</SelectItem>
-                    <SelectItem
-                      v-for="option in inboxStore.livechatOptions"
-                      :key="option.value"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormDescription>{{ t('helpCenter.livechatInboxHint') }}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+            <FormField v-slot="{ componentField }" name="livechat_inbox_id">
+              <FormItem>
+                <FormLabel>{{ t('globals.terms.liveChatInbox') }}</FormLabel>
+                <FormControl>
+                  <Select v-bind="componentField">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="t('placeholders.selectInbox')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{{ t('globals.terms.none') }}</SelectItem>
+                      <SelectItem
+                        v-for="option in inboxStore.livechatOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormDescription>{{ t('helpCenter.livechatInboxHint') }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+          </FormGrid>
 
-          <FormField v-slot="{ componentField }" name="page_title">
-            <FormItem>
-              <FormLabel>{{ t('helpCenter.pageTitle') }}</FormLabel>
-              <FormControl>
-                <Input type="text" v-bind="componentField" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+          <FormGrid>
+            <FormField v-slot="{ componentField }" name="page_title">
+              <FormItem>
+                <FormLabel>{{ t('helpCenter.pageTitle') }}</FormLabel>
+                <FormControl>
+                  <Input type="text" v-bind="componentField" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </FormField>
 
-          <FormField v-slot="{ componentField }" name="template">
-            <FormItem>
-              <FormLabel>{{ t('globals.terms.template') }}</FormLabel>
-              <FormControl>
-                <Select v-bind="componentField">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="classic">{{ t('helpCenter.templates.classic') }}</SelectItem>
-                    <SelectItem value="docs">{{ t('helpCenter.templates.docs') }}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormDescription>{{
-                form.values.template === 'classic'
-                  ? t('helpCenter.templates.classicHint')
-                  : t('helpCenter.templates.docsHint')
-              }}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+            <FormField v-slot="{ componentField }" name="template">
+              <FormItem>
+                <FormLabel>{{ t('globals.terms.template') }}</FormLabel>
+                <FormControl>
+                  <Select v-bind="componentField">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="classic">{{
+                        t('helpCenter.templates.classic')
+                      }}</SelectItem>
+                      <SelectItem value="docs">{{ t('helpCenter.templates.docs') }}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormDescription>{{
+                  form.values.template === 'classic'
+                    ? t('helpCenter.templates.classicHint')
+                    : t('helpCenter.templates.docsHint')
+                }}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+          </FormGrid>
 
           <FormField v-slot="{ componentField }" name="meta_description">
             <FormItem>
@@ -738,6 +750,7 @@
 </template>
 
 <script setup>
+import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed, ref, inject, onMounted, nextTick } from 'vue'
 import { useForm, useFieldArray } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'

@@ -1,10 +1,14 @@
 <template>
-  <form class="space-y-6 w-full">
+  <form novalidate class="space-y-6 w-full">
     <FormField name="is_active" v-slot="{ value, handleChange }" v-if="!isNewForm">
       <FormItem>
         <FormControl>
           <div class="flex items-center space-x-2">
-            <Checkbox :checked="value" @update:checked="handleChange" />
+            <Checkbox
+              :aria-label="$t('globals.terms.active')"
+              :checked="value"
+              @update:checked="handleChange"
+            />
             <Label>{{ $t('globals.terms.active') }}</Label>
           </div>
         </FormControl>
@@ -12,25 +16,27 @@
       </FormItem>
     </FormField>
 
-    <FormField v-slot="{ componentField }" name="name">
-      <FormItem>
-        <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="My Webhook" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+    <FormGrid>
+      <FormField v-slot="{ componentField }" name="name">
+        <FormItem>
+          <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="My Webhook" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="url">
-      <FormItem>
-        <FormLabel>{{ $t('globals.terms.url') }}</FormLabel>
-        <FormControl>
-          <Input type="url" placeholder="https://your-app.com/webhook" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="url">
+        <FormItem>
+          <FormLabel>{{ $t('globals.terms.url') }}</FormLabel>
+          <FormControl>
+            <Input type="url" placeholder="https://your-app.com/webhook" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+    </FormGrid>
 
     <FormField name="events" v-slot="{ componentField, handleChange }">
       <FormItem>
@@ -55,6 +61,7 @@
                   class="flex items-start space-x-3"
                 >
                   <Checkbox
+                    :id="`${eventId}-${event.value}`"
                     :checked="componentField.modelValue?.includes(event.value)"
                     @update:checked="
                       (checked) =>
@@ -66,7 +73,11 @@
                         )
                     "
                   />
-                  <label class="font-normal text-sm">{{ event.label }}</label>
+                  <Label
+                    :for="`${eventId}-${event.value}`"
+                    class="font-normal text-sm cursor-pointer"
+                    >{{ event.label }}</Label
+                  >
                 </div>
               </div>
             </div>
@@ -93,9 +104,11 @@
 </template>
 
 <script setup>
+import { useId } from 'vue'
+import { Label } from '@shared-ui/components/ui/label'
+import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { ref } from 'vue'
 import { Checkbox } from '@shared-ui/components/ui/checkbox'
-import { Label } from '@shared-ui/components/ui/label'
 import { useI18n } from 'vue-i18n'
 import {
   FormControl,
@@ -118,6 +131,7 @@ defineProps({
 })
 
 const { t } = useI18n()
+const eventId = useId()
 
 const webhookEvents = ref([
   {

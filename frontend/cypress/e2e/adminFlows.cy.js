@@ -62,7 +62,7 @@ describe('Admin setup and outgoing conversation', () => {
 
     // Emoji is required. Pick it first so the picker overlay is closed (by the
     // next click) before filling the rest of the form.
-    cy.get('input[name="emoji"]').click()
+    cy.contains('label', 'Emoji').click()
     cy.get('.v3-emoji-picker .v3-emojis button').first().click()
 
     cy.get('input[name="name"]').type(teamName)
@@ -111,7 +111,7 @@ describe('Admin setup and outgoing conversation', () => {
       .find('.tiptap.ProseMirror')
       .click()
       .type('Hello, this is an automated outgoing conversation.')
-    cy.get('[role="dialog"]').find('button[type="submit"]').click()
+    cy.get('[role="dialog"]').find('button[type="submit"]:visible').click()
 
     cy.wait('@createConversation').then(({ response }) => {
       expect(response.statusCode).to.eq(200)

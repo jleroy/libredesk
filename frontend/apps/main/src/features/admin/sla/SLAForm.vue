@@ -1,67 +1,68 @@
 <template>
   <form @submit="onSubmit" class="space-y-8">
-    <div class="grid gap-6 md:grid-cols-2">
-    <FormField v-slot="{ componentField }" name="name">
-      <FormItem>
-        <FormLabel>{{ t('globals.terms.name') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+    <FormGrid>
+      <FormField v-slot="{ componentField }" name="name">
+        <FormItem>
+          <FormLabel>{{ t('globals.terms.name') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="description">
-      <FormItem>
-        <FormLabel>{{ t('globals.terms.description') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="" v-bind="componentField" />
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="description">
+        <FormItem>
+          <FormLabel>{{ t('globals.terms.description') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+    </FormGrid>
+    <FormGrid compact>
+      <FormField v-slot="{ componentField }" name="first_response_time">
+        <FormItem>
+          <FormLabel>{{ t('admin.sla.firstResponseTime') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="6h" v-bind="componentField" />
+          </FormControl>
+          <FormDescription>
+            {{ t('globals.messages.golangDurationHoursMinutes') }}
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="first_response_time">
-      <FormItem>
-        <FormLabel>{{ t('admin.sla.firstResponseTime') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="6h" v-bind="componentField" />
-        </FormControl>
-        <FormDescription>
-          {{ t('globals.messages.golangDurationHoursMinutes') }}
-        </FormDescription>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+      <FormField v-slot="{ componentField }" name="resolution_time">
+        <FormItem>
+          <FormLabel>{{ t('admin.sla.resolutionTime') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="24h" v-bind="componentField" />
+          </FormControl>
+          <FormDescription>{{ t('globals.messages.golangDurationHoursMinutes') }} </FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-    <FormField v-slot="{ componentField }" name="resolution_time">
-      <FormItem>
-        <FormLabel>{{ t('admin.sla.resolutionTime') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="24h" v-bind="componentField" />
-        </FormControl>
-        <FormDescription>{{ t('globals.messages.golangDurationHoursMinutes') }} </FormDescription>
-        <FormMessage />
-      </FormItem>
-    </FormField>
-
-    <FormField v-slot="{ componentField }" name="next_response_time">
-      <FormItem>
-        <FormLabel>{{ t('admin.sla.nextResponseTime') }}</FormLabel>
-        <FormControl>
-          <Input type="text" placeholder="30m" v-bind="componentField" />
-        </FormControl>
-        <FormDescription>
-          {{ t('globals.messages.golangDurationHoursMinutes') }}
-        </FormDescription>
-        <FormMessage />
-      </FormItem>
-    </FormField>
-    </div>
+      <FormField v-slot="{ componentField }" name="next_response_time">
+        <FormItem>
+          <FormLabel>{{ t('admin.sla.nextResponseTime') }}</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="30m" v-bind="componentField" />
+          </FormControl>
+          <FormDescription>
+            {{ t('globals.messages.golangDurationHoursMinutes') }}
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+    </FormGrid>
 
     <!-- Notifications Section -->
     <div class="space-y-6">
-      <div class="flex items-center justify-between pb-3 border-b">
+      <div class="flex flex-wrap items-start justify-between gap-3 pb-3 border-b">
         <div class="space-y-1">
           <h3 class="text-lg font-semibold text-foreground">
             {{ t('admin.sla.alertConfiguration') }}
@@ -70,13 +71,13 @@
             {{ t('admin.sla.alertConfiguration.description') }}
           </p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" @click="addNotification('breach')">
-            <Plus class="w-4 h-4"/>
+            <Plus class="w-4 h-4" />
             {{ t('admin.sla.addBreachAlert') }}
           </Button>
           <Button type="button" variant="outline" size="sm" @click="addNotification('warning')">
-            <Plus class="w-4 h-4"/>
+            <Plus class="w-4 h-4" />
             {{ t('admin.sla.addWarningAlert') }}
           </Button>
         </div>
@@ -114,7 +115,11 @@
                   {{ t('globals.terms.alert') }}
                 </div>
                 <p class="text-xs text-muted-foreground">
-                  {{ notification.type === 'warning' ? t('admin.sla.preBreachAlert') : t('admin.sla.postBreachAlert') }}
+                  {{
+                    notification.type === 'warning'
+                      ? t('admin.sla.preBreachAlert')
+                      : t('admin.sla.postBreachAlert')
+                  }}
                 </p>
               </div>
             </div>
@@ -122,6 +127,7 @@
               type="button"
               variant="ghost"
               size="xs"
+              :aria-label="t('globals.terms.remove')"
               @click.prevent="removeNotification(index)"
               class="opacity-70 hover:opacity-100 text-muted-foreground hover:text-foreground"
             >
@@ -130,7 +136,7 @@
           </div>
 
           <!-- Configuration Fields -->
-          <div class="grid gap-5 md:grid-cols-2">
+          <FormGrid>
             <!-- Timing Section -->
             <div class="space-y-3">
               <div class="space-y-6">
@@ -177,9 +183,7 @@
                     <FormControl>
                       <Input
                         type="text"
-                        :placeholder="
-                          t('sla.enterDuration')
-                        "
+                        :placeholder="t('sla.enterDuration')"
                         v-bind="componentField"
                         @keydown.enter.prevent
                       />
@@ -227,11 +231,8 @@
                 </FormLabel>
                 <FormControl>
                   <Select v-bind="componentField">
-                    <SelectTrigger class="w-full">                        <SelectValue
-                        :placeholder="
-                          t('sla.selectMetric')
-                        "
-                      />
+                    <SelectTrigger class="w-full">
+                      <SelectValue :placeholder="t('sla.selectMetric')" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
@@ -254,7 +255,7 @@
                 <FormMessage />
               </FormItem>
             </FormField>
-          </div>
+          </FormGrid>
         </div>
       </div>
 
@@ -275,6 +276,7 @@
 </template>
 
 <script setup>
+import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
@@ -393,11 +395,13 @@ watch(
             : 'immediately'
     }))
 
-    form.setValues({
-      ...newValues,
-      notifications: transformedNotifications
-    }, false)
-
+    form.setValues(
+      {
+        ...newValues,
+        notifications: transformedNotifications
+      },
+      false
+    )
   },
   { immediate: true, deep: true }
 )

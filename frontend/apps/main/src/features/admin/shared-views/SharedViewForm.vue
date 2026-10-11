@@ -23,7 +23,7 @@
       </FormItem>
     </FormField>
 
-    <div class="grid grid-cols-2 gap-4">
+    <FormGrid>
       <FormField
         v-slot="{ componentField }"
         name="visibility"
@@ -65,13 +65,14 @@
           <FormMessage />
         </FormItem>
       </FormField>
-    </div>
+    </FormGrid>
 
     <Button type="submit" :isLoading="isLoading">{{ submitLabel }}</Button>
   </form>
 </template>
 
 <script setup>
+import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { ref, watch, computed, provide } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'

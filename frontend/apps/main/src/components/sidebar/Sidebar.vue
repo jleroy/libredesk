@@ -8,6 +8,7 @@ import {
 import { useRoute } from 'vue-router'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@shared-ui/components/ui/collapsible'
 import BetaBadge from '@main/components/BetaBadge.vue'
+import { Button } from '@shared-ui/components/ui/button'
 import {
   Sidebar,
   SidebarContent,
@@ -159,6 +160,7 @@ onMounted(() => {
 <template>
   <SidebarProvider
     ref="sidebarProviderRef"
+    class="relative h-full min-h-0 gap-1 overflow-hidden has-[[data-collapsible=offcanvas]]:gap-0"
     style="--sidebar-width: 14rem"
     :default-open="sidebarOpen"
     v-on:update:open="sidebarOpen = $event"
@@ -172,7 +174,7 @@ onMounted(() => {
           <SidebarMenu>
             <SidebarMenuItem>
               <div class="px-1">
-                <span class="font-semibold text-xl">
+                <span class="font-semibold text-base">
                   {{ t('globals.terms.contact', 2) }}
                 </span>
               </div>
@@ -210,7 +212,7 @@ onMounted(() => {
           <SidebarMenu>
             <SidebarMenuItem>
               <div class="px-1">
-                <span class="font-semibold text-xl">
+                <span class="font-semibold text-base">
                   {{ t('globals.terms.report', 2) }}
                 </span>
               </div>
@@ -243,7 +245,7 @@ onMounted(() => {
           <SidebarMenu>
             <SidebarMenuItem>
               <div class="flex flex-col items-start justify-between w-full px-1">
-                <span class="font-semibold text-xl">
+                <span class="font-semibold text-base">
                   {{ t('globals.terms.admin') }}
                 </span>
                 <!-- App version -->
@@ -314,7 +316,7 @@ onMounted(() => {
           <SidebarMenu>
             <SidebarMenuItem>
               <div class="px-1">
-                <span class="font-semibold text-xl">
+                <span class="font-semibold text-base">
                   {{ t('globals.terms.account') }}
                 </span>
               </div>
@@ -350,13 +352,15 @@ onMounted(() => {
           <SidebarMenu>
             <SidebarMenuItem>
               <div class="flex items-center justify-between w-full px-1">
-                <div class="font-semibold text-xl">
+                <div class="font-semibold text-base">
                   <span>{{ t('globals.terms.inbox') }}</span>
                 </div>
                 <div class="mr-1 mt-1 transition-colors">
-                  <router-link :to="{ name: 'search' }">
-                    <Search size="18" stroke-width="2.5" class="text-muted-foreground hover:text-foreground" />
-                  </router-link>
+                  <Button variant="ghost" size="icon" as-child class="size-8 text-muted-foreground">
+                    <router-link :to="{ name: 'search' }" :aria-label="t('globals.terms.search')">
+                      <Search size="18" stroke-width="2.5" aria-hidden="true" />
+                    </router-link>
+                  </Button>
                 </div>
               </div>
             </SidebarMenuItem>
@@ -595,13 +599,13 @@ onMounted(() => {
 
 <style scoped>
 :deep(.sidebar-secondary) {
-  @apply border border-sidebar-border ml-[3.2rem] rounded-lg overflow-hidden;
-  top: 0.40rem !important;
-  bottom: 0.35rem !important;
-  height: auto !important;
+  @apply absolute inset-y-0 h-full overflow-hidden rounded-xl border border-sidebar-border;
 }
 
-/* Override SidebarProvider height */
+:deep([data-sidebar='header']) {
+  @apply h-14 shrink-0 justify-center;
+}
+
 :deep(.group\/sidebar-wrapper) {
   min-height: auto !important;
   height: 100%;

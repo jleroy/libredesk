@@ -1,8 +1,8 @@
 <template>
   <Sheet :open="isOpen" @update:open="$emit('update:open', $event)">
-    <SheetContent class="!max-w-[80vw] sm:!max-w-[80vw] h-full p-0 flex flex-col">
+    <SheetContent class="w-full !max-w-full lg:!max-w-[80vw] h-full p-0 flex flex-col">
       <div class="flex-1 flex flex-col min-h-0">
-        <div class="flex items-center justify-between p-6 border-b bg-card/50">
+        <div class="flex items-center justify-between p-4 sm:p-6 border-b bg-card/50">
           <div>
             <SheetTitle>
               {{
@@ -39,8 +39,8 @@
 
         <Spinner v-if="isLoadingArticle" class="flex-1" />
 
-        <div v-else class="flex-1 flex min-h-0">
-          <div class="flex-1 flex flex-col p-6 space-y-6 min-h-0">
+        <div v-else class="flex-1 min-h-0 overflow-y-auto lg:flex lg:overflow-hidden">
+          <div class="min-w-0 flex-1 flex flex-col p-4 sm:p-6 space-y-6 lg:min-h-0">
             <form @submit="onSubmit" novalidate class="space-y-4 flex-1 flex flex-col min-h-0">
               <div ref="toolbarSlot" />
 
@@ -49,6 +49,7 @@
                   <FormControl>
                     <Input
                       ref="titleInput"
+                      :aria-label="t('globals.terms.title')"
                       type="text"
                       :placeholder="t('globals.terms.title')"
                       v-bind="componentField"
@@ -85,7 +86,9 @@
             </form>
           </div>
 
-          <div class="w-80 border-l bg-muted/20 p-6 overflow-y-auto">
+          <div
+            class="w-full border-t bg-muted/20 p-4 sm:p-6 lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 lg:overflow-y-auto"
+          >
             <div class="space-y-6">
               <div class="space-y-4">
                 <h3 class="font-medium text-sm text-muted-foreground">

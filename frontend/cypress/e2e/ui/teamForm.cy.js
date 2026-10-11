@@ -52,7 +52,7 @@ describe('Team form', () => {
     cy.visit(newPath)
 
     // Pick the required emoji first so the next click closes the picker overlay.
-    cy.get('input[name="emoji"]').click()
+    cy.contains('label', 'Emoji').click()
     cy.get('.v3-emoji-picker .v3-emojis button').first().click()
 
     cy.get('input[name="name"]').type(teamName)
@@ -79,7 +79,9 @@ describe('Team form', () => {
 
     cy.get('input[name="name"]').should('have.value', teamName)
     cy.get('input[name="max_auto_assigned_conversations"]').should('have.value', '7')
-    cy.get('input[name="emoji"]').should('not.have.value', '')
+    cy.contains('label', 'Emoji').invoke('attr', 'for').then((id) => {
+      cy.get(`[id="${id}"]`).invoke('text').should('not.be.empty')
+    })
     cy.get('select[name="conversation_assignment_type"]').should('have.value', 'Round robin')
     cy.get('select[name="timezone"]').should('have.value', 'UTC')
     cy.get('select[name="business_hours_id"]').should('have.value', String(businessHoursId))

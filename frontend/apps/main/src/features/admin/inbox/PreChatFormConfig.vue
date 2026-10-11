@@ -57,7 +57,7 @@
                 :item-key="
                   (field) => field.key || `field_${field.custom_attribute_id || 'unknown'}`
                 "
-                :animation="200"
+                :animation="reducedMotion === 'reduce' ? 0 : 200"
                 handle=".drag-handle"
                 :force-fallback="true"
                 fallback-on-body
@@ -202,6 +202,7 @@ export const getDefaultPrechatFields = () => [
 </script>
 
 <script setup>
+import { usePreferredReducedMotion } from '@vueuse/core'
 import { computed, onMounted, ref } from 'vue'
 import { Input } from '@shared-ui/components/ui/input'
 import { Label } from '@shared-ui/components/ui/label'
@@ -214,6 +215,8 @@ import { Tabs, TabsList, TabsTrigger } from '@shared-ui/components/ui/tabs'
 import { Plus, X, GripVertical } from 'lucide-vue-next'
 import Draggable from 'vuedraggable'
 import api from '@/api'
+
+const reducedMotion = usePreferredReducedMotion()
 
 const prechatConfig = defineModel({
   default: () => ({

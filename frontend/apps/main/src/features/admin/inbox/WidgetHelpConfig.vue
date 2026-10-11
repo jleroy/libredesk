@@ -1,4 +1,5 @@
 <script setup>
+import { usePreferredReducedMotion } from '@vueuse/core'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Label } from '@shared-ui/components/ui/label'
@@ -14,6 +15,8 @@ import SwitchField from '@shared-ui/components/SwitchField.vue'
 import ReorderButtons from '@shared-ui/components/ReorderButtons.vue'
 import { GripVertical, X, FileText } from 'lucide-vue-next'
 import Draggable from 'vuedraggable'
+
+const reducedMotion = usePreferredReducedMotion()
 
 const MAX_FEATURED = 10
 const AUDIENCES = ['visitors', 'users']
@@ -124,7 +127,7 @@ const unusedArticles = computed(() =>
         <Draggable
           v-model="featured"
           item-key="id"
-          :animation="200"
+          :animation="reducedMotion === 'reduce' ? 0 : 200"
           handle=".drag-handle"
           :force-fallback="true"
           fallback-on-body

@@ -29,6 +29,8 @@ describe('Login Component', () => {
 
         // Visit the login page
         cy.visit('/')
+        cy.get('#email').clear()
+        cy.get('#password').clear()
     })
 
     it('should display login form', () => {

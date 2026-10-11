@@ -3,11 +3,12 @@
     <ContextMenuTrigger asChild>
       <router-link
         :to="conversationRoute"
-        class="group relative block px-3 py-2.5 transition-colors duration-150 ease-in-out cursor-pointer"
+        :aria-current="isCurrent ? 'page' : undefined"
+        class="group relative block cursor-pointer px-3 py-3 transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         :class="{
-          'bg-accent': isCurrent,
-          'bg-primary/5 hover:bg-primary/10': isItemSelected && !isCurrent,
-          'hover:bg-accent/40': !isCurrent && !isItemSelected
+          'bg-accent before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-r before:bg-primary': isCurrent,
+          'bg-primary/5 can-hover:hover:bg-primary/10': isItemSelected && !isCurrent,
+          'can-hover:hover:bg-accent/40': !isCurrent && !isItemSelected
         }"
       >
         <div class="flex items-start gap-2">

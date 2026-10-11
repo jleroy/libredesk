@@ -1,4 +1,5 @@
 <script setup>
+import { usePreferredReducedMotion } from '@vueuse/core'
 const HINT_CLASS = 'text-xs text-muted-foreground'
 
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
@@ -80,6 +81,8 @@ const SELECT_FIELDS = [
   }
 ]
 const DEVICES = ['desktop', 'mobile']
+
+const reducedMotion = usePreferredReducedMotion()
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
@@ -332,7 +335,7 @@ onMounted(async () => {
           v-if="modelValue.length"
           v-model="orderedCampaigns"
           item-key="id"
-          :animation="200"
+          :animation="reducedMotion === 'reduce' ? 0 : 200"
           handle=".drag-handle"
           :force-fallback="true"
           fallback-on-body

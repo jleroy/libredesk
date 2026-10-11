@@ -14,7 +14,9 @@
             </span>
             <template v-if="autoRefreshPaused">
               <Separator orientation="vertical" class="h-4" />
-              <span class="text-sm text-muted-foreground">{{ $t('report.autoRefreshPaused') }}</span>
+              <span class="text-sm text-muted-foreground">{{
+                $t('report.autoRefreshPaused')
+              }}</span>
               <Button size="sm" variant="outline" :disabled="isLoading" @click="manualRefresh">
                 {{ $t('globals.terms.refresh') }}
               </Button>
@@ -56,7 +58,7 @@
         </div>
 
         <!-- Row 1: Open Conversations and Agent Status -->
-        <div class="flex flex-col w-full gap-4 md:flex-row">
+        <div :class="REPORT_ROW_CLASS">
           <Card
             class="flex-1"
             :title="$t('report.openConversations')"
@@ -74,7 +76,7 @@
         </div>
 
         <!-- Row 2: CSAT and Message Volume -->
-        <div class="flex flex-col w-full gap-4 md:flex-row">
+        <div :class="REPORT_ROW_CLASS">
           <!-- CSAT Card -->
           <div class="flex-1 box p-5">
             <p class="card-title mb-4">{{ $t('report.csat.cardTitle') }}</p>
@@ -142,7 +144,7 @@
                 >
                 <span class="metric-label">{{ $t('report.sla.compliance') }}</span>
               </div>
-              <div class="grid grid-cols-2 gap-4 text-center pt-2">
+              <div :class="SLA_COUNT_GRID_CLASS">
                 <div>
                   <span class="text-2xl font-semibold tabular-nums text-success">{{
                     slaCounts.first_response_met_count || 0
@@ -165,7 +167,7 @@
             </div>
 
             <!-- Next Response -->
-            <div class="space-y-4 border-l border-r px-8">
+            <div class="space-y-4 border-y py-6 md:border-y-0 md:border-x md:px-8 md:py-0">
               <p class="section-title">{{ $t('report.sla.nextResponse') }}</p>
               <div class="metric-item">
                 <span class="metric-value"
@@ -173,7 +175,7 @@
                 >
                 <span class="metric-label">{{ $t('report.sla.compliance') }}</span>
               </div>
-              <div class="grid grid-cols-2 gap-4 text-center pt-2">
+              <div :class="SLA_COUNT_GRID_CLASS">
                 <div>
                   <span class="text-2xl font-semibold tabular-nums text-success">{{
                     slaCounts.next_response_met_count || 0
@@ -204,7 +206,7 @@
                 >
                 <span class="metric-label">{{ $t('report.sla.compliance') }}</span>
               </div>
-              <div class="grid grid-cols-2 gap-4 text-center pt-2">
+              <div :class="SLA_COUNT_GRID_CLASS">
                 <div>
                   <span class="text-2xl font-semibold tabular-nums text-success">{{
                     slaCounts.resolution_met_count || 0
@@ -275,10 +277,13 @@
 </template>
 
 <script setup>
+const REPORT_ROW_CLASS = 'flex flex-col w-full gap-4 md:flex-row'
+const SLA_COUNT_GRID_CLASS = 'grid grid-cols-2 gap-4 text-center pt-2'
+
 import { ref, computed, watch, onMounted } from 'vue'
 import { useIntervalFn, useDocumentVisibility } from '@vueuse/core'
-import { useEmitter } from '../../composables/useEmitter'
-import { EMITTER_EVENTS } from '../../constants/emitterEvents.js'
+import { useEmitter } from '@main/composables/useEmitter'
+import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { formatDuration } from '@shared-ui/utils/datetime.js'
 import Card from '@/features/reports/OverviewCard.vue'
@@ -288,7 +293,7 @@ import { Button } from '@shared-ui/components/ui/button/index.js'
 import { Input } from '@shared-ui/components/ui/input'
 import { Separator } from '@shared-ui/components/ui/separator'
 import { useI18n } from 'vue-i18n'
-import api from '../../api'
+import api from '@main/api'
 
 const emitter = useEmitter()
 const { t } = useI18n()

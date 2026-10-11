@@ -40,7 +40,7 @@
           v-model="rules"
           class="space-y-6"
           item-key="id"
-          :animation="200"
+          :animation="reducedMotion === 'reduce' ? 0 : 200"
           :force-fallback="true"
           fallback-on-body
           :fallback-tolerance="3"
@@ -68,6 +68,7 @@
 </template>
 
 <script setup>
+import { usePreferredReducedMotion } from '@vueuse/core'
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import RuleList from './RuleList.vue'
@@ -85,6 +86,8 @@ import api from '@/api'
 import { useEmitter } from '@/composables/useEmitter'
 import { EMITTER_EVENTS } from '@/constants/emitterEvents.js'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
+
+const reducedMotion = usePreferredReducedMotion()
 
 const { t } = useI18n()
 const emitter = useEmitter()

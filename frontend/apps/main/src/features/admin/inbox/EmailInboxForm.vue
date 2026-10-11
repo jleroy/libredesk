@@ -310,7 +310,7 @@
                   $t('globals.terms.advanced')
                 }}</AccordionTrigger>
                 <AccordionContent force-mount class="space-y-4 pt-5">
-                  <div class="grid gap-4 sm:grid-cols-2">
+                  <FormGrid compact>
                     <FormField v-slot="{ componentField, handleChange, meta }" name="imap.mailbox">
                       <FormItem>
                         <FormLabel>{{ $t('admin.inbox.mailbox') }}</FormLabel>
@@ -372,7 +372,7 @@
                         <FormMessage />
                       </FormItem>
                     </FormField>
-                  </div>
+                  </FormGrid>
 
                   <FormField
                     v-slot="{ componentField, handleChange, meta }"
@@ -499,7 +499,7 @@
                   $t('globals.terms.advanced')
                 }}</AccordionTrigger>
                 <AccordionContent force-mount class="space-y-4 pt-5">
-                  <div class="grid gap-4 sm:grid-cols-2">
+                  <FormGrid compact>
                     <FormField
                       v-slot="{ componentField, handleChange, meta }"
                       name="smtp.max_conns"
@@ -543,9 +543,7 @@
                         <FormMessage />
                       </FormItem>
                     </FormField>
-                  </div>
 
-                  <div class="grid gap-4 sm:grid-cols-2">
                     <FormField
                       v-slot="{ componentField, handleChange, meta }"
                       name="smtp.idle_timeout"
@@ -589,7 +587,7 @@
                         <FormMessage />
                       </FormItem>
                     </FormField>
-                  </div>
+                  </FormGrid>
 
                   <div class="grid gap-4 sm:grid-cols-2">
                     <FormField
@@ -913,6 +911,7 @@
 </template>
 
 <script setup>
+import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed, nextTick, ref } from 'vue'
 import { useFieldArray, useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'

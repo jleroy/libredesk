@@ -287,6 +287,50 @@ describe('Conversation lifecycle', () => {
     expectSentRecipients(ccConversationUuid, { cc: [ccAddress], bcc: [] })
   })
 
+  it('preserves sender and recipient edits across window and divider resizing', () => {
+    const sender = 'billing@example.com'
+    const to = 'edited@example.com'
+    cy.intercept('GET', `**/api/v1/conversations/${ccConversationUuid}`, (req) => {
+      req.continue((res) => {
+        res.body.data.inbox_aliases = [{ email: sender, verification_status: 'verified' }]
+      })
+    })
+    openConversation(ccConversationUuid)
+    recipientRow(/^CC$/).find('input').should('have.value', ccAddress)
+    recipientRow(/^From$/).find('[role="combobox"]').click()
+    cy.contains('[role="option"]', sender).trigger('keydown', { key: 'Enter' })
+    recipientRow(/^To$/).find('input').clear()
+    recipientRow(/^To$/).find('input').type(to)
+    recipientRow(/^CC$/).find('input').clear()
+    recipientRow(/^CC$/).find('input').type('edited.cc@example.com')
+    cy.contains('button', /^BCC$/).click()
+    recipientRow(/^BCC$/).find('input').type(bccAddress)
+    cy.get('.tiptap.ProseMirror').first().then(($editor) => {
+      const originalEditor = $editor[0]
+      const checkEdits = () => {
+        recipientRow(/^From$/).find('[role="combobox"]').should('contain', sender)
+        recipientRow(/^To$/).find('input').should('have.value', to)
+        recipientRow(/^CC$/).find('input').should('have.value', 'edited.cc@example.com')
+        recipientRow(/^BCC$/).find('input').should('have.value', bccAddress)
+        cy.get('.tiptap.ProseMirror').first().should(($current) => {
+          expect($current[0]).to.equal(originalEditor)
+        })
+      }
+      for (const width of [1200, 900, 390, 1440, 900, 1440]) {
+        cy.viewport(width, 900)
+        checkEdits()
+      }
+      cy.get('[role="separator"][aria-label="Conversations"]').focus()
+      cy.get('[role="separator"][aria-label="Conversations"]').trigger('keydown', { key: 'End' })
+      cy.get('button[aria-label="Details"]').should('have.attr', 'aria-expanded', 'false')
+      cy.get('[role="separator"][aria-label="Details"]').should('not.exist')
+      checkEdits()
+      cy.get('[role="separator"][aria-label="Conversations"]').trigger('keydown', { key: 'Home' })
+      cy.get('[role="separator"][aria-label="Details"]').should('exist')
+      checkEdits()
+    })
+  })
+
   it('drops the CC once its row is closed', () => {
     captureSend()
     openConversation(ccConversationUuid)

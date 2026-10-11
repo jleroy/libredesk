@@ -54,7 +54,7 @@
       </p>
     </FormField>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div class="max-w-xl">
       <FormField v-slot="{ componentField }" name="reopen_window_hours">
         <FormItem>
           <FormLabel>{{ $t('admin.inbox.whatsapp.reopenWindow') }}</FormLabel>
@@ -91,7 +91,7 @@
         </FormItem>
       </FormField>
 
-      <div class="grid grid-cols-2 gap-4">
+      <FormGrid>
         <FormField v-slot="{ componentField }" name="config.csat_template_button_text">
           <FormItem>
             <FormLabel>{{ $t('globals.terms.buttonText') }}</FormLabel>
@@ -115,12 +115,12 @@
             <FormMessage />
           </FormItem>
         </FormField>
-      </div>
+      </FormGrid>
     </div>
 
     <div class="box p-4 space-y-4">
       <h3 class="font-semibold">{{ $t('admin.inbox.whatsapp.metaCredentials') }}</h3>
-      <div class="grid grid-cols-2 gap-4">
+      <FormGrid>
         <FormField v-slot="{ componentField }" name="config.phone_number_id">
           <FormItem>
             <FormLabel>{{ $t('globals.terms.phoneNumberID') }}</FormLabel>
@@ -143,9 +143,9 @@
             <FormMessage />
           </FormItem>
         </FormField>
-      </div>
+      </FormGrid>
 
-      <div class="grid grid-cols-2 gap-4">
+      <FormGrid>
         <FormField v-slot="{ componentField }" name="config.access_token">
           <FormItem>
             <FormLabel>{{ $t('globals.terms.accessToken') }}</FormLabel>
@@ -171,9 +171,9 @@
             <FormMessage />
           </FormItem>
         </FormField>
-      </div>
+      </FormGrid>
 
-      <div class="grid grid-cols-2 gap-4">
+      <div class="max-w-xl">
         <FormField v-slot="{ componentField }" name="config.api_version">
           <FormItem>
             <FormLabel>{{ $t('globals.terms.apiVersion') }}</FormLabel>
@@ -193,7 +193,7 @@
         <span>{{ $t('admin.inbox.whatsapp.webhook.description') }}</span>
       </p>
 
-      <div class="grid grid-cols-2 gap-4">
+      <div class="max-w-xl">
         <FormField v-slot="{ componentField }" name="config.webhook_verify_token">
           <FormItem>
             <FormLabel>{{ $t('globals.terms.webhookVerifyToken') }}</FormLabel>
@@ -227,6 +227,7 @@
 </template>
 
 <script setup>
+import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'

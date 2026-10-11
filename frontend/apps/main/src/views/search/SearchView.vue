@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-screen">
+  <div class="flex flex-col min-h-0">
     <SearchHeader />
-    <div ref="scrollRef" class="flex-1 overflow-y-auto">
+    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto">
       <div class="mx-auto max-w-6xl space-y-4 px-4 py-6">
         <SearchInput
           ref="inputRef"

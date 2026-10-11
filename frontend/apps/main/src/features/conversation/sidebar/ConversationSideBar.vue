@@ -1,12 +1,14 @@
 <template>
-  <Tabs v-model="activeTab" class="flex flex-col h-full">
-    <TabsList class="grid grid-cols-2 mx-4 mt-3">
-      <TabsTrigger value="details" class="text-xs">{{ $t('copilot.details') }}</TabsTrigger>
-      <TabsTrigger value="copilot" class="text-xs">{{ COPILOT_NAME }}</TabsTrigger>
-    </TabsList>
+  <Tabs v-model="activeTab" class="flex h-full min-h-0 flex-col">
+    <div class="flex h-14 shrink-0 items-center border-b border-border px-3">
+      <TabsList class="grid w-full grid-cols-2">
+        <TabsTrigger value="details" class="text-xs">{{ $t('copilot.details') }}</TabsTrigger>
+        <TabsTrigger value="copilot" class="text-xs">{{ COPILOT_NAME }}</TabsTrigger>
+      </TabsList>
+    </div>
 
-    <TabsContent value="details" class="mt-0">
-      <ConversationSideBarContact class="p-4" />
+    <TabsContent value="details" class="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <ConversationSideBarContact class="border-b border-border p-4" />
       <Accordion type="multiple" collapsible v-model="accordionState">
         <AccordionItem value="actions" class="accordion-item">
           <AccordionTrigger class="accordion-trigger">
@@ -48,30 +50,40 @@
                 keep-open-on-select
                 :model-value="conversationStore.current.tags || []"
                 @update:modelValue="onTagsChange"
-              />
-              <div class="mt-2 flex flex-wrap items-center gap-1">
+              >
+                <template #action>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="h-7 w-7 text-muted-foreground"
+                        :aria-label="t('conversation.sidebar.suggestTags')"
+                        :disabled="isSuggestingTags"
+                        @click="suggestTags"
+                      >
+                        <Loader2 v-if="isSuggestingTags" class="animate-spin" aria-hidden="true" />
+                        <Sparkles v-else aria-hidden="true" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ t('conversation.sidebar.suggestTags') }}</TooltipContent>
+                  </Tooltip>
+                </template>
+              </SelectTagCombobox>
+              <div v-if="tagSuggestions.length" class="mt-2 flex flex-wrap items-center gap-1">
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  class="h-6 gap-1 px-2 text-xs text-muted-foreground"
-                  :disabled="isSuggestingTags"
-                  @click="suggestTags"
-                >
-                  <Loader2 v-if="isSuggestingTags" class="h-3 w-3 animate-spin" />
-                  <Sparkles v-else class="h-3 w-3" />
-                  {{ t('conversation.sidebar.suggestTags') }}
-                </Button>
-                <button
                   v-for="suggestion in tagSuggestions"
                   :key="suggestion"
                   type="button"
-                  class="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs text-accent-foreground hover:bg-accent/80"
+                  variant="secondary"
+                  size="xs"
+                  class="max-w-full gap-1 px-2 text-xs"
                   @click="applySuggestedTag(suggestion)"
                 >
-                  <Plus class="h-3 w-3" />
-                  {{ suggestion }}
-                </button>
+                  <Plus class="h-3 w-3" aria-hidden="true" />
+                  <span class="truncate">{{ suggestion }}</span>
+                </Button>
               </div>
             </div>
           </AccordionContent>
@@ -156,6 +168,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Sparkles, Loader2, Plus } from 'lucide-vue-next'
 import { Button } from '@shared-ui/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import { useConversationStore } from '@/stores/conversation'
 import { useUserStore } from '@/stores/user'
 import { COPILOT_NAME } from '@/constants/copilot'
@@ -322,11 +335,11 @@ const updateContactCustomAttributes = async (attributes) => {
 
 <style scoped>
 :deep(.accordion-item) {
-  @apply border-0 mb-2;
+  @apply border-b border-border last:border-b-0;
 }
 
 :deep(.accordion-trigger) {
-  @apply bg-muted p-2 text-sm font-medium rounded-md mx-2;
+  @apply rounded-none px-4 py-3 text-sm font-medium can-hover:hover:bg-accent/40 hover:no-underline;
 }
 
 :deep(.accordion-content) {
@@ -334,6 +347,6 @@ const updateContactCustomAttributes = async (attributes) => {
 }
 
 :deep(.accordion-content--actions) {
-  @apply space-y-3 px-4 pt-4 pb-0;
+  @apply space-y-3 px-4 pb-4 pt-1;
 }
 </style>

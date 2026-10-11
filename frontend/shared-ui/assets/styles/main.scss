@@ -24,7 +24,14 @@
   }
 
   .animate-shake,
-  .animate-slide-in {
+  .animate-slide-in,
+  .animate-slide-out,
+  .animate-fade-in-down,
+  .animate-pop,
+  .animate-accordion-down,
+  .animate-accordion-up,
+  .animate-collapsible-down,
+  .animate-collapsible-up {
     animation: none !important;
   }
 }
@@ -35,6 +42,8 @@
     @apply font-sans;
     --vis-font-family: theme('fontFamily.sans');
     min-height: 100%;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
     overflow: hidden;
     margin: 0;
     -webkit-font-smoothing: antialiased;
@@ -443,13 +452,4 @@
   .drag-ghost {
     @apply bg-accent/60 opacity-60;
   }
-}
-
-/* Fix collapsed sidebar visibility in padding gap.
- * The sidebar is position:fixed and slides to left:-14rem when collapsed,
- * but ml-[3.2rem] offset causes part to remain visible in the app's padding gap.
- * Push it further left to fully hide it.
- */
-[data-state="collapsed"][data-collapsible="offcanvas"] .sidebar-secondary {
-  left: calc((var(--sidebar-width) + 3.5rem) * -1.4) !important;
 }

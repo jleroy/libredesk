@@ -1,23 +1,26 @@
 <template>
   <LoadingOverlay :loading="isLoading" reserve-height>
-    <div class="flex justify-between mb-5">
-      <div></div>
-      <div class="flex justify-end mb-4">
-        <Button @click="navigateToNewTemplate" :disabled="templateType !== 'email_outgoing'">
-          {{ $t('globals.messages.newTemplate') }}
-        </Button>
-      </div>
-    </div>
     <div>
       <Tabs default-value="email_outgoing" v-model="templateType">
-        <TabsList class="flex w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mb-5 sm:grid sm:grid-cols-2">
-          <TabsTrigger value="email_outgoing" :class="TEMPLATE_TAB_CLASS">
-            {{ $t('admin.template.outgoingEmailTemplates') }}
-          </TabsTrigger>
-          <TabsTrigger value="email_notification" :class="TEMPLATE_TAB_CLASS">
-            {{ $t('admin.template.emailNotificationTemplates') }}
-          </TabsTrigger>
-        </TabsList>
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0 max-w-full overflow-x-auto p-1 -m-1">
+            <TabsList class="w-max justify-start">
+              <TabsTrigger value="email_outgoing">
+                {{ $t('admin.template.outgoingEmailTemplates') }}
+              </TabsTrigger>
+              <TabsTrigger value="email_notification">
+                {{ $t('admin.template.emailNotificationTemplates') }}
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <Button
+            type="button"
+            @click="navigateToNewTemplate"
+            :disabled="templateType !== 'email_outgoing'"
+          >
+            {{ $t('globals.messages.newTemplate') }}
+          </Button>
+        </div>
         <TabsContent value="email_outgoing">
           <DataTable
             :columns="createOutgoingEmailTableColumns(t)"
@@ -38,8 +41,6 @@
 </template>
 
 <script setup>
-const TEMPLATE_TAB_CLASS = 'shrink-0 sm:min-w-0'
-
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import DataTable from '@main/components/datatable/DataTable.vue'
 import {

@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-0 flex-1 flex flex-col">
     <div class="flex flex-wrap gap-4 pb-4">
       <div class="flex items-center gap-2 mb-4">
         <!-- Filter Popover -->
         <Popover :open="filtersOpen" @update:open="filtersOpen = $event">
-          <PopoverTrigger @click="filtersOpen = !filtersOpen">
-            <Button variant="outline" size="sm" class="flex items-center gap-2 h-8">
+          <PopoverTrigger as-child>
+            <Button type="button" variant="outline" size="sm" class="flex items-center gap-2 h-8">
               <ListFilter size="14" />
               <span>{{ t('globals.terms.filter', 1) }}</span>
               <span
@@ -17,7 +17,7 @@
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-full p-4 flex flex-col gap-4">
-            <div class="w-[32rem]">
+            <div class="w-[32rem] max-w-full">
               <FilterBuilder
                 :fields="filterFields"
                 :showButtons="true"
@@ -31,8 +31,14 @@
 
         <!-- Order By Popover -->
         <Popover>
-          <PopoverTrigger>
-            <Button variant="outline" size="sm" class="flex items-center h-8">
+          <PopoverTrigger as-child>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              class="size-8"
+              :aria-label="t('globals.messages.sortBy')"
+            >
               <ArrowDownWideNarrow size="18" class="text-muted-foreground cursor-pointer" />
             </Button>
           </PopoverTrigger>
@@ -103,11 +109,11 @@ import FilterBuilder from '@main/components/filter/FilterBuilder.vue'
 import { Button } from '@shared-ui/components/ui/button'
 import { ListFilter, ArrowDownWideNarrow } from 'lucide-vue-next'
 import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
-import { useActivityLogFilters } from '../../../composables/useActivityLogFilters'
+import { useActivityLogFilters } from '@main/composables/useActivityLogFilters'
 import { useI18n } from 'vue-i18n'
 import { format } from 'date-fns'
 import PaginationBar from '@main/components/pagination/PaginationBar.vue'
-import api from '../../../api'
+import api from '@main/api'
 
 const activityLogs = ref([])
 const { t } = useI18n()
