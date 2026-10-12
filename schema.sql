@@ -393,7 +393,7 @@ CREATE TABLE macros (
    team_id BIGINT REFERENCES teams(id) ON DELETE CASCADE ON UPDATE CASCADE,
    usage_count INT DEFAULT 0 NOT NULL,
    CONSTRAINT name_length CHECK (length(name) <= 140),
-   CONSTRAINT message_content_length CHECK (length(message_content) <= 5000)
+   CONSTRAINT message_content_length CHECK (length(message_content) <= 100000)
 );
 
 DROP TABLE IF EXISTS conversation_participants CASCADE;
