@@ -984,6 +984,7 @@
   "globals.messages.maxLength": "Must be at most {max} characters",
   "globals.messages.messageOrAttachmentRequired": "Type a message or attach a file before sending.",
   "globals.messages.moreActions": "More actions",
+  "globals.messages.moreFilters": "More filters",
   "globals.messages.moveDown": "Move down",
   "globals.messages.moveUp": "Move up",
   "globals.messages.mustBeNumber": "Must be a number",
