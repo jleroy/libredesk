@@ -10,8 +10,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/SherClockHolmes/webpush-go v1.4.0 h1:ocnzNKWN23T9nvHi6IfyrQjkIc0oJWv1B1pULsf9i3s=
 github.com/SherClockHolmes/webpush-go v1.4.0/go.mod h1:XSq8pKX11vNV8MJEMwjrlTkxhAj1zKfxmyhdV7Pd6UA=
-github.com/abhinavxd/smtppool/v2 v2.0.0-20261010161941-542584b9d295 h1:9dJ3bgZi2eVflESfw92Rvw1XPD60PQVcB2hzbrYYrMw=
-github.com/abhinavxd/smtppool/v2 v2.0.0-20261010161941-542584b9d295/go.mod h1:D7HcfSS8Xd3jpZ9LRwQ3aGdqp9FzFE66uW6w/BTpy4E=
+github.com/abhinavxd/smtppool/v2 v2.0.0-20261013120003-a1daf344a2fc h1:PhGWR+OCTl+/Q8wmP6knSJSXk9qd+EyM0o8PvSi0460=
+github.com/abhinavxd/smtppool/v2 v2.0.0-20261013120003-a1daf344a2fc/go.mod h1:D7HcfSS8Xd3jpZ9LRwQ3aGdqp9FzFE66uW6w/BTpy4E=
 github.com/abhinavxd/ssrfguard v0.1.0 h1:Ns/llAQ63uGFehxSvhCd+WGDKmBEEmIH+E1AW1CGgWM=
 github.com/abhinavxd/ssrfguard v0.1.0/go.mod h1:eNVubb+m/r3KrKWYdG6hxzeAfj+t2ZmZss4V/x7D6Ws=
 github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 h1:uvdUDbHQHO85qeSydJtItA4T55Pw6BtAejd0APRJOCE=
