@@ -101,4 +101,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/knadh/smtppool/v2 => github.com/abhinavxd/smtppool/v2 v2.0.0-20261010161941-542584b9d295
+replace github.com/knadh/smtppool/v2 => github.com/abhinavxd/smtppool/v2 v2.0.0-20261013120003-a1daf344a2fc
