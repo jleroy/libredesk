@@ -41,7 +41,7 @@
 
       <Transition
         :css="emojiPickerPointerOpened"
-        enter-active-class="transition-[opacity,transform] duration-[125ms] ease-out motion-reduce:duration-100"
+        enter-active-class="transition-[opacity,transform] [transition-duration:125ms] ease-out motion-reduce:duration-100"
         enter-from-class="opacity-0 scale-[0.98] motion-reduce:scale-100"
         enter-to-class="opacity-100 scale-100"
         leave-active-class="transition-[opacity,transform] duration-100 ease-out"

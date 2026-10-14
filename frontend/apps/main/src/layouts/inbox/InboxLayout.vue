@@ -35,7 +35,6 @@
     <ResizablePanel
       v-show="!isMobile || !isListRoute"
       :order="2"
-      :default-size="isMobile ? 100 : panelSizes[1]"
       :min-size="isMobile ? 100 : 30"
       class="min-w-0"
     >
