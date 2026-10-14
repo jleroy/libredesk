@@ -48,6 +48,9 @@ func (e *Email) ReadIncomingMessages(ctx context.Context, cfg imodels.IMAPConfig
 
 	// Scan once right away so a freshly configured inbox picks up mail (or surfaces connection errors)
 	// without waiting a full read interval.
+	if ctx.Err() != nil {
+		return nil
+	}
 	e.readMailbox(ctx, scanInboxSince, cfg)
 
 	readTicker := time.NewTicker(readInterval)
