@@ -2,8 +2,8 @@
   <LoadingOverlay :loading="isLoading" reserve-height>
     <div>
       <Tabs default-value="email_outgoing" v-model="templateType">
-        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div class="min-w-0 max-w-full overflow-x-auto p-1 -m-1">
+        <AdminToolbar v-model:search="searchTerm" searchable class="mb-5">
+          <template #left>
             <TabsList class="w-max justify-start">
               <TabsTrigger value="email_outgoing">
                 {{ $t('admin.template.outgoingEmailTemplates') }}
@@ -12,17 +12,21 @@
                 {{ $t('admin.template.emailNotificationTemplates') }}
               </TabsTrigger>
             </TabsList>
-          </div>
-          <Button
-            type="button"
-            @click="navigateToNewTemplate"
-            :disabled="templateType !== 'email_outgoing'"
-          >
-            {{ $t('globals.messages.newTemplate') }}
-          </Button>
-        </div>
+          </template>
+          <template #actions>
+            <Button
+              type="button"
+              @click="navigateToNewTemplate"
+              :disabled="templateType !== 'email_outgoing'"
+            >
+              {{ $t('globals.messages.newTemplate') }}
+            </Button>
+          </template>
+        </AdminToolbar>
         <TabsContent value="email_outgoing">
           <DataTable
+            v-model:search="searchTerm"
+            :searchable="false"
             :columns="createOutgoingEmailTableColumns(t)"
             :data="templates"
             :loading="isLoading"
@@ -30,6 +34,8 @@
         </TabsContent>
         <TabsContent value="email_notification">
           <DataTable
+            v-model:search="searchTerm"
+            :searchable="false"
             :columns="createEmailNotificationTableColumns(t)"
             :data="templates"
             :loading="isLoading"
@@ -43,6 +49,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import DataTable from '@main/components/datatable/DataTable.vue'
+import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import {
   createOutgoingEmailTableColumns,
   createEmailNotificationTableColumns
@@ -59,6 +66,7 @@ import { handleHTTPError } from '@shared-ui/utils/http.js'
 import api from '@main/api'
 
 const templateType = useStorage('templateType', 'email_outgoing')
+const searchTerm = ref('')
 const { t } = useI18n()
 const templates = ref([])
 const isLoading = ref(false)
@@ -102,6 +110,7 @@ const navigateToNewTemplate = () => {
 }
 
 watch(templateType, () => {
+  searchTerm.value = ''
   templates.value = []
   fetchAll()
 })

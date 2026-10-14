@@ -4,16 +4,16 @@
       <template #content>
         <LoadingOverlay :loading="isLoading" reserve-height>
           <Tabs default-value="contact" v-model="appliesTo">
-            <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <div class="min-w-0 max-w-full overflow-x-auto p-1 -m-1">
+            <AdminToolbar v-model:search="searchTerm" searchable class="mb-5">
+              <template #left>
                 <TabsList class="w-max justify-start">
                   <TabsTrigger value="contact">{{ $t('globals.terms.contact') }}</TabsTrigger>
                   <TabsTrigger value="conversation">{{
                     $t('globals.terms.conversation')
                   }}</TabsTrigger>
                 </TabsList>
-              </div>
-              <div>
+              </template>
+              <template #actions>
                 <Dialog v-model:open="dialogOpen">
                   <DialogTrigger as-child @click="newCustomAttribute">
                     <Button type="button">
@@ -42,10 +42,12 @@
                     </CustomAttributesForm>
                   </DialogContent>
                 </Dialog>
-              </div>
-            </div>
+              </template>
+            </AdminToolbar>
             <TabsContent value="contact">
               <DataTable
+                v-model:search="searchTerm"
+                :searchable="false"
                 :columns="createColumns(t, { onEdit: editCustomAttribute })"
                 :data="customAttributes"
                 :loading="isLoading"
@@ -53,6 +55,8 @@
             </TabsContent>
             <TabsContent value="conversation">
               <DataTable
+                v-model:search="searchTerm"
+                :searchable="false"
                 :columns="createColumns(t, { onEdit: editCustomAttribute })"
                 :data="customAttributes"
                 :loading="isLoading"
@@ -72,6 +76,7 @@
 <script setup>
 import { ref, onMounted, watch, onUnmounted } from 'vue'
 import DataTable from '@main/components/datatable/DataTable.vue'
+import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import { createColumns } from '@main/features/admin/custom-attributes/dataTableColumns.js'
 import CustomAttributesForm from '@/features/admin/custom-attributes/CustomAttributesForm.vue'
 import { Button } from '@shared-ui/components/ui/button'
@@ -98,6 +103,7 @@ import { handleHTTPError } from '@shared-ui/utils/http.js'
 import api from '@main/api'
 
 const appliesTo = useStorage('appliesTo', 'contact')
+const searchTerm = ref('')
 const { t } = useI18n()
 const customAttributes = ref([])
 const isLoading = ref(false)
@@ -199,6 +205,7 @@ const onSubmit = form.handleSubmit(async (values) => {
 watch(
   appliesTo,
   (newVal) => {
+    searchTerm.value = ''
     form.resetForm({
       values: {
         ...form.values,

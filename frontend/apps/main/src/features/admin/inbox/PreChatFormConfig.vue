@@ -17,14 +17,18 @@
     />
 
     <Tabs v-if="prechatConfig.enabled" v-model="selectedAudience">
-      <TabsList class="grid w-full grid-cols-2">
-        <TabsTrigger value="visitors">
-          {{ $t('admin.inbox.livechat.userSettings.visitors') }}
-        </TabsTrigger>
-        <TabsTrigger value="users">
-          {{ $t('globals.terms.users') }}
-        </TabsTrigger>
-      </TabsList>
+      <AdminToolbar>
+        <template #left>
+          <TabsList class="w-max justify-start">
+            <TabsTrigger value="visitors">
+              {{ $t('admin.inbox.livechat.userSettings.visitors') }}
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              {{ $t('globals.terms.users') }}
+            </TabsTrigger>
+          </TabsList>
+        </template>
+      </AdminToolbar>
 
       <div class="mt-4 space-y-6">
         <SwitchField
@@ -202,6 +206,7 @@ export const getDefaultPrechatFields = () => [
 </script>
 
 <script setup>
+import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import { usePreferredReducedMotion } from '@vueuse/core'
 import { computed, onMounted, ref } from 'vue'
 import { Input } from '@shared-ui/components/ui/input'

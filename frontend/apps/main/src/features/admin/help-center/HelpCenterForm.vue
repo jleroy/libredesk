@@ -1,10 +1,14 @@
 <template>
   <form ref="formEl" @submit="onSubmit" novalidate class="space-y-6 w-full">
     <Tabs v-model="activeTab" class="w-full">
-      <TabsList class="grid w-full grid-cols-2">
-        <TabsTrigger value="general">{{ t('globals.terms.general') }}</TabsTrigger>
-        <TabsTrigger value="appearance">{{ t('globals.terms.appearance') }}</TabsTrigger>
-      </TabsList>
+      <AdminToolbar>
+        <template #left>
+          <TabsList class="w-max justify-start">
+            <TabsTrigger value="general">{{ t('globals.terms.general') }}</TabsTrigger>
+            <TabsTrigger value="appearance">{{ t('globals.terms.appearance') }}</TabsTrigger>
+          </TabsList>
+        </template>
+      </AdminToolbar>
 
       <div class="mt-8">
         <div v-show="activeTab === 'general'" class="space-y-6">
@@ -227,16 +231,20 @@
             </FormField>
 
             <Tabs :model-value="editingScheme" @update:model-value="editingScheme = $event">
-              <TabsList class="w-full h-10">
-                <TabsTrigger value="light" class="flex-1 gap-2 h-8">
-                  <Sun class="size-4" />
-                  {{ t('globals.terms.light') }}
-                </TabsTrigger>
-                <TabsTrigger value="dark" class="flex-1 gap-2 h-8">
-                  <Moon class="size-4" />
-                  {{ t('globals.terms.dark') }}
-                </TabsTrigger>
-              </TabsList>
+              <AdminToolbar>
+                <template #left>
+                  <TabsList class="w-max justify-start">
+                    <TabsTrigger value="light" class="gap-2 h-8">
+                      <Sun class="size-4" />
+                      {{ t('globals.terms.light') }}
+                    </TabsTrigger>
+                    <TabsTrigger value="dark" class="gap-2 h-8">
+                      <Moon class="size-4" />
+                      {{ t('globals.terms.dark') }}
+                    </TabsTrigger>
+                  </TabsList>
+                </template>
+              </AdminToolbar>
             </Tabs>
 
             <FormField
@@ -595,16 +603,20 @@
             @toggle="toggleSection('footer')"
           >
             <Tabs :model-value="editingScheme" @update:model-value="editingScheme = $event">
-              <TabsList class="w-full h-10">
-                <TabsTrigger value="light" class="flex-1 gap-2 h-8">
-                  <Sun class="size-4" />
-                  {{ t('globals.terms.light') }}
-                </TabsTrigger>
-                <TabsTrigger value="dark" class="flex-1 gap-2 h-8">
-                  <Moon class="size-4" />
-                  {{ t('globals.terms.dark') }}
-                </TabsTrigger>
-              </TabsList>
+              <AdminToolbar>
+                <template #left>
+                  <TabsList class="w-max justify-start">
+                    <TabsTrigger value="light" class="gap-2 h-8">
+                      <Sun class="size-4" />
+                      {{ t('globals.terms.light') }}
+                    </TabsTrigger>
+                    <TabsTrigger value="dark" class="gap-2 h-8">
+                      <Moon class="size-4" />
+                      {{ t('globals.terms.dark') }}
+                    </TabsTrigger>
+                  </TabsList>
+                </template>
+              </AdminToolbar>
             </Tabs>
 
             <div class="flex gap-4">
@@ -750,6 +762,7 @@
 </template>
 
 <script setup>
+import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed, ref, inject, onMounted, nextTick } from 'vue'
 import { useForm, useFieldArray } from 'vee-validate'

@@ -9,7 +9,7 @@
     <aside
       v-if="$slots.help"
       class="min-w-0 space-y-3 text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]"
-      :class="fixedHelp ? 'admin-preview' : 'admin-help rounded-lg bg-muted/40 p-4'"
+      :class="fixedHelp ? 'admin-preview' : 'admin-help rounded-lg bg-muted p-4 dark:bg-muted/40'"
     >
       <slot name="help" />
     </aside>

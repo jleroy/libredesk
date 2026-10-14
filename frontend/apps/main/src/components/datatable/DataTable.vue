@@ -108,7 +108,11 @@
             <TableRow class="hover:bg-transparent">
               <TableCell :colspan="columns.length" class="h-32">
                 <div class="flex items-center justify-center">
-                  <Spinner :absolute="false" :text="t('globals.terms.loading')" />
+                  <Spinner
+                    v-if="!overlayLoading"
+                    :absolute="false"
+                    :text="t('globals.terms.loading')"
+                  />
                 </div>
               </TableCell>
             </TableRow>
@@ -120,15 +124,6 @@
                 <div class="flex flex-col items-center justify-center gap-2 text-center">
                   <Ghost class="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
                   <p class="text-sm font-medium text-muted-foreground">{{ emptyText }}</p>
-                  <Button
-                    v-if="globalFilter"
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    @click="globalFilter = ''"
-                  >
-                    {{ t('globals.messages.clearSearch') }}
-                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -149,7 +144,8 @@ import {
 } from '@tanstack/vue-table'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useI18n } from 'vue-i18n'
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
+import { LOADING_OVERLAY_INJECTION_KEY } from '@main/components/layout/loadingOverlay'
 import { ArrowUpDown, ChevronDown, ChevronUp, Ghost } from 'lucide-vue-next'
 import SearchInput from '@shared-ui/components/SearchInput.vue'
 import { Button } from '@shared-ui/components/ui/button'
@@ -163,6 +159,7 @@ import {
 } from '@shared-ui/components/ui/table'
 
 const { t } = useI18n()
+const overlayLoading = inject(LOADING_OVERLAY_INJECTION_KEY, ref(false))
 
 // Hidden until row-hover on pointer devices; always shown on touch, focus, and while the menu is open.
 const actionCellClass =
@@ -201,7 +198,7 @@ const props = defineProps({
 })
 
 const sorting = ref([])
-const globalFilter = ref('')
+const globalFilter = defineModel('search', { type: String, default: '' })
 
 const emptyText = computed(() => props.emptyText || t('globals.messages.noResultsFound'))
 

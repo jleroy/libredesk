@@ -79,7 +79,11 @@ describe('Login Component', () => {
                 data: {
                     id: 1,
                     email: 'System',
-                    name: 'System User'
+                    first_name: 'System',
+                    last_name: 'User',
+                    permissions: [],
+                    roles: [],
+                    teams: []
                 }
             }
         }).as('loginSuccess')
@@ -129,7 +133,11 @@ describe('Login Component', () => {
                 data: {
                     id: 1,
                     email: 'System',
-                    name: 'System User'
+                    first_name: 'System',
+                    last_name: 'User',
+                    permissions: [],
+                    roles: [],
+                    teams: []
                 }
             },
             delay: 1000

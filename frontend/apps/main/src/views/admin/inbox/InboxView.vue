@@ -11,14 +11,18 @@
           <div class="flex items-center justify-end gap-2">
             <div class="flex items-center gap-2">
               <Tabs v-model="previewUserType">
-                <TabsList class="h-8 p-0.5">
-                  <TabsTrigger value="visitors" class="text-xs">
-                    {{ $t('admin.inbox.livechat.userSettings.visitors') }}
-                  </TabsTrigger>
-                  <TabsTrigger value="users" class="text-xs">
-                    {{ $t('globals.terms.users') }}
-                  </TabsTrigger>
-                </TabsList>
+                <AdminToolbar>
+                  <template #left>
+                    <TabsList class="w-max justify-start h-8 p-0.5">
+                      <TabsTrigger value="visitors" class="text-xs">
+                        {{ $t('admin.inbox.livechat.userSettings.visitors') }}
+                      </TabsTrigger>
+                      <TabsTrigger value="users" class="text-xs">
+                        {{ $t('globals.terms.users') }}
+                      </TabsTrigger>
+                    </TabsList>
+                  </template>
+                </AdminToolbar>
               </Tabs>
               <PreviewThemeToggle v-model="previewTheme" />
             </div>
@@ -80,6 +84,7 @@
 </template>
 
 <script setup>
+import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import { ref, provide } from 'vue'
 import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import LivechatWidgetPreview from '@/features/admin/inbox/LivechatWidgetPreview.vue'

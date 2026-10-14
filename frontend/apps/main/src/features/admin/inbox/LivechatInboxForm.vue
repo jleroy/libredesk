@@ -1,13 +1,19 @@
 <template>
   <form @submit="onSubmit" novalidate class="space-y-6 w-full">
     <Tabs v-model="activeTab" class="w-full">
-      <TabsList class="flex flex-wrap gap-1 h-auto p-1 w-fit">
-        <TabsTrigger value="general">{{ $t('globals.terms.general') }}</TabsTrigger>
-        <TabsTrigger value="appearance">{{ $t('globals.terms.appearance') }}</TabsTrigger>
-        <TabsTrigger value="content">{{ $t('globals.terms.content', 1) }}</TabsTrigger>
-        <TabsTrigger value="conversations">{{ $t('globals.terms.conversation', 2) }}</TabsTrigger>
-        <TabsTrigger value="setup">{{ $t('globals.terms.setup') }}</TabsTrigger>
-      </TabsList>
+      <AdminToolbar>
+        <template #left>
+          <TabsList class="w-max justify-start">
+            <TabsTrigger value="general">{{ $t('globals.terms.general') }}</TabsTrigger>
+            <TabsTrigger value="appearance">{{ $t('globals.terms.appearance') }}</TabsTrigger>
+            <TabsTrigger value="content">{{ $t('globals.terms.content', 1) }}</TabsTrigger>
+            <TabsTrigger value="conversations">{{
+              $t('globals.terms.conversation', 2)
+            }}</TabsTrigger>
+            <TabsTrigger value="setup">{{ $t('globals.terms.setup') }}</TabsTrigger>
+          </TabsList>
+        </template>
+      </AdminToolbar>
 
       <div class="mt-8">
         <div v-show="activeTab === 'general'">
@@ -296,16 +302,20 @@
               <AccordionContent force-mount class="space-y-8 pt-2">
                 <div class="space-y-4">
                   <Tabs :model-value="editingTheme" @update:model-value="editingTheme = $event">
-                    <TabsList class="w-full h-10">
-                      <TabsTrigger value="light" class="flex-1 gap-2 h-8">
-                        <Sun class="size-4" />
-                        {{ $t('globals.terms.light') }}
-                      </TabsTrigger>
-                      <TabsTrigger value="dark" class="flex-1 gap-2 h-8">
-                        <Moon class="size-4" />
-                        {{ $t('globals.terms.dark') }}
-                      </TabsTrigger>
-                    </TabsList>
+                    <AdminToolbar>
+                      <template #left>
+                        <TabsList class="w-max justify-start">
+                          <TabsTrigger value="light" class="gap-2 h-8">
+                            <Sun class="size-4" />
+                            {{ $t('globals.terms.light') }}
+                          </TabsTrigger>
+                          <TabsTrigger value="dark" class="gap-2 h-8">
+                            <Moon class="size-4" />
+                            {{ $t('globals.terms.dark') }}
+                          </TabsTrigger>
+                        </TabsList>
+                      </template>
+                    </AdminToolbar>
                   </Tabs>
 
                   <FormField
@@ -509,16 +519,20 @@
               <AccordionContent force-mount class="space-y-8 pt-2">
                 <div class="space-y-4">
                   <Tabs :model-value="editingTheme" @update:model-value="editingTheme = $event">
-                    <TabsList class="w-full h-10">
-                      <TabsTrigger value="light" class="flex-1 gap-2 h-8">
-                        <Sun class="size-4" />
-                        {{ $t('globals.terms.light') }}
-                      </TabsTrigger>
-                      <TabsTrigger value="dark" class="flex-1 gap-2 h-8">
-                        <Moon class="size-4" />
-                        {{ $t('globals.terms.dark') }}
-                      </TabsTrigger>
-                    </TabsList>
+                    <AdminToolbar>
+                      <template #left>
+                        <TabsList class="w-max justify-start">
+                          <TabsTrigger value="light" class="gap-2 h-8">
+                            <Sun class="size-4" />
+                            {{ $t('globals.terms.light') }}
+                          </TabsTrigger>
+                          <TabsTrigger value="dark" class="gap-2 h-8">
+                            <Moon class="size-4" />
+                            {{ $t('globals.terms.dark') }}
+                          </TabsTrigger>
+                        </TabsList>
+                      </template>
+                    </AdminToolbar>
                   </Tabs>
 
                   <div class="grid grid-cols-2 gap-4">
@@ -1054,14 +1068,18 @@
               <AccordionTrigger class="text-base">{{ $t('globals.terms.users') }}</AccordionTrigger>
               <AccordionContent force-mount class="space-y-8 pt-2">
                 <Tabs :model-value="selectedUserTab" @update:model-value="selectedUserTab = $event">
-                  <TabsList class="grid w-full grid-cols-2">
-                    <TabsTrigger value="visitors">
-                      {{ $t('admin.inbox.livechat.userSettings.visitors') }}
-                    </TabsTrigger>
-                    <TabsTrigger value="users">
-                      {{ $t('globals.terms.users') }}
-                    </TabsTrigger>
-                  </TabsList>
+                  <AdminToolbar>
+                    <template #left>
+                      <TabsList class="w-max justify-start">
+                        <TabsTrigger value="visitors">
+                          {{ $t('admin.inbox.livechat.userSettings.visitors') }}
+                        </TabsTrigger>
+                        <TabsTrigger value="users">
+                          {{ $t('globals.terms.users') }}
+                        </TabsTrigger>
+                      </TabsList>
+                    </template>
+                  </AdminToolbar>
 
                   <div class="space-y-4 mt-4">
                     <div
@@ -1461,6 +1479,7 @@
 </template>
 
 <script setup>
+import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { usePreferredReducedMotion } from '@vueuse/core'
 import { watch, computed, ref, inject, onMounted, onBeforeUnmount, nextTick } from 'vue'
