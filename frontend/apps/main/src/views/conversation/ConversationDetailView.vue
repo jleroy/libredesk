@@ -27,6 +27,10 @@
         v-show="sidebarOpen"
         class="w-1 bg-transparent after:w-1 can-hover:hover:after:bg-border"
         :aria-label="$t('copilot.details')"
+        @dragging="resizingSidebar = $event"
+        @keydown.capture="onSidebarResizeKey"
+        @keyup="resizingSidebar = false"
+        @blur="resizingSidebar = false"
       />
 
       <!-- Sidebar Panel (collapsible) -->
@@ -90,6 +94,7 @@ const useDetailsDrawer = computed(
 const sidebarPanelRef = ref(null)
 const sidebarOpen = useStorage('conversationSidebarOpen', true)
 const sidebarWidth = useStorage('conversationSidebarWidth', 320)
+const resizingSidebar = ref(false)
 const sheetSidebarOpen = ref(false)
 
 watch(useDetailsDrawer, () => {
@@ -128,8 +133,17 @@ const onSidebarExpand = () => {
 
 const onLayoutChange = (sizes) => {
   if (sizes.length === 2 && sizes[1] > 0) {
-    sidebarWidth.value = sizes[1]
+    if (resizingSidebar.value) {
+      sidebarWidth.value = sizes[1]
+    } else if (sidebarOpen.value) {
+      sidebarPanelRef.value?.resize(sidebarWidth.value)
+    }
   }
+}
+
+const onSidebarResizeKey = (event) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  resizingSidebar.value = true
 }
 
 // Listen to emitter events for toggle (from sidebar contact)
