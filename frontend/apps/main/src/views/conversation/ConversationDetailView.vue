@@ -5,7 +5,7 @@
       class="conv-progress absolute inset-x-0 top-0 h-0.5 z-50 pointer-events-none"
     />
     <ResizablePanelGroup
-      v-if="showContent"
+      v-if="showContent && panelGroupWidth > 0"
       direction="horizontal"
       class="h-full min-h-0 transition-opacity duration-200"
       :class="{ 'opacity-60': isDimmed }"
@@ -15,7 +15,7 @@
       <!-- Conversation Content Panel -->
       <ResizablePanel
         :order="1"
-        :min-size="useDetailsDrawer ? 100 : 55"
+        :min-size="55"
         class="min-w-0 overflow-hidden rounded-xl border border-border bg-card"
       >
         <Conversation :details-open="useDetailsDrawer ? sheetSidebarOpen : sidebarOpen" />

@@ -62,7 +62,11 @@
                   class="h-3.5 w-3.5"
                   aria-hidden="true"
                 />
-                <ArrowUpDown v-else class="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
+                <ArrowUpDown
+                  v-else
+                  class="h-3.5 w-3.5 opacity-50 can-hover:opacity-0 can-hover:group-hover:opacity-50 group-focus-visible:opacity-50"
+                  aria-hidden="true"
+                />
               </Button>
               <div v-else class="flex items-center justify-center gap-2">
                 <FlexRender
