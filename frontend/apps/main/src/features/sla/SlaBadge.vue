@@ -1,6 +1,6 @@
 <template>
   <div v-if="dueAt" class="flex justify-start items-center space-x-2">
-    <span v-if="sla?.status === 'overdue'" key="overdue" class="sla-badge sla-overdue" :class="{ 'sla-compact': compact }">
+    <span v-if="sla?.status === 'overdue'" key="overdue" :class="compact ? 'sla-compact text-destructive' : 'sla-badge sla-overdue'">
       <AlertCircle size="12" class="size-3 shrink-0 text-destructive" stroke-width="2" />
       <span class="sla-text">
         <span v-if="compact">{{ label }} {{ sla.value }}</span>
@@ -19,7 +19,7 @@
       <TooltipContent>{{ label }} {{ $t('sla.met') }}</TooltipContent>
     </Tooltip>
 
-    <span v-else-if="sla?.status === 'remaining'" key="remaining" class="sla-badge sla-remaining" :class="{ 'sla-compact': compact }">
+    <span v-else-if="sla?.status === 'remaining'" key="remaining" :class="compact ? 'sla-compact text-warning-600' : 'sla-badge sla-remaining'">
       <component :is="compact ? Timer : Clock" size="12" class="size-3 shrink-0 text-warning-600" stroke-width="2" />
       <span class="sla-text">{{ label }} {{ sla.value }}</span>
     </span>
@@ -61,7 +61,7 @@ watch(
 }
 
 .sla-compact {
-  @apply gap-0.5 space-x-0 px-1 py-0 text-[10px] leading-4;
+  @apply inline-flex items-center gap-0.5 text-xs tabular-nums;
 }
 
 .sla-overdue {

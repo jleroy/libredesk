@@ -15,7 +15,7 @@
           <StatusDot
             :status="userStore.user.availability_status"
             size="sm"
-            class="absolute bottom-0 right-0 border border-background"
+            class="absolute -bottom-[3px] -right-[3px]"
           />
         </div>
         <div class="grid flex-1 text-left text-sm leading-tight">

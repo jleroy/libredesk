@@ -1,8 +1,12 @@
 <template>
   <div class="flex flex-col text-left" :class="isOutgoing ? 'items-end' : 'items-start'">
     <!-- Sender Name -->
-    <div v-if="!groupWithPrev" class="mb-1 flex items-center gap-1.5">
-      <Avatar class="w-7 h-7 text-xs" :class="{ 'order-last': isOutgoing }">
+    <div
+      v-if="!groupWithPrev"
+      class="mb-1 flex items-center gap-1.5"
+      :class="isOutgoing ? 'lg:pr-10' : 'lg:pl-10'"
+    >
+      <Avatar class="w-7 h-7 text-xs lg:hidden" :class="{ 'order-last': isOutgoing }">
         <AvatarImage :src="getAvatar" />
         <AvatarFallback class="font-medium">
           {{ avatarFallback }}
@@ -36,6 +40,18 @@
 
     <!-- Message Bubble -->
     <div class="flex flex-row gap-2 w-full group" :class="{ 'justify-end': isOutgoing }">
+      <div
+        class="hidden size-8 shrink-0 lg:block"
+        :class="{ 'order-last': isOutgoing }"
+        aria-hidden="true"
+      >
+        <Avatar v-if="!groupWithPrev" class="size-8">
+          <AvatarImage :src="getAvatar" />
+          <AvatarFallback class="font-medium">
+            {{ avatarFallback }}
+          </AvatarFallback>
+        </Avatar>
+      </div>
       <div
         class="w-4/5"
         :class="{ 'flex justify-end items-center gap-2': isOutgoing }"
@@ -217,7 +233,7 @@
     </div>
 
     <!-- Timestamp tooltip -->
-    <div v-if="!groupWithNext">
+    <div v-if="!groupWithNext" :class="isOutgoing ? 'lg:pr-10' : 'lg:pl-10'">
       <Tooltip>
         <TooltipTrigger>
           <span class="text-muted-foreground text-xs mt-1">

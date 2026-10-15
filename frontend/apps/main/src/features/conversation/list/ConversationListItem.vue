@@ -75,16 +75,29 @@
                   </Tooltip>
                   <PriorityMarker :priority="conversation.priority" />
                   <Tooltip>
-                    <TooltipTrigger asChild>
+                    <TooltipTrigger as-child>
                       <component
                         :is="channelIcon"
-                        class="w-3 h-3 text-muted-foreground"
+                        class="size-3 shrink-0 text-muted-foreground/60"
                         role="img"
                         :aria-label="conversation.inbox_name"
                       />
                     </TooltipTrigger>
                     <TooltipContent>{{ conversation.inbox_name }}</TooltipContent>
                   </Tooltip>
+                  <Tooltip v-if="isAwaitingResponse">
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                        <span class="sr-only">{{ t('globals.terms.waiting') }}</span>
+                        <span>{{ relativeWaitingTime }}</span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{{ t('globals.terms.waitingSince') }}</p>
+                      <p>{{ formatFullTimestamp(conversation.waiting_since) }}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <span v-if="isAwaitingResponse && conversation.last_message_at" class="text-xs text-muted-foreground" aria-hidden="true">·</span>
                   <Tooltip v-if="conversation.last_message_at">
                     <TooltipTrigger as-child>
                       <span class="inline-flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap tabular-nums">
@@ -128,20 +141,7 @@
                   />{{ trimmedLastMessage }}
                 </template>
               </p>
-              <Tooltip v-if="isAwaitingResponse">
-                <TooltipTrigger as-child>
-                  <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                    <Clock class="size-3" aria-hidden="true" />
-                    <span class="sr-only">{{ t('globals.terms.waiting') }}</span>
-                    <span>{{ relativeWaitingTime }}</span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{{ t('globals.terms.waiting') }} {{ relativeWaitingTime }}</p>
-                  <p>{{ formatFullTimestamp(conversation.waiting_since) }}</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
+              <Tooltip v-if="conversation.assigned_user_id || conversation.assigned_team_id">
                 <TooltipTrigger as-child>
                   <span class="flex size-5 shrink-0 items-center justify-center text-muted-foreground" role="img" :aria-label="ownerLabel">
                     <Avatar v-if="assignedAgent || (!conversation.assigned_user_id && assignedTeam)" :shape="assignedAgent ? 'circle' : 'square'" class="size-5 text-[9px]">
@@ -183,7 +183,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRelativeTime, formatFullTimestamp } from '@shared-ui/utils/datetime.js'
-import { Mail, Reply, MailOpen, SquareCheck, Clock, UserRound, UserRoundCheck, Users } from 'lucide-vue-next'
+import { Mail, Reply, MailOpen, SquareCheck, UserRoundCheck, Users } from 'lucide-vue-next'
 import { CHANNEL_ICONS } from '@main/constants/channelIcons.js'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import {
@@ -289,7 +289,7 @@ const ownerInitials = computed(() => {
 })
 const ownerIcon = computed(() => props.conversation.assigned_user_id
   ? UserRoundCheck
-  : props.conversation.assigned_team_id ? Users : UserRound)
+  : Users)
 
 const pendingSlaDeadlines = computed(() => {
   const c = props.conversation

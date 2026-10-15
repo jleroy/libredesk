@@ -1,9 +1,9 @@
 <template>
-  <Tabs v-model="activeTab" class="flex h-full min-h-0 flex-col">
+  <Tabs v-model="activeTab" class="flex h-full min-h-0 flex-col" @keydown.capture="copilotPointerOpened = false">
     <div class="flex h-14 shrink-0 items-center border-b border-border px-3">
-      <TabsList class="grid w-full grid-cols-2">
-        <TabsTrigger value="details" class="text-xs">{{ $t('copilot.details') }}</TabsTrigger>
-        <TabsTrigger value="copilot" class="text-xs">{{ COPILOT_NAME }}</TabsTrigger>
+      <TabsList class="h-full w-full justify-start gap-6 rounded-none bg-transparent p-0">
+        <TabsTrigger value="details" :class="SIDEBAR_TAB_CLASS">{{ $t('copilot.details') }}</TabsTrigger>
+        <TabsTrigger value="copilot" :class="SIDEBAR_TAB_CLASS" @pointerdown="copilotPointerOpened = activeTab !== 'copilot'">{{ COPILOT_NAME }}</TabsTrigger>
       </TabsList>
     </div>
 
@@ -18,14 +18,14 @@
                 variant="ghost"
                 size="icon"
                 class="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground focus-visible:text-foreground lg:h-7 lg:w-7 [&_svg]:size-3.5"
-                :aria-label="t('conversation.sidebar.reorderSections')"
+                :aria-label="t('globals.messages.reorderSections')"
                 :aria-pressed="editingSections"
                 @click="toggleSectionEditor"
               >
                 <Pencil aria-hidden="true" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{{ t('conversation.sidebar.reorderSections') }}</TooltipContent>
+            <TooltipContent>{{ t('globals.messages.reorderSections') }}</TooltipContent>
           </Tooltip>
         </template>
       </ConversationSideBarContact>
@@ -180,7 +180,7 @@
       </Accordion>
     </TabsContent>
 
-    <TabsContent value="copilot" class="flex-1 min-h-0 mt-0">
+    <TabsContent value="copilot" class="flex-1 min-h-0 mt-0" :class="{ 'copilot-entry': copilotPointerOpened }">
       <CopilotPanel />
     </TabsContent>
   </Tabs>
@@ -223,12 +223,15 @@ import SelectTagCombobox from '@main/components/combobox/SelectTagCombobox.vue'
 import { TAG_ACTION } from '@/constants/conversation'
 import api from '@/api'
 
+const SIDEBAR_TAB_CLASS = 'h-full rounded-none border-b-2 border-transparent px-0 text-xs font-normal focus-visible:ring-inset focus-visible:ring-offset-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:shadow-none'
+
 const customAttributeStore = useCustomAttributeStore()
 const emitter = useEmitter()
 const conversationStore = useConversationStore()
 const userStore = useUserStore()
 const accordionState = useStorage('conversation-sidebar-accordion', [])
 const activeTab = useStorage('conversation-sidebar-tab', 'details')
+const copilotPointerOpened = ref(false)
 const { t } = useI18n()
 customAttributeStore.fetchCustomAttributes()
 
@@ -433,6 +436,24 @@ const updateContactCustomAttributes = async (attributes) => {
 </script>
 
 <style scoped>
+.copilot-entry {
+  @apply transition-opacity duration-100 ease-out;
+
+  @starting-style {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-entry {
+    transition-duration: 60ms;
+
+    @starting-style {
+      opacity: 0.95;
+    }
+  }
+}
+
 :deep(.accordion-item) {
   @apply border-b border-border last:border-b-0;
 }

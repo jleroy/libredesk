@@ -26,17 +26,24 @@
         </SelectContent>
       </Select>
       <span v-else />
-      <Button
-        v-if="messages.length"
-        type="button"
-        variant="ghost"
-        size="sm"
-        class="shrink-0 gap-1.5 text-muted-foreground"
-        @click="clearChat"
-      >
-        <Eraser class="h-3.5 w-3.5" />
-        {{ $t('copilot.clearChat') }}
-      </Button>
+      <Tooltip v-if="messages.length">
+        <TooltipTrigger as-child>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            class="group h-7 w-7 shrink-0 text-muted-foreground [&_svg]:size-3.5"
+            :aria-label="$t('copilot.clearChat')"
+            @click="clearChat"
+          >
+            <Eraser
+              class="opacity-50 transition-opacity can-hover:group-hover:opacity-100 group-focus-visible:opacity-100"
+              aria-hidden="true"
+            />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{{ $t('copilot.clearChat') }}</TooltipContent>
+      </Tooltip>
     </div>
     <div ref="scrollRef" class="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
       <div v-if="isHydrating" class="h-full flex items-center justify-center text-muted-foreground">
@@ -47,8 +54,8 @@
         v-else-if="messages.length === 0"
         class="h-full flex flex-col items-center justify-center gap-4 text-center px-4"
       >
-        <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Bot class="h-6 w-6 text-primary" />
+        <div class="juno-avatar h-12 w-12 rounded-full flex items-center justify-center">
+          <JunoIcon class="size-8 text-primary" />
         </div>
         <div class="space-y-1">
           <p class="ui-heading">{{ COPILOT_NAME }}</p>
@@ -76,11 +83,8 @@
         class="flex gap-2"
         :class="msg.isUser ? 'justify-end' : 'justify-start'"
       >
-        <div
-          v-if="!msg.isUser"
-          :class="JUNO_ICON_CLASS"
-        >
-          <Bot class="h-3.5 w-3.5 text-primary" />
+        <div v-if="!msg.isUser" :class="JUNO_ICON_CLASS">
+          <JunoIcon class="size-4 text-primary" />
         </div>
         <div
           class="flex flex-col gap-1 max-w-[85%]"
@@ -173,16 +177,19 @@
           </div>
         </div>
       </div>
-      <div v-if="isThinking" class="flex gap-2 justify-start">
-        <div
-          :class="JUNO_ICON_CLASS"
-        >
-          <Bot class="h-3.5 w-3.5 text-primary" />
+      <div v-if="isThinking" class="flex gap-2 justify-start" role="status">
+        <div :class="JUNO_ICON_CLASS">
+          <JunoIcon class="size-4 text-primary" />
         </div>
-        <div class="rounded-lg px-3 py-2 bg-muted text-muted-foreground flex items-center">
-          <DotLoader />
-          <span class="sr-only">{{ $t('copilot.thinking') }}</span>
+        <div class="min-w-0 flex-1 max-w-[85%] space-y-3 py-2.5" aria-hidden="true">
+          <Skeleton
+            v-for="width in THINKING_LINE_WIDTHS"
+            :key="width"
+            class="juno-thinking-line h-2.5 animate-none rounded-full"
+            :class="width"
+          />
         </div>
+        <span class="sr-only">{{ $t('copilot.thinking') }}</span>
       </div>
     </div>
 
@@ -203,7 +210,9 @@
 </template>
 
 <script setup>
-const JUNO_ICON_CLASS = 'mt-0.5 h-6 w-6 shrink-0 rounded-full bg-primary/10 flex items-center justify-center'
+const JUNO_ICON_CLASS =
+  'juno-avatar mt-0.5 h-6 w-6 shrink-0 rounded-full flex items-center justify-center'
+const THINKING_LINE_WIDTHS = ['w-full', 'w-4/5', 'w-3/5']
 
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { Button } from '@shared-ui/components/ui/button'
@@ -216,10 +225,12 @@ import {
   SelectValue
 } from '@shared-ui/components/ui/select'
 import { Textarea } from '@shared-ui/components/ui/textarea'
+import { Skeleton } from '@shared-ui/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import { Letter } from 'vue-letter'
 import { DotLoader } from '@shared-ui/components/ui/loader'
-import { Eraser, Bot, Copy, Reply, StickyNote } from 'lucide-vue-next'
+import { Eraser, Copy, Reply, StickyNote } from 'lucide-vue-next'
+import JunoIcon from './JunoIcon.vue'
 import { useConversationStore } from '@/stores/conversation'
 import { useCopilotStore } from '@/stores/copilot'
 import { useAIAssistantStore } from '@/stores/aiAssistant'
@@ -243,7 +254,7 @@ const { t } = useI18n()
 const canSendReply = computed(() => userStore.can(perms.MESSAGES_WRITE))
 const canSendPrivateNote = computed(() => userStore.can(perms.MESSAGES_WRITE_PRIVATE))
 
-const presets = computed(() => [t('copilot.preset.summarize'), t('copilot.preset.customerAsking')])
+const presets = computed(() => [t('copilot.preset.summarize'), t('copilot.preset.nextStep')])
 
 // Chat history lives in the store keyed by conversation uuid so it survives tab
 // switches (this panel unmounts) and never leaks across conversations.
@@ -480,3 +491,53 @@ const addAsPrivateNote = async (content) => {
   }
 }
 </script>
+
+<style scoped>
+.juno-avatar {
+  background: radial-gradient(circle at 30% 25%, hsl(var(--primary) / 0.22), transparent 65%),
+    linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--success) / 0.12));
+}
+
+.juno-thinking-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.juno-thinking-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 10%,
+    hsl(var(--primary) / 0.12) 30%,
+    hsl(var(--primary) / 0.38) 50%,
+    hsl(var(--success) / 0.18) 65%,
+    transparent 90%
+  );
+  transform: translateX(-100%);
+  animation: juno-thinking-sweep 2.4s linear infinite;
+}
+
+.juno-thinking-line:nth-child(2)::after {
+  animation-delay: 80ms;
+}
+
+.juno-thinking-line:nth-child(3)::after {
+  animation-delay: 160ms;
+}
+
+@keyframes juno-thinking-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .juno-thinking-line::after {
+    animation: none;
+    transform: none;
+    opacity: 0.6;
+  }
+}
+</style>
