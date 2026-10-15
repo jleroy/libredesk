@@ -541,6 +541,63 @@ describe('Conversation lifecycle', () => {
     })
   })
 
+  for (const scenario of [
+    { name: 'loads until the thread can scroll', height: 2400, total: 90 },
+    { name: 'stops at the final page while the thread still fits', height: 4000, total: 60 },
+    { name: 'stops after an older page fails', height: 4000, total: 90, fail: true }
+  ]) {
+    it(`fills a short first page and ${scenario.name}`, () => {
+      const requestedPages = []
+      cy.viewport(1440, scenario.height)
+      cy.api('GET', `/api/v1/conversations/${conversationUuid}/messages?page=1`).then(({ body }) => {
+        const original = body.data.results.find((message) => message.type === 'incoming')
+        const messages = Array.from({ length: scenario.total }, (_, index) => ({
+          ...original,
+          id: original.id + index,
+          uuid: `${conversationUuid.slice(0, -12)}${String(index + 1).padStart(12, '0')}`,
+          created_at: new Date(Date.now() - (scenario.total - index) * 1000).toISOString(),
+          content_type: 'text',
+          content: `Short history ${index + 1}`,
+          attachments: []
+        }))
+        cy.intercept('GET', `**/conversations/${conversationUuid}/messages?page=*`, (request) => {
+          const page = Number(request.query.page)
+          requestedPages.push(page)
+          if (scenario.fail && page > 1) {
+            request.reply({ statusCode: 503, body: { error: { type: 'GeneralException', message: 'History request failed' } } })
+            return
+          }
+          request.reply({ body: { data: {
+            results: messages.slice(Math.max(0, scenario.total - page * 30), scenario.total - (page - 1) * 30).reverse(),
+            page, per_page: 30, total: scenario.total, total_pages: Math.ceil(scenario.total / 30)
+          } } })
+        }).as('shortHistoryPage')
+        cy.intercept('PUT', `**/conversations/${conversationUuid}/last-seen`, {
+          body: { data: { conversation_uuid: conversationUuid, read_version: 1, is_unread: false } }
+        })
+      })
+      cy.visit(`/inboxes/all/conversation/${conversationUuid}`)
+      cy.wait('@shortHistoryPage').its('request.query.page').should('eq', '1')
+      cy.wait('@shortHistoryPage').then(({ request, response }) => {
+        expect(request.query.page).to.eq('2')
+        expect(response.statusCode).to.eq(scenario.fail ? 503 : 200)
+      })
+      if (scenario.fail) {
+        cy.get('[data-message-uuid]').should('have.length', 30)
+      } else {
+        cy.get('[data-message-uuid]').should('have.length', 60)
+      }
+      cy.get('[class*="overflow-anchor"]').find('[role="status"]').should('not.exist')
+      cy.get('[class*="overflow-anchor"]').should(($thread) => {
+        const thread = $thread[0]
+        if (scenario.height === 2400) expect(thread.scrollHeight).to.be.greaterThan(thread.clientHeight)
+        else expect(thread.scrollHeight).to.eq(thread.clientHeight)
+        expect(requestedPages).to.deep.eq([1, 2])
+      })
+      if (scenario.height === 4000) cy.get('.absolute.bottom-5.right-6').should('not.be.visible')
+    })
+  }
+
   it('keeps file and image tiles equal and reveals controls only for the active attachment', () => {
     const finishTransitions = () => cy.get('.group\\/attachment').then(($items) => {
       for (const item of $items) {
