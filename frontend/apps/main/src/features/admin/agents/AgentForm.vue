@@ -12,7 +12,7 @@
 
         <div class="space-y-4 flex-2">
           <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold text-foreground">
+            <h3 class="ui-heading">
               {{ props.initialValues.first_name }} {{ props.initialValues.last_name }}
             </h3>
             <Badge :class="['px-2 rounded-full text-xs font-medium', availabilityStatus.color]">
@@ -24,7 +24,7 @@
             <div class="flex items-center gap-2">
               <Clock class="w-5 h-5 text-muted-foreground" />
               <div>
-                <p class="text-sm text-muted-foreground">{{ $t('globals.terms.lastActive') }}</p>
+                <p class="ui-description">{{ $t('globals.terms.lastActive') }}</p>
                 <p class="text-sm font-medium text-foreground">
                   {{
                     props.initialValues.last_active_at
@@ -37,7 +37,7 @@
             <div class="flex items-center gap-2">
               <LogIn class="w-5 h-5 text-muted-foreground" />
               <div>
-                <p class="text-sm text-muted-foreground">{{ $t('globals.terms.lastLogin') }}</p>
+                <p class="ui-description">{{ $t('globals.terms.lastLogin') }}</p>
                 <p class="text-sm font-medium text-foreground">
                   {{
                     props.initialValues.last_login_at
@@ -162,7 +162,7 @@
           <p class="text-base font-semibold text-foreground">
             {{ $t('globals.terms.apiKey', 2) }}
           </p>
-          <p class="text-sm text-muted-foreground">
+          <p class="ui-description">
             {{ $t('admin.agent.apiKey.description') }}
           </p>
         </div>
@@ -212,7 +212,7 @@
       <!-- No API Key State -->
       <div v-else class="text-center py-6">
         <Key class="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-        <p class="text-sm text-muted-foreground mb-3">{{ $t('admin.agent.apiKey.noKey') }}</p>
+        <p class="ui-description mb-3">{{ $t('admin.agent.apiKey.noKey') }}</p>
         <Button type="button" @click="generateAPIKey" :disabled="isAPIKeyLoading">
           <Plus class="w-4 h-4" />
           {{ $t('agent.generateApiKey') }}

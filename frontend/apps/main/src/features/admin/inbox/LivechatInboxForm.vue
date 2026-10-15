@@ -42,7 +42,7 @@
                       @update:checked="handleChange"
                     />
                   </FormItem>
-                  <p class="!mt-2 text-muted-foreground text-xs flex items-start gap-1.5">
+                  <p :class="HINT_CLASS">
                     <Lightbulb class="size-4" />
                     <span>{{ $t('admin.inbox.csatSurveys.description_3') }}</span>
                   </p>
@@ -361,7 +361,7 @@
                     </FormField>
                   </div>
 
-                  <h5 class="text-sm font-semibold text-foreground pt-2">
+                  <h5 class="ui-subheading pt-2">
                     {{ $t('globals.terms.homeScreen') }}
                   </h5>
 
@@ -788,7 +788,7 @@
                                 </div>
                                 <p
                                   v-if="item.type === 'help'"
-                                  class="text-sm text-muted-foreground"
+                                  class="ui-description"
                                 >
                                   {{ $t('widget.helpHomeAppHint') }}
                                 </p>
@@ -1333,10 +1333,10 @@
               <AccordionContent force-mount class="space-y-8 pt-2">
                 <div class="space-y-4">
                   <div class="space-y-1">
-                    <p class="text-sm text-muted-foreground">
+                    <p class="ui-description">
                       {{ $t('admin.inbox.livechat.installation.identity.description') }}
                     </p>
-                    <p class="text-sm text-muted-foreground">
+                    <p class="ui-description">
                       {{ $t('admin.inbox.livechat.installation.identity.howItWorks') }}
                     </p>
                   </div>
@@ -1350,7 +1350,7 @@
                     <CopyButton :text="jwtPayloadExample" class="absolute top-3 right-3" />
                   </div>
 
-                  <p class="text-sm text-muted-foreground">
+                  <p class="ui-description">
                     {{ $t('admin.inbox.livechat.installation.identity.addJwt') }}
                   </p>
 
@@ -1379,7 +1379,7 @@
               }}</AccordionTrigger>
               <AccordionContent force-mount class="space-y-8 pt-2">
                 <div class="space-y-4">
-                  <p class="text-sm text-muted-foreground">
+                  <p class="ui-description">
                     {{ $t('admin.inbox.livechat.installation.jsApi.description') }}
                   </p>
 
@@ -1408,7 +1408,7 @@
                       <FormMessage />
                       <p
                         v-if="weakSecret"
-                        class="!mt-2 text-muted-foreground text-xs flex items-start gap-1.5"
+                        :class="HINT_CLASS"
                       >
                         <TriangleAlert class="size-4 shrink-0 mt-0.5" />
                         <span>{{ $t('admin.inbox.livechat.secretKey.weak') }}</span>
@@ -1479,6 +1479,8 @@
 </template>
 
 <script setup>
+const HINT_CLASS = '!mt-2 text-muted-foreground text-xs flex items-start gap-1.5'
+
 import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { usePreferredReducedMotion } from '@vueuse/core'

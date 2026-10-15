@@ -54,7 +54,7 @@
           >
             <div class="space-y-6">
               <div class="space-y-4">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.action', 2) }}
                 </h3>
 
@@ -91,7 +91,7 @@
               </FormField>
 
               <div class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.icon') }}
                 </h3>
                 <FormField v-slot="{ value, handleChange }" name="icon">
@@ -105,7 +105,7 @@
               </div>
 
               <div class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.language') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="locale">
@@ -128,7 +128,7 @@
               </div>
 
               <div v-if="localeParents.length > 0" class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('helpCenter.parentCollection') }}
                 </h3>
 

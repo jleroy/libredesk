@@ -1,36 +1,34 @@
 <template>
-  <form @submit="onSubmit" novalidate class="space-y-6">
-    <div class="grid max-w-2xl grid-cols-[5rem_minmax(0,1fr)] items-start gap-5">
-      <FormField name="emoji" v-slot="{ componentField }">
-        <FormItem ref="emojiPickerContainer" class="relative">
-          <FormLabel>{{ $t('admin.team.emoji') }}</FormLabel>
-          <FormControl>
-            <Button
-              type="button"
-              variant="outline"
-              class="w-full font-normal"
-              @click="toggleEmojiPicker"
-            >
-              {{ componentField.modelValue }}
-            </Button>
-            <div v-if="isEmojiPickerVisible" class="absolute z-10 mt-2">
-              <EmojiPicker :native="true" @select="onSelectEmoji" class="w-[300px]" />
-            </div>
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      </FormField>
+  <form @submit="onSubmit" novalidate class="team-form space-y-6">
+    <FormField name="emoji" v-slot="{ componentField }">
+      <FormItem ref="emojiPickerContainer" class="relative w-20">
+        <FormLabel>{{ $t('admin.team.emoji') }}</FormLabel>
+        <FormControl>
+          <Button
+            type="button"
+            variant="outline"
+            class="w-full font-normal"
+            @click="toggleEmojiPicker"
+          >
+            {{ componentField.modelValue }}
+          </Button>
+          <div v-if="isEmojiPickerVisible" class="absolute z-10 mt-2">
+            <EmojiPicker :native="true" @select="onSelectEmoji" class="w-[300px]" />
+          </div>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    </FormField>
+    <FormGrid class="team-settings-grid">
       <FormField v-slot="{ componentField }" name="name">
         <FormItem>
           <FormLabel>{{ $t('globals.terms.name', 1) }}</FormLabel>
           <FormControl>
-            <Input type="text" :placeholder="$t('globals.terms.name', 1)" v-bind="componentField" />
+            <Input type="text" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
       </FormField>
-    </div>
-    <FormGrid>
       <FormField name="conversation_assignment_type" v-slot="{ componentField }">
         <FormItem>
           <FormLabel>{{ $t('admin.team.assignmentType') }}</FormLabel>
@@ -63,8 +61,6 @@
           <FormMessage />
         </FormItem>
       </FormField>
-    </FormGrid>
-    <FormGrid compact>
       <FormField v-slot="{ componentField }" name="timezone">
         <FormItem>
           <FormLabel>{{ $t('globals.terms.timezone', 1) }}</FormLabel>
@@ -204,7 +200,10 @@ const submitLabel = computed(() => {
   )
 })
 
+const DEFAULT_TEAM_EMOJI = '👥'
+
 const form = useForm({
+  initialValues: { emoji: DEFAULT_TEAM_EMOJI },
   validationSchema: toTypedSchema(createTeamFormSchema(t))
 })
 
@@ -251,7 +250,7 @@ watch(
   () => props.initialValues,
   (newValues) => {
     if (Object.keys(newValues).length === 0) return
-    form.setValues(newValues, false)
+    form.setValues({ ...newValues, emoji: newValues.emoji || DEFAULT_TEAM_EMOJI }, false)
   },
   { immediate: true }
 )
@@ -262,5 +261,22 @@ function toggleEmojiPicker() {
 
 function onSelectEmoji(emoji) {
   form.setFieldValue('emoji', emoji.i || emoji)
+  isEmojiPickerVisible.value = false
 }
 </script>
+
+<style scoped>
+.team-form {
+  container-type: inline-size;
+}
+
+.team-settings-grid.form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 32rem) {
+  .team-settings-grid.form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>

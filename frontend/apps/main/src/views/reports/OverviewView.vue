@@ -79,7 +79,7 @@
         <div :class="REPORT_ROW_CLASS">
           <!-- CSAT Card -->
           <div class="flex-1 box p-5">
-            <p class="card-title mb-4">{{ $t('report.csat.cardTitle') }}</p>
+            <p class="ui-heading mb-4">{{ $t('report.csat.cardTitle') }}</p>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div class="metric-item">
                 <span class="metric-value">{{ formatRating(csatData.average_rating) }}</span>
@@ -100,7 +100,7 @@
 
           <!-- Message Volume Card -->
           <div class="flex-1 box p-5">
-            <p class="card-title mb-4">{{ $t('report.messages.cardTitle') }}</p>
+            <p class="ui-heading mb-4">{{ $t('report.messages.cardTitle') }}</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               <div class="metric-item">
                 <span class="metric-value">{{
@@ -132,12 +132,12 @@
 
         <!-- Row 3: SLA Card with Compliance Percentages -->
         <div class="w-full box p-5">
-          <p class="card-title mb-4">{{ $t('report.sla.cardTitle') }}</p>
+          <p class="ui-heading mb-4">{{ $t('report.sla.cardTitle') }}</p>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <!-- First Response -->
             <div class="space-y-4">
-              <p class="section-title">{{ $t('report.sla.firstResponse') }}</p>
+              <p class="ui-subheading text-center">{{ $t('report.sla.firstResponse') }}</p>
               <div class="metric-item">
                 <span class="metric-value"
                   >{{ slaCounts.first_response_compliance_percent || 0 }}%</span
@@ -168,7 +168,7 @@
 
             <!-- Next Response -->
             <div class="space-y-4 border-y py-6 md:border-y-0 md:border-x md:px-8 md:py-0">
-              <p class="section-title">{{ $t('report.sla.nextResponse') }}</p>
+              <p class="ui-subheading text-center">{{ $t('report.sla.nextResponse') }}</p>
               <div class="metric-item">
                 <span class="metric-value"
                   >{{ slaCounts.next_response_compliance_percent || 0 }}%</span
@@ -199,7 +199,7 @@
 
             <!-- Resolution -->
             <div class="space-y-4">
-              <p class="section-title">{{ $t('report.sla.resolution') }}</p>
+              <p class="ui-subheading text-center">{{ $t('report.sla.resolution') }}</p>
               <div class="metric-item">
                 <span class="metric-value"
                   >{{ slaCounts.resolution_compliance_percent || 0 }}%</span
@@ -232,7 +232,7 @@
 
         <!-- Row 4: Tag Distribution -->
         <div class="w-full box p-5">
-          <p class="card-title mb-4">{{ $t('report.tags.cardTitle') }}</p>
+          <p class="ui-heading mb-4">{{ $t('report.tags.cardTitle') }}</p>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Tagged percentage metric -->
@@ -250,7 +250,7 @@
 
             <!-- Top tags list -->
             <div class="space-y-3">
-              <p class="section-title mb-3 text-left">{{ $t('report.tags.topTags') }}</p>
+              <p class="ui-subheading mb-3 text-left">{{ $t('report.tags.topTags') }}</p>
               <div
                 v-for="tag in (tagDistributionData.top_tags || []).slice(0, 5)"
                 :key="tag.tag_id"
@@ -268,7 +268,7 @@
 
         <!-- Row 5: Line Chart -->
         <div class="box w-full p-5">
-          <p class="card-title mb-4">{{ $t('report.chart.title') }}</p>
+          <p class="ui-heading mb-4">{{ $t('report.chart.title') }}</p>
           <LineChart :data="processedLineData" />
         </div>
       </div>
@@ -577,15 +577,9 @@ onMounted(loadDashboardData)
   @apply text-xs text-muted-foreground;
 }
 
-.card-title {
-  @apply text-sm font-medium text-muted-foreground;
-}
 
 .metric-item {
   @apply flex flex-col items-center gap-1 text-center;
 }
 
-.section-title {
-  @apply text-sm font-medium text-center text-muted-foreground;
-}
 </style>

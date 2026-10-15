@@ -51,7 +51,7 @@
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <h3
-                      class="text-sm truncate min-w-0 text-foreground"
+                      class="ui-subheading truncate min-w-0"
                       :class="isUnread ? 'font-semibold' : 'font-medium'"
                     >
                       {{ contactFullName }}
@@ -60,6 +60,19 @@
                   <TooltipContent>{{ contactFullName }}</TooltipContent>
                 </Tooltip>
                 <div class="flex items-center gap-1 flex-shrink-0">
+                  <Tooltip v-if="nearestSlaDeadline">
+                    <TooltipTrigger as-child>
+                      <div role="img" :aria-label="`${t(nearestSlaDeadline.title)}: ${formatFullTimestamp(nearestSlaDeadline.dueAt)}`">
+                        <SlaBadge :dueAt="nearestSlaDeadline.dueAt" compact :showExtra="false" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div v-for="deadline in pendingSlaDeadlines" :key="deadline.label" class="py-1">
+                        <p>{{ t(deadline.title) }}</p>
+                        <p>{{ formatFullTimestamp(deadline.dueAt) }}</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
                   <PriorityMarker :priority="conversation.priority" />
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -72,12 +85,16 @@
                     </TooltipTrigger>
                     <TooltipContent>{{ conversation.inbox_name }}</TooltipContent>
                   </Tooltip>
-                  <span
-                    class="text-xs text-muted-foreground whitespace-nowrap tabular-nums"
-                    v-if="conversation.last_message_at"
-                  >
-                    {{ relativeLastMessageTime }}
-                  </span>
+                  <Tooltip v-if="conversation.last_message_at">
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap tabular-nums">
+                        {{ relativeLastMessageTime }}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{{ formatFullTimestamp(conversation.last_message_at) }}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
 
@@ -111,6 +128,31 @@
                   />{{ trimmedLastMessage }}
                 </template>
               </p>
+              <Tooltip v-if="isAwaitingResponse">
+                <TooltipTrigger as-child>
+                  <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                    <Clock class="size-3" aria-hidden="true" />
+                    <span class="sr-only">{{ t('globals.terms.waiting') }}</span>
+                    <span>{{ relativeWaitingTime }}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{{ t('globals.terms.waiting') }} {{ relativeWaitingTime }}</p>
+                  <p>{{ formatFullTimestamp(conversation.waiting_since) }}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="flex size-5 shrink-0 items-center justify-center text-muted-foreground" role="img" :aria-label="ownerLabel">
+                    <Avatar v-if="assignedAgent || (!conversation.assigned_user_id && assignedTeam)" :shape="assignedAgent ? 'circle' : 'square'" class="size-5 text-[9px]">
+                      <AvatarImage v-if="assignedAgent" :src="assignedAgent.avatar_url || ''" class="object-cover" />
+                      <AvatarFallback>{{ ownerInitials }}</AvatarFallback>
+                    </Avatar>
+                    <component :is="ownerIcon" v-else class="size-4" aria-hidden="true" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{{ ownerLabel }}</TooltipContent>
+              </Tooltip>
               <div
                 v-if="isUnread"
                 class="flex items-center justify-center w-5 h-5 bg-primary text-primary-foreground text-xs font-medium rounded-full flex-shrink-0"
@@ -119,33 +161,6 @@
               </div>
             </div>
 
-            <!-- SLA Badges -->
-            <div v-if="hasSlaDeadlines" class="flex items-center gap-1">
-              <SlaBadge
-                v-show="frdStatus === 'overdue' || frdStatus === 'remaining'"
-                :dueAt="conversation.first_response_deadline_at"
-                :actualAt="conversation.first_reply_at"
-                :label="'FRD'"
-                :showExtra="false"
-                @status="frdStatus = $event"
-              />
-              <SlaBadge
-                v-show="rdStatus === 'overdue' || rdStatus === 'remaining'"
-                :dueAt="conversation.resolution_deadline_at"
-                :actualAt="conversation.resolved_at"
-                :label="'RD'"
-                :showExtra="false"
-                @status="rdStatus = $event"
-              />
-              <SlaBadge
-                v-show="nrdStatus === 'overdue' || nrdStatus === 'remaining'"
-                :dueAt="conversation.next_response_deadline_at"
-                :actualAt="conversation.next_response_met_at"
-                :label="'NRD'"
-                :showExtra="false"
-                @status="nrdStatus = $event"
-              />
-            </div>
           </div>
         </div>
       </router-link>
@@ -167,8 +182,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getRelativeTime } from '@shared-ui/utils/datetime.js'
-import { Mail, Reply, MailOpen, SquareCheck } from 'lucide-vue-next'
+import { getRelativeTime, formatFullTimestamp } from '@shared-ui/utils/datetime.js'
+import { Mail, Reply, MailOpen, SquareCheck, Clock, UserRound, UserRoundCheck, Users } from 'lucide-vue-next'
 import { CHANNEL_ICONS } from '@main/constants/channelIcons.js'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import {
@@ -182,6 +197,8 @@ import PriorityMarker from '@main/features/conversation/PriorityMarker.vue'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import { Checkbox } from '@shared-ui/components/ui/checkbox'
 import { useConversationStore } from '@main/stores/conversation'
+import { useUsersStore } from '@main/stores/users'
+import { useTeamStore } from '@main/stores/team'
 import { useAppSettingsStore } from '@main/stores/appSettings'
 import { useBulkActionPermissions } from '@/composables/useBulkActionPermissions'
 import { useI18n } from 'vue-i18n'
@@ -190,12 +207,11 @@ let timer = null
 const now = ref(new Date())
 const route = useRoute()
 const conversationStore = useConversationStore()
+const usersStore = useUsersStore()
+const teamStore = useTeamStore()
 const appSettingsStore = useAppSettingsStore()
 const { canBulkAct } = useBulkActionPermissions()
 const { t } = useI18n()
-const frdStatus = ref('')
-const rdStatus = ref('')
-const nrdStatus = ref('')
 
 const props = defineProps({
   conversation: Object,
@@ -243,16 +259,49 @@ const trimmedLastMessage = computed(() => {
   return message.length > 120 ? message.slice(0, 120) + '...' : message
 })
 
-const relativeLastMessageTime = computed(() => {
-  return props.conversation.last_message_at
-    ? getRelativeTime(props.conversation.last_message_at, now.value)
-    : ''
+const conversationStatus = computed(() => conversationStore.statuses.find((status) => status.name === props.conversation.status))
+const isAwaitingResponse = computed(() => !!props.conversation.waiting_since && conversationStatus.value?.category === 'open')
+const relativeLastMessageTime = computed(() => props.conversation.last_message_at
+  ? getRelativeTime(props.conversation.last_message_at, now.value) : '')
+const relativeWaitingTime = computed(() => props.conversation.waiting_since
+  ? getRelativeTime(props.conversation.waiting_since, now.value) : '')
+const assignedAgent = computed(() => usersStore.users.find((agent) =>
+  String(agent.id) === String(props.conversation.assigned_user_id)))
+const assignedTeam = computed(() => teamStore.teams.find((team) =>
+  String(team.id) === String(props.conversation.assigned_team_id)))
+const ownerLabel = computed(() => {
+  if (assignedAgent.value) {
+    return [assignedAgent.value.first_name, assignedAgent.value.last_name].filter(Boolean).join(' ')
+  }
+  if (props.conversation.assigned_user_id) return t('globals.terms.assignee')
+  if (props.conversation.assigned_team_id) return assignedTeam.value?.name || t('globals.terms.team', 1)
+  return t('globals.terms.unassigned')
 })
+const ownerInitials = computed(() => {
+  if (assignedAgent.value) {
+    return [assignedAgent.value.first_name, assignedAgent.value.last_name]
+      .map((name) => name?.charAt(0) || '').join('').toUpperCase()
+  }
+  const words = (assignedTeam.value?.name || '').trim().split(/\s+/)
+  return (words.length > 1
+    ? words.slice(0, 2).map((word) => word.charAt(0)).join('')
+    : words[0].slice(0, 2)).toUpperCase()
+})
+const ownerIcon = computed(() => props.conversation.assigned_user_id
+  ? UserRoundCheck
+  : props.conversation.assigned_team_id ? Users : UserRound)
 
-const hasSlaDeadlines = computed(() => {
+const pendingSlaDeadlines = computed(() => {
   const c = props.conversation
-  return c.first_response_deadline_at || c.resolution_deadline_at || c.next_response_deadline_at
+  if (conversationStatus.value?.category === 'resolved') return []
+  return [
+    { label: 'FRD', title: 'admin.sla.firstResponseTime', dueAt: c.first_response_deadline_at, actualAt: c.first_reply_at },
+    { label: 'RD', title: 'admin.sla.resolutionTime', dueAt: c.resolution_deadline_at, actualAt: c.resolved_at },
+    { label: 'NRD', title: 'admin.sla.nextResponseTime', dueAt: c.next_response_deadline_at, actualAt: c.next_response_met_at }
+  ].filter((deadline) => deadline.dueAt && !deadline.actualAt)
+    .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt))
 })
+const nearestSlaDeadline = computed(() => pendingSlaDeadlines.value[0])
 
 const hasDraftForConversation = computed(() => {
   return conversationStore.conversationHasDraft(props.conversation.uuid)

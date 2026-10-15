@@ -2,7 +2,7 @@
   <div v-if="!isHidden" class="shrink-0">
     <div class="flex h-14 shrink-0 items-center gap-3 px-3">
       <SidebarTrigger class="cursor-pointer" />
-      <h1 class="min-w-0 truncate text-base font-semibold tracking-tight">
+      <h1 class="ui-heading min-w-0 truncate">
         {{ title }}
       </h1>
     </div>

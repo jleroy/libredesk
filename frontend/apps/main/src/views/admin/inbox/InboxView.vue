@@ -30,7 +30,7 @@
           <LivechatWidgetPreview :config="livechatPreview" :user-type="previewUserType" />
         </div>
         <div class="space-y-1">
-          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.livechat') }}</p>
+          <p class="ui-description">{{ $t('admin.inbox.help.livechat') }}</p>
           <a
             href="https://docs.libredesk.io/configuration/livechat"
             target="_blank"
@@ -44,7 +44,7 @@
       <div v-else class="space-y-4">
         <div class="space-y-1">
           <p class="text-sm font-medium text-foreground">{{ $t('globals.terms.email') }}</p>
-          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.email') }}</p>
+          <p class="ui-description">{{ $t('admin.inbox.help.email') }}</p>
           <a
             href="https://docs.libredesk.io/configuration/connecting-inboxes"
             target="_blank"
@@ -56,7 +56,7 @@
         </div>
         <div class="space-y-1">
           <p class="text-sm font-medium text-foreground">{{ $t('globals.terms.liveChat') }}</p>
-          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.livechat') }}</p>
+          <p class="ui-description">{{ $t('admin.inbox.help.livechat') }}</p>
           <a
             href="https://docs.libredesk.io/configuration/livechat"
             target="_blank"
@@ -68,7 +68,7 @@
         </div>
         <div class="space-y-1">
           <p class="text-sm font-medium text-foreground">{{ $t('globals.terms.whatsapp') }}</p>
-          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.help.whatsapp') }}</p>
+          <p class="ui-description">{{ $t('admin.inbox.help.whatsapp') }}</p>
           <a
             href="https://docs.libredesk.io/configuration/whatsapp"
             target="_blank"

@@ -19,8 +19,9 @@ import './livechat'
 import './whatsapp'
 
 Cypress.on('uncaught:exception', (err) => {
+  const firstFrame = err.stack?.split('\n').find((line) => /^\s*at /.test(line))
   const isRadixFocusError =
-    err.message.includes("reading 'focus'") && err.stack?.split('\n')[1]?.includes('radix')
+    err.message.includes("reading 'focus'") && firstFrame?.includes('radix')
   return !isRadixFocusError
 })
 

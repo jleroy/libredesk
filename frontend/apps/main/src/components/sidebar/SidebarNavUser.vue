@@ -6,9 +6,9 @@
         class="p-0 !overflow-visible"
       >
         <div class="relative">
-          <Avatar class="h-8 w-8 rounded-md">
-            <AvatarImage :src="userStore.avatar" alt="U" class="rounded-md" />
-            <AvatarFallback class="rounded-md">
+          <Avatar class="h-8 w-8">
+            <AvatarImage :src="userStore.avatar" alt="U" />
+            <AvatarFallback>
               {{ userStore.getInitials }}
             </AvatarFallback>
           </Avatar>
@@ -35,9 +35,9 @@
       <DropdownMenuLabel class="font-normal space-y-2 px-2">
         <!-- User header -->
         <div class="flex items-center gap-2 py-1.5 text-left text-sm">
-          <Avatar class="h-8 w-8 rounded-md">
+          <Avatar class="h-8 w-8">
             <AvatarImage :src="userStore.avatar" alt="U" />
-            <AvatarFallback class="rounded-md">
+            <AvatarFallback>
               {{ userStore.getInitials }}
             </AvatarFallback>
           </Avatar>

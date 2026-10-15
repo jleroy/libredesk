@@ -67,15 +67,14 @@
                 <Label :id="`${day}-label`" :for="day" class="font-medium">{{ day }}</Label>
               </div>
               <div
-                class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
+                class="grid min-w-0 max-w-56 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
               >
                 <div class="min-w-0">
                   <span :id="`${day}-from`" class="sr-only">{{ t('globals.terms.from') }}</span>
-                  <Input
-                    type="time"
+                  <TimeField
                     class="min-w-0"
                     :aria-labelledby="`${day}-label ${day}-from`"
-                    :modelValue="hours[day]?.open || '09:00'"
+                    :modelValue="hours[day]?.open ?? '09:00'"
                     @update:modelValue="(val) => updateHours(day, 'open', val)"
                     :disabled="!selectedDays[day]"
                   />
@@ -84,11 +83,10 @@
                   t('globals.terms.to')
                 }}</span>
                 <div class="min-w-0">
-                  <Input
-                    type="time"
+                  <TimeField
                     class="min-w-0"
                     :aria-labelledby="`${day}-label ${day}-to`"
-                    :modelValue="hours[day]?.close || '17:00'"
+                    :modelValue="hours[day]?.close ?? '17:00'"
                     @update:modelValue="(val) => updateHours(day, 'close', val)"
                     :disabled="!selectedDays[day]"
                   />
@@ -194,6 +192,7 @@ import {
 } from '@shared-ui/components/ui/form/index.js'
 import { Calendar } from '@shared-ui/components/ui/calendar/index.js'
 import { Input } from '@shared-ui/components/ui/input/index.js'
+import TimeField from '@shared-ui/components/TimeField.vue'
 import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover/index.js'
 import { cn } from '@shared-ui/lib/utils.js'
 import { format } from 'date-fns'
@@ -351,7 +350,7 @@ watch(() => props.initialValues, initializeFromValues, { immediate: true, deep: 
 <style scoped>
 @container (min-width: 32rem) {
   .business-hours-row {
-    grid-template-columns: minmax(8rem, 1fr) minmax(0, 20rem);
+    grid-template-columns: minmax(8rem, 1fr) minmax(0, 14rem);
   }
 }
 </style>

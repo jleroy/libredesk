@@ -1,6 +1,6 @@
 <template>
   <Spinner v-if="loading" />
-  <p v-else-if="loadFailed" class="text-sm text-muted-foreground">
+  <p v-else-if="loadFailed" class="ui-description">
     {{ t('globals.messages.somethingWentWrong') }}
   </p>
   <div v-else class="flex flex-col">

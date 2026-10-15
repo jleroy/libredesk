@@ -75,7 +75,7 @@
           <p class="text-sm font-medium text-foreground">
             {{ $t('admin.whatsappTemplates.title') }}
           </p>
-          <p class="text-sm text-muted-foreground">
+          <p class="ui-description">
             {{ $t('admin.whatsappTemplates.help.overview') }}
           </p>
           <a
@@ -150,7 +150,7 @@ const whatsappInboxes = computed(() =>
 const RESERVED_NAME_PREFIX = 'libredesk_csat_'
 
 const STATUS_BADGE_VARIANT = {
-  APPROVED: 'default',
+  APPROVED: 'success',
   PENDING: 'secondary',
   REJECTED: 'destructive',
   DISABLED: 'secondary',

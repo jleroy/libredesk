@@ -4,7 +4,7 @@
     <template v-else>
       <div v-if="showGettingStarted" class="getting-started-wrapper">
         <div class="text-center">
-          <h2 class="text-2xl font-semibold text-foreground mb-6">
+          <h2 class="ui-display-heading mb-6">
             {{ $t('setup.completeYourSetup') }}
           </h2>
 

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex h-14 shrink-0 items-center gap-3 border-b border-border px-3">
       <SidebarTrigger class="cursor-pointer" />
-      <h1 class="min-w-0 truncate text-base font-semibold" :title="title">{{ title }}</h1>
+      <h1 class="ui-heading min-w-0 truncate" :title="title">{{ title }}</h1>
     </div>
 
     <!-- Bulk Action Toolbar (when items selected) -->
@@ -149,7 +149,7 @@
 <script setup>
 const FILTER_TRIGGER_CLASS = 'min-w-0 justify-start gap-1.5 px-2 text-xs'
 
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Inbox, MessageCircleWarning, ChevronDown, Loader2 } from 'lucide-vue-next'
@@ -162,6 +162,8 @@ import {
 } from '@shared-ui/components/ui/dropdown-menu'
 import { SidebarTrigger } from '@shared-ui/components/ui/sidebar'
 import { useConversationStore } from '@/stores/conversation'
+import { useUsersStore } from '@/stores/users'
+import { useTeamStore } from '@/stores/team'
 import { useBulkActionPermissions } from '@/composables/useBulkActionPermissions'
 import EmptyList from '@/features/conversation/list/ConversationEmptyList.vue'
 import ConversationBulkActionToolbar from '@/features/conversation/list/ConversationBulkActionToolbar.vue'
@@ -169,9 +171,25 @@ import ConversationListItem from '@/features/conversation/list/ConversationListI
 import ConversationListItemSkeleton from '@/features/conversation/list/ConversationListItemSkeleton.vue'
 
 const conversationStore = useConversationStore()
+const usersStore = useUsersStore()
+const teamStore = useTeamStore()
 const { canBulkAct } = useBulkActionPermissions()
 const route = useRoute()
 const { t } = useI18n()
+
+watch(
+  () => conversationStore.conversationsList.map((conversation) => conversation.assigned_user_id),
+  usersStore.ensureUserIDs,
+  { immediate: true }
+)
+
+watch(
+  () => conversationStore.conversationsList
+    .filter((conversation) => !conversation.assigned_user_id)
+    .map((conversation) => conversation.assigned_team_id),
+  teamStore.ensureTeamIDs,
+  { immediate: true }
+)
 
 const hasSelection = computed(() => conversationStore.selectedCount > 0)
 

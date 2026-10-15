@@ -10,7 +10,7 @@
         :style="indentStyle"
       >
         <GripVertical
-          class="drag-handle -m-1 h-4 w-4 flex-shrink-0 cursor-grab p-1 text-muted-foreground opacity-0 group-hover:opacity-100 box-content"
+          :class="DRAG_HANDLE_CLASS"
           aria-hidden="true"
           @click.stop
         />
@@ -88,7 +88,7 @@
           <template #header>
             <p
               v-if="!childCollections.length && !articles.length"
-              class="px-4 py-2.5 text-sm text-muted-foreground"
+              class="px-4 py-2.5 ui-description"
               :style="childIndentStyle"
             >
               {{ $t('globals.messages.empty', { name: $t('globals.terms.collection') }) }}
@@ -157,7 +157,7 @@
     :style="indentStyle"
   >
     <GripVertical
-      class="drag-handle -m-1 h-4 w-4 flex-shrink-0 cursor-grab p-1 text-muted-foreground opacity-0 group-hover:opacity-100 box-content"
+      :class="DRAG_HANDLE_CLASS"
       aria-hidden="true"
       @click.stop
     />
@@ -193,6 +193,8 @@
 </template>
 
 <script setup>
+const DRAG_HANDLE_CLASS = 'drag-handle -m-1 h-4 w-4 flex-shrink-0 cursor-grab p-1 text-muted-foreground opacity-0 group-hover:opacity-100 box-content'
+
 import { ref, computed, watch, inject } from 'vue'
 import Draggable from 'vuedraggable'
 import { usePreferredReducedMotion } from '@vueuse/core'

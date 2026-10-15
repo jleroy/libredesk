@@ -91,7 +91,7 @@
           >
             <div class="space-y-6">
               <div class="space-y-4">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.action', 2) }}
                 </h3>
 
@@ -118,10 +118,10 @@
               </div>
 
               <div v-if="loadedArticle && helpCenterLocales.length > 1" class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.translation', 2) }}
                 </h3>
-                <p class="text-sm text-muted-foreground">
+                <p class="ui-description">
                   {{ t('helpCenter.translationsHint') }}
                 </p>
 
@@ -201,7 +201,7 @@
               </div>
 
               <div class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.status') }}
                 </h3>
 
@@ -226,11 +226,11 @@
               </div>
 
               <div class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.collection') }}
                 </h3>
 
-                <p v-if="localeCollections.length === 0" class="text-sm text-muted-foreground">
+                <p v-if="localeCollections.length === 0" class="ui-description">
                   {{ t('helpCenter.noCollectionsInLanguage') }}
                 </p>
                 <Button
@@ -268,7 +268,7 @@
               </div>
 
               <div class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('helpCenter.writtenBy') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="author_id">
@@ -293,7 +293,7 @@
               </FormField>
 
               <div class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('globals.terms.language') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="locale">
@@ -316,7 +316,7 @@
               </div>
 
               <div class="space-y-3">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('helpCenter.excerpt') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="excerpt">
@@ -335,7 +335,7 @@
               </div>
 
               <div class="space-y-3 border-t pt-4">
-                <h3 class="font-medium text-sm text-muted-foreground">
+                <h3 class="ui-heading">
                   {{ t('helpCenter.seo') }}
                 </h3>
                 <FormField v-slot="{ componentField }" name="meta_title">
@@ -424,7 +424,7 @@
 
       <div class="space-y-4">
         <Spinner v-if="isLoadingLinkable" />
-        <p v-else-if="!linkableArticleItems.length" class="text-sm text-muted-foreground">
+        <p v-else-if="!linkableArticleItems.length" class="ui-description">
           {{ t('helpCenter.noLinkableArticles') }}
         </p>
         <SelectComboBox

@@ -95,7 +95,7 @@
 
               <div class="space-y-1 overflow-hidden flex-1">
                 <div class="flex items-center gap-2">
-                  <h4 class="text-sm font-semibold truncate">
+                  <h4 class="ui-subheading truncate">
                     {{ contact.first_name }} {{ contact.last_name }}
                   </h4>
                   <Badge v-if="contact.type" variant="secondary" class="text-xs px-1.5 py-0">

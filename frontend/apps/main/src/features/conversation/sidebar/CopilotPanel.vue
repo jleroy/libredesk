@@ -2,7 +2,7 @@
   <div class="flex flex-col h-full min-h-0">
     <div
       v-if="assistants.length || messages.length"
-      class="flex items-center justify-between gap-2 border-b border-border px-3 py-2"
+      class="flex min-w-0 items-center justify-between gap-2 border-b border-border px-3 py-2"
     >
       <Select
         v-if="assistants.length"
@@ -10,13 +10,19 @@
         @update:model-value="persistAssistant"
       >
         <SelectTrigger
-          class="h-8 w-auto gap-1.5 border-0 shadow-none text-muted-foreground focus:ring-0"
+          class="h-7 min-w-0 w-auto max-w-full gap-1.5 border-0 px-2 py-1 text-xs sm:text-xs shadow-none text-muted-foreground"
         >
-          <SelectValue :placeholder="COPILOT_NAME" />
+          <SelectValue class="min-w-0 truncate" :placeholder="COPILOT_NAME" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent class="w-56">
           <SelectItem :value="0">{{ COPILOT_NAME }}</SelectItem>
-          <SelectItem v-for="a in assistants" :key="a.id" :value="a.id">{{ a.name }}</SelectItem>
+          <SelectItem
+            v-for="a in assistants"
+            :key="a.id"
+            :value="a.id"
+            class="whitespace-normal break-words"
+            >{{ a.name }}</SelectItem
+          >
         </SelectContent>
       </Select>
       <span v-else />
@@ -25,7 +31,7 @@
         type="button"
         variant="ghost"
         size="sm"
-        class="gap-1.5 text-muted-foreground"
+        class="shrink-0 gap-1.5 text-muted-foreground"
         @click="clearChat"
       >
         <Eraser class="h-3.5 w-3.5" />
@@ -45,19 +51,19 @@
           <Bot class="h-6 w-6 text-primary" />
         </div>
         <div class="space-y-1">
-          <p class="text-sm font-medium text-foreground">{{ COPILOT_NAME }}</p>
-          <p class="text-xs text-muted-foreground">
+          <p class="ui-heading">{{ COPILOT_NAME }}</p>
+          <p class="ui-description">
             {{ $t('copilot.emptyState', { name: COPILOT_NAME }) }}
           </p>
         </div>
-        <div class="flex flex-col gap-1.5 w-full max-w-[85%]">
+        <div class="flex w-full flex-col gap-2">
           <Button
             v-for="preset in presets"
             :key="preset"
             type="button"
             variant="outline"
-            size="sm"
-            class="w-full justify-start whitespace-normal h-auto py-1.5 font-normal text-muted-foreground"
+            size="default"
+            class="h-auto min-h-9 w-full justify-start whitespace-normal text-left font-normal"
             @click="send(preset)"
           >
             {{ preset }}
@@ -72,7 +78,7 @@
       >
         <div
           v-if="!msg.isUser"
-          class="mt-0.5 h-6 w-6 shrink-0 rounded-full bg-primary/10 flex items-center justify-center"
+          :class="JUNO_ICON_CLASS"
         >
           <Bot class="h-3.5 w-3.5 text-primary" />
         </div>
@@ -87,7 +93,7 @@
             aria-live="polite"
             :aria-label="$t('ai.toolApprovalTitle')"
           >
-            <p class="text-sm font-medium">{{ $t('ai.toolApprovalTitle') }}</p>
+            <p class="ui-subheading">{{ $t('ai.toolApprovalTitle') }}</p>
             <ToolApprovalDetails :approval="msg.approval" />
             <div class="flex flex-wrap justify-end gap-2">
               <Button
@@ -169,7 +175,7 @@
       </div>
       <div v-if="isThinking" class="flex gap-2 justify-start">
         <div
-          class="mt-0.5 h-6 w-6 shrink-0 rounded-full bg-primary/10 flex items-center justify-center"
+          :class="JUNO_ICON_CLASS"
         >
           <Bot class="h-3.5 w-3.5 text-primary" />
         </div>
@@ -197,6 +203,8 @@
 </template>
 
 <script setup>
+const JUNO_ICON_CLASS = 'mt-0.5 h-6 w-6 shrink-0 rounded-full bg-primary/10 flex items-center justify-center'
+
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { Button } from '@shared-ui/components/ui/button'
 import ToolApprovalDetails from '@/features/conversation/ToolApprovalDetails.vue'

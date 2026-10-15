@@ -7,7 +7,7 @@
 
       <p
         v-if="isEditing && template && !canEditWhatsAppTemplate(template)"
-        class="mb-5 text-sm text-muted-foreground"
+        class="mb-5 ui-description"
         role="status"
       >
         {{ $t('admin.whatsappTemplates.error.editUnavailable') }}
@@ -104,7 +104,7 @@
           </FormGrid>
 
           <div :class="SECTION_CLASS">
-            <h3 class="font-semibold">{{ $t('globals.terms.header') }}</h3>
+            <h3 class="ui-heading">{{ $t('globals.terms.header') }}</h3>
 
             <div class="max-w-xl">
               <FormField v-slot="{ componentField, handleChange, meta }" name="header_type">
@@ -153,7 +153,7 @@
           </div>
 
           <div :class="SECTION_CLASS">
-            <h3 class="font-semibold">{{ $t('globals.terms.body') }}</h3>
+            <h3 class="ui-heading">{{ $t('globals.terms.body') }}</h3>
 
             <FormField v-slot="{ componentField, handleChange, meta }" name="body_content">
               <FormItem>
@@ -192,7 +192,7 @@
           </div>
 
           <div v-if="placeholders.length" :class="SECTION_CLASS">
-            <h3 class="font-semibold">{{ $t('globals.terms.sampleValue', 2) }}</h3>
+            <h3 class="ui-heading">{{ $t('globals.terms.sampleValue', 2) }}</h3>
             <p class="text-xs text-muted-foreground">
               {{ $t('admin.whatsappTemplates.sampleValues.description') }}
             </p>
@@ -215,7 +215,7 @@
 
           <div :class="SECTION_CLASS">
             <div class="flex items-center justify-between">
-              <h3 class="font-semibold">{{ $t('globals.terms.button', 2) }}</h3>
+              <h3 class="ui-heading">{{ $t('globals.terms.button', 2) }}</h3>
               <Button
                 type="button"
                 variant="outline"

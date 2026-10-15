@@ -1,12 +1,8 @@
 <template>
   <div class="flex flex-col text-left" :class="isOutgoing ? 'items-end' : 'items-start'">
     <!-- Sender Name -->
-    <div
-      v-if="!groupWithPrev"
-      class="mb-1 flex items-center gap-1.5"
-      :class="isOutgoing ? 'md:pr-[47px]' : 'md:pl-[47px]'"
-    >
-      <Avatar class="w-7 h-7 text-xs md:hidden" :class="{ 'order-last': isOutgoing }">
+    <div v-if="!groupWithPrev" class="mb-1 flex items-center gap-1.5">
+      <Avatar class="w-7 h-7 text-xs" :class="{ 'order-last': isOutgoing }">
         <AvatarImage :src="getAvatar" />
         <AvatarFallback class="font-medium">
           {{ avatarFallback }}
@@ -15,21 +11,21 @@
       <router-link
         v-if="!isOutgoing"
         :to="{ name: 'contact-detail', params: { id: message.author?.id } }"
-        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-foreground transition-colors duration-200"
+        :class="AUTHOR_LINK_CLASS"
       >
         {{ getFullName }}
       </router-link>
       <router-link
         v-else-if="canManageAI"
         :to="aiAssistantRoute"
-        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-foreground transition-colors duration-200"
+        :class="AUTHOR_LINK_CLASS"
       >
         {{ getFullName }}
       </router-link>
       <router-link
         v-else-if="canManageUsers"
         :to="{ name: 'edit-agent', params: { id: message.author?.id } }"
-        class="cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-foreground transition-colors duration-200"
+        :class="AUTHOR_LINK_CLASS"
       >
         {{ getFullName }}
       </router-link>
@@ -40,23 +36,6 @@
 
     <!-- Message Bubble -->
     <div class="flex flex-row gap-2 w-full group" :class="{ 'justify-end': isOutgoing }">
-      <!-- Avatar (left for incoming) -->
-      <template v-if="!isOutgoing">
-        <router-link
-          v-if="!groupWithPrev"
-          :to="{ name: 'contact-detail', params: { id: message.author?.id } }"
-          class="flex-shrink-0 max-md:hidden"
-        >
-          <Avatar class="cursor-pointer w-8 h-8 hover:opacity-80 transition-opacity">
-            <AvatarImage :src="getAvatar" />
-            <AvatarFallback class="font-medium">
-              {{ avatarFallback }}
-            </AvatarFallback>
-          </Avatar>
-        </router-link>
-        <div v-else class="w-8 flex-shrink-0 max-md:hidden" />
-      </template>
-
       <div
         class="w-4/5"
         :class="{ 'flex justify-end items-center gap-2': isOutgoing }"
@@ -180,7 +159,7 @@
             <CSATResponseDisplay :message="message" />
 
             <!-- Spinner for Pending Messages (outgoing only) -->
-            <Spinner v-if="isOutgoing && message.status === 'pending'" size="sm" />
+            <Spinner v-if="pendingSpinner" size="sm" />
 
             <!-- Status Icons (outgoing only) -->
             <div v-if="isOutgoing" class="flex items-center space-x-2 mt-2 self-end">
@@ -235,44 +214,10 @@
         </div>
       </div>
 
-      <!-- Avatar (right for outgoing) -->
-      <template v-if="isOutgoing">
-        <div v-if="groupWithPrev" class="w-8 flex-shrink-0 max-md:hidden" />
-        <router-link
-          v-else-if="canManageAI"
-          :to="aiAssistantRoute"
-          class="flex-shrink-0 max-md:hidden"
-        >
-          <Avatar class="cursor-pointer w-8 h-8 hover:opacity-80 transition-opacity">
-            <AvatarImage :src="getAvatar" />
-            <AvatarFallback class="font-medium">
-              {{ avatarFallback }}
-            </AvatarFallback>
-          </Avatar>
-        </router-link>
-        <router-link
-          v-else-if="canManageUsers"
-          :to="{ name: 'edit-agent', params: { id: message.author?.id } }"
-          class="flex-shrink-0 max-md:hidden"
-        >
-          <Avatar class="cursor-pointer w-8 h-8 hover:opacity-80 transition-opacity">
-            <AvatarImage :src="getAvatar" />
-            <AvatarFallback class="font-medium">
-              {{ avatarFallback }}
-            </AvatarFallback>
-          </Avatar>
-        </router-link>
-        <Avatar v-else class="w-8 h-8 max-md:hidden">
-          <AvatarImage :src="getAvatar" />
-          <AvatarFallback class="font-medium">
-            {{ avatarFallback }}
-          </AvatarFallback>
-        </Avatar>
-      </template>
     </div>
 
     <!-- Timestamp tooltip -->
-    <div v-if="!groupWithNext" :class="isOutgoing ? 'md:pr-[47px]' : 'md:pl-[47px]'">
+    <div v-if="!groupWithNext">
       <Tooltip>
         <TooltipTrigger>
           <span class="text-muted-foreground text-xs mt-1">
@@ -303,7 +248,9 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, nextTick } from 'vue'
+const AUTHOR_LINK_CLASS = 'cursor-pointer text-muted-foreground text-sm font-medium hover:underline hover:text-foreground transition-colors duration-200'
+
+import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useConversationStore } from '@main/stores/conversation'
 import { useUserStore } from '@main/stores/user'
 import { useI18n } from 'vue-i18n'
@@ -348,6 +295,7 @@ import CSATResponseDisplay from './CSATResponseDisplay.vue'
 import api from '@main/api'
 import { containsQuoteMarkers } from '@shared-ui/utils/quotedContent.js'
 import { getMessageDeliveryStatus } from './messageDeliveryStatus.js'
+import { delayedLoading } from '@main/utils/delayed-loading'
 
 const extendedCssProperties = [...allowedCssProperties, 'transform', 'transform-origin']
 // The sanitizer has no strikethrough tag, so these are rewritten to a styled span it keeps.
@@ -418,6 +366,20 @@ const aiAssistantRoute = computed(() => {
 })
 
 const isOutgoing = computed(() => props.direction === 'outgoing')
+const pendingSpinner = ref(false)
+
+watch(
+  () => isOutgoing.value && props.message.status === 'pending',
+  (pending, _, onCleanup) => {
+    if (!pending) {
+      pendingSpinner.value = false
+      return
+    }
+    const guard = delayedLoading(pendingSpinner, 'value', 100 /** delayMs **/, 0 /** minVisibleMs **/)
+    onCleanup(guard.cancel)
+  },
+  { immediate: true }
+)
 
 const getFullName = computed(() => {
   const author = props.message.author ?? {}

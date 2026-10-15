@@ -22,7 +22,7 @@
     >
       <ComboboxAnchor as-child>
         <div class="flex w-full items-center">
-          <ComboboxInput :placeholder="placeholder" as-child>
+          <ComboboxInput :placeholder="tags.length ? '' : placeholder" :aria-label="placeholder" as-child>
             <TagsInputInput
               class="w-0 min-w-0 flex-1 px-1"
               @keydown.enter.prevent

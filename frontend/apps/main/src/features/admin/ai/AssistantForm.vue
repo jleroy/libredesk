@@ -211,7 +211,7 @@
 
     <div class="space-y-2">
       <div class="text-sm font-medium leading-none">{{ t('admin.ai.assistant.tools') }}</div>
-      <p class="text-sm text-muted-foreground">{{ t('admin.ai.assistant.toolsHint') }}</p>
+      <p class="ui-description">{{ t('admin.ai.assistant.toolsHint') }}</p>
       <div class="space-y-3 mt-3">
         <div v-for="tool in tools" :key="tool.id" class="flex items-center space-x-2">
           <Checkbox
@@ -223,7 +223,7 @@
             {{ tool.name }}
           </label>
         </div>
-        <p v-if="!tools.length" class="text-sm text-muted-foreground">
+        <p v-if="!tools.length" class="ui-description">
           {{ t('admin.ai.assistant.toolsEmpty') }}
         </p>
       </div>

@@ -5,7 +5,7 @@
       <CardDescription>{{ description }}</CardDescription>
     </CardHeader>
     <CardContent>
-      <form @submit="onSubmit" novalidate class="space-y-6 w-full">
+      <form @submit="onSubmit" novalidate class="provider-form space-y-6 w-full">
         <div class="space-y-2">
           <p class="text-sm font-medium leading-none">{{ t('admin.ai.preset') }}</p>
           <Select v-model="selectedPreset" @update:modelValue="applyPreset">
@@ -18,10 +18,10 @@
               </SelectItem>
             </SelectContent>
           </Select>
-          <p class="text-sm text-muted-foreground">{{ t('admin.ai.presetHint') }}</p>
+          <p class="ui-description">{{ t('admin.ai.presetHint') }}</p>
         </div>
 
-        <FormGrid
+        <FormGrid class="provider-grid"
           ><FormField v-slot="{ componentField }" name="model">
             <FormItem>
               <FormLabel>{{ t('globals.terms.model') }}</FormLabel>
@@ -49,22 +49,48 @@
               <FormMessage />
             </FormItem> </FormField
         ></FormGrid>
-        <FormField v-slot="{ componentField }" name="api_key">
-          <FormItem>
-            <FormLabel>{{ t('globals.terms.apiKey') }}</FormLabel>
-            <FormControl>
-              <Input
-                type="password"
-                autocomplete="new-password"
-                :placeholder="hasApiKey ? t('admin.ai.apiKeyPlaceholder') : ''"
-                v-bind="componentField"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
+        <FormGrid class="provider-grid">
+          <FormField v-slot="{ componentField }" name="api_key">
+            <FormItem>
+              <FormLabel>{{ t('globals.terms.apiKey') }}</FormLabel>
+              <FormControl>
+                <Input
+                  type="password"
+                  autocomplete="new-password"
+                  :placeholder="hasApiKey ? t('admin.ai.apiKeyPlaceholder') : ''"
+                  v-bind="componentField"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField
+            v-if="showCompletionFields"
+            v-slot="{ componentField }"
+            name="reasoning_effort"
+          >
+            <FormItem>
+              <FormLabel>{{ t('admin.ai.reasoningEffort') }}</FormLabel>
+              <FormControl>
+                <Input type="text" placeholder="none" v-bind="componentField" />
+              </FormControl>
+              <FormDescription>{{ t('admin.ai.reasoningEffortHint') }}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-if="showEmbeddingFields" v-slot="{ componentField }" name="dimensions">
+            <FormItem>
+              <FormLabel>{{ t('admin.ai.dimensions') }}</FormLabel>
+              <FormControl>
+                <Input type="number" min="1" step="1" placeholder="1536" v-bind="componentField" />
+              </FormControl>
+              <FormDescription>{{ t('admin.ai.dimensionsHint') }}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+        </FormGrid>
         <template v-if="showCompletionFields"
-          ><FormGrid compact
+          ><FormGrid class="provider-grid"
             ><FormField v-slot="{ componentField }" name="temperature">
               <FormItem>
                 <FormLabel>{{ t('admin.ai.temperature') }}</FormLabel>
@@ -83,16 +109,7 @@
                 <FormMessage />
               </FormItem>
             </FormField>
-            <FormField v-slot="{ componentField }" name="reasoning_effort">
-              <FormItem>
-                <FormLabel>{{ t('admin.ai.reasoningEffort') }}</FormLabel>
-                <FormControl>
-                  <Input type="text" placeholder="none" v-bind="componentField" />
-                </FormControl>
-                <FormDescription>{{ t('admin.ai.reasoningEffortHint') }}</FormDescription>
-                <FormMessage />
-              </FormItem> </FormField
-          ></FormGrid>
+          </FormGrid>
           <FormField v-slot="{ componentField }" name="instructions">
             <FormItem class="col-span-full">
               <FormLabel>{{ t('admin.ai.instructions') }}</FormLabel>
@@ -111,17 +128,6 @@
                 :checked="componentField.modelValue"
                 @update:checked="handleChange"
               />
-            </FormItem> </FormField
-        ></template>
-        <template v-if="showEmbeddingFields"
-          ><FormField v-slot="{ componentField }" name="dimensions">
-            <FormItem class="max-w-xs">
-              <FormLabel>{{ t('admin.ai.dimensions') }}</FormLabel>
-              <FormControl>
-                <Input type="number" min="1" step="1" placeholder="1536" v-bind="componentField" />
-              </FormControl>
-              <FormDescription>{{ t('admin.ai.dimensionsHint') }}</FormDescription>
-              <FormMessage />
             </FormItem> </FormField
         ></template>
 
@@ -410,3 +416,19 @@ const onSubmit = form.handleSubmit(async (values) => {
   }
 })
 </script>
+
+<style scoped>
+.provider-form {
+  container-type: inline-size;
+}
+
+.provider-grid.form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 32rem) {
+  .provider-grid.form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>

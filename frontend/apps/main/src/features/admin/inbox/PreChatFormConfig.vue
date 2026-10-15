@@ -51,7 +51,7 @@
           </div>
 
           <div class="space-y-4">
-            <h4 class="font-medium text-foreground">
+            <h4 class="ui-heading">
               {{ $t('admin.inbox.livechat.prechatForm.fields') }}
             </h4>
 
@@ -70,7 +70,7 @@
                 class="space-y-3"
               >
                 <template #item="{ element: field, index }">
-                  <div :key="field.key || `field-${index}`" class="border rounded-lg p-4 space-y-4">
+                  <div :key="field.key || `field-${index}`" class="group/reorder border rounded-lg p-4 space-y-4">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center space-x-3">
                         <div class="drag-handle cursor-move text-muted-foreground">
@@ -145,7 +145,7 @@
             </div>
 
             <div v-if="availableCustomAttributes.length > 0" class="space-y-3">
-              <h5 class="font-medium text-sm">
+              <h5 class="ui-subheading">
                 {{ $t('admin.inbox.livechat.prechatForm.availableFields') }}
               </h5>
               <div class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">

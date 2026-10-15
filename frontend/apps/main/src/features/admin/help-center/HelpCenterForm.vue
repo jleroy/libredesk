@@ -129,7 +129,7 @@
 
           <div class="space-y-2">
             <Label>{{ t('helpCenter.supportedLanguages') }}</Label>
-            <p class="text-sm text-muted-foreground">
+            <p class="ui-description">
               {{ t('helpCenter.supportedLanguagesHint') }}
             </p>
             <div

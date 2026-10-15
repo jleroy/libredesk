@@ -3,9 +3,7 @@
     <div class="flex justify-between items-start">
       <div class="relative shrink-0">
         <Avatar class="size-14">
-          <AvatarImage
-            :src="conversation?.contact?.avatar_url || ''"
-          />
+          <AvatarImage :src="conversation?.contact?.avatar_url || ''" />
           <AvatarFallback>
             {{ conversation?.contact?.first_name?.toUpperCase().substring(0, 2) }}
           </AvatarFallback>
@@ -17,16 +15,19 @@
           class="absolute bottom-1 right-1 border-2 border-background"
         />
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        class="h-11 w-11 lg:h-7 lg:w-7"
-        :aria-label="t('globals.terms.collapse')"
-        @click="emitter.emit(EMITTER_EVENTS.CONVERSATION_SIDEBAR_TOGGLE)"
-      >
-        <ViewVerticalIcon aria-hidden="true" />
-      </Button>
+      <div class="flex items-center gap-1">
+        <slot name="actions" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          class="h-11 w-11 text-muted-foreground hover:text-foreground focus-visible:text-foreground lg:h-7 lg:w-7 [&_svg]:size-3.5"
+          :aria-label="t('globals.terms.collapse')"
+          @click="emitter.emit(EMITTER_EVENTS.CONVERSATION_SIDEBAR_TOGGLE)"
+        >
+          <ViewVerticalIcon aria-hidden="true" />
+        </Button>
+      </div>
     </div>
 
     <div class="min-h-6 flex items-center gap-2">
@@ -59,7 +60,10 @@
         <span class="sidebar-value min-w-0 truncate" :title="conversation.contact.email">
           {{ conversation.contact.email }}
         </span>
-        <CopyButton :text="conversation.contact.email" class="h-6 w-6 shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5" />
+        <CopyButton
+          :text="conversation.contact.email"
+          class="h-6 w-6 shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
+        />
       </template>
       <span v-else class="sidebar-label">
         {{ t('conversation.sidebar.notAvailable') }}

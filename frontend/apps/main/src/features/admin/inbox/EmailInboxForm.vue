@@ -9,8 +9,8 @@
     </div>
     <div v-show="!showFormFields" class="space-y-4">
       <div class="space-y-2">
-        <h3 class="text-lg font-semibold">{{ $t('admin.inbox.oauth.chooseSetupMethod') }}</h3>
-        <p class="text-sm text-muted-foreground">
+        <h3 class="ui-heading">{{ $t('admin.inbox.oauth.chooseSetupMethod') }}</h3>
+        <p class="ui-description">
           {{ $t('admin.inbox.oauth.selectConnectionMethod') }}
         </p>
       </div>
@@ -41,7 +41,7 @@
           <p class="font-semibold text-foreground">
             {{ $t('admin.inbox.oauth.connectedVia', { provider: oauthProvider }) }}
           </p>
-          <p class="break-all text-sm text-muted-foreground">{{ oauthEmail }}</p>
+          <p class="break-all ui-description">{{ oauthEmail }}</p>
           <p v-show="oauthClientId" class="mt-1 break-all font-mono text-xs text-muted-foreground">
             {{ $t('globals.terms.clientID') }}: {{ oauthClientId.substring(0, 20) }}...{{
               oauthClientId.slice(-8)
@@ -116,7 +116,7 @@
       >
         <div class="space-y-1.5">
           <div class="flex items-center justify-between gap-4">
-            <h3 id="inbox-aliases-heading" class="text-sm font-semibold">
+            <h3 id="inbox-aliases-heading" class="ui-heading">
               {{ $t('globals.terms.emailAlias', 2) }}
             </h3>
             <Button type="button" variant="outline" size="sm" class="shrink-0" @click="addAlias">
@@ -124,7 +124,7 @@
               {{ $t('globals.messages.add') }}
             </Button>
           </div>
-          <p class="text-sm text-muted-foreground">{{ $t('admin.inbox.aliases.description') }}</p>
+          <p class="ui-description">{{ $t('admin.inbox.aliases.description') }}</p>
         </div>
         <ul v-show="aliasFields.length" class="divide-y" role="list">
           <li
@@ -742,7 +742,7 @@
                 />
                 <p
                   v-show="isMicrosoftInbox"
-                  class="!mt-2 flex items-start gap-1.5 text-xs text-muted-foreground"
+                  :class="AUTH_HINT_CLASS"
                 >
                   <Lightbulb class="size-4 shrink-0" aria-hidden="true" />
                   <span>{{ $t('admin.inbox.enablePlusAddressing.requiredForMicrosoft') }}</span>
@@ -758,7 +758,7 @@
                   @update:checked="(v) => handleChange(v, meta.validated)"
                 />
               </FormItem>
-              <p class="!mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+              <p :class="AUTH_HINT_CLASS">
                 <Lightbulb class="size-4 shrink-0" aria-hidden="true" />
                 <span
                   >{{ $t('admin.inbox.csatSurveys.description_2') }}
@@ -911,6 +911,8 @@
 </template>
 
 <script setup>
+const AUTH_HINT_CLASS = '!mt-2 flex items-start gap-1.5 text-xs text-muted-foreground'
+
 import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed, nextTick, ref } from 'vue'
 import { useFieldArray, useForm } from 'vee-validate'

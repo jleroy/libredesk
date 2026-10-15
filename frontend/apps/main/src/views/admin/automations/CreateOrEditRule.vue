@@ -95,7 +95,7 @@
             </div>
           </div>
 
-          <h4 class="text-base font-semibold text-foreground">
+          <h4 class="ui-heading">
             {{ $t('admin.automation.matchTheseRules') }}
           </h4>
 
@@ -137,7 +137,7 @@
             :type="form.values.type"
             :groupIndex="1"
           />
-          <h4 class="text-base font-semibold text-foreground mt-2">
+          <h4 class="ui-heading mt-2">
             {{ $t('admin.automation.performTheseActions') }}
           </h4>
 

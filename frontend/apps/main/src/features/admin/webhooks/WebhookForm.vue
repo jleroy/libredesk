@@ -1,5 +1,5 @@
 <template>
-  <form novalidate class="space-y-6 w-full">
+  <form novalidate class="webhook-form space-y-6 w-full">
     <FormField name="is_active" v-slot="{ value, handleChange }" v-if="!isNewForm">
       <FormItem>
         <FormControl>
@@ -16,7 +16,7 @@
       </FormItem>
     </FormField>
 
-    <FormGrid>
+    <FormGrid class="webhook-settings-grid">
       <FormField v-slot="{ componentField }" name="name">
         <FormItem>
           <FormLabel>{{ $t('globals.terms.name') }}</FormLabel>
@@ -52,7 +52,7 @@
               class="rounded-md border border-border bg-card"
             >
               <div class="border-b border-border bg-muted/30 px-5 py-3">
-                <h4 class="font-medium text-card-foreground">{{ group.name }}</h4>
+                <h4 class="ui-subheading">{{ group.name }}</h4>
               </div>
               <div class="p-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div
@@ -87,16 +87,18 @@
       </FormItem>
     </FormField>
 
-    <FormField v-slot="{ componentField }" name="secret">
-      <FormItem>
-        <FormLabel>{{ $t('globals.terms.secret') }}</FormLabel>
-        <FormControl>
-          <Input type="password" v-bind="componentField" />
-        </FormControl>
-        <FormDescription>{{ $t('admin.webhook.secret.description') }}</FormDescription>
-        <FormMessage />
-      </FormItem>
-    </FormField>
+    <FormGrid class="webhook-settings-grid">
+      <FormField v-slot="{ componentField }" name="secret">
+        <FormItem>
+          <FormLabel>{{ $t('globals.terms.secret') }}</FormLabel>
+          <FormControl>
+            <Input type="password" v-bind="componentField" />
+          </FormControl>
+          <FormDescription>{{ $t('admin.webhook.secret.description') }}</FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+    </FormGrid>
 
     <!-- Form submit button slot -->
     <slot name="footer"></slot>
@@ -180,3 +182,19 @@ const handleEventChange = (checked, eventName, handleChange, currentEvents) => {
   handleChange(checked ? [...events, eventName] : events.filter((e) => e !== eventName))
 }
 </script>
+
+<style scoped>
+.webhook-form {
+  container-type: inline-size;
+}
+
+.webhook-settings-grid.form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 32rem) {
+  .webhook-settings-grid.form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>

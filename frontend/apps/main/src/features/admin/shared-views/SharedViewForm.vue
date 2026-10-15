@@ -1,6 +1,6 @@
 <template>
   <Spinner v-if="formLoading"></Spinner>
-  <form @submit="onSubmit" class="space-y-6 w-full" :class="{ 'opacity-50': formLoading }">
+  <form @submit="onSubmit" class="shared-view-form space-y-6 w-full" :class="{ 'opacity-50': formLoading }">
     <FormField v-slot="{ componentField }" name="name" :validate-on-blur="false">
       <FormItem>
         <FormLabel>{{ t('globals.terms.name') }}</FormLabel>
@@ -23,7 +23,7 @@
       </FormItem>
     </FormField>
 
-    <FormGrid>
+    <FormGrid class="visibility-grid">
       <FormField
         v-slot="{ componentField }"
         name="visibility"
@@ -231,3 +231,19 @@ watch(
   { immediate: true }
 )
 </script>
+
+<style scoped>
+.shared-view-form {
+  container-type: inline-size;
+}
+
+.visibility-grid.form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 32rem) {
+  .visibility-grid.form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>

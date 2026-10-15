@@ -1,13 +1,13 @@
 <template>
   <form @submit="onSubmit" novalidate class="space-y-8 w-full">
-    <fieldset class="min-w-0">
-      <legend class="mb-4 text-sm font-semibold">{{ t('globals.terms.workspace') }}</legend>
-      <FormGrid>
+    <fieldset class="workspace-fields min-w-0">
+      <legend :class="SECTION_HEADING_CLASS">{{ t('globals.terms.workspace') }}</legend>
+      <FormGrid class="workspace-grid">
         <FormField v-slot="{ field }" name="site_name">
           <FormItem>
             <FormLabel>{{ t('admin.general.siteName') }}</FormLabel>
             <FormControl>
-              <Input type="text" placeholder="" v-bind="field" />
+              <Input type="text" v-bind="field" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -19,16 +19,11 @@
               {{ t('globals.terms.rootURL') }}
             </FormLabel>
             <FormControl>
-              <Input type="text" placeholder="" v-bind="field" />
+              <Input type="text" v-bind="field" />
             </FormControl>
-            <FormDescription>
-              {{ t('admin.general.rootURL.description') }}
-            </FormDescription>
             <FormMessage />
           </FormItem>
         </FormField>
-      </FormGrid>
-      <FormGrid compact class="mt-5">
         <FormField v-slot="{ componentField }" name="lang">
           <FormItem>
             <FormLabel>{{ t('globals.terms.language') }}</FormLabel>
@@ -112,13 +107,13 @@
       </FormField>
     </fieldset>
     <fieldset class="min-w-0">
-      <legend class="mb-4 text-sm font-semibold">{{ t('globals.terms.branding') }}</legend>
+      <legend :class="SECTION_HEADING_CLASS">{{ t('globals.terms.branding') }}</legend>
       <FormGrid>
         <FormField v-slot="{ field }" name="logo_url" :value="props.initialValues.logo_url">
           <FormItem>
             <FormLabel>{{ t('globals.terms.logoUrl') }}</FormLabel>
             <FormControl>
-              <Input type="text" placeholder="" v-bind="field" />
+              <Input type="text" v-bind="field" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -127,7 +122,7 @@
           <FormItem>
             <FormLabel>{{ t('admin.general.faviconURL') }}</FormLabel>
             <FormControl>
-              <Input type="text" placeholder="" v-bind="field" />
+              <Input type="text" v-bind="field" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -135,7 +130,7 @@
       </FormGrid>
     </fieldset>
     <fieldset class="min-w-0">
-      <legend class="mb-4 text-sm font-semibold">{{ t('globals.terms.file', 2) }}</legend>
+      <legend :class="SECTION_HEADING_CLASS">{{ t('globals.terms.file', 2) }}</legend>
       <FormGrid>
         <FormField
           v-slot="{ field }"
@@ -147,7 +142,7 @@
               {{ t('admin.general.maxAllowedFileUploadSize') }}
             </FormLabel>
             <FormControl>
-              <Input class="max-w-xs" type="number" placeholder="10" v-bind="field" />
+              <Input type="number" placeholder="10" v-bind="field" />
             </FormControl>
             <FormDescription>
               {{ t('admin.general.maxAllowedFileUploadSize.description') }}
@@ -184,6 +179,8 @@
 </template>
 
 <script setup>
+const SECTION_HEADING_CLASS = 'mb-4 ui-heading'
+
 import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, ref, onMounted } from 'vue'
 import { Button } from '@shared-ui/components/ui/button/index.js'
@@ -307,3 +304,19 @@ watch(
   { deep: true }
 )
 </script>
+
+<style scoped>
+.workspace-fields {
+  container-type: inline-size;
+}
+
+.workspace-grid.form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 32rem) {
+  .workspace-grid.form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>

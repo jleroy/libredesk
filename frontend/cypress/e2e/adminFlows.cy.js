@@ -60,10 +60,9 @@ describe('Admin setup and outgoing conversation', () => {
 
     cy.visit('/admin/teams/teams/new')
 
-    // Emoji is required. Pick it first so the picker overlay is closed (by the
-    // next click) before filling the rest of the form.
     cy.contains('label', 'Emoji').click()
     cy.get('.v3-emoji-picker .v3-emojis button').first().click()
+    cy.get('.v3-emoji-picker').should('not.exist')
 
     cy.get('input[name="name"]').type(teamName)
     cy.selectOption('Select an assignment type', 'Round robin')
@@ -83,7 +82,7 @@ describe('Admin setup and outgoing conversation', () => {
     cy.get('input[name="first_name"]').type(agentFirstName)
     cy.get('input[name="email"]').type(agentEmail)
 
-    cy.get('input[placeholder="Select roles"]').click()
+    cy.get('input[aria-label="Select roles"]').click()
     cy.get('[role="option"]').contains('Agent').click()
 
     cy.contains('button', 'Create').click()
