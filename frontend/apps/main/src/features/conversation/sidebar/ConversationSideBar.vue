@@ -8,15 +8,73 @@
     </div>
 
     <TabsContent value="details" class="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <ConversationSideBarContact class="border-b border-border p-4" />
-      <Accordion type="multiple" collapsible v-model="accordionState">
-        <AccordionItem value="actions" class="accordion-item">
-          <AccordionTrigger class="accordion-trigger">
-            {{ $t('globals.terms.action', 2) }}
-          </AccordionTrigger>
+      <ConversationSideBarContact class="border-b border-border p-4">
+        <template #actions>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                ref="sectionEditorButton"
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground focus-visible:text-foreground lg:h-7 lg:w-7 [&_svg]:size-3.5"
+                :aria-label="t('conversation.sidebar.reorderSections')"
+                :aria-pressed="editingSections"
+                @click="toggleSectionEditor"
+              >
+                <Pencil aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{{ t('conversation.sidebar.reorderSections') }}</TooltipContent>
+          </Tooltip>
+        </template>
+      </ConversationSideBarContact>
+      <div v-if="editingSections" class="space-y-3 border-b border-border p-4">
+        <Draggable
+          v-model="editableSections"
+          item-key="id"
+          handle=".drag-handle"
+          :animation="reducedMotion === 'reduce' ? 0 : 200"
+          :force-fallback="true"
+          fallback-on-body
+          :fallback-tolerance="3"
+          ghost-class="drag-ghost"
+          tag="ol"
+          class="space-y-1"
+        >
+          <template #item="{ element: section, index }">
+              <li class="group/reorder flex items-center gap-2 rounded-md border border-border bg-background p-2">
+              <span class="drag-handle cursor-move text-muted-foreground" aria-hidden="true">
+                <GripVertical class="size-4" />
+              </span>
+              <span class="min-w-0 flex-1 text-sm">{{ section.label }}</span>
+              <ReorderButtons
+                :index="index"
+                :length="editableSections.length"
+                @move="moveSection(index, $event)"
+              />
+            </li>
+          </template>
+        </Draggable>
+        <div class="flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" @click="closeSectionEditor">
+            {{ t('globals.messages.cancel') }}
+          </Button>
+          <Button type="button" size="sm" @click="saveSectionOrder">
+            {{ t('globals.messages.save') }}
+          </Button>
+        </div>
+      </div>
+      <Accordion v-show="!editingSections" type="multiple" collapsible v-model="accordionState">
+        <AccordionItem
+          v-for="section in visibleSections"
+          :key="section.id"
+          :value="section.id"
+          class="accordion-item"
+        >
+          <AccordionTrigger class="accordion-trigger">{{ section.label }}</AccordionTrigger>
 
-          <!-- Agent, team, priority, and tags assignment -->
-          <AccordionContent class="accordion-content--actions">
+          <AccordionContent v-if="section.id === 'actions'" class="accordion-content--actions">
             <div>
               <SelectAgentCombobox
                 v-model="conversationStore.current.assigned_user_id"
@@ -87,28 +145,15 @@
               </div>
             </div>
           </AccordionContent>
-        </AccordionItem>
 
-        <!-- Information -->
-        <AccordionItem value="information" class="accordion-item">
-          <AccordionTrigger class="accordion-trigger">
-            {{ $t('conversation.sidebar.information') }}
-          </AccordionTrigger>
-          <AccordionContent class="accordion-content">
+          <AccordionContent v-else-if="section.id === 'information'" class="accordion-content">
             <ConversationInfo />
           </AccordionContent>
-        </AccordionItem>
 
-        <!-- Contact attributes -->
-        <AccordionItem
-          value="contact_attributes"
-          class="accordion-item"
-          v-if="customAttributeStore.contactAttributeOptions.length > 0"
-        >
-          <AccordionTrigger class="accordion-trigger">
-            {{ $t('conversation.sidebar.contactAttributes') }}
-          </AccordionTrigger>
-          <AccordionContent class="accordion-content">
+          <AccordionContent
+            v-else-if="section.id === 'contact_attributes'"
+            class="accordion-content"
+          >
             <CustomAttributes
               :loading="conversationStore.current.loading"
               :attributes="customAttributeStore.contactAttributeOptions"
@@ -116,42 +161,19 @@
               @update:setattributes="updateContactCustomAttributes"
             />
           </AccordionContent>
-        </AccordionItem>
 
-        <!-- Page visits (livechat only) -->
-        <AccordionItem
-          value="page_visits"
-          class="accordion-item"
-          v-if="conversationStore.current?.inbox_channel === 'livechat'"
-        >
-          <AccordionTrigger class="accordion-trigger">
-            {{ $t('conversation.sidebar.lastVisitedPages') }}
-          </AccordionTrigger>
-          <AccordionContent class="accordion-content">
+          <AccordionContent v-else-if="section.id === 'page_visits'" class="accordion-content">
             <ConversationSideBarPageVisits />
           </AccordionContent>
-        </AccordionItem>
 
-        <!-- Contact notes -->
-        <AccordionItem
-          value="contact_notes"
-          class="accordion-item"
-          v-if="conversationStore.current?.contact?.id && userStore.can('contact_notes:read')"
-        >
-          <AccordionTrigger class="accordion-trigger">
-            {{ $t('globals.terms.note', 2) }}
-          </AccordionTrigger>
-          <AccordionContent class="accordion-content">
+          <AccordionContent v-else-if="section.id === 'contact_notes'" class="accordion-content">
             <ContactNotes :contact-id="conversationStore.current.contact.id" compact />
           </AccordionContent>
-        </AccordionItem>
 
-        <!-- Previous conversations -->
-        <AccordionItem value="previous_conversations" class="accordion-item">
-          <AccordionTrigger class="accordion-trigger">
-            {{ $t('conversation.sidebar.previousConvo') }}
-          </AccordionTrigger>
-          <AccordionContent class="accordion-content">
+          <AccordionContent
+            v-else-if="section.id === 'previous_conversations'"
+            class="accordion-content"
+          >
             <PreviousConversations />
           </AccordionContent>
         </AccordionItem>
@@ -165,8 +187,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { Sparkles, Loader2, Plus } from 'lucide-vue-next'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { Sparkles, Loader2, Plus, Pencil, GripVertical } from 'lucide-vue-next'
 import { Button } from '@shared-ui/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared-ui/components/ui/tooltip'
 import { useConversationStore } from '@/stores/conversation'
@@ -186,7 +208,9 @@ import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { EMITTER_EVENTS, CONVERSATION_ACTIONS } from '@/constants/emitterEvents.js'
 import { useEmitter } from '@/composables/useEmitter'
 import { useI18n } from 'vue-i18n'
-import { useStorage } from '@vueuse/core'
+import { useStorage, usePreferredReducedMotion } from '@vueuse/core'
+import Draggable from 'vuedraggable'
+import ReorderButtons from '@shared-ui/components/ReorderButtons.vue'
 import CustomAttributes from '@/features/conversation/sidebar/CustomAttributes.vue'
 import { useCustomAttributeStore } from '@/stores/customAttributes'
 import ContactNotes from '@/features/contact/ContactNotes.vue'
@@ -207,6 +231,81 @@ const accordionState = useStorage('conversation-sidebar-accordion', [])
 const activeTab = useStorage('conversation-sidebar-tab', 'details')
 const { t } = useI18n()
 customAttributeStore.fetchCustomAttributes()
+
+const sections = computed(() => [
+  { id: 'actions', label: t('globals.terms.action', 2) },
+  { id: 'information', label: t('conversation.sidebar.information') },
+  {
+    id: 'contact_attributes',
+    label: t('conversation.sidebar.contactAttributes'),
+    visible: customAttributeStore.contactAttributeOptions.length > 0
+  },
+  {
+    id: 'page_visits',
+    label: t('conversation.sidebar.lastVisitedPages'),
+    visible: conversationStore.current?.inbox_channel === 'livechat'
+  },
+  {
+    id: 'contact_notes',
+    label: t('globals.terms.note', 2),
+    visible: !!conversationStore.current?.contact?.id && userStore.can('contact_notes:read')
+  },
+  { id: 'previous_conversations', label: t('conversation.sidebar.previousConvo') }
+])
+const sectionOrder = useStorage(
+  computed(() => `conversation-sidebar-section-order:${userStore.userID}`),
+  []
+)
+const normalizedOrder = computed(() => {
+  const ids = sections.value.map((section) => section.id)
+  const saved = Array.isArray(sectionOrder.value) ? sectionOrder.value : []
+  return [...new Set([...saved.filter((id) => ids.includes(id)), ...ids])]
+})
+const visibleSections = computed(() =>
+  normalizedOrder.value
+    .map((id) => sections.value.find((section) => section.id === id))
+    .filter((section) => section.visible !== false)
+)
+const reducedMotion = usePreferredReducedMotion()
+const editingSections = ref(false)
+const sectionEditorButton = ref(null)
+const draftOrder = ref([])
+const editableSections = computed({
+  get: () =>
+    draftOrder.value
+      .map((id) => sections.value.find((section) => section.id === id))
+      .filter((section) => section && section.visible !== false),
+  set: (reordered) => {
+    const visibleIds = new Set(editableSections.value.map((section) => section.id))
+    let index = 0
+    draftOrder.value = draftOrder.value.map((id) =>
+      visibleIds.has(id) ? reordered[index++].id : id
+    )
+  }
+})
+
+const toggleSectionEditor = () => {
+  if (!editingSections.value) draftOrder.value = [...normalizedOrder.value]
+  editingSections.value = !editingSections.value
+}
+
+const moveSection = (index, direction) => {
+  const reordered = [...editableSections.value]
+  const [section] = reordered.splice(index, 1)
+  reordered.splice(index + direction, 0, section)
+  editableSections.value = reordered
+}
+
+const closeSectionEditor = async () => {
+  editingSections.value = false
+  await nextTick()
+  sectionEditorButton.value?.$el?.focus()
+}
+
+const saveSectionOrder = () => {
+  sectionOrder.value = [...draftOrder.value]
+  closeSectionEditor()
+}
 
 const onTagsChange = (newTags) => {
   const conv = conversationStore.current
