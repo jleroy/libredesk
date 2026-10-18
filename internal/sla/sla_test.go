@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	htmltemplate "html/template"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	bmodels "github.com/abhinavxd/libredesk/internal/business_hours/models"
+	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	nmodels "github.com/abhinavxd/libredesk/internal/notification/models"
 	"github.com/abhinavxd/libredesk/internal/sla/models"
 	tmodels "github.com/abhinavxd/libredesk/internal/team/models"
@@ -1258,6 +1260,50 @@ func TestEvaluateConversationNextResponseOnlyRecomputes(t *testing.T) {
 	}
 	if d := conversationDeadline(t, db, conv); !d.Valid {
 		t.Fatalf("expected cached deadline recomputed from pending event, got %+v", d)
+	}
+}
+
+func TestSLANotificationTemplateData(t *testing.T) {
+	content := htmltemplate.Must(htmltemplate.New("content").Option("missingkey=error").Parse(
+		`{{ .Conversation.ReferenceNumber }}|{{ .Conversation.Subject }}|{{ .Conversation.UUID }}|{{ .Conversation.Priority }}|{{ .Inbox.Name }}|{{ .Inbox.Channel }}|{{ .Contact.FullName }}|{{ .Contact.Email }}|{{ .Recipient.FullName }}|{{ if .Recipient.Email.Valid }}{{ .Recipient.Email.String }}{{ end }}|{{ .Author.FirstName }}|{{ .Author.LastName }}|{{ .Author.FullName }}|{{ .Author.Email }}|{{ .IsAIComposed }}|{{ .SLA.Metric }}|{{ .SLA.DueIn }}|{{ .SLA.OverdueBy }}`))
+	for _, tt := range []struct {
+		name      string
+		applied   models.AppliedSLA
+		recipient umodels.User
+		want      string
+	}{
+		{
+			name: "conversation context and legacy email access",
+			applied: models.AppliedSLA{
+				ConversationReferenceNumber: "C-42",
+				ConversationSubject:         "Account <question>",
+				ConversationUUID:            "conversation-a",
+				ConversationPriority:        null.StringFrom("High"),
+				ConversationInboxName:       "Support",
+				ConversationInboxChannel:    "email",
+				ConversationContact: cmodels.ConversationContact{
+					FirstName: "Customer", LastName: "A", Email: null.StringFrom("customer@example.com"),
+				},
+			},
+			recipient: umodels.User{FirstName: "Agent", LastName: "B", Email: null.StringFrom("agent@example.com")},
+			want:      "C-42|Account &lt;question&gt;|conversation-a|High|Support|email|Customer A|customer@example.com|Agent B|agent@example.com|||||false|First response|5 minutes|2 minutes",
+		},
+		{
+			name:      "missing optional fields",
+			recipient: umodels.User{FirstName: "Agent", LastName: "B"},
+			want:      "||||||||Agent B||||||false|First response|5 minutes|2 minutes",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			data := slaNotificationTemplateData(tt.applied, tt.recipient, "First response", "5 minutes", "2 minutes")
+			var rendered strings.Builder
+			if err := content.Execute(&rendered, data); err != nil {
+				t.Fatal(err)
+			}
+			if rendered.String() != tt.want {
+				t.Fatalf("rendered = %q, want %q", rendered.String(), tt.want)
+			}
+		})
 	}
 }
 

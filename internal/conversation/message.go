@@ -27,6 +27,7 @@ import (
 	mmodels "github.com/abhinavxd/libredesk/internal/media/models"
 	"github.com/abhinavxd/libredesk/internal/sla"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
+	tmpl "github.com/abhinavxd/libredesk/internal/template"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	wmodels "github.com/abhinavxd/libredesk/internal/webhook/models"
 	"github.com/jmoiron/sqlx"
@@ -265,50 +266,13 @@ func (m *Manager) BuildTemplateData(conversationUUID string, senderID int) (map[
 		return nil, fmt.Errorf("fetching message sender user: %w", err)
 	}
 
-	data := map[string]any{
-		"Conversation": map[string]any{
-			"ReferenceNumber": conversation.ReferenceNumber,
-			"Subject":         conversation.Subject.String,
-			"Priority":        conversation.Priority.String,
-			"UUID":            conversation.UUID,
-		},
-		// The inbox the message leaves from, so one outgoing template can sign or brand per inbox.
-		"Inbox": map[string]any{
-			"Name":    conversation.InboxName,
-			"Channel": conversation.InboxChannel,
-		},
-		"Contact": map[string]any{
-			"FirstName": conversation.Contact.FirstName,
-			"LastName":  conversation.Contact.LastName,
-			"FullName":  conversation.Contact.FullName(),
-			"Email":     conversation.Contact.Email.String,
-		},
-		"Recipient": map[string]any{
-			"FirstName": conversation.Contact.FirstName,
-			"LastName":  conversation.Contact.LastName,
-			"FullName":  conversation.Contact.FullName(),
-			"Email":     conversation.Contact.Email.String,
-		},
-		"Author": map[string]any{
-			"FirstName": sender.FirstName,
-			"LastName":  sender.LastName,
-			"FullName":  sender.FullName(),
-			"Email":     sender.Email.String,
-		},
-		// Lets templates disclose AI-composed replies, e.g. {{ if .IsAIComposed }}Composed by AI{{ end }}.
-		"IsAIComposed": sender.Type == umodels.UserTypeAIAssistant,
+	recipient := umodels.User{
+		FirstName: conversation.Contact.FirstName,
+		LastName:  conversation.Contact.LastName,
+		Email:     conversation.Contact.Email,
 	}
-
-	// For automated replies set author fields to empty strings as the recipients will see name as System.
-	if sender.IsSystemUser() {
-		data["Author"] = map[string]any{
-			"FirstName": "",
-			"LastName":  "",
-			"FullName":  "",
-			"Email":     "",
-		}
-	}
-
+	data := tmpl.BuildConversationData(conversation, recipient, sender)
+	data["Recipient"] = data["Contact"]
 	return data, nil
 }
 

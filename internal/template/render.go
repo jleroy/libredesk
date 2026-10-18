@@ -6,6 +6,8 @@ import (
 	"strings"
 	"text/template"
 
+	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
+	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/valyala/fasthttp"
 )
 
@@ -111,7 +113,7 @@ func (m *Manager) RenderStoredEmailTemplate(name string, data any) (string, stri
 		return sb.String(), nil
 	}
 
-	content, err := m.renderNotificationEmail(tmpl.Body, data)
+	content, err := m.RenderNotificationEmail(tmpl.Body, data)
 	if err != nil {
 		return "", "", err
 	}
@@ -149,7 +151,7 @@ func (m *Manager) RenderWebPage(ctx *fasthttp.RequestCtx, tmplFile string, data 
 	return m.webTpls.ExecuteTemplate(ctx, tmplFile, data)
 }
 
-func (m *Manager) renderNotificationEmail(content string, data any) (string, error) {
+func (m *Manager) RenderNotificationEmail(content string, data any) (string, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -173,4 +175,43 @@ func (m *Manager) renderNotificationEmail(content string, data any) (string, err
 		return "", fmt.Errorf("rendering notification email: %w", err)
 	}
 	return rendered.String(), nil
+}
+
+func BuildConversationData(conversation cmodels.Conversation, recipient, author umodels.User) map[string]any {
+	isAIComposed := author.Type == umodels.UserTypeAIAssistant
+	authorData := personData(author)
+	if author.IsSystemUser() {
+		authorData = personData(umodels.User{})
+		authorData["FullName"] = ""
+	}
+	return map[string]any{
+		"Conversation": map[string]any{
+			"ReferenceNumber": conversation.ReferenceNumber,
+			"Subject":         conversation.Subject.String,
+			"Priority":        conversation.Priority.String,
+			"UUID":            conversation.UUID,
+		},
+		"Inbox": map[string]any{
+			"Name":    conversation.InboxName,
+			"Channel": conversation.InboxChannel,
+		},
+		"Contact": map[string]any{
+			"FirstName": conversation.Contact.FirstName,
+			"LastName":  conversation.Contact.LastName,
+			"FullName":  conversation.Contact.FullName(),
+			"Email":     conversation.Contact.Email.String,
+		},
+		"Recipient":    personData(recipient),
+		"Author":       authorData,
+		"IsAIComposed": isAIComposed,
+	}
+}
+
+func personData(person umodels.User) map[string]any {
+	return map[string]any{
+		"FirstName": person.FirstName,
+		"LastName":  person.LastName,
+		"FullName":  person.FullName(),
+		"Email":     person.Email.String,
+	}
 }

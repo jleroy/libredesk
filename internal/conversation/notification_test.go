@@ -3,6 +3,7 @@ package conversation
 import (
 	"errors"
 	htmltemplate "html/template"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -40,6 +41,10 @@ type countingPush struct {
 	count int
 }
 
+type automationEmailRecorder struct {
+	deliveries []nchannels.Delivery
+}
+
 func (p *countingPush) Send(int, nmodels.PushPayload, nmodels.NotificationReference) bool {
 	p.count++
 	return true
@@ -65,6 +70,79 @@ func (p *replyPreferences) EnabledChannels(ids []int, _ nmodels.NotificationType
 		}
 	}
 	return enabled, nil
+}
+
+func (p *automationEmailRecorder) Channel() nmodels.NotificationChannel {
+	return nmodels.NotificationChannelEmail
+}
+
+func (p *automationEmailRecorder) Send(delivery nchannels.Delivery) nchannels.Result {
+	p.deliveries = append(p.deliveries, delivery)
+	return nchannels.Result{Sent: delivery.Recipient.Email != nil}
+}
+
+func TestAutomationNotifyUsesSystemLayout(t *testing.T) {
+	body, err := os.ReadFile("../../static/email-templates/base.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	funcs := htmltemplate.FuncMap{
+		"RootURL":  func() string { return "https://support.example.com" },
+		"SiteName": func() string { return "Support" },
+		"LogoURL":  func() string { return "" },
+	}
+	layout := htmltemplate.Must(htmltemplate.New("base").Funcs(funcs).Parse(string(body)))
+	templates := &template.Manager{}
+	if err := templates.Reload(nil /** webTpls **/, layout, funcs); err != nil {
+		t.Fatal(err)
+	}
+	agent := umodels.User{ID: 42, FirstName: "Agent", Email: null.StringFrom("agent@example.com"), Enabled: true}
+	conv := models.Conversation{ID: 7, UUID: "conversation-a", ReferenceNumber: "C-7"}
+	subject := "Conversation needs review"
+	for _, message := range []string{
+		"Review this conversation.\nKeep the customer informed.",
+		`Keep <script>alert("test")</script> and {{ .Author.FullName }} as message text.`,
+	} {
+		t.Run(message, func(t *testing.T) {
+			lo := logf.New(logf.Opts{})
+			recorder := &automationEmailRecorder{}
+			m := &Manager{
+				lo:        &lo,
+				userStore: replyUserStore{agent: agent},
+				template:  templates,
+				dispatcher: notifier.NewDispatcher(notifier.DispatcherOpts{
+					Pipeline: nchannels.NewPipeline(recorder),
+					Prefs:    &replyPreferences{channels: []nmodels.NotificationChannel{nmodels.NotificationChannelEmail}},
+				}),
+			}
+			if err := m.notifyAutomation(subject, message, []string{"user:42"}, conv); err != nil {
+				t.Fatal(err)
+			}
+			if len(recorder.deliveries) != 1 {
+				t.Fatalf("email deliveries = %d, want 1", len(recorder.deliveries))
+			}
+			delivery := recorder.deliveries[0]
+			email := delivery.Recipient.Email
+			if email == nil || email.Subject != subject || email.Recipient != agent.Email.String || delivery.Recipient.UserID != agent.ID {
+				t.Fatalf("automation email changed subject or recipient: %+v", delivery)
+			}
+			for _, want := range []string{
+				htmltemplate.HTMLEscapeString(message),
+				"<html>",
+				"</html>",
+				"support.example.com/images/logo.png",
+				"Powered by",
+				"support.example.com/inboxes/all/conversation/conversation-a",
+			} {
+				if !strings.Contains(email.Content, want) {
+					t.Errorf("automation email missing %q", want)
+				}
+			}
+			if strings.Contains(email.Content, "Best regards") || strings.Contains(email.Content, "<script>") {
+				t.Fatal("automation email added a signature or interpreted message HTML")
+			}
+		})
+	}
 }
 
 func TestNotifyNewReplyChecksParticipantAccess(t *testing.T) {
