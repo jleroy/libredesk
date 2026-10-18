@@ -73,7 +73,7 @@
         <div class="flex w-full items-center">
           <ComboboxInput :placeholder="tags.length ? '' : placeholder" :aria-label="placeholder" as-child>
             <TagsInputInput
-              class="w-0 min-w-0 flex-1 px-1"
+              class="w-0 min-w-0 flex-1 px-1 placeholder:text-muted-foreground"
               @keydown.enter.prevent
               @blur="handleBlur"
               @click="open = true"

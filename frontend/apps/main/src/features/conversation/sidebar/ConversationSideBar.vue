@@ -468,6 +468,6 @@ const updateContactCustomAttributes = async (attributes) => {
 }
 
 :deep(.accordion-content--actions) {
-  @apply space-y-3 px-4 pb-4 pt-1;
+  @apply space-y-3 p-4;
 }
 </style>

@@ -68,7 +68,7 @@
             >({{ t('globals.terms.you') }})</span
           >
         </div>
-        <span v-else class="truncate">{{ placeholder }}</span>
+        <span v-else class="truncate font-normal text-muted-foreground">{{ placeholder }}</span>
       </div>
     </template>
   </ComboBox>
