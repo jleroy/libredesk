@@ -1,5 +1,7 @@
 export const BUILT_IN_TEMPLATE_BODIES = {
-  'Conversation assigned': `<p>A new conversation has been assigned to you:</p>
+  'Conversation assigned': `<p>Hi {{ .Recipient.FirstName }},</p>
+
+<p>A new conversation has been assigned to you:</p>
 
 <div>
     Reference number: {{ .Conversation.ReferenceNumber }} <br>
@@ -14,26 +16,9 @@ export const BUILT_IN_TEMPLATE_BODIES = {
     Best regards,<br>
     Libredesk
 </div>`,
-  'New reply from contact': `<p>{{ .Author.FullName }} replied to a conversation assigned to you:</p>
+  'New reply from contact': `<p>Hi {{ .Recipient.FirstName }},</p>
 
-<div>
-    Reference number: {{ .Conversation.ReferenceNumber }} <br>
-    Subject: {{ .Conversation.Subject }}
-</div>
-
-<blockquote style="background-color: #f5f5f5; padding: 12px; margin: 16px 0; border-left: 4px solid #ddd;">
-{{ .Message.Content }}
-</blockquote>
-
-<p>
-    <a href="{{ RootURL }}/inboxes/assigned/conversation/{{ .Conversation.UUID }}">View Conversation</a>
-</p>
-
-<div>
-    Best regards,<br>
-    Libredesk
-</div>`,
-  'New reply on participating conversation': `<p>{{ .Author.FullName }} replied to a conversation you are participating in:</p>
+<p>{{ .Author.FullName }} replied to a conversation assigned to you:</p>
 
 <div>
     Reference number: {{ .Conversation.ReferenceNumber }} <br>
@@ -52,7 +37,9 @@ export const BUILT_IN_TEMPLATE_BODIES = {
     Best regards,<br>
     Libredesk
 </div>`,
-  'Conversation reopened': `<p>{{ .Author.FullName }} replied and reopened a conversation assigned to you:</p>
+  'New reply on participating conversation': `<p>Hi {{ .Recipient.FirstName }},</p>
+
+<p>{{ .Author.FullName }} replied to a conversation you are participating in:</p>
 
 <div>
     Reference number: {{ .Conversation.ReferenceNumber }} <br>
@@ -71,7 +58,30 @@ export const BUILT_IN_TEMPLATE_BODIES = {
     Best regards,<br>
     Libredesk
 </div>`,
-  'SLA breach warning': `<p>This is a notification that the SLA for conversation {{ .Conversation.ReferenceNumber }} is approaching the SLA deadline for {{ .SLA.Metric }}.</p>
+  'Conversation reopened': `<p>Hi {{ .Recipient.FirstName }},</p>
+
+<p>{{ .Author.FullName }} replied and reopened a conversation assigned to you:</p>
+
+<div>
+    Reference number: {{ .Conversation.ReferenceNumber }} <br>
+    Subject: {{ .Conversation.Subject }}
+</div>
+
+<blockquote style="background-color: #f5f5f5; padding: 12px; margin: 16px 0; border-left: 4px solid #ddd;">
+{{ .Message.Content }}
+</blockquote>
+
+<p>
+    <a href="{{ RootURL }}/inboxes/assigned/conversation/{{ .Conversation.UUID }}">View Conversation</a>
+</p>
+
+<div>
+    Best regards,<br>
+    Libredesk
+</div>`,
+  'SLA breach warning': `<p>Hi {{ .Recipient.FirstName }},</p>
+
+<p>This is a notification that the SLA for conversation {{ .Conversation.ReferenceNumber }} is approaching the SLA deadline for {{ .SLA.Metric }}.</p>
 
 <p>
   Details:<br>
@@ -88,7 +98,9 @@ export const BUILT_IN_TEMPLATE_BODIES = {
   Best regards,<br>
   Libredesk
 </p>`,
-  'SLA breached': `<p>This is an urgent alert that the SLA for conversation {{ .Conversation.ReferenceNumber }} has been breached for {{ .SLA.Metric }}. Please take immediate action.</p>
+  'SLA breached': `<p>Hi {{ .Recipient.FirstName }},</p>
+
+<p>This is an urgent alert that the SLA for conversation {{ .Conversation.ReferenceNumber }} has been breached for {{ .SLA.Metric }}. Please take immediate action.</p>
 
 <p>
   Details:<br>
@@ -105,7 +117,9 @@ export const BUILT_IN_TEMPLATE_BODIES = {
   Best regards,<br>
   Libredesk
 </p>`,
-  'Mentioned in conversation': `<p>{{ .MentionedBy.FullName }} mentioned you in a private note on conversation #{{ .Conversation.ReferenceNumber }}.</p>
+  'Mentioned in conversation': `<p>Hi {{ .Recipient.FirstName }},</p>
+
+<p>{{ .MentionedBy.FullName }} mentioned you in a private note on conversation #{{ .Conversation.ReferenceNumber }}.</p>
 
 <blockquote style="background-color: #f5f5f5; padding: 12px; margin: 16px 0; border-left: 4px solid #ddd;">
 {{ .Message.Content }}

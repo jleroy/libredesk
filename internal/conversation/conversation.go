@@ -67,7 +67,7 @@ var (
 const (
 	conversationsListMaxPageSize = 500
 
-	automationNotifyEmailContent = `<p style="white-space: pre-line;">{{ .Message }}</p>
+	automationNotifyEmailContent = `<p style="white-space: pre-line;">{{ .Message.Content }}</p>
 
 <p>
 <a href="{{ RootURL }}/inboxes/all/conversation/{{ .Conversation.UUID }}">#{{ .Conversation.ReferenceNumber }}</a>
@@ -1329,30 +1329,15 @@ func (m *Manager) SendTransientEmail(inboxID, conversationID int, conversationUU
 
 // NotifyAssignment sends notifications (in-app, WebSocket, email) for an assigned conversation.
 func (m *Manager) NotifyAssignment(userIDs []int, conversation models.Conversation) error {
-	agent, err := m.userStore.GetAgentCachedOrLoad(userIDs[0])
-	if err != nil {
-		m.lo.Error("error fetching agent", "user_id", userIDs[0], "error", err)
-		return fmt.Errorf("fetching agent: %w", err)
-	}
-
-	// Automated messages do not have an author.
-	content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplConversationAssigned,
-		notificationTemplateData(conversation, agent, umodels.User{}))
-	if err != nil {
-		m.lo.Error("error rendering template", "template", template.TmplConversationAssigned, "conversation_uuid", conversation.UUID, "error", err)
-		return fmt.Errorf("rendering template: %w", err)
-	}
+	recipients := m.buildNotificationRecipients(userIDs, func(recipient umodels.User) (string, string, error) {
+		content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplConversationAssigned,
+			template.BuildConversationData(conversation, recipient, umodels.User{} /** author **/))
+		return subject, content, err
+	})
 
 	if _, err := m.dispatcher.Send(nmodels.Notification{
-		Type: nmodels.NotificationTypeAssignment,
-		Recipients: []nmodels.Recipient{{
-			UserID: agent.ID,
-			Email: &nmodels.EmailNotification{
-				Recipient: agent.Email.String,
-				Subject:   subject,
-				Content:   content,
-			},
-		}},
+		Type:             nmodels.NotificationTypeAssignment,
+		Recipients:       recipients,
 		Title:            m.i18n.Ts("notification.conversationAssigned", "referenceNumber", conversation.ReferenceNumber),
 		Body:             null.StringFrom(cmp.Or(conversation.Subject.String, conversation.LastMessage.String)),
 		ConversationID:   null.IntFrom(conversation.ID),
@@ -1452,7 +1437,7 @@ func (m *Manager) sendReplyNotification(conversation models.Conversation, messag
 	}
 
 	recipients := m.buildNotificationRecipients(candidateIDs, func(recipient umodels.User) (string, string, error) {
-		data := notificationTemplateData(conversation, recipient, author)
+		data := template.BuildConversationData(conversation, recipient, author)
 		data["Message"] = map[string]any{
 			"UUID":    message.UUID,
 			"Content": htmltemplate.HTML(strings.ReplaceAll(html.EscapeString(messageText), "\n", "<br>")),
@@ -1531,17 +1516,12 @@ func (m *Manager) NotifyMention(conversationUUID string, message models.Message,
 	messageContent := htmltemplate.HTML(absolutizeConversationReferenceLinks(message.Content, rootURL))
 
 	recipients := m.buildNotificationRecipients(userIDs, func(recipient umodels.User) (string, string, error) {
-		data := notificationTemplateData(conversation, recipient, umodels.User{})
+		data := template.BuildConversationData(conversation, recipient, author)
 		data["Message"] = map[string]any{
 			"UUID":    message.UUID,
 			"Content": messageContent,
 		}
-		data["MentionedBy"] = map[string]any{
-			"FirstName": author.FirstName,
-			"LastName":  author.LastName,
-			"FullName":  author.FullName(),
-			"Email":     author.Email.String,
-		}
+		data["MentionedBy"] = data["Author"]
 		content, subject, err := m.template.RenderStoredEmailTemplate(template.TmplMentioned, data)
 		return subject, content, err
 	})
@@ -1741,9 +1721,9 @@ func (m *Manager) notifyAutomation(subject, message string, entries []string, co
 	}
 
 	recipients := m.buildNotificationRecipients(userIDs, func(recipient umodels.User) (string, string, error) {
-		data := notificationTemplateData(conv, recipient, umodels.User{})
-		data["Message"] = message
-		content, err := m.template.RenderEmailWithTemplate(data, automationNotifyEmailContent)
+		data := template.BuildConversationData(conv, recipient, umodels.User{} /** author **/)
+		data["Message"] = map[string]any{"Content": message}
+		content, err := m.template.RenderNotificationEmail(automationNotifyEmailContent, data)
 		return subject, content, err
 	})
 
@@ -2435,35 +2415,6 @@ func renderTagFilter(operator, value string, paramIndex int) (string, []any, err
 		return "NOT EXISTS (SELECT 1 FROM conversation_tags WHERE conversation_id = conversations.id)", nil, nil
 	default:
 		return "", nil, fmt.Errorf("invalid operator for tags: %s", operator)
-	}
-}
-
-func notificationTemplateData(conversation models.Conversation, recipient, author umodels.User) map[string]any {
-	return map[string]any{
-		"Conversation": map[string]any{
-			"ReferenceNumber": conversation.ReferenceNumber,
-			"Subject":         conversation.Subject.String,
-			"Priority":        conversation.Priority.String,
-			"UUID":            conversation.UUID,
-		},
-		"Contact": map[string]any{
-			"FirstName": conversation.Contact.FirstName,
-			"LastName":  conversation.Contact.LastName,
-			"FullName":  conversation.Contact.FullName(),
-			"Email":     conversation.Contact.Email.String,
-		},
-		"Recipient": map[string]any{
-			"FirstName": recipient.FirstName,
-			"LastName":  recipient.LastName,
-			"FullName":  recipient.FullName(),
-			"Email":     recipient.Email.String,
-		},
-		"Author": map[string]any{
-			"FirstName": author.FirstName,
-			"LastName":  author.LastName,
-			"FullName":  author.FullName(),
-			"Email":     author.Email.String,
-		},
 	}
 }
 
