@@ -27,7 +27,7 @@ import { useHelpStore } from '@widget/store/help.js'
 import { useI18n } from 'vue-i18n'
 import { useProactiveStore } from '@widget/store/proactive.js'
 import { useReplyPreviews } from '@widget/composables/useReplyPreviews.js'
-import { matchLanguage } from '@widget/utils/language.js'
+import { resolveLanguage } from '@widget/utils/language.js'
 
 const widgetStore = useWidgetStore()
 const chatStore = useChatStore()
@@ -43,7 +43,10 @@ registerStores({ userStore, chatStore, widgetStore })
 // Initialize unread count tracking and sending to parent window.
 useUnreadCount()
 
-const widgetConfig = getCurrentInstance().appContext.config.globalProperties.$widgetConfig
+const globals = getCurrentInstance().appContext.config.globalProperties
+const widgetConfig = globals.$widgetConfig
+help.requestedLocale = globals.$widgetLanguagePreference || locale.value
+help.fallbackLocale = locale.value
 if (widgetConfig) {
   widgetStore.updateConfig(widgetConfig)
 }
@@ -71,7 +74,7 @@ onMounted(() => {
 })
 
 const signalWidgetLoaded = async () => {
-  if (widgetStore.config.help?.help_center_id) await help.load(locale.value)
+  if (widgetStore.config.help?.help_center_id) await help.load()
   window.parent.postMessage(
     {
       type: 'WIDGET_LOADED',
@@ -103,18 +106,25 @@ const setLanguage = async (requested) => {
   const request = ++languageRequest
   try {
     const available = await api.getAvailableLanguages()
-    const code = matchLanguage(requested, available.data.data.map((l) => l.code))
-    if (request !== languageRequest || !code || code === locale.value) return
-    const messages = await api.getLanguage(code)
+    const availableCodes = available.data.data.map((l) => l.code)
+    const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language]
+    const language = resolveLanguage(widgetStore.config, requested, browserLanguages, availableCodes)
     if (request !== languageRequest) return
-    setLocaleMessage(code, messages.data)
-    locale.value = code
+    if (language.locale === locale.value && language.requestedLocale === help.requestedLocale) return
+    if (language.locale !== locale.value) {
+      const messages = await api.getLanguage(language.locale)
+      if (request !== languageRequest) return
+      setLocaleMessage(language.locale, messages.data)
+      locale.value = language.locale
+    }
+    help.requestedLocale = language.requestedLocale
+    help.fallbackLocale = language.locale
     if (widgetStore.config.help?.help_center_id) {
       if (widgetStore.currentView === 'help' && widgetStore.isExpanded) {
         widgetStore.collapseWidget()
       }
       help.reset()
-      await help.load(code)
+      await help.load()
     }
   } catch (error) {
     console.error('Error switching widget language:', error)

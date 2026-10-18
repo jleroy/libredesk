@@ -16,7 +16,7 @@ import api from '@widget/api/index.js'
 
 const help = useHelpStore()
 const widget = useWidgetStore()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 let mounted = true
 onUnmounted(() => {
   mounted = false
@@ -60,7 +60,7 @@ watch(
 
 const retry = () => {
   error.value = ''
-  help.load(locale.value)
+  help.load()
 }
 const search = async () => {
   const query = help.query.trim()
@@ -136,7 +136,7 @@ const back = async () => {
   }
 }
 onMounted(async () => {
-  if (!help.data && !help.loading) await help.load(locale.value)
+  if (!help.data && !help.loading) await help.load()
   if (scroller.value) scroller.value.scrollTop = help.scrollTop
   if (help.article && help.expandArticles && !widget.isMobileFullScreen) widget.expandWidget()
   if (help.pendingArticle && mounted) {
