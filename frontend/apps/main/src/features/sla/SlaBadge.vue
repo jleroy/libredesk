@@ -3,7 +3,7 @@
     <span v-if="sla?.status === 'overdue'" key="overdue" :class="compact ? 'sla-compact text-destructive' : 'sla-badge sla-overdue'">
       <AlertCircle size="12" class="size-3 shrink-0 text-destructive" stroke-width="2" />
       <span class="sla-text">
-        <span v-if="compact">{{ label }} {{ sla.value }}</span>
+        <span v-if="compact">{{ label ? `${label} ${sla.value}` : sla.value }}</span>
         <span v-else-if="!showExtra">{{ label }}</span>
         <span v-else>{{ label }} {{ $t('sla.overdueBy') }} {{ sla.value }} </span>
       </span>
@@ -21,7 +21,7 @@
 
     <span v-else-if="sla?.status === 'remaining'" key="remaining" :class="compact ? 'sla-compact text-warning-600' : 'sla-badge sla-remaining'">
       <component :is="compact ? Timer : Clock" size="12" class="size-3 shrink-0 text-warning-600" stroke-width="2" />
-      <span class="sla-text">{{ label }} {{ sla.value }}</span>
+      <span class="sla-text">{{ label ? `${label} ${sla.value}` : sla.value }}</span>
     </span>
   </div>
 </template>

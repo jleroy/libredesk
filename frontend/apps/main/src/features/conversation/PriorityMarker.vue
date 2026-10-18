@@ -3,7 +3,7 @@
     <TooltipTrigger asChild>
       <PriorityIcon
         :level="marker.level"
-        :size="13"
+        :size="size"
         class="flex-shrink-0"
         :class="marker.class"
         role="img"
@@ -35,6 +35,10 @@ const props = defineProps({
   tooltip: {
     type: Boolean,
     default: true
+  },
+  size: {
+    type: Number,
+    default: 13
   }
 })
 

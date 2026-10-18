@@ -6,14 +6,63 @@
     class="min-h-9 gap-1 px-2 py-0.5"
     :displayValue="getLabel"
   >
-    <!-- Tags visible to the user -->
-    <TagsInputItem v-for="tagValue in tags" :key="tagValue" :value="tagValue" class="min-w-0">
-      <TagsInputItemText class="min-w-0" />
-      <TagsInputItemDelete class="shrink-0" />
+    <TagsInputItem
+      v-for="tagValue in tags"
+      :key="tagValue"
+      :value="tagValue"
+      class="min-w-0"
+      :class="compact ? 'max-w-[calc(100%-4rem)]' : ''"
+    >
+      <TagsInputItemText
+        class="min-w-0"
+        :class="compact ? 'truncate' : ''"
+        :title="compact ? getLabel(tagValue) : undefined"
+      />
+      <TagsInputItemDelete
+        type="button"
+        :tabindex="compact ? 0 : -1"
+        class="shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        :class="compact ? 'size-4 items-center justify-center text-muted-foreground can-hover:hover:text-foreground focus-visible:text-foreground [&_svg]:size-3' : ''"
+        @click="focusAfterRemove"
+      />
     </TagsInputItem>
 
-    <!-- Combobox for selecting new tags -->
+    <Popover v-if="compact && tags.length" v-model:open="open">
+      <PopoverTrigger as-child>
+        <Button
+          ref="addButtonRef"
+          type="button"
+          variant="ghost"
+          size="icon"
+          :aria-label="placeholder"
+          class="h-7 w-7 shrink-0 text-muted-foreground"
+          @blur="handleBlur"
+        >
+          <Plus aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" class="p-0">
+        <Command v-model:search-term="searchTerm" :filter-function="filterFunc">
+          <CommandInput :placeholder="placeholder" :aria-label="placeholder" :loading="searching" />
+          <CommandEmpty v-if="!searching">{{ $t('globals.messages.noResultsFound') }}</CommandEmpty>
+          <CommandList>
+            <CommandGroup>
+              <CommandItem
+                v-for="item in visibleOptions"
+                :key="item.value"
+                :value="item.value"
+                @select="handleSelect"
+              >
+                {{ item.label }}
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+
     <ComboboxRoot
+      v-else
       :model-value="tags"
       v-model:open="open"
       v-model:search-term="searchTerm"
@@ -66,13 +115,18 @@
         </ComboboxContent>
       </ComboboxPortal>
     </ComboboxRoot>
+    <div v-if="compact && tags.length && $slots.action" class="ml-auto shrink-0">
+      <slot name="action" />
+    </div>
   </TagsInput>
 </template>
 
 <script setup>
 import {
+  Command,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
   CommandList
 } from '@shared-ui/components/ui/command'
@@ -92,6 +146,9 @@ import {
 } from 'radix-vue'
 import { computed, nextTick, ref, watch, onUnmounted } from 'vue'
 import { useField } from 'vee-validate'
+import { Plus } from 'lucide-vue-next'
+import { Button } from '@shared-ui/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
 import Spinner from '@shared-ui/components/ui/spinner/Spinner.vue'
 import { useRemoteSearch } from '@shared-ui/composables/useRemoteSearch'
 
@@ -126,6 +183,10 @@ const props = defineProps({
   keepOpenOnSelect: {
     type: Boolean,
     default: false
+  },
+  compact: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -136,6 +197,7 @@ const { handleBlur } = useField(() => props.name, undefined, {
 const open = ref(false)
 const searchTerm = ref('')
 const rootRef = ref(null)
+const addButtonRef = ref(null)
 
 const {
   results: remoteItems,
@@ -186,6 +248,14 @@ watch(
 const getLabel = (value) => {
   const item = displayedItems.value.find((item) => item.value === value)
   return item?.label || seenLabels.get(value) || value
+}
+
+const focusAfterRemove = () => {
+  if (!props.compact) return
+  nextTick(() => {
+    const target = rootRef.value?.$el?.querySelector('input') || addButtonRef.value?.$el
+    target?.focus()
+  })
 }
 
 // Closing the list here, not in the combobox, keeps focus in the input for the next pick.

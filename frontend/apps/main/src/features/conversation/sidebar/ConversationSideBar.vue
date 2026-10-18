@@ -105,6 +105,7 @@
             <div v-if="conversationStore.current">
               <SelectTagCombobox
                 multiple
+                compact
                 keep-open-on-select
                 :model-value="conversationStore.current.tags || []"
                 @update:modelValue="onTagsChange"

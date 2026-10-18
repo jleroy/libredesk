@@ -59,7 +59,20 @@
                   </TooltipTrigger>
                   <TooltipContent>{{ contactFullName }}</TooltipContent>
                 </Tooltip>
-                <div class="flex items-center gap-1 flex-shrink-0">
+                <div :class="INDICATOR_GROUP_CLASS">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <component
+                        :is="channelIcon"
+                        class="size-3 shrink-0 text-muted-foreground"
+                        :size="12"
+                        :stroke-width="2"
+                        role="img"
+                        :aria-label="conversation.inbox_name"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>{{ conversation.inbox_name }}</TooltipContent>
+                  </Tooltip>
                   <Tooltip v-if="nearestSlaDeadline">
                     <TooltipTrigger as-child>
                       <div role="img" :aria-label="`${t(nearestSlaDeadline.title)}: ${formatFullTimestamp(nearestSlaDeadline.dueAt)}`">
@@ -73,21 +86,13 @@
                       </div>
                     </TooltipContent>
                   </Tooltip>
-                  <PriorityMarker :priority="conversation.priority" />
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <component
-                        :is="channelIcon"
-                        class="size-3 shrink-0 text-muted-foreground/60"
-                        role="img"
-                        :aria-label="conversation.inbox_name"
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent>{{ conversation.inbox_name }}</TooltipContent>
-                  </Tooltip>
+                  <PriorityMarker :priority="conversation.priority" :size="12" />
                   <Tooltip v-if="isAwaitingResponse">
                     <TooltipTrigger as-child>
-                      <span class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                      <span class="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                        <span class="inline-flex size-3 shrink-0 items-center justify-center" aria-hidden="true">
+                          <Hourglass class="size-2.5" :size="10" :stroke-width="2.4" />
+                        </span>
                         <span class="sr-only">{{ t('globals.terms.waiting') }}</span>
                         <span>{{ relativeWaitingTime }}</span>
                       </span>
@@ -135,29 +140,35 @@
                 </template>
                 <template v-else>
                   <Reply
-                    class="text-success inline-block align-[-2px] mr-0.5"
-                    :size="14"
+                    class="size-3 text-success inline-block align-[-2px] mr-0.5"
+                    :size="12"
+                    :stroke-width="2"
                     v-if="conversation.last_message_sender === 'agent'"
                   />{{ trimmedLastMessage }}
                 </template>
               </p>
-              <Tooltip v-if="conversation.assigned_user_id || conversation.assigned_team_id">
-                <TooltipTrigger as-child>
-                  <span class="flex size-5 shrink-0 items-center justify-center text-muted-foreground" role="img" :aria-label="ownerLabel">
-                    <Avatar v-if="assignedAgent || (!conversation.assigned_user_id && assignedTeam)" :shape="assignedAgent ? 'circle' : 'square'" class="size-5 text-[9px]">
-                      <AvatarImage v-if="assignedAgent" :src="assignedAgent.avatar_url || ''" class="object-cover" />
-                      <AvatarFallback>{{ ownerInitials }}</AvatarFallback>
-                    </Avatar>
-                    <component :is="ownerIcon" v-else class="size-4" aria-hidden="true" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{{ ownerLabel }}</TooltipContent>
-              </Tooltip>
               <div
-                v-if="isUnread"
-                class="flex items-center justify-center w-5 h-5 bg-primary text-primary-foreground text-xs font-medium rounded-full flex-shrink-0"
+                v-if="conversation.assigned_user_id || conversation.assigned_team_id || isUnread"
+                :class="INDICATOR_GROUP_CLASS"
               >
-                {{ conversation.unread_message_count > 9 ? '9+' : conversation.unread_message_count }}
+                <Tooltip v-if="conversation.assigned_user_id || conversation.assigned_team_id">
+                  <TooltipTrigger as-child>
+                    <span class="flex size-5 shrink-0 items-center justify-center text-muted-foreground" role="img" :aria-label="ownerLabel">
+                      <Avatar v-if="assignedAgent || (!conversation.assigned_user_id && assignedTeam)" :shape="assignedAgent ? 'circle' : 'square'" class="size-5 text-[9px]">
+                        <AvatarImage v-if="assignedAgent" :src="assignedAgent.avatar_url || ''" class="object-cover" />
+                        <AvatarFallback>{{ ownerInitials }}</AvatarFallback>
+                      </Avatar>
+                      <component :is="ownerIcon" v-else class="size-3" :size="12" :stroke-width="2" aria-hidden="true" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ ownerLabel }}</TooltipContent>
+                </Tooltip>
+                <div
+                  v-if="isUnread"
+                  class="flex items-center justify-center w-5 h-5 bg-primary text-primary-foreground text-xs font-medium rounded-full flex-shrink-0"
+                >
+                  {{ conversation.unread_message_count > 9 ? '9+' : conversation.unread_message_count }}
+                </div>
               </div>
             </div>
 
@@ -180,10 +191,12 @@
 </template>
 
 <script setup>
+const INDICATOR_GROUP_CLASS = 'flex shrink-0 items-center gap-1'
+
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRelativeTime, formatFullTimestamp } from '@shared-ui/utils/datetime.js'
-import { Mail, Reply, MailOpen, SquareCheck, UserRoundCheck, Users } from 'lucide-vue-next'
+import { Hourglass, Mail, Reply, MailOpen, SquareCheck, UserRoundCheck, Users } from 'lucide-vue-next'
 import { CHANNEL_ICONS } from '@main/constants/channelIcons.js'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared-ui/components/ui/avatar'
 import {
