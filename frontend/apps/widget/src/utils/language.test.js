@@ -55,8 +55,20 @@ describe('matchLanguage', () => {
 describe('resolveLanguage', () => {
   const config = { language: 'auto', fallback_language: 'en-US' }
 
-  test('matches browser variants to widget translations', () => {
+  test('uses the configured fallback when the browser region has no exact translation', () => {
     expect(resolveLanguage(config, '', ['de-AT'], codes)).toEqual({
+      locale: 'en-US', requestedLocale: 'de-AT'
+    })
+  })
+
+  test('uses an exact browser translation without a website preference', () => {
+    expect(resolveLanguage(config, '', ['de-DE'], codes)).toEqual({
+      locale: 'de-DE', requestedLocale: 'de-DE'
+    })
+  })
+
+  test('matches website regions while keeping the browser fallback exact', () => {
+    expect(resolveLanguage(config, 'de-AT', ['ko-KR'], codes)).toEqual({
       locale: 'de-DE', requestedLocale: 'de-AT'
     })
   })
@@ -73,16 +85,16 @@ describe('resolveLanguage', () => {
     })
   })
 
-  test('uses another browser preference when its first language has no widget translation', () => {
-    expect(resolveLanguage(config, '', ['ko-KR', 'de-AT'], codes)).toEqual({
-      locale: 'de-DE', requestedLocale: 'ko-KR'
+  test('uses the configured fallback instead of another browser preference', () => {
+    expect(resolveLanguage(config, '', ['ko-KR', 'de-DE'], codes)).toEqual({
+      locale: 'en-US', requestedLocale: 'ko-KR'
     })
   })
 
   test('clearing a website preference returns to browser selection', () => {
-    for (const requested of ['', null]) {
+    for (const requested of ['', null, undefined]) {
       expect(resolveLanguage(config, requested, ['de-AT'], codes)).toEqual({
-        locale: 'de-DE', requestedLocale: 'de-AT'
+        locale: 'en-US', requestedLocale: 'de-AT'
       })
     }
   })
@@ -109,6 +121,12 @@ describe('resolveLanguage', () => {
 
   test.each([
     {
+      name: 'an unmatched browser region keeps the custom fallback',
+      config: { language: 'auto', fallback_language: 'pt-BR' },
+      host: '', browsers: ['de-AT', 'de-DE'],
+      want: { locale: 'pt-BR', requestedLocale: 'de-AT' }
+    },
+    {
       name: 'untranslated browser language uses the configured label fallback',
       config: { language: 'auto', fallback_language: 'pt-BR' },
       host: '', browsers: ['ko-KR'],
@@ -122,7 +140,7 @@ describe('resolveLanguage', () => {
     {
       name: 'a malformed website tag falls back to the browser',
       config, host: 'en--GB', browsers: ['de-AT'],
-      want: { locale: 'de-DE', requestedLocale: 'de-AT' }
+      want: { locale: 'en-US', requestedLocale: 'de-AT' }
     },
     {
       name: 'a missing fixed language uses the configured fallback',

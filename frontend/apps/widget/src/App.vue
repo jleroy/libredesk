@@ -107,7 +107,7 @@ const setLanguage = async (requested) => {
   try {
     const available = await api.getAvailableLanguages()
     const availableCodes = available.data.data.map((l) => l.code)
-    const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language]
+    const browserLanguages = [navigator.language || navigator.languages?.[0] || '']
     const language = resolveLanguage(widgetStore.config, requested, browserLanguages, availableCodes)
     if (request !== languageRequest) return
     if (language.locale === locale.value && language.requestedLocale === help.requestedLocale) return

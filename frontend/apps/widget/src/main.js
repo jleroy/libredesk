@@ -27,7 +27,7 @@ async function initWidget () {
             const availableResp = await api.getAvailableLanguages()
             availableCodes = availableResp.data.data.map(l => l.code)
         }
-        const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language]
+        const browserLanguages = [navigator.language || navigator.languages?.[0] || '']
         const language = resolveLanguage(widgetConfig, hostLang, browserLanguages, availableCodes)
         const lang = language.locale
 

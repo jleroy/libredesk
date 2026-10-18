@@ -1,6 +1,38 @@
 const home = { en: 'Home', de: 'Startseite', zh: '主页' }
 
 describe('Live chat widget language chosen by the host page', () => {
+  const browserLanguages = navigator.languages.join(',')
+  const setBrowserLanguages = (languages) => cy.then(() =>
+    Cypress.automation('remote:debugger:protocol', {
+      command: 'Network.setUserAgentOverride',
+      params: { userAgent: navigator.userAgent, acceptLanguage: languages }
+    })
+  )
+
+  afterEach(() => setBrowserLanguages(browserLanguages))
+
+  for (const [languages, expected] of [
+    ['de-AT,de-DE', home.en],
+    ['ko-KR,de-DE', home.en],
+    ['de-DE,en-US', home.de]
+  ]) {
+    it(`keeps exact browser matching without a website language for ${languages}`, () => {
+      cy.createLivechatInbox({ language: 'auto', fallback_language: 'en-US' }).then((inbox) => {
+        setBrowserLanguages(languages)
+        cy.visitWidgetHost(inbox.uuid)
+        cy.widgetBody().then((body) => {
+          expect(body[0].ownerDocument.defaultView.navigator.language).to.eq(languages.split(',')[0])
+        })
+        cy.widgetLauncher().click()
+        cy.widgetBody().contains(expected).should('be.visible')
+        cy.window().then((win) => win.Libredesk.setLanguage('de-AT'))
+        cy.widgetBody().contains(home.de).should('be.visible')
+        cy.window().then((win) => win.Libredesk.setLanguage(null))
+        cy.widgetBody().contains(expected).should('be.visible')
+      })
+    })
+  }
+
   it('loads in the language the host page passes', () => {
     cy.createLivechatInbox({ language: 'auto' }).then((inbox) => {
       cy.visitWidgetHost(inbox.uuid, { language: 'de-DE' })
@@ -92,6 +124,94 @@ describe('Widget and help center languages', () => {
   const inboxConfig = () => ({
     language: 'auto',
     help: { help_center_id: helpCenter.id, visitors: { tab: true }, users: { tab: true } }
+  })
+
+  it('keeps Help usable while an article from the previous language is loading', () => {
+    let releasePrevious, releaseCurrent
+    let previousRequested = false
+    let currentRequested = false
+    const previous = new Cypress.Promise((resolve) => { releasePrevious = resolve })
+    const current = new Cypress.Promise((resolve) => { releaseCurrent = resolve })
+    cy.intercept('GET', '**/api/v1/widget/chat/help?*').as('localizedHelp')
+    cy.intercept('GET', '**/api/v1/widget/chat/help/articles/*', (req) => {
+      if (new URL(req.url).searchParams.get('locale') === 'en-GB') {
+        req.alias = 'previousArticle'
+        previousRequested = true
+        return previous.then(() => req.continue())
+      }
+      req.alias = 'currentArticle'
+      currentRequested = true
+      return current.then(() => req.continue())
+    })
+    cy.createLivechatInbox(inboxConfig()).then((inbox) => {
+      cy.visitWidgetHost(inbox.uuid, { language: 'en-GB' })
+      cy.wait('@localizedHelp')
+      cy.widgetLauncher().click()
+      cy.widgetBody().contains('[role="tab"]', 'Help').click()
+      cy.widgetBody().contains('Articles en-GB').click()
+      cy.widgetBody().contains('Guide en-GB').click()
+      cy.wrap(null).should(() => expect(previousRequested).to.eq(true))
+
+      cy.window().then((win) => win.Libredesk.setLanguage('en-US'))
+      cy.wait('@localizedHelp').its('response.body.data.locale').should('eq', 'en-US')
+      cy.widgetBody().contains('Articles en-US').click()
+      cy.widgetBody().find('[role="status"].inset-0').should('not.exist')
+      cy.widgetBody().contains('Guide en-US').click()
+      cy.wrap(null).should(() => expect(currentRequested).to.eq(true))
+
+      cy.then(() => { releasePrevious() })
+      cy.wait('@previousArticle')
+      cy.widgetBody().find('iframe').should('not.exist')
+      cy.widgetBody().find('[role="status"].inset-0').should('be.visible')
+      cy.then(() => { releaseCurrent() })
+      cy.wait('@currentArticle')
+      cy.widgetBody().find('iframe').its('0.contentDocument.body')
+        .should('contain', 'Article content en-US')
+      cy.widgetBody().find('[role="status"].inset-0').should('not.exist')
+    })
+  })
+
+  it('keeps search progress tied to the current language', () => {
+    let releasePrevious, releaseCurrent
+    let previousRequested = false
+    let currentRequested = false
+    const previous = new Cypress.Promise((resolve) => { releasePrevious = resolve })
+    const current = new Cypress.Promise((resolve) => { releaseCurrent = resolve })
+    cy.intercept('GET', '**/api/v1/widget/chat/help?*').as('localizedHelp')
+    cy.intercept('GET', '**/api/v1/widget/chat/help/search?*', (req) => {
+      if (new URL(req.url).searchParams.get('locale') === 'en-GB') {
+        req.alias = 'previousSearch'
+        previousRequested = true
+        return previous.then(() => req.continue())
+      }
+      req.alias = 'currentSearch'
+      currentRequested = true
+      return current.then(() => req.continue())
+    })
+    cy.createLivechatInbox(inboxConfig()).then((inbox) => {
+      cy.visitWidgetHost(inbox.uuid, { language: 'en-GB' })
+      cy.wait('@localizedHelp')
+      cy.widgetLauncher().click()
+      cy.widgetBody().contains('[role="tab"]', 'Help').click()
+      cy.widgetBody().find('input').type('Guide')
+      cy.wrap(null).should(() => expect(previousRequested).to.eq(true))
+
+      cy.window().then((win) => win.Libredesk.setLanguage('en-US'))
+      cy.wait('@localizedHelp').its('response.body.data.locale').should('eq', 'en-US')
+      cy.widgetBody().find('input').should('have.value', '')
+      cy.widgetBody().find('form [role="status"]').should('not.exist')
+      cy.widgetBody().find('input').type('Guide')
+      cy.wrap(null).should(() => expect(currentRequested).to.eq(true))
+
+      cy.then(() => { releasePrevious() })
+      cy.wait('@previousSearch')
+      cy.widgetBody().find('form [role="status"]').should('be.visible')
+      cy.widgetBody().contains('Guide en-GB').should('not.exist')
+      cy.then(() => { releaseCurrent() })
+      cy.wait('@currentSearch')
+      cy.widgetBody().contains('Guide en-US').should('be.visible')
+      cy.widgetBody().find('form [role="status"]').should('not.exist')
+    })
   })
 
   it('keeps article regions when labels match and closes the previous article', () => {

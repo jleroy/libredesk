@@ -26,11 +26,9 @@ export const resolveLanguage = (config, hostLanguage, browserLanguages, availabl
     const locale = normalizeLanguage(config.language) || fallback
     return { locale, requestedLocale: locale }
   }
-  const preferences = [hostLanguage, ...browserLanguages, fallback]
-    .map(normalizeLanguage)
-    .filter(Boolean)
-  const locale = [...preferences, 'en-US']
-    .map((requested) => matchLanguage(requested, availableCodes))
-    .find(Boolean) || 'en-US'
-  return { locale, requestedLocale: preferences[0] }
+  const browserLanguage = browserLanguages[0] || ''
+  const locale = matchLanguage(hostLanguage, availableCodes) ||
+    (availableCodes.includes(browserLanguage) ? browserLanguage : fallback)
+  const requestedLocale = normalizeLanguage(hostLanguage) || normalizeLanguage(browserLanguage) || fallback
+  return { locale, requestedLocale }
 }

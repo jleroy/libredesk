@@ -33,6 +33,8 @@ const originArticleID = ref(null)
 watch(
   () => help.identity,
   () => {
+    busy.value = false
+    searching.value = false
     error.value = ''
     articleHistory.value = []
     originArticleID.value = null
@@ -79,7 +81,7 @@ const search = async () => {
     if (valid(identity) && help.query.trim() === query)
       error.value = t('globals.messages.helpLoadError')
   } finally {
-    searching.value = false
+    if (valid(identity)) searching.value = false
   }
 }
 const openArticle = async ({ id, slug, locale: articleLocale }) => {
@@ -102,7 +104,7 @@ const openArticle = async ({ id, slug, locale: articleLocale }) => {
   } catch {
     if (valid(identity)) error.value = t('globals.messages.helpLoadError')
   } finally {
-    busy.value = false
+    if (valid(identity)) busy.value = false
   }
 }
 const openCollection = async (collection) => {
