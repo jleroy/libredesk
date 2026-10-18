@@ -37,7 +37,7 @@
           </div>
 
           <!-- Field -->
-          <div class="flex items-start gap-3">
+          <div class="flex items-start gap-3" data-cy="automation-condition">
             <div class="condition-fields grid min-w-0 flex-1 gap-3">
               <Select
                 v-model="rule.field"
