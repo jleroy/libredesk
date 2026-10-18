@@ -248,6 +248,8 @@ File and image attachments share 112px square tiles, with controls revealed per 
 Touch devices keep attachment controls visible.
 Message content width limits apply within `.native-html`, preserving fixed attachment dimensions.
 Older messages load when the thread reaches the top, preserving the visible message position.
+The conversation list Load more button uses the small ghost style with 12px text and a 14px loading icon.
+Its height increases from 32px to 44px below the `md` breakpoint.
 
 Conversation rows show the nearest pending SLA badge first in the header icon group.
 The badge shows a timer and duration, or an alert icon when overdue.

@@ -120,14 +120,18 @@
       >
         <Button
           v-if="conversationStore.conversations.hasMore"
-          variant="outline"
+          type="button"
+          variant="ghost"
+          size="sm"
           @click="conversationStore.fetchNextConversations"
           :disabled="conversationStore.conversations.fetching"
-          class="max-md:h-11"
+          :aria-busy="conversationStore.conversations.fetching || undefined"
+          class="text-muted-foreground max-md:h-11 [&_svg]:size-3.5"
         >
           <Loader2
             v-if="conversationStore.conversations.fetching"
-            class="mr-2 h-4 w-4 animate-spin"
+            class="animate-spin"
+            aria-hidden="true"
           />
           {{
             conversationStore.conversations.fetching
