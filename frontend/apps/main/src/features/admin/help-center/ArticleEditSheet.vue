@@ -37,7 +37,7 @@
           </div>
         </div>
 
-        <Spinner v-if="isLoadingArticle" class="flex-1" />
+        <Spinner v-if="isLoadingArticle" :absolute="false" class="flex-1" />
 
         <div v-else class="flex-1 min-h-0 overflow-y-auto lg:flex lg:overflow-hidden">
           <div class="min-w-0 flex-1 flex flex-col p-4 sm:p-6 space-y-6 lg:min-h-0">
@@ -423,7 +423,7 @@
       </DialogHeader>
 
       <div class="space-y-4">
-        <Spinner v-if="isLoadingLinkable" />
+        <Spinner v-if="isLoadingLinkable" :absolute="false" class="py-8" />
         <p v-else-if="!linkableArticleItems.length" class="ui-description">
           {{ t('helpCenter.noLinkableArticles') }}
         </p>

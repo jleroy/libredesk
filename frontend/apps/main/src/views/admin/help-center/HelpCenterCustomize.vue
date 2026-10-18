@@ -1,5 +1,5 @@
 <template>
-  <Spinner v-if="loading" />
+  <LoadingOverlay v-if="loading" :loading="loading" reserve-height />
   <p v-else-if="loadFailed" class="ui-description">
     {{ t('globals.messages.somethingWentWrong') }}
   </p>
@@ -95,7 +95,7 @@ import { ref, computed, watch, provide, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ExternalLink, Globe, X } from 'lucide-vue-next'
-import { Spinner } from '@shared-ui/components/ui/spinner'
+import LoadingOverlay from '@main/components/layout/LoadingOverlay.vue'
 import {
   Select,
   SelectContent,
