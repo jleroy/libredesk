@@ -46,7 +46,6 @@
         </div>
       </div>
       <div v-else class="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
-        <MessageSquareText class="size-8 text-muted-foreground" aria-hidden="true" />
         <p class="text-sm text-muted-foreground">{{ $t('conversation.placeholder') }}</p>
       </div>
     </template>
@@ -56,7 +55,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { CheckCircle, Circle, MessageSquareText } from 'lucide-vue-next'
+import { CheckCircle, Circle } from 'lucide-vue-next'
 import { Button } from '@shared-ui/components/ui/button'
 import { Spinner } from '@shared-ui/components/ui/spinner'
 import { useInboxStore } from '@/stores/inbox'
