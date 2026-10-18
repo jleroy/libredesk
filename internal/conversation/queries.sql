@@ -193,6 +193,7 @@ SELECT
    inb.name as inbox_name,
    COALESCE(inb.from, '') as inbox_mail,
    COALESCE(inb.config->>'reply_to', '') as inbox_reply_to,
+   COALESCE((SELECT jsonb_agg(jsonb_build_object('email', email, 'verification_status', verification_status, 'verified_at', verified_at) ORDER BY position, id) FROM inbox_email_addresses WHERE inbox_id = inb.id AND kind = 'alias'), '[]'::jsonb) AS inbox_aliases,
    COALESCE(inb.channel::TEXT, '') as inbox_channel,
    c.status_id,
    c.priority_id,
@@ -317,6 +318,14 @@ SELECT
 FROM users u
 JOIN conversations c ON c.contact_id = u.id
 WHERE c.contact_id = $1
+  AND $5
+  AND (
+       $6
+    OR ($7 AND c.assigned_user_id = $3)
+    OR ($8 AND c.assigned_team_id = ANY($4::int[]))
+    OR ($9 AND c.assigned_team_id = ANY($4::int[]) AND c.assigned_user_id IS NULL)
+    OR ($10 AND c.assigned_user_id IS NULL AND c.assigned_team_id IS NULL)
+  )
 ORDER BY c.created_at DESC
 LIMIT $2;
 
@@ -580,10 +589,16 @@ SET priority_id = (SELECT id FROM conversation_priorities WHERE name = $2),
 WHERE uuid = $1;
 
 -- name: upsert-user-last-seen
-INSERT INTO conversation_last_seen (user_id, conversation_id, last_seen_at)
-VALUES ($1, (SELECT id FROM conversations WHERE uuid = $2), NOW())
+INSERT INTO conversation_last_seen (user_id, conversation_id, last_seen_at, updated_at)
+SELECT $1, c.id, COALESCE(m.created_at, NOW()), clock_timestamp()
+FROM conversations c
+LEFT JOIN conversation_messages m ON m.conversation_id = c.id AND m.uuid = NULLIF($3::text, '')::uuid
+WHERE c.uuid = $2 AND ($3::text = '' OR m.id IS NOT NULL)
 ON CONFLICT (conversation_id, user_id)
-DO UPDATE SET last_seen_at = NOW(), updated_at = NOW();
+DO UPDATE SET
+    last_seen_at = GREATEST(conversation_last_seen.last_seen_at, EXCLUDED.last_seen_at),
+    updated_at = GREATEST(conversation_last_seen.updated_at + INTERVAL '1 microsecond', clock_timestamp())
+RETURNING last_seen_at, (EXTRACT(EPOCH FROM updated_at) * 1000000)::bigint AS read_version;
 
 -- name: update-conversation-last-message
 -- $1=id, $2=uuid, $3=content, $4=sender_type, $5=timestamp, $6=message_type, $7=private, $8=sender_id
@@ -809,6 +824,14 @@ AND type in ('incoming', 'outgoing') and private = false
 and source_id > ''
 ORDER BY id DESC
 LIMIT $2;
+
+-- name: get-email-sender-message
+SELECT m.type, m.meta
+FROM conversation_messages m
+JOIN conversations c ON c.id = m.conversation_id
+WHERE c.uuid = $1 AND m.private = false AND m.type IN ('incoming', 'outgoing')
+ORDER BY (m.type = 'outgoing') DESC, m.id DESC
+LIMIT 1;
 
 -- name: get-outgoing-pending-messages
 SELECT
@@ -1044,6 +1067,7 @@ JOIN conversations c ON c.id = cm.conversation_id
 JOIN inboxes i ON i.id = c.inbox_id
 WHERE c.uuid = $1
   AND i.channel = 'whatsapp'
+  AND ($3::text = '' OR cm.created_at <= (SELECT created_at FROM conversation_messages WHERE conversation_id = c.id AND uuid = NULLIF($3::text, '')::uuid))
   AND cm.type = 'incoming'
   AND COALESCE(cm.source_id, '') != ''
   AND cm.created_at > COALESCE(
@@ -1204,13 +1228,22 @@ last_msg AS (
     WHERE conversation_id = (SELECT id FROM target)
       AND (meta IS NULL OR NOT COALESCE((meta->>'continuity_email')::boolean, false))
     ORDER BY created_at DESC LIMIT 1
+),
+read_replies AS (
+    UPDATE user_notifications n SET is_read = true, updated_at = NOW()
+    FROM conversation_messages m, conversation_last_seen ls
+    WHERE n.user_id = $1 AND n.conversation_id = (SELECT id FROM target) AND NOT n.is_read
+      AND n.notification_type = ANY($3::user_notification_type[])
+      AND m.id = n.message_id
+      AND ls.user_id = $1 AND ls.conversation_id = n.conversation_id AND ls.last_seen_at >= m.created_at
 )
-INSERT INTO conversation_last_seen (user_id, conversation_id, last_seen_at)
-SELECT $1, (SELECT id FROM target), ts FROM last_msg
+INSERT INTO conversation_last_seen (user_id, conversation_id, last_seen_at, updated_at)
+SELECT $1, (SELECT id FROM target), ts, clock_timestamp() FROM last_msg
 ON CONFLICT (conversation_id, user_id)
 DO UPDATE SET
     last_seen_at = EXCLUDED.last_seen_at,
-    updated_at = NOW();
+    updated_at = GREATEST(conversation_last_seen.updated_at + INTERVAL '1 microsecond', clock_timestamp())
+RETURNING last_seen_at, (EXTRACT(EPOCH FROM updated_at) * 1000000)::bigint AS read_version;
 
 -- name: get-active-livechat-conversations-by-agent
 SELECT c.uuid, c.contact_id, c.inbox_id

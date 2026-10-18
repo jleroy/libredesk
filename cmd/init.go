@@ -748,11 +748,19 @@ func initEmailInbox(inboxRecord imodels.Inbox, msgStore inbox.MessageStore, usrS
 
 	inbox, err := email.New(msgStore, usrStore, email.Opts{
 		ID:                   inboxRecord.ID,
+		UUID:                 inboxRecord.UUID,
 		Name:                 inboxRecord.Name,
+		Aliases:              inboxRecord.Aliases,
 		Config:               config,
 		Lo:                   initLogger("email_inbox"),
 		TokenRefreshCallback: tokenRefreshCallback,
 		AuthStatusCallback:   authStatusHook,
+		AliasVerificationCallback: func(ctx context.Context, token, from string) error {
+			return mgr.CompleteAliasVerification(ctx, inboxRecord.ID, token, from)
+		},
+		AliasExpiryCallback: func(ctx context.Context, startedBefore time.Time) error {
+			return mgr.ExpireAliasVerifications(ctx, inboxRecord.ID, startedBefore)
+		},
 	})
 
 	if err != nil {
@@ -1269,9 +1277,10 @@ func initImporter(i18n *i18n.I18n) *importer.Importer {
 	})
 }
 
-func initNotificationEmailQueue(db *sqlx.DB, outbound *notifier.Service) *notifier.EmailQueue {
+func initNotificationEmailQueue(db *sqlx.DB, outbound *notifier.Service, checker notifier.DeliveryChecker) *notifier.EmailQueue {
 	q, err := notifier.NewEmailQueue(notifier.EmailQueueOpts{
 		DB:       db,
+		Checker:  checker,
 		Outbound: outbound,
 		Lo:       initLogger("notification-email-queue"),
 	})
@@ -1281,7 +1290,11 @@ func initNotificationEmailQueue(db *sqlx.DB, outbound *notifier.Service) *notifi
 	return q
 }
 
-func initPushNotification(db *sqlx.DB, settings *setting.Manager, i18n *i18n.I18n) *notifier.PushManager {
+func initReplyDeliveryChecker(notifications *notifier.UserNotificationManager, agents *user.Manager, prefs *notifier.PreferenceManager) *notifier.ReplyDeliveryChecker {
+	return notifier.NewReplyDeliveryChecker(notifications, agents, prefs)
+}
+
+func initPushNotification(db *sqlx.DB, settings *setting.Manager, i18n *i18n.I18n, checker notifier.DeliveryChecker) *notifier.PushManager {
 	m, err := notifier.NewPushManager(notifier.PushManagerOpts{
 		DB:          db,
 		Settings:    settings,
@@ -1290,6 +1303,7 @@ func initPushNotification(db *sqlx.DB, settings *setting.Manager, i18n *i18n.I18
 		RootURL:     ko.String("app.root_url"),
 		Concurrency: ko.MustInt("notification.concurrency"),
 		QueueSize:   ko.MustInt("notification.queue_size"),
+		Checker:     checker,
 	})
 	if err != nil {
 		log.Fatalf("error initializing push notification manager: %v", err)

@@ -34,7 +34,7 @@ type whatsAppReplyTemplates struct {
 	template wtmodels.Template
 }
 
-func (whatsAppReplyMedia) LinkMessageMediaTx(*sqlx.Tx, int, []mmodels.Media, []string) error {
+func (whatsAppReplyMedia) LinkMessageMediaTx(*sqlx.Tx, int, []mmodels.Media, []string, int) error {
 	return nil
 }
 
@@ -112,6 +112,7 @@ func TestQueueWhatsAppReplyVariables(t *testing.T) {
 				nil, /** to **/
 				nil, /** cc **/
 				nil, /** bcc **/
+				"", /** sendFrom **/
 				tc.meta)
 			if err != nil {
 				t.Fatal(err)
@@ -143,6 +144,7 @@ func TestQueueWhatsAppReplyVariables(t *testing.T) {
 			nil, /** to **/
 			nil, /** cc **/
 			nil, /** bcc **/
+			"", /** sendFrom **/
 			map[string]any{}); err == nil || !strings.Contains(err.Error(), "4096") {
 			t.Fatalf("expected rendered content to exceed the limit, got %v", err)
 		}

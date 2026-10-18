@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/attachment"
+	imodels "github.com/abhinavxd/libredesk/internal/inbox/models"
 	mmodels "github.com/abhinavxd/libredesk/internal/media/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
@@ -62,6 +63,11 @@ var (
 	ContentTypeHTML = "html"
 )
 
+type ConversationReadState struct {
+	LastSeenAt  time.Time `db:"last_seen_at" json:"last_seen_at"`
+	ReadVersion int64     `db:"read_version" json:"read_version"`
+}
+
 type ContinuityConversation struct {
 	ID                        int         `db:"id"`
 	UUID                      string      `db:"uuid"`
@@ -111,6 +117,7 @@ type ChatMessage struct {
 	CreatedAt        time.Time              `json:"created_at"`
 	Content          string                 `json:"content"`
 	TextContent      string                 `json:"text_content"`
+	ContentType      string                 `json:"content_type"`
 	Author           MessageAuthor          `json:"author"`
 	Attachments      attachment.Attachments `json:"attachments"`
 	Meta             json.RawMessage        `json:"meta"`
@@ -197,6 +204,7 @@ type Conversation struct {
 	Subject                   null.String            `db:"subject" json:"subject"`
 	InboxMail                 string                 `db:"inbox_mail" json:"inbox_mail"`
 	InboxReplyTo              string                 `db:"inbox_reply_to" json:"inbox_reply_to"`
+	InboxAliases              imodels.EmailAliases   `db:"inbox_aliases" json:"inbox_aliases"`
 	InboxName                 string                 `db:"inbox_name" json:"inbox_name"`
 	InboxChannel              string                 `db:"inbox_channel" json:"inbox_channel"`
 	Tags                      null.JSON              `db:"tags" json:"tags"`
@@ -326,6 +334,7 @@ type NewConversationsStats struct {
 
 // Message represents a message in a conversation
 type Message struct {
+	UploadUserID      int                    `db:"-" json:"-"`
 	Total             int                    `db:"total" json:"-"`
 	ID                int                    `db:"id" json:"id"`
 	CreatedAt         time.Time              `db:"created_at" json:"created_at"`
@@ -365,6 +374,12 @@ func (m *Message) IsContinuityMessage() bool {
 	isContinuity, _ := meta["continuity_email"].(bool)
 	return isContinuity
 }
+
+// SendFrom returns the immutable sender address stored for an outgoing message.
+func (m *Message) SendFrom() string { return metaString(m.Meta, "send_from") }
+
+// InboxAddress returns the owned address that received an incoming message.
+func (m *Message) InboxAddress() string { return metaString(m.Meta, "inbox_address") }
 
 // ShouldEvaluateAutomation reports whether this outgoing message may trigger automation rules; machine-generated messages must not, else they loop.
 func (m *Message) ShouldEvaluateAutomation(systemUserID int) bool {
@@ -487,9 +502,10 @@ type OutboundMessage struct {
 	SourceID string
 
 	// Threading (email)
-	References []string
-	InReplyTo  string
-	ReplyTo    string
+	References             []string
+	InReplyTo              string
+	ReplyTo                string
+	AliasVerificationToken string
 
 	// Attachments
 	Attachments attachment.Attachments
@@ -629,4 +645,13 @@ func Transcript(msgs []Message, max int) string {
 		b.WriteString("\n")
 	}
 	return b.String()
+}
+
+func metaString(meta json.RawMessage, key string) string {
+	var values map[string]any
+	if err := json.Unmarshal(meta, &values); err != nil {
+		return ""
+	}
+	value, _ := values[key].(string)
+	return value
 }

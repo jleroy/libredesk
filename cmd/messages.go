@@ -24,6 +24,7 @@ type messageReq struct {
 	Mentions    []cmodels.MentionInput `json:"mentions"`
 	EchoID      string                 `json:"echo_id"`
 	SourceID    string                 `json:"source_id"` // RFC 5322 Message-ID of the inbound message; stored on the created contact message so replies thread on it. Contact sender only.
+	SendFrom    string                 `json:"send_from"`
 
 	// WhatsApp-only. Set TemplateID to send an approved template. Omit for free-form.
 	WhatsAppTemplateID     int               `json:"whatsapp_template_id,omitempty"`
@@ -70,6 +71,7 @@ func handleGetMessages(r *fastglue.Request) error {
 	}
 
 	rootURL, _ := app.setting.GetAppRootURL()
+	app.conversation.RenderMessagesArticleReferences(messages)
 	for i := range messages {
 		total = messages[i].Total
 		app.conversation.SignAttachmentURLs(messages[i].Attachments)
@@ -137,6 +139,7 @@ func handleGetMessage(r *fastglue.Request) error {
 	}
 
 	rootURL, _ := app.setting.GetAppRootURL()
+	app.conversation.RenderArticleReferences(&message)
 	app.conversation.SignAttachmentURLs(message.Attachments)
 	resolveQuotedCIDs(app, &message)
 	resolveAttachmentCIDs(&message, rootURL)
@@ -244,17 +247,16 @@ func handleSendMessage(r *fastglue.Request) error {
 		}
 	}
 
-	// Get media for all attachments, skip any already associated with a model.
-	media, err := getUnassociatedMedia(app, req.Attachments)
+	media, err := getUnassociatedMedia(app, req.Attachments, auser.ID)
 	if err != nil {
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+		return sendErrorEnvelope(r, err)
 	}
 
 	rootURL, _ := app.setting.GetAppRootURL()
 
 	// Create contact message.
 	if req.SenderType == umodels.UserTypeContact {
-		message, err := app.conversation.CreateContactMessage(media, int(conv.ContactID), cuuid, req.Message, cmodels.ContentTypeHTML, false, req.SourceID)
+		message, err := app.conversation.CreateContactMessage(media, int(conv.ContactID), cuuid, req.Message, cmodels.ContentTypeHTML, false, req.SourceID, auser.ID)
 		if err != nil {
 			return sendErrorEnvelope(r, err)
 		}
@@ -284,7 +286,7 @@ func handleSendMessage(r *fastglue.Request) error {
 	if len(req.WhatsAppTemplateParams) > 0 {
 		meta["whatsapp_template_params"] = req.WhatsAppTemplateParams
 	}
-	message, err := app.conversation.QueueReply(media, conv.InboxID, user.ID, conv.ContactID, cuuid, req.Message, req.To, req.CC, req.BCC, meta)
+	message, err := app.conversation.QueueReply(media, conv.InboxID, user.ID, conv.ContactID, cuuid, req.Message, req.To, req.CC, req.BCC, req.SendFrom, meta)
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
