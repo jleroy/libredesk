@@ -2,11 +2,6 @@
   <div class="flex flex-col relative h-full">
     <div ref="threadEl" class="flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]" @scroll="handleScroll">
       <div ref="contentEl" class="min-h-full px-4 pb-10 relative">
-        <div v-if="loadingOlder && conversationStore.messages.fetching" class="flex justify-center py-3" role="status">
-          <Loader2 class="size-4 animate-spin" aria-hidden="true" />
-          <span class="sr-only">{{ $t('globals.terms.loading') }}</span>
-        </div>
-
         <MessagesSkeleton :count="10" v-if="conversationStore.messages.loading" />
 
         <TransitionGroup
@@ -56,6 +51,15 @@
       </div>
     </div>
 
+    <div
+      v-if="olderSpinner"
+      class="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-full bg-background p-2 text-muted-foreground shadow-sm"
+      role="status"
+    >
+      <Loader2 class="size-4 animate-spin" aria-hidden="true" />
+      <span class="sr-only">{{ $t('globals.terms.loading') }}</span>
+    </div>
+
     <!-- Sticky container for the scroll arrow -->
     <ScrollToBottomButton
       :is-at-bottom="!hasUserScrolled"
@@ -92,6 +96,7 @@ import { useBulkActionPermissions } from '@main/composables/useBulkActionPermiss
 import MessagesSkeleton from './MessagesSkeleton.vue'
 import { TypingIndicator } from '@shared-ui/components/TypingIndicator'
 import { useStickyScroll } from '@shared-ui/composables'
+import { delayedLoading } from '@main/utils/delayed-loading'
 
 const MENTION_TOP_OFFSET_RATIO = 0.25
 const MENTION_SETTLE_FRAMES = 3
@@ -112,6 +117,19 @@ const emitter = useEmitter()
 const unReadMessages = ref(0)
 const showAssignNudge = ref(false)
 const loadingOlder = ref(false)
+const olderSpinner = ref(false)
+
+watch(
+  () => loadingOlder.value && conversationStore.messages.fetching,
+  (loading, _, onCleanup) => {
+    if (!loading) {
+      olderSpinner.value = false
+      return
+    }
+    const guard = delayedLoading(olderSpinner, 'value', 100 /** delayMs **/, 0 /** minVisibleMs **/)
+    onCleanup(guard.cancel)
+  }
+)
 const { canAssignAgent } = useBulkActionPermissions()
 let currentConversationUUID = ''
 let openScrollDone = false
