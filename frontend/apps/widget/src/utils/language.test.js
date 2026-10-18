@@ -57,7 +57,7 @@ describe('resolveLanguage', () => {
 
   test('uses the configured fallback when the browser region has no exact translation', () => {
     expect(resolveLanguage(config, '', ['de-AT'], codes)).toEqual({
-      locale: 'en-US', requestedLocale: 'de-AT'
+      locale: 'en-US', requestedLocale: 'en-US'
     })
   })
 
@@ -87,14 +87,14 @@ describe('resolveLanguage', () => {
 
   test('uses the configured fallback instead of another browser preference', () => {
     expect(resolveLanguage(config, '', ['ko-KR', 'de-DE'], codes)).toEqual({
-      locale: 'en-US', requestedLocale: 'ko-KR'
+      locale: 'en-US', requestedLocale: 'en-US'
     })
   })
 
   test('clearing a website preference returns to browser selection', () => {
     for (const requested of ['', null, undefined]) {
       expect(resolveLanguage(config, requested, ['de-AT'], codes)).toEqual({
-        locale: 'en-US', requestedLocale: 'de-AT'
+        locale: 'en-US', requestedLocale: 'en-US'
       })
     }
   })
@@ -124,13 +124,13 @@ describe('resolveLanguage', () => {
       name: 'an unmatched browser region keeps the custom fallback',
       config: { language: 'auto', fallback_language: 'pt-BR' },
       host: '', browsers: ['de-AT', 'de-DE'],
-      want: { locale: 'pt-BR', requestedLocale: 'de-AT' }
+      want: { locale: 'pt-BR', requestedLocale: 'pt-BR' }
     },
     {
       name: 'untranslated browser language uses the configured label fallback',
       config: { language: 'auto', fallback_language: 'pt-BR' },
       host: '', browsers: ['ko-KR'],
-      want: { locale: 'pt-BR', requestedLocale: 'ko-KR' }
+      want: { locale: 'pt-BR', requestedLocale: 'pt-BR' }
     },
     {
       name: 'formatting options retain the website region for HC',
@@ -140,7 +140,7 @@ describe('resolveLanguage', () => {
     {
       name: 'a malformed website tag falls back to the browser',
       config, host: 'en--GB', browsers: ['de-AT'],
-      want: { locale: 'en-US', requestedLocale: 'de-AT' }
+      want: { locale: 'en-US', requestedLocale: 'en-US' }
     },
     {
       name: 'a missing fixed language uses the configured fallback',

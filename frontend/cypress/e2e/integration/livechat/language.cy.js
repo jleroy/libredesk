@@ -1,16 +1,15 @@
 const home = { en: 'Home', de: 'Startseite', zh: '主页' }
+const browserLanguages = navigator.languages.join(',')
+const setBrowserLanguages = (languages) => cy.then(() =>
+  Cypress.automation('remote:debugger:protocol', {
+    command: 'Network.setUserAgentOverride',
+    params: { userAgent: navigator.userAgent, acceptLanguage: languages }
+  })
+)
+
+afterEach(() => setBrowserLanguages(browserLanguages))
 
 describe('Live chat widget language chosen by the host page', () => {
-  const browserLanguages = navigator.languages.join(',')
-  const setBrowserLanguages = (languages) => cy.then(() =>
-    Cypress.automation('remote:debugger:protocol', {
-      command: 'Network.setUserAgentOverride',
-      params: { userAgent: navigator.userAgent, acceptLanguage: languages }
-    })
-  )
-
-  afterEach(() => setBrowserLanguages(browserLanguages))
-
   for (const [languages, expected] of [
     ['de-AT,de-DE', home.en],
     ['ko-KR,de-DE', home.en],
@@ -124,6 +123,37 @@ describe('Widget and help center languages', () => {
   const inboxConfig = () => ({
     language: 'auto',
     help: { help_center_id: helpCenter.id, visitors: { tab: true }, users: { tab: true } }
+  })
+
+  it('keeps Help aligned with the widget fallback without a website language', () => {
+    cy.intercept('GET', '**/api/v1/widget/chat/help?*').as('localizedHelp')
+    cy.createLivechatInbox({ ...inboxConfig(), fallback_language: 'en-US' }).then((inbox) => {
+      setBrowserLanguages('de-AT,de-DE')
+      cy.visitWidgetHost(inbox.uuid)
+      cy.wait('@localizedHelp').then(({ request, response }) => {
+        const params = new URL(request.url).searchParams
+        expect(params.get('locale')).to.eq('en-US')
+        expect(params.get('fallback_locale')).to.eq(null)
+        expect(response.body.data.locale).to.eq('en-US')
+      })
+      cy.widgetLauncher().click()
+      cy.widgetBody().contains(home.en).should('be.visible')
+      cy.widgetBody().contains('[role="tab"]', 'Help').click()
+      cy.widgetBody().contains('Articles en-US').should('be.visible')
+
+      cy.window().then((win) => win.Libredesk.setLanguage('de-AT'))
+      cy.wait('@localizedHelp').its('response.body.data.locale').should('eq', 'de')
+      cy.widgetBody().contains(home.de).should('be.visible')
+      cy.widgetBody().contains('Articles de').should('be.visible')
+
+      cy.window().then((win) => win.Libredesk.setLanguage(''))
+      cy.wait('@localizedHelp').then(({ request, response }) => {
+        expect(new URL(request.url).searchParams.get('locale')).to.eq('en-US')
+        expect(response.body.data.locale).to.eq('en-US')
+      })
+      cy.widgetBody().contains(home.en).should('be.visible')
+      cy.widgetBody().contains('Articles en-US').should('be.visible')
+    })
   })
 
   it('keeps Help usable while an article from the previous language is loading', () => {

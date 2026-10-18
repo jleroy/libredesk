@@ -29,6 +29,6 @@ export const resolveLanguage = (config, hostLanguage, browserLanguages, availabl
   const browserLanguage = browserLanguages[0] || ''
   const locale = matchLanguage(hostLanguage, availableCodes) ||
     (availableCodes.includes(browserLanguage) ? browserLanguage : fallback)
-  const requestedLocale = normalizeLanguage(hostLanguage) || normalizeLanguage(browserLanguage) || fallback
+  const requestedLocale = normalizeLanguage(hostLanguage) || locale
   return { locale, requestedLocale }
 }
