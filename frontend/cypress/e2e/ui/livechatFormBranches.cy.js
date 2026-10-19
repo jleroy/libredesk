@@ -300,6 +300,30 @@ describe('Live chat inbox form: branches the other specs skip', () => {
     })
   })
 
+  for (const { name, path, message, skipBootCall } of [
+    { name: 'settings', path: 'settings/general', message: 'Settings unavailable', skipBootCall: true },
+    { name: 'business hours', path: 'business-hours', message: 'Business hours unavailable', skipBootCall: false }
+  ]) {
+    it(`loads proactive message stats when the ${name} request fails`, () => {
+      cy.intercept('GET', `**/api/v1/${path}`, {
+        statusCode: 500,
+        body: { status: 'error', message, error_type: 'GeneralException', data: null }
+      })
+      // The app loads general settings once at boot, before the form mounts. Only later calls fail.
+      if (skipBootCall) {
+        cy.intercept({ method: 'GET', url: `**/api/v1/${path}`, times: 1 }, (req) => req.continue())
+      }
+      cy.intercept('GET', `**/api/v1/inboxes/${inboxId}/campaign-stats*`).as('campaignStats')
+
+      editInbox(inboxId)
+      cy.wait('@campaignStats').then(({ request, response }) => {
+        expect(response.statusCode).to.eq(200)
+        expect(new URL(request.url).searchParams.get('from')).to.match(/^\d{4}-\d{2}-\d{2}$/)
+      })
+      cy.contains('[role="alert"]', message).should('exist')
+    })
+  }
+
   it('saves a proactive message condition and removes it again', () => {
     cy.intercept('PUT', `**/api/v1/inboxes/${inboxId}`).as('updateInbox')
 

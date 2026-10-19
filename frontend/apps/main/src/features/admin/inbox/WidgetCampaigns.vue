@@ -285,25 +285,27 @@ const refreshStats = async () => {
 }
 
 onMounted(async () => {
-  try {
-    const [response, settingsResponse] = await Promise.all([
-      api.getAllBusinessHours(),
-      api.getSettings('general')
-    ])
-    const data = response.data.data
+  const [hoursResult, settingsResult] = await Promise.allSettled([
+    api.getAllBusinessHours(),
+    api.getSettings('general')
+  ])
+  if (hoursResult.status === 'fulfilled') {
+    const data = hoursResult.value.data.data
     businessHours.value = data.results || data
-    const dateFormat = new Intl.DateTimeFormat('en-CA', {
-      timeZone: settingsResponse.data.data['app.timezone'] || 'UTC',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    })
-    from.value = dateFormat.format(new Date(Date.now() - 30 * 86400000))
-    to.value = dateFormat.format(new Date())
-    await refreshStats()
-  } catch (err) {
-    error.value = handleHTTPError(err).message
   }
+  const failed = [hoursResult, settingsResult].find((result) => result.status === 'rejected')
+  if (failed) error.value = handleHTTPError(failed.reason).message
+  const dateFormat = new Intl.DateTimeFormat('en-CA', {
+    timeZone:
+      (settingsResult.status === 'fulfilled' && settingsResult.value.data.data['app.timezone']) ||
+      'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  from.value = dateFormat.format(new Date(Date.now() - 30 * 86400000))
+  to.value = dateFormat.format(new Date())
+  await refreshStats()
 })
 </script>
 

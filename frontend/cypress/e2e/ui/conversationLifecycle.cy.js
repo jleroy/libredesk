@@ -169,6 +169,9 @@ describe('Conversation lifecycle', () => {
   beforeEach(() => {
     cy.viewport(1440, 900) // desktop layout: list, conversation and sidebar all on screen
     cy.login()
+    for (const uuid of [conversationUuid, ccConversationUuid]) {
+      cy.api('DELETE', `/api/v1/conversations/${uuid}/draft?type=reply`)
+    }
   })
 
   it('opens the conversation from the inbox list', () => {
@@ -346,7 +349,7 @@ describe('Conversation lifecycle', () => {
     expectSentRecipients(ccConversationUuid, { cc: [], bcc: [] })
   })
 
-  it('sends only what each conversation shows after switching between them', () => {
+  it('preserves edited recipients when switching between conversations', () => {
     captureSend()
     openConversation(ccConversationUuid)
     recipientRow(/^CC$/).find('button[aria-label="Remove CC"]').click()
@@ -365,10 +368,10 @@ describe('Conversation lifecycle', () => {
     cy.contains(ccContactName).click()
     cy.location('pathname').should('include', ccConversationUuid)
     recipientRow(/^To$/).find('input').should('have.value', ccCustomerEmail)
-    recipientRow(/^CC$/).find('input').should('have.value', ccAddress)
-    cy.contains('label', /^BCC$/).should('not.exist')
+    cy.contains('label', /^CC$/).should('not.exist')
+    recipientRow(/^BCC$/).find('input').should('have.value', bccAddress)
     sendReply('Reply after switching back')
-    expectSentRecipients(ccConversationUuid, { cc: [ccAddress], bcc: [] })
+    expectSentRecipients(ccConversationUuid, { cc: [], bcc: [bccAddress] })
   })
 
   it('sends a reply that appears in the thread', () => {
