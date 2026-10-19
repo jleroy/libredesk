@@ -314,7 +314,7 @@ func (m *Manager) RenderMessageInTemplate(channel string, message *models.Messag
 
 		content := m.emailTemplateContent(message, data)
 		isContinuity, _ := data["IsContinuityEmail"].(bool)
-		if !isContinuity && (strings.Contains(content, "PreviousMessages") || m.template.DefaultOutgoingEmailTemplateContains("PreviousMessages")) {
+		if !isContinuity && m.template.DefaultOutgoingEmailTemplateContains("PreviousMessages") {
 			data["PreviousMessages"] = m.previousMessagesData(message.ConversationID, message.ID)
 		}
 		message.Content, err = m.template.RenderEmailWithTemplate(data, content)

@@ -1431,7 +1431,7 @@ func (m *Manager) sendReplyNotification(conversation models.Conversation, messag
 	if len(group.recipients) == 0 {
 		return
 	}
-	messageText := textWithoutQuotedReplies(message)
+	messageText := cmp.Or(textWithoutQuotedReplies(message), strings.TrimSpace(message.TextContent))
 	candidateIDs := make([]int, len(group.recipients))
 	for i, recipient := range group.recipients {
 		candidateIDs[i] = recipient.ID
@@ -2476,11 +2476,10 @@ func listTypeWhereClause(conditions []string) string {
 }
 
 func textWithoutQuotedReplies(message models.Message) string {
-	full := strings.TrimSpace(message.TextContent)
 	if message.ContentType == models.ContentTypeHTML {
-		return cmp.Or(stringutil.HTML2TextNoQuotes(message.Content), full)
+		return stringutil.HTML2TextNoQuotes(message.Content)
 	}
-	return cmp.Or(stringutil.TrimPlainTextQuotes(full), full)
+	return stringutil.TrimPlainTextQuotes(strings.TrimSpace(message.TextContent))
 }
 
 // readScopeArgs returns the agent's team IDs and read permissions in the argument order the read-permission queries expect.
