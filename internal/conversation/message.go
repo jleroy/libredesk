@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net/mail"
 	"path/filepath"
 	"regexp"
@@ -38,7 +39,8 @@ import (
 const (
 	maxMessagesPerPage = 500
 	// Only allow visitor-to-contact upgrade within this window after the last continuity email.
-	upgradeWindowTTL = 7 * 24 * time.Hour
+	upgradeWindowTTL    = 7 * 24 * time.Hour
+	maxPreviousMessages = 10
 )
 
 // Matches <img ... src="URL"> and captures the URL for downstream parsing.
@@ -53,6 +55,16 @@ type fromNameVars struct {
 type fromNameAgent struct{ FirstName, LastName, FullName string }
 
 type fromNameInbox struct{ Name string }
+
+type previousMessage struct {
+	CreatedAt   time.Time `db:"created_at"`
+	Content     string    `db:"content"`
+	TextContent string    `db:"text_content"`
+	ContentType string    `db:"content_type"`
+	FirstName   string    `db:"first_name"`
+	LastName    string    `db:"last_name"`
+	Email       string    `db:"email"`
+}
 
 // Run starts a pool of worker goroutines to handle message dispatching via inbox's channel and processes incoming messages. It scans for
 // pending outgoing messages at the specified read interval and pushes them to the outgoing queue to be sent.
@@ -291,6 +303,9 @@ func (m *Manager) RenderMessageInTemplate(channel string, message *models.Messag
 		}
 
 		content := m.emailTemplateContent(message, data)
+		if isContinuity, _ := data["IsContinuityEmail"].(bool); !isContinuity {
+			data["PreviousMessages"] = m.previousMessagesData(message.ConversationID, message.ID)
+		}
 		message.Content, err = m.template.RenderEmailWithTemplate(data, content)
 		if err != nil {
 			m.lo.Error("could not render email content using template", "id", message.ID, "error", err)
@@ -325,6 +340,35 @@ func (m *Manager) emailTemplateContent(message *models.Message, data map[string]
 		return content + "{{ .ArticleReferences }}"
 	}
 	return content
+}
+
+// previousMessagesData returns the conversation's earlier public messages, newest first, as plain text with quoted reply chains removed.
+func (m *Manager) previousMessagesData(conversationID, messageID int) []map[string]any {
+	out := []map[string]any{}
+	var rows []previousMessage
+	if err := m.q.GetPreviousMessages.Select(&rows, conversationID, messageID, maxPreviousMessages); err != nil {
+		m.lo.Error("error fetching previous messages", "conversation_id", conversationID, "error", err)
+		return out
+	}
+	for _, r := range rows {
+		text := strings.TrimSpace(r.TextContent)
+		if r.ContentType == models.ContentTypeHTML {
+			text = stringutil.HTML2TextNoQuotes(r.Content)
+			if text == "" {
+				text = stringutil.HTML2TextMarkdownLinks(r.Content)
+			}
+		} else if trimmed := stringutil.TrimPlainTextQuotes(text); trimmed != "" {
+			text = trimmed
+		}
+		sender := umodels.User{FirstName: r.FirstName, LastName: r.LastName}
+		out = append(out, map[string]any{
+			"SenderName":  strings.TrimSpace(sender.FullName()),
+			"SenderEmail": r.Email,
+			"CreatedAt":   r.CreatedAt,
+			"Content":     strings.ReplaceAll(html.EscapeString(text), "\n", "<br>"),
+		})
+	}
+	return out
 }
 
 // GetConversationMessages retrieves messages for a specific conversation.

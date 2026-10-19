@@ -390,6 +390,7 @@ type queries struct {
 	GetContactUnreadPreviewMessages    *sqlx.Stmt `query:"get-contact-unread-preview-messages"`
 	GetOutgoingPendingMessages         *sqlx.Stmt `query:"get-outgoing-pending-messages"`
 	GetMessageSourceIDs                *sqlx.Stmt `query:"get-message-source-ids"`
+	GetPreviousMessages                *sqlx.Stmt `query:"get-previous-messages"`
 	GetEmailSenderMessage              *sqlx.Stmt `query:"get-email-sender-message"`
 	GetConversationUUIDFromMessageUUID *sqlx.Stmt `query:"get-conversation-uuid-from-message-uuid"`
 	MessageExistsBySourceID            *sqlx.Stmt `query:"message-exists-by-source-id"`

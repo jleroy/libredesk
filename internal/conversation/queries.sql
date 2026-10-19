@@ -863,6 +863,26 @@ and source_id > ''
 ORDER BY id DESC
 LIMIT $2;
 
+-- name: get-previous-messages
+SELECT
+    m.created_at,
+    COALESCE(m.content, '') AS content,
+    COALESCE(m.text_content, '') AS text_content,
+    COALESCE(m.content_type::text, '') AS content_type,
+    u.first_name,
+    COALESCE(u.last_name, '') AS last_name,
+    COALESCE(u.email, '') AS email
+FROM conversation_messages m
+JOIN users u ON u.id = m.sender_id
+WHERE m.conversation_id = $1
+AND m.id < $2
+AND m.type IN ('incoming', 'outgoing')
+AND m.private = false
+AND m.status != 'failed'
+AND NOT COALESCE((m.meta->>'continuity_email')::boolean, false)
+ORDER BY m.id DESC
+LIMIT $3;
+
 -- name: get-email-sender-message
 SELECT m.type, m.meta
 FROM conversation_messages m
