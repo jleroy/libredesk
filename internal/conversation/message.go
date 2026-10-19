@@ -58,6 +58,7 @@ type fromNameInbox struct{ Name string }
 
 type previousMessage struct {
 	CreatedAt   time.Time `db:"created_at"`
+	IsIncoming  bool      `db:"is_incoming"`
 	Content     string    `db:"content"`
 	TextContent string    `db:"text_content"`
 	ContentType string    `db:"content_type"`
@@ -362,9 +363,10 @@ func (m *Manager) previousMessagesData(conversationID, messageID int) []map[stri
 		}
 		sender := umodels.User{FirstName: r.FirstName, LastName: r.LastName}
 		out = append(out, map[string]any{
-			"SenderName":  strings.TrimSpace(sender.FullName()),
-			"SenderEmail": r.Email,
+			"SenderName":  html.EscapeString(strings.TrimSpace(sender.FullName())),
+			"SenderEmail": html.EscapeString(r.Email),
 			"CreatedAt":   r.CreatedAt,
+			"IsIncoming":  r.IsIncoming,
 			"Content":     strings.ReplaceAll(html.EscapeString(text), "\n", "<br>"),
 		})
 	}

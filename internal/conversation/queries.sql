@@ -866,6 +866,7 @@ LIMIT $2;
 -- name: get-previous-messages
 SELECT
     m.created_at,
+    m.type = 'incoming' AS is_incoming,
     COALESCE(m.content, '') AS content,
     COALESCE(m.text_content, '') AS text_content,
     COALESCE(m.content_type::text, '') AS content_type,
