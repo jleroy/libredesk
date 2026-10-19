@@ -193,6 +193,12 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 			outbound.AltContent = stringutil.HTML2TextMarkdownLinks(message.Content)
 		}
 
+		// Emails with no subject (e.g. arrived via IMAP with an empty Subject header) are
+		// rejected by some SMTP servers. Fall back to the reference number so replies go through.
+		if outbound.Subject == "" {
+			outbound.Subject = m.formatRefMarker(message.ReferenceNumber)
+		}
+
 		// Set "In-Reply-To" and "References" headers for email threading.
 		outbound.References, outbound.InReplyTo = m.BuildEmailThreadingHeaders(message.ConversationID, outbound.SourceID)
 	}
