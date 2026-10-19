@@ -362,9 +362,10 @@ type Message struct {
 	To                pq.StringArray         `db:"to"  json:"-"`
 	CC                pq.StringArray         `db:"cc" json:"-"`
 	BCC               pq.StringArray         `db:"bcc" json:"-"`
-	MessageReceiverID int                    `db:"message_receiver_id" json:"-"`
-	Media             []mmodels.Media        `json:"-"`
-	Author            MessageAuthor          `db:"author" json:"author"`
+	MessageReceiverID  int                    `db:"message_receiver_id" json:"-"`
+	ReferenceNumber    string                 `db:"reference_number" json:"-"`
+	Media              []mmodels.Media        `json:"-"`
+	Author             MessageAuthor          `db:"author" json:"author"`
 }
 
 // IsContinuityMessage returns true if the message is a continuity email.

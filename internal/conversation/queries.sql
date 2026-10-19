@@ -899,7 +899,8 @@ SELECT
     c.uuid as conversation_uuid,
     c.subject,
     c.contact_id as message_receiver_id,
-    c.subject
+    c.subject,
+    c.reference_number
 FROM conversation_messages m
 INNER JOIN conversations c ON c.id = m.conversation_id
 WHERE m.status = 'pending' AND m.type = 'outgoing' AND m.private = false
