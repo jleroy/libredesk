@@ -56,7 +56,16 @@ type fromNameAgent struct{ FirstName, LastName, FullName string }
 
 type fromNameInbox struct{ Name string }
 
+// previousMessage is one earlier message exposed to the outgoing email template. String fields are HTML-escaped.
 type previousMessage struct {
+	SenderName  string
+	SenderEmail string
+	CreatedAt   time.Time
+	IsIncoming  bool
+	Content     string
+}
+
+type previousMessageRow struct {
 	CreatedAt   time.Time `db:"created_at"`
 	IsIncoming  bool      `db:"is_incoming"`
 	Content     string    `db:"content"`
@@ -304,7 +313,8 @@ func (m *Manager) RenderMessageInTemplate(channel string, message *models.Messag
 		}
 
 		content := m.emailTemplateContent(message, data)
-		if isContinuity, _ := data["IsContinuityEmail"].(bool); !isContinuity {
+		isContinuity, _ := data["IsContinuityEmail"].(bool)
+		if !isContinuity && (strings.Contains(content, "PreviousMessages") || m.template.DefaultOutgoingEmailTemplateContains("PreviousMessages")) {
 			data["PreviousMessages"] = m.previousMessagesData(message.ConversationID, message.ID)
 		}
 		message.Content, err = m.template.RenderEmailWithTemplate(data, content)
@@ -343,31 +353,29 @@ func (m *Manager) emailTemplateContent(message *models.Message, data map[string]
 	return content
 }
 
-// previousMessagesData returns the conversation's earlier public messages, newest first, as plain text with quoted reply chains removed.
-func (m *Manager) previousMessagesData(conversationID, messageID int) []map[string]any {
-	out := []map[string]any{}
-	var rows []previousMessage
+// previousMessagesData returns the conversation's earlier messages exchanged with the contact, newest first, with incoming reply chains removed.
+func (m *Manager) previousMessagesData(conversationID, messageID int) []previousMessage {
+	out := []previousMessage{}
+	var rows []previousMessageRow
 	if err := m.q.GetPreviousMessages.Select(&rows, conversationID, messageID, maxPreviousMessages); err != nil {
 		m.lo.Error("error fetching previous messages", "conversation_id", conversationID, "error", err)
 		return out
 	}
 	for _, r := range rows {
 		text := strings.TrimSpace(r.TextContent)
-		if r.ContentType == models.ContentTypeHTML {
-			text = stringutil.HTML2TextNoQuotes(r.Content)
-			if text == "" {
-				text = stringutil.HTML2TextMarkdownLinks(r.Content)
-			}
-		} else if trimmed := stringutil.TrimPlainTextQuotes(text); trimmed != "" {
-			text = trimmed
+		if r.IsIncoming {
+			text = textWithoutQuotedReplies(models.Message{Content: r.Content, TextContent: r.TextContent, ContentType: r.ContentType})
+		}
+		if text == "" {
+			continue
 		}
 		sender := umodels.User{FirstName: r.FirstName, LastName: r.LastName}
-		out = append(out, map[string]any{
-			"SenderName":  html.EscapeString(strings.TrimSpace(sender.FullName())),
-			"SenderEmail": html.EscapeString(r.Email),
-			"CreatedAt":   r.CreatedAt,
-			"IsIncoming":  r.IsIncoming,
-			"Content":     strings.ReplaceAll(html.EscapeString(text), "\n", "<br>"),
+		out = append(out, previousMessage{
+			SenderName:  html.EscapeString(strings.TrimSpace(sender.FullName())),
+			SenderEmail: html.EscapeString(r.Email),
+			CreatedAt:   r.CreatedAt,
+			IsIncoming:  r.IsIncoming,
+			Content:     strings.ReplaceAll(html.EscapeString(text), "\n", "<br>"),
 		})
 	}
 	return out

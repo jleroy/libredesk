@@ -874,13 +874,23 @@ SELECT
     COALESCE(u.last_name, '') AS last_name,
     COALESCE(u.email, '') AS email
 FROM conversation_messages m
+JOIN conversations c ON c.id = m.conversation_id
 JOIN users u ON u.id = m.sender_id
+JOIN users ct ON ct.id = c.contact_id
 WHERE m.conversation_id = $1
 AND m.id < $2
-AND m.type IN ('incoming', 'outgoing')
 AND m.private = false
 AND m.status != 'failed'
 AND NOT COALESCE((m.meta->>'continuity_email')::boolean, false)
+AND NOT COALESCE((m.meta->>'is_csat')::boolean, false)
+AND (
+    (m.type = 'incoming' AND m.sender_id = c.contact_id)
+    OR (m.type = 'outgoing' AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements_text(COALESCE(m.meta->'to', '[]'::jsonb) || COALESCE(m.meta->'cc', '[]'::jsonb)) AS r(addr)
+        WHERE lower(r.addr) = lower(ct.email)
+    ))
+)
 ORDER BY m.id DESC
 LIMIT $3;
 
