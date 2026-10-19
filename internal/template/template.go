@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"strings"
 	"sync"
 	texttemplate "text/template"
 
@@ -136,6 +137,15 @@ func (m *Manager) Delete(id int) error {
 		return envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return nil
+}
+
+// DefaultOutgoingEmailTemplateContains reports whether the default outgoing email template body contains s.
+func (m *Manager) DefaultOutgoingEmailTemplateContains(s string) bool {
+	t, err := m.getDefaultOutgoingEmailTemplate()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(t.Body, s)
 }
 
 // isBuiltIn returns true if the template is built-in.

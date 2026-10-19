@@ -392,6 +392,7 @@ type queries struct {
 	GetContactUnreadPreviewMessages    *sqlx.Stmt `query:"get-contact-unread-preview-messages"`
 	GetOutgoingPendingMessages         *sqlx.Stmt `query:"get-outgoing-pending-messages"`
 	GetMessageSourceIDs                *sqlx.Stmt `query:"get-message-source-ids"`
+	GetPreviousMessages                *sqlx.Stmt `query:"get-previous-messages"`
 	GetEmailSenderMessage              *sqlx.Stmt `query:"get-email-sender-message"`
 	GetConversationUUIDFromMessageUUID *sqlx.Stmt `query:"get-conversation-uuid-from-message-uuid"`
 	MessageExistsBySourceID            *sqlx.Stmt `query:"message-exists-by-source-id"`
@@ -1432,7 +1433,10 @@ func (m *Manager) sendReplyNotification(conversation models.Conversation, messag
 	if len(group.recipients) == 0 {
 		return
 	}
-	messageText := replyNotificationText(message)
+	messageText := textWithoutQuotedReplies(message)
+	if messageText == "" && len(message.Attachments) > 0 {
+		messageText = m.i18n.Tc("globals.terms.attachment", len(message.Attachments))
+	}
 	candidateIDs := make([]int, len(group.recipients))
 	for i, recipient := range group.recipients {
 		candidateIDs[i] = recipient.ID
@@ -2493,12 +2497,11 @@ func listTypeWhereClause(conditions []string) string {
 	return "AND (" + strings.Join(conditions, " OR ") + ")"
 }
 
-func replyNotificationText(message models.Message) string {
-	full := strings.TrimSpace(message.TextContent)
+func textWithoutQuotedReplies(message models.Message) string {
 	if message.ContentType == models.ContentTypeHTML {
-		return cmp.Or(stringutil.HTML2TextNoQuotes(message.Content), full)
+		return stringutil.HTML2TextNoQuotes(message.Content)
 	}
-	return cmp.Or(stringutil.TrimPlainTextQuotes(full), full)
+	return stringutil.TrimPlainTextQuotes(strings.TrimSpace(message.TextContent))
 }
 
 // readScopeArgs returns the agent's team IDs and read permissions in the argument order the read-permission queries expect.
