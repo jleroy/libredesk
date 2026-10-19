@@ -915,6 +915,13 @@ AND NOT EXISTS (
 )
 ORDER BY m.id
 
+-- name: get-csat-messages
+SELECT m.uuid, m.meta, c.uuid AS conversation_uuid
+FROM csat_responses r
+JOIN conversations c ON c.id = r.conversation_id
+JOIN conversation_messages m ON m.conversation_id = c.id
+WHERE r.uuid = $1 AND m.meta->>'csat_uuid' = r.uuid::text;
+
 -- name: get-message
 SELECT
     m.id,

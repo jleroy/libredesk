@@ -102,8 +102,8 @@ const businessHours = ref([])
 const error = ref('')
 const pendingDelete = ref(null)
 const stats = ref([])
-const from = ref(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
-const to = ref(new Date().toISOString().slice(0, 10))
+const from = ref('')
+const to = ref('')
 const brandSenderName = computed(() => props.brandName.trim() || t('widget.brandBot'))
 const campaignEventExample = computed(
   () => `window.Libredesk.trackEvent(${JSON.stringify(campaign.value?.event || 'pricing_viewed')})`
@@ -286,13 +286,24 @@ const refreshStats = async () => {
 
 onMounted(async () => {
   try {
-    const response = await api.getAllBusinessHours()
+    const [response, settingsResponse] = await Promise.all([
+      api.getAllBusinessHours(),
+      api.getSettings('general')
+    ])
     const data = response.data.data
     businessHours.value = data.results || data
+    const dateFormat = new Intl.DateTimeFormat('en-CA', {
+      timeZone: settingsResponse.data.data['app.timezone'] || 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+    from.value = dateFormat.format(new Date(Date.now() - 30 * 86400000))
+    to.value = dateFormat.format(new Date())
+    await refreshStats()
   } catch (err) {
     error.value = handleHTTPError(err).message
   }
-  await refreshStats()
 })
 </script>
 

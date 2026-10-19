@@ -226,8 +226,12 @@
         createElements () {
             const branding = this.branding();
 
-            this.toggleButton = document.createElement('div');
+            this.toggleButton = document.createElement('button');
+            this.toggleButton.type = 'button';
             this.toggleButton.style.cssText = `
+                all: revert;
+                border: 0;
+                padding: 0;
                 position: fixed;
                 cursor: pointer;
                 z-index: 9999;
@@ -243,6 +247,7 @@
             `;
 
             this.iconContainer = document.createElement('div');
+            this.iconContainer.setAttribute('aria-hidden', 'true');
             this.iconContainer.style.cssText = `
                 width: 100%;
                 height: 100%;
@@ -255,6 +260,7 @@
             const iconTransition = `opacity ${this.OPEN_MS}ms ${this.EASE_OUT}, transform ${this.OPEN_MS}ms ${this.EASE_OUT}`;
 
             this.defaultIcon = document.createElement('img');
+            this.defaultIcon.alt = '';
             this.defaultIcon.src = branding.launcher?.logo_url || (this.config.baseURL + DEFAULT_LAUNCHER_LOGO_PATH);
             this.defaultIcon.style.transition = iconTransition;
             this.styleLauncherIcon();
@@ -320,6 +326,8 @@
             this.widgetButtonWrapper = widgetButtonWrapper;
 
             this.iframe = document.createElement('iframe');
+            this.iframe.id = `libredesk-widget-${this.config.inboxID}`;
+            this.toggleButton.setAttribute('aria-controls', this.iframe.id);
             this.iframe.src = `${this.config.baseURL}/widget?inbox_id=${encodeURIComponent(this.config.inboxID)}&parent_origin=${encodeURIComponent(window.location.origin)}` +
                 (this.language ? `&lang=${encodeURIComponent(this.language)}` : '');
             this.iframeLanguage = this.language;
@@ -498,6 +506,7 @@
                 case 'REPLY_PREVIEWS':
                     if (event.data.previews?.length && this.campaignData) this.dropCampaign(this.campaignData.id);
                     this.previewData = event.data;
+                    this.setLauncherIcon(this.isChatVisible);
                     this.renderPreviews();
                     break;
                 case 'VUE_APP_READY':
@@ -668,6 +677,7 @@
             if (this.unreadCount > 0) this.showUnreadBadge(this.unreadCount);
 
             this.postToIframe({ type: 'WIDGET_CLOSED' });
+            if (document.activeElement === iframe) this.toggleButton.focus();
 
             if (this._onHideCallback) this._onHideCallback();
         }
@@ -680,6 +690,8 @@
         }
 
         setLauncherIcon (open) {
+            this.toggleButton.setAttribute('aria-expanded', String(open));
+            this.toggleButton.setAttribute('aria-label', this.previewData?.labels?.[open ? 'closeChat' : 'openChat'] || 'libredesk');
             const hidden = (deg) => this.reducedMotion ? 'none' : `rotate(${deg}deg) scale(0.9)`;
             if (this.defaultIcon) {
                 this.defaultIcon.style.opacity = open ? '0' : '1';

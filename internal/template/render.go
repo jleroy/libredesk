@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+	"text/template/parse"
 
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
@@ -74,7 +75,15 @@ func (m *Manager) RenderEmailWithTemplate(data any, content string) (string, err
 		return "", fmt.Errorf("parsing base template: %w", err)
 	}
 
-	contentTemplate, err := template.New(TmplContent).Funcs(m.funcMap).Parse(content)
+	contentCount := 0
+	trackContent := template.FuncMap{
+		"_libredeskTrackContent": func() string {
+			contentCount++
+			return ""
+		},
+	}
+	baseTemplate.Funcs(trackContent)
+	contentTemplate, err := template.New(TmplContent).Funcs(m.funcMap).Funcs(trackContent).Parse(`{{_libredeskTrackContent}}` + content)
 	if err != nil {
 		return "", fmt.Errorf("parsing content template: %w", err)
 	}
@@ -89,6 +98,9 @@ func (m *Manager) RenderEmailWithTemplate(data any, content string) (string, err
 		return "", fmt.Errorf("executing base template: %w", err)
 	}
 
+	if contentCount != 1 {
+		return "", fmt.Errorf("outgoing template rendered the reply %d times, expected once", contentCount)
+	}
 	return rendered.String(), nil
 }
 
@@ -214,4 +226,44 @@ func personData(person umodels.User) map[string]any {
 		"FullName":  person.FullName(),
 		"Email":     person.Email.String,
 	}
+}
+
+func parseOutgoingTemplate(body string, funcs template.FuncMap) (*template.Template, error) {
+	tmpl, err := template.New(TmplBase).Funcs(funcs).Parse(body)
+	if err != nil {
+		return nil, err
+	}
+	count := 0
+	for _, part := range tmpl.Templates() {
+		count += countContentTemplates(part.Tree.Root)
+	}
+	if count == 0 {
+		return nil, fmt.Errorf("outgoing template contains no reply template")
+	}
+	return tmpl, nil
+}
+
+func countContentTemplates(node parse.Node) int {
+	switch node := node.(type) {
+	case *parse.TemplateNode:
+		if node.Name == TmplContent {
+			return 1
+		}
+	case *parse.ListNode:
+		if node == nil {
+			return 0
+		}
+		count := 0
+		for _, child := range node.Nodes {
+			count += countContentTemplates(child)
+		}
+		return count
+	case *parse.IfNode:
+		return countContentTemplates(node.List) + countContentTemplates(node.ElseList)
+	case *parse.RangeNode:
+		return countContentTemplates(node.List) + countContentTemplates(node.ElseList)
+	case *parse.WithNode:
+		return countContentTemplates(node.List) + countContentTemplates(node.ElseList)
+	}
+	return 0
 }
