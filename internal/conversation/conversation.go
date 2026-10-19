@@ -1431,7 +1431,10 @@ func (m *Manager) sendReplyNotification(conversation models.Conversation, messag
 	if len(group.recipients) == 0 {
 		return
 	}
-	messageText := cmp.Or(textWithoutQuotedReplies(message), strings.TrimSpace(message.TextContent))
+	messageText := textWithoutQuotedReplies(message)
+	if messageText == "" && len(message.Attachments) > 0 {
+		messageText = m.i18n.Tc("globals.terms.attachment", len(message.Attachments))
+	}
 	candidateIDs := make([]int, len(group.recipients))
 	for i, recipient := range group.recipients {
 		candidateIDs[i] = recipient.ID
