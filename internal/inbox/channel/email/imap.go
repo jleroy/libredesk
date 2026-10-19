@@ -618,7 +618,7 @@ func partToAttachment(part *enmime.Part, disposition string) attachment.Attachme
 func getContactName(imapAddr imap.Address) (string, string) {
 	first, last := stringutil.SplitName(imapAddr.Name)
 	if first == "" {
-		return imapAddr.Mailbox, ""
+		return stringutil.CapitalizeFirst(imapAddr.Mailbox), ""
 	}
 	return first, last
 }
