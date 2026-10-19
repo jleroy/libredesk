@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net/mail"
 	"path/filepath"
 	"regexp"
@@ -38,7 +39,8 @@ import (
 const (
 	maxMessagesPerPage = 500
 	// Only allow visitor-to-contact upgrade within this window after the last continuity email.
-	upgradeWindowTTL = 7 * 24 * time.Hour
+	upgradeWindowTTL    = 7 * 24 * time.Hour
+	maxPreviousMessages = 10
 )
 
 // Matches <img ... src="URL"> and captures the URL for downstream parsing.
@@ -53,6 +55,26 @@ type fromNameVars struct {
 type fromNameAgent struct{ FirstName, LastName, FullName string }
 
 type fromNameInbox struct{ Name string }
+
+// previousMessage is one earlier message exposed to the outgoing email template. String fields are HTML-escaped.
+type previousMessage struct {
+	SenderName  string
+	SenderEmail string
+	CreatedAt   time.Time
+	IsIncoming  bool
+	Content     string
+}
+
+type previousMessageRow struct {
+	CreatedAt   time.Time `db:"created_at"`
+	IsIncoming  bool      `db:"is_incoming"`
+	Content     string    `db:"content"`
+	TextContent string    `db:"text_content"`
+	ContentType string    `db:"content_type"`
+	FirstName   string    `db:"first_name"`
+	LastName    string    `db:"last_name"`
+	Email       string    `db:"email"`
+}
 
 // Run starts a pool of worker goroutines to handle message dispatching via inbox's channel and processes incoming messages. It scans for
 // pending outgoing messages at the specified read interval and pushes them to the outgoing queue to be sent.
@@ -291,6 +313,10 @@ func (m *Manager) RenderMessageInTemplate(channel string, message *models.Messag
 		}
 
 		content := m.emailTemplateContent(message, data)
+		isContinuity, _ := data["IsContinuityEmail"].(bool)
+		if !isContinuity && m.template.DefaultOutgoingEmailTemplateContains("PreviousMessages") {
+			data["PreviousMessages"] = m.previousMessagesData(message.ConversationID, message.ID)
+		}
 		message.Content, err = m.template.RenderEmailWithTemplate(data, content)
 		if err != nil {
 			m.lo.Error("could not render email content using template", "id", message.ID, "error", err)
@@ -325,6 +351,34 @@ func (m *Manager) emailTemplateContent(message *models.Message, data map[string]
 		return content + "{{ .ArticleReferences }}"
 	}
 	return content
+}
+
+// previousMessagesData returns the conversation's earlier messages exchanged with the contact, newest first, with incoming reply chains removed.
+func (m *Manager) previousMessagesData(conversationID, messageID int) []previousMessage {
+	out := []previousMessage{}
+	var rows []previousMessageRow
+	if err := m.q.GetPreviousMessages.Select(&rows, conversationID, messageID, maxPreviousMessages); err != nil {
+		m.lo.Error("error fetching previous messages", "conversation_id", conversationID, "error", err)
+		return out
+	}
+	for _, r := range rows {
+		text := strings.TrimSpace(r.TextContent)
+		if r.IsIncoming {
+			text = textWithoutQuotedReplies(models.Message{Content: r.Content, TextContent: r.TextContent, ContentType: r.ContentType})
+		}
+		if text == "" {
+			continue
+		}
+		sender := umodels.User{FirstName: r.FirstName, LastName: r.LastName}
+		out = append(out, previousMessage{
+			SenderName:  html.EscapeString(strings.TrimSpace(sender.FullName())),
+			SenderEmail: html.EscapeString(r.Email),
+			CreatedAt:   r.CreatedAt,
+			IsIncoming:  r.IsIncoming,
+			Content:     strings.ReplaceAll(html.EscapeString(text), "\n", "<br>"),
+		})
+	}
+	return out
 }
 
 // GetConversationMessages retrieves messages for a specific conversation.
