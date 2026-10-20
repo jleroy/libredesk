@@ -374,11 +374,12 @@ describe('Conversation lifecycle', () => {
     it(`preserves a minimized reply through reload and send ${copies.name}`, () => {
       const content = `Minimized reply ${copies.name} ${stamp}`
       const sender = `lifecycle+${stamp}@cypress.test`
-      const to = [customerEmail, 'second.recipient@example.com']
+      const contactEmail = `minimized.${copies.name.replaceAll(' ', '.')}.${stamp}@example.com`
+      const to = [contactEmail, 'second.recipient@example.com']
       const uploads = []
       let uuid
       cy.api('POST', '/api/v1/conversations', {
-        inbox_id: inboxId, contact_email: customerEmail, first_name: 'Minimize', subject: content,
+        inbox_id: inboxId, contact_email: contactEmail, first_name: 'Minimize', subject: content,
         content: '<p>Minimize test conversation.</p>', initiator: 'contact'
       }).then(({ body }) => {
         uuid = body.data.uuid
