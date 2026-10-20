@@ -140,8 +140,13 @@ describe('Email inbox form', () => {
     cy.contains('New support inbox').should('be.visible')
   })
 
-  for (const protocol of ['None', 'Login']) {
-    it(`validates empty SMTP credentials with ${protocol} authentication`, () => {
+  for (const [protocol, value] of [
+    ['None', 'none'],
+    ['Login', 'login'],
+    ['CRAM', 'cram'],
+    ['Plain', 'plain']
+  ]) {
+    it(`validates and saves SMTP credentials with ${protocol} authentication`, () => {
       openManualForm()
       fillRequiredFields()
       field('smtp.username').clear()
@@ -160,6 +165,22 @@ describe('Email inbox form', () => {
         cy.get('@createInbox.all').should('have.length', 0)
         field('smtp.username').parent().parent().should('contain.text', 'Required')
         field('smtp.password').parent().parent().should('contain.text', 'Required')
+        field('smtp.username').type('support@example.com')
+        submit()
+        field('smtp.password').should('have.attr', 'aria-invalid', 'true')
+        cy.get('@createInbox.all').should('have.length', 0)
+        field('smtp.username').clear()
+        field('smtp.password').type('test-password')
+        submit()
+        field('smtp.username').should('have.attr', 'aria-invalid', 'true')
+        cy.get('@createInbox.all').should('have.length', 0)
+        field('smtp.username').type('support@example.com')
+        submit()
+        cy.wait('@createInbox').then(({ request }) => {
+          expect(request.body.config.smtp[0].auth_protocol).to.eq(value)
+          expect(request.body.config.smtp[0].username).to.eq('support@example.com')
+          expect(request.body.config.smtp[0].password).to.eq('test-password')
+        })
       }
     })
   }

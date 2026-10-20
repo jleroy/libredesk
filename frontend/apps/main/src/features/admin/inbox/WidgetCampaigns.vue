@@ -102,8 +102,8 @@ const businessHours = ref([])
 const error = ref('')
 const pendingDelete = ref(null)
 const stats = ref([])
-const from = ref('')
-const to = ref('')
+const from = ref(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
+const to = ref(new Date().toISOString().slice(0, 10))
 const brandSenderName = computed(() => props.brandName.trim() || t('widget.brandBot'))
 const campaignEventExample = computed(
   () => `window.Libredesk.trackEvent(${JSON.stringify(campaign.value?.event || 'pricing_viewed')})`
@@ -285,26 +285,13 @@ const refreshStats = async () => {
 }
 
 onMounted(async () => {
-  const [hoursResult, settingsResult] = await Promise.allSettled([
-    api.getAllBusinessHours(),
-    api.getSettings('general')
-  ])
-  if (hoursResult.status === 'fulfilled') {
-    const data = hoursResult.value.data.data
+  try {
+    const response = await api.getAllBusinessHours()
+    const data = response.data.data
     businessHours.value = data.results || data
+  } catch (err) {
+    error.value = handleHTTPError(err).message
   }
-  const failed = [hoursResult, settingsResult].find((result) => result.status === 'rejected')
-  if (failed) error.value = handleHTTPError(failed.reason).message
-  const dateFormat = new Intl.DateTimeFormat('en-CA', {
-    timeZone:
-      (settingsResult.status === 'fulfilled' && settingsResult.value.data.data['app.timezone']) ||
-      'UTC',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
-  from.value = dateFormat.format(new Date(Date.now() - 30 * 86400000))
-  to.value = dateFormat.format(new Date())
   await refreshStats()
 })
 </script>
