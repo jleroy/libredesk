@@ -349,6 +349,87 @@ describe('Conversation lifecycle', () => {
     expectSentRecipients(ccConversationUuid, { cc: [], bcc: [] })
   })
 
+  for (const field of ['CC', 'BCC']) {
+    it(`keeps ${field} open and focused while replacing an address`, () => {
+      openConversation(ccConversationUuid)
+      if (field === 'BCC') {
+        cy.contains('button', /^BCC$/).click()
+        recipientRow(/^BCC$/).find('input').type(bccAddress)
+      }
+      recipientRow(new RegExp(`^${field}$`)).find('input').clear()
+      recipientRow(new RegExp(`^${field}$`)).find('input')
+        .should('be.focused').and('have.value', '')
+        .type('replacement@example.com')
+      recipientRow(new RegExp(`^${field}$`)).find('input')
+        .should('have.value', 'replacement@example.com')
+    })
+  }
+
+  it('restores edited reply recipients and sender after reload and a failed send', () => {
+    const sender = 'billing@example.com'
+    const extraRecipient = 'draft.recipient@example.com'
+    const copy = 'draft.copy@example.com'
+    const content = `Reply draft ${stamp}`
+    const update = `Another agent replied ${stamp}`
+    cy.intercept('GET', `**/api/v1/conversations/${ccConversationUuid}`, (req) => {
+      req.continue((res) => {
+        res.body.data.inbox_aliases = [{ email: sender, verification_status: 'verified' }]
+      })
+    })
+    cy.intercept('POST', `**/conversations/${ccConversationUuid}/draft`, (req) => {
+      if (req.body.content?.includes(content)) req.alias = 'savedReplyDraft'
+    })
+    openConversation(ccConversationUuid)
+    recipientRow(/^From$/).find('[role="combobox"]').click()
+    cy.contains('[role="option"]', sender).trigger('keydown', { key: 'Enter' })
+    recipientRow(/^To$/).find('input').clear()
+    recipientRow(/^To$/).find('input').type(`${ccCustomerEmail}, ${extraRecipient}`)
+    recipientRow(/^CC$/).find('input').clear()
+    recipientRow(/^CC$/).find('input').type(copy)
+    cy.contains('button', /^BCC$/).click()
+    recipientRow(/^BCC$/).find('input').type(bccAddress)
+    cy.get('.tiptap.ProseMirror').first().type(content)
+    cy.wait('@savedReplyDraft').its('response.statusCode').should('eq', 200)
+
+    const checkDraft = () => {
+      recipientRow(/^From$/).find('[role="combobox"]').should('contain.text', sender)
+      recipientRow(/^To$/).find('input').should('have.value', `${ccCustomerEmail}, ${extraRecipient}`)
+      recipientRow(/^CC$/).find('input').should('have.value', copy)
+      recipientRow(/^BCC$/).find('input').should('have.value', bccAddress)
+      cy.get('.tiptap.ProseMirror').first().should('contain.text', content)
+    }
+    cy.reload()
+    cy.wait('@loadMessages')
+    checkDraft()
+    cy.api('POST', `/api/v1/conversations/${ccConversationUuid}/messages`, {
+      sender_type: 'agent', private: false, message: `<p>${update}</p>`,
+      to: [ccCustomerEmail], cc: [ccAddress], bcc: []
+    }).its('status').should('eq', 200)
+    cy.contains('[data-message-uuid]', update).should('be.visible')
+    checkDraft()
+
+    cy.intercept('POST', `**/conversations/${ccConversationUuid}/messages`, {
+      statusCode: 500, body: { status: 'error', message: 'Reply failed', error_type: 'GeneralException' }
+    }).as('failedReply')
+    cy.contains('button', /^Send$/).click()
+    cy.wait('@failedReply').its('response.statusCode').should('eq', 500)
+    cy.reload()
+    cy.wait('@loadMessages')
+    checkDraft()
+
+    captureSend()
+    cy.intercept('DELETE', `**/conversations/${ccConversationUuid}/draft*`).as('clearedReplyDraft')
+    cy.contains('button', /^Send$/).click()
+    cy.wait('@captureSend').then(({ request }) => {
+      expect(request.body.send_from).to.eq(sender)
+      expect(request.body.to).to.deep.eq([ccCustomerEmail, extraRecipient])
+      expect(request.body.cc).to.deep.eq([copy])
+      expect(request.body.bcc).to.deep.eq([bccAddress])
+    })
+    cy.wait('@clearedReplyDraft').its('response.statusCode').should('eq', 200)
+    cy.get('.tiptap.ProseMirror').first().should('have.text', '')
+  })
+
   it('preserves edited recipients when switching between conversations', () => {
     captureSend()
     openConversation(ccConversationUuid)

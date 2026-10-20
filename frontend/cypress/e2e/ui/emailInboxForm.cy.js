@@ -140,6 +140,30 @@ describe('Email inbox form', () => {
     cy.contains('New support inbox').should('be.visible')
   })
 
+  for (const protocol of ['None', 'Login']) {
+    it(`validates empty SMTP credentials with ${protocol} authentication`, () => {
+      openManualForm()
+      fillRequiredFields()
+      field('smtp.username').clear()
+      field('smtp.password').clear()
+      cy.toggleEmailInboxAdvanced('smtp')
+      cy.contains('label', 'Authentication Protocol').parent().find('[role="combobox"]').click()
+      cy.contains('[role="option"]', new RegExp(`^${protocol}$`)).click()
+      submit()
+      if (protocol === 'None') {
+        cy.wait('@createInbox').then(({ request }) => {
+          expect(request.body.config.smtp[0].auth_protocol).to.eq('none')
+          expect(request.body.config.smtp[0].username).to.eq('')
+          expect(request.body.config.smtp[0].password).to.eq('')
+        })
+      } else {
+        cy.get('@createInbox.all').should('have.length', 0)
+        field('smtp.username').parent().parent().should('contain.text', 'Required')
+        field('smtp.password').parent().parent().should('contain.text', 'Required')
+      }
+    })
+  }
+
   it('loads saved fields once and saves values from closed sections', () => {
     cy.visit(editPath)
     field('name').should('have.value', 'Support')
