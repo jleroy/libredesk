@@ -84,7 +84,11 @@
           :showDelete="false"
           :loading="loading"
           :skeletonRows="15"
-        />
+        >
+          <template #cell-created_at="{ value }">
+            <TableDate :value="value" />
+          </template>
+        </SimpleTable>
       </div>
     </div>
 
@@ -115,7 +119,7 @@ import { ListFilter, ArrowDownWideNarrow } from 'lucide-vue-next'
 import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
 import { useActivityLogFilters } from '@main/composables/useActivityLogFilters'
 import { useI18n } from 'vue-i18n'
-import { format } from 'date-fns'
+import TableDate from '@main/components/table/TableDate.vue'
 import PaginationBar from '@main/components/pagination/PaginationBar.vue'
 import api from '@main/api'
 
@@ -158,12 +162,6 @@ async function fetchActivityLogs() {
     activityLogs.value = resp.data.data.results
     totalCount.value = resp.data.data.count
     totalPages.value = resp.data.data.total_pages
-
-    // Format the created_at field
-    activityLogs.value = activityLogs.value.map((log) => ({
-      ...log,
-      created_at: format(new Date(log.created_at), 'PPpp')
-    }))
   } catch (err) {
     console.error('Error fetching activity logs:', err)
     activityLogs.value = []

@@ -150,3 +150,12 @@ Pass `reserve-height` when a page needs space for a centered loading indicator.
 | `.link-style` | Muted underlined text with foreground hover color |
 
 Use these utilities when their shared style fits the control.
+
+## Admin tables
+
+Show timestamps as `28 Aug 2026, 3:46 AM`. Keep seconds and the timezone in the full timestamp on hover.
+
+Align headers and cells left. Let data columns share available width naturally, keep statuses and dates on one line, and keep action columns compact.
+Wrap long text to three lines and expose the full value through its title. Keep horizontal overflow inside the table.
+Measure rendered rows so wrapping and resizing preserve virtual scrolling.
+Use compact sorting controls without hover backgrounds. Show unsorted arrows on hover or keyboard focus, and keep the active sort direction visible.

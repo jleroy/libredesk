@@ -23,7 +23,8 @@ vi.mock('@tanstack/vue-virtual', async () => {
             start: index * 52,
             end: (index + 1) * 52
           })),
-        getTotalSize: () => options.count * 52
+        getTotalSize: () => options.count * 52,
+        measureElement: vi.fn()
       }))
   }
 })
