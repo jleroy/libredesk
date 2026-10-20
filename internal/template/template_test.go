@@ -73,26 +73,26 @@ func TestValidateOutgoingTemplate(t *testing.T) {
 		{"empty", "", false},
 		{"missing", "<p>Header</p>", false},
 		{"single", `{{ template "content" . }}`, true},
-		{"duplicate", `{{ template "content" . }}{{ template "content" . }}`, false},
-		{"triple", `{{ template "content" . }}{{ template "content" . }}{{ template "content" . }}`, false},
-		{"trimmed duplicate", `{{- template "content" . -}}<p>Footer</p>{{- template "content" . -}}`, false},
+		{"duplicate", `{{ template "content" . }}{{ template "content" . }}`, true},
+		{"triple", `{{ template "content" . }}{{ template "content" . }}{{ template "content" . }}`, true},
+		{"trimmed duplicate", `{{- template "content" . -}}<p>Footer</p>{{- template "content" . -}}`, true},
 		{"comment only", `{{/* template "content" . */}}`, false},
 		{"comment and single", `{{/* template "content" . */}}{{ template "content" . }}`, true},
 		{"malformed", `{{ template "content" .`, false},
 		{"wrong name", `{{ template "contents" . }}`, false},
 		{"literal template text", `{{ printf "%s" "{{ template \"content\" . }}" }}`, false},
 		{"nested wrappers", `{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`, true},
-		{"nested duplicate", `{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`, false},
+		{"nested duplicate", `{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`, true},
 		{"unused duplicate", `{{ define "unused" }}{{ template "content" . }}{{ template "content" . }}{{ end }}{{ template "content" . }}`, true},
-		{"duplicate alternatives", `{{ if .Show }}{{ template "content" . }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ template "content" . }}{{ end }}`, false},
+		{"duplicate alternatives", `{{ if .Show }}{{ template "content" . }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ template "content" . }}{{ end }}`, true},
 		{"nested alternatives", `{{ if .Show }}{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}{{ else }}{{ template "content" . }}{{ end }}`, true},
 		{"dynamic conditional", `{{ template "content" . }}{{ if .Show }}{{ template "content" . }}{{ end }}`, true},
 		{"alternatives", `{{ if .Show }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
 		{"with alternatives", `{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
-		{"duplicate with alternatives", `{{ template "content" . }}{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, false},
+		{"duplicate with alternatives", `{{ template "content" . }}{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
 		{"unused definition", `{{ define "unused" }}{{ template "content" . }}{{ end }}{{ template "content" . }}`, true},
 		{"single wrapper", `{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}`, true},
-		{"repeated wrapper", `{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`, false},
+		{"repeated wrapper", `{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`, true},
 		{"previous messages", `{{ template "content" . }}{{ range .PreviousMessages }}{{ .Content }}{{ end }}`, true},
 		{"dynamic loop", `{{ range . }}{{ template "content" . }}{{ end }}`, true},
 		{"recursive definition", `{{ define "wrapper" }}{{ template "wrapper" . }}{{ end }}{{ template "wrapper" . }}{{ template "content" . }}`, true},
@@ -123,12 +123,6 @@ func TestOutgoingTemplatePreservesReply(t *testing.T) {
 		"<p>Support header</p>",
 		`{{/* template "content" . */}}`,
 		`{{ template "content" .`,
-		`{{ template "content" . }}{{ template "content" . }}`,
-		`{{- template "content" . -}}<p>Footer</p>{{- template "content" . -}}`,
-		`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`,
-		`{{ template "content" . }}{{ if .Show }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`,
-		`{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`,
-		`{{ if .Show }}{{ template "content" . }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ template "content" . }}{{ end }}`,
 	} {
 		t.Run("reject "+body, func(t *testing.T) {
 			candidate := valid
@@ -154,28 +148,44 @@ func TestOutgoingTemplatePreservesReply(t *testing.T) {
 	if err != nil || stored.Body != valid.Body {
 		t.Fatalf("rejected edit changed template: %+v, %v", stored, err)
 	}
+	for _, body := range []string{
+		`{{ template "content" . }}{{ template "content" . }}`,
+		`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`,
+		`{{ range . }}{{ template "content" . }}{{ end }}`,
+	} {
+		candidate := valid
+		candidate.Body = body
+		candidate.IsDefault = false
+		if _, err := m.Create(candidate); err != nil {
+			t.Fatalf("could not create repeated reply template: %v", err)
+		}
+		candidate.IsDefault = true
+		if _, err := m.Update(saved.ID, candidate); err != nil {
+			t.Fatalf("could not update repeated reply template: %v", err)
+		}
+	}
 	const conditional = `{{ if .Show }}<p>Hello</p>{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`
 	if _, err := m.Update(saved.ID, models.Template{Name: valid.Name, Type: valid.Type, IsDefault: true, Body: conditional}); err != nil {
 		t.Fatalf("rejected a conditional layout that renders the reply once: %v", err)
 	}
 	for _, tc := range []struct {
-		body string
-		data any
-		ok   bool
+		body  string
+		data  any
+		count int
 	}{
-		{valid.Body, nil, true},
-		{`{{template "content" .}}`, nil, true},
-		{`{{- template "content" . -}}`, nil, true},
-		{`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}`, nil, true},
-		{`{{ if .Show }}{{ template "content" . }}{{ end }}`, map[string]any{"Show": true}, true},
-		{`{{ if .Show }}{{ template "content" . }}{{ end }}`, map[string]any{"Show": false}, false},
-		{conditional, map[string]any{"Show": true}, true},
-		{conditional, map[string]any{"Show": false}, true},
-		{`{{ template "content" . }}{{ template "content" . }}`, nil, false},
-		{`{{ range . }}{{ template "content" . }}{{ end }}`, []string{}, false},
-		{`{{ range . }}{{ template "content" . }}{{ end }}`, []string{"first", "second"}, false},
-		{`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`, nil, false},
-		{`<p>Previously saved layout without a reply</p>`, nil, false},
+		{valid.Body, nil, 1},
+		{`{{template "content" .}}`, nil, 1},
+		{`{{- template "content" . -}}`, nil, 1},
+		{`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}`, nil, 1},
+		{`{{ if .Show }}{{ template "content" . }}{{ end }}`, map[string]any{"Show": true}, 1},
+		{`{{ if .Show }}{{ template "content" . }}{{ end }}`, map[string]any{"Show": false}, 0},
+		{conditional, map[string]any{"Show": true}, 1},
+		{conditional, map[string]any{"Show": false}, 1},
+		{`{{ template "content" . }}{{ template "content" . }}`, nil, 2},
+		{`{{ range . }}{{ template "content" . }}{{ end }}`, []string{}, 0},
+		{`{{ range . }}{{ template "content" . }}{{ end }}`, []string{"first", "second"}, 2},
+		{`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`, nil, 2},
+		{`<p>Previously saved layout without a reply</p>`, nil, 0},
 	} {
 		t.Run("render "+tc.body+fmt.Sprint(tc.data), func(t *testing.T) {
 			if _, err := db.Exec(`UPDATE templates SET body = $1 WHERE id = $2`, tc.body, saved.ID); err != nil {
@@ -183,9 +193,9 @@ func TestOutgoingTemplatePreservesReply(t *testing.T) {
 			}
 			const reply = "<p>Your receipt is ready. Café 日本語.</p>"
 			got, err := m.RenderEmailWithTemplate(tc.data, reply)
-			if tc.ok {
-				if err != nil || strings.Count(got, reply) != 1 {
-					t.Fatalf("reply was lost or repeated: %q, %v", got, err)
+			if tc.count > 0 {
+				if err != nil || strings.Count(got, reply) != tc.count {
+					t.Fatalf("unexpected rendered reply: %q, %v", got, err)
 				}
 			} else if err == nil || got != "" {
 				t.Fatalf("unsafe outgoing content accepted: %q, %v", got, err)
