@@ -240,7 +240,42 @@ func parseOutgoingTemplate(body string, funcs template.FuncMap) (*template.Templ
 	if count == 0 {
 		return nil, fmt.Errorf("outgoing template contains no reply template")
 	}
+	if countRequiredContentTemplates(tmpl.Tree.Root, tmpl, make(map[string]bool)) > 1 {
+		return nil, fmt.Errorf("outgoing template repeats the reply template")
+	}
 	return tmpl, nil
+}
+
+func countRequiredContentTemplates(node parse.Node, tmpl *template.Template, visiting map[string]bool) int {
+	switch node := node.(type) {
+	case *parse.TemplateNode:
+		if node.Name == TmplContent {
+			return 1
+		}
+		if visiting[node.Name] {
+			return 0
+		}
+		if part := tmpl.Lookup(node.Name); part != nil {
+			visiting[node.Name] = true
+			count := countRequiredContentTemplates(part.Tree.Root, tmpl, visiting)
+			delete(visiting, node.Name)
+			return count
+		}
+	case *parse.ListNode:
+		if node == nil {
+			return 0
+		}
+		count := 0
+		for _, child := range node.Nodes {
+			count += countRequiredContentTemplates(child, tmpl, visiting)
+		}
+		return count
+	case *parse.IfNode:
+		return min(countRequiredContentTemplates(node.List, tmpl, visiting), countRequiredContentTemplates(node.ElseList, tmpl, visiting))
+	case *parse.WithNode:
+		return min(countRequiredContentTemplates(node.List, tmpl, visiting), countRequiredContentTemplates(node.ElseList, tmpl, visiting))
+	}
+	return 0
 }
 
 func countContentTemplates(node parse.Node) int {

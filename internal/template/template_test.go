@@ -63,6 +63,49 @@ func TestDefaultTemplateConflict(t *testing.T) {
 	}
 }
 
+func TestValidateOutgoingTemplate(t *testing.T) {
+	m := &Manager{i18n: testutil.NewI18n(t)}
+	for _, tc := range []struct {
+		name string
+		body string
+		ok   bool
+	}{
+		{"empty", "", false},
+		{"missing", "<p>Header</p>", false},
+		{"single", `{{ template "content" . }}`, true},
+		{"duplicate", `{{ template "content" . }}{{ template "content" . }}`, false},
+		{"triple", `{{ template "content" . }}{{ template "content" . }}{{ template "content" . }}`, false},
+		{"trimmed duplicate", `{{- template "content" . -}}<p>Footer</p>{{- template "content" . -}}`, false},
+		{"comment only", `{{/* template "content" . */}}`, false},
+		{"comment and single", `{{/* template "content" . */}}{{ template "content" . }}`, true},
+		{"malformed", `{{ template "content" .`, false},
+		{"wrong name", `{{ template "contents" . }}`, false},
+		{"literal template text", `{{ printf "%s" "{{ template \"content\" . }}" }}`, false},
+		{"nested wrappers", `{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`, true},
+		{"nested duplicate", `{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`, false},
+		{"unused duplicate", `{{ define "unused" }}{{ template "content" . }}{{ template "content" . }}{{ end }}{{ template "content" . }}`, true},
+		{"duplicate alternatives", `{{ if .Show }}{{ template "content" . }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ template "content" . }}{{ end }}`, false},
+		{"nested alternatives", `{{ if .Show }}{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}{{ else }}{{ template "content" . }}{{ end }}`, true},
+		{"dynamic conditional", `{{ template "content" . }}{{ if .Show }}{{ template "content" . }}{{ end }}`, true},
+		{"alternatives", `{{ if .Show }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
+		{"with alternatives", `{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
+		{"duplicate with alternatives", `{{ template "content" . }}{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, false},
+		{"unused definition", `{{ define "unused" }}{{ template "content" . }}{{ end }}{{ template "content" . }}`, true},
+		{"single wrapper", `{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}`, true},
+		{"repeated wrapper", `{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`, false},
+		{"previous messages", `{{ template "content" . }}{{ range .PreviousMessages }}{{ .Content }}{{ end }}`, true},
+		{"dynamic loop", `{{ range . }}{{ template "content" . }}{{ end }}`, true},
+		{"recursive definition", `{{ define "wrapper" }}{{ template "wrapper" . }}{{ end }}{{ template "wrapper" . }}{{ template "content" . }}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := m.validateOutgoingTemplate(models.Template{Type: TypeEmailOutgoing, Body: tc.body})
+			if (err == nil) != tc.ok {
+				t.Fatalf("validation error = %v, want valid = %v", err, tc.ok)
+			}
+		})
+	}
+}
+
 func TestOutgoingTemplatePreservesReply(t *testing.T) {
 	db := testutil.NewDB(t, "outgoing_template_content")
 	lo := logf.New(logf.Opts{})
@@ -80,6 +123,12 @@ func TestOutgoingTemplatePreservesReply(t *testing.T) {
 		"<p>Support header</p>",
 		`{{/* template "content" . */}}`,
 		`{{ template "content" .`,
+		`{{ template "content" . }}{{ template "content" . }}`,
+		`{{- template "content" . -}}<p>Footer</p>{{- template "content" . -}}`,
+		`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`,
+		`{{ template "content" . }}{{ if .Show }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`,
+		`{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`,
+		`{{ if .Show }}{{ template "content" . }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ template "content" . }}{{ end }}`,
 	} {
 		t.Run("reject "+body, func(t *testing.T) {
 			candidate := valid
@@ -90,6 +139,14 @@ func TestOutgoingTemplatePreservesReply(t *testing.T) {
 			}
 			if _, err := m.Update(saved.ID, candidate); err == nil {
 				t.Fatal("updated to an invalid outgoing template")
+			}
+			stored, err := m.Get(saved.ID)
+			if err != nil || stored.Body != valid.Body || !stored.IsDefault {
+				t.Fatalf("rejected edit changed the saved template: %+v, %v", stored, err)
+			}
+			var count int
+			if err := db.Get(&count, `SELECT COUNT(*) FROM templates WHERE type = $1`, TypeEmailOutgoing); err != nil || count != 1 {
+				t.Fatalf("rejected create changed template count: %d, %v", count, err)
 			}
 		})
 	}
