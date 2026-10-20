@@ -228,6 +228,7 @@ func personData(person umodels.User) map[string]any {
 	}
 }
 
+// parseOutgoingTemplate rejects invalid syntax, missing reply calls, and unconditional duplicates. Conditional reply counts are checked during rendering.
 func parseOutgoingTemplate(body string, funcs template.FuncMap) (*template.Template, error) {
 	tmpl, err := template.New(TmplBase).Funcs(funcs).Parse(body)
 	if err != nil {
