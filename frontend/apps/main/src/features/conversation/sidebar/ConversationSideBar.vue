@@ -254,7 +254,7 @@ const sections = computed(() => [
     label: t('globals.terms.note', 2),
     visible: !!conversationStore.current?.contact?.id && userStore.can('contact_notes:read')
   },
-  { id: 'previous_conversations', label: t('conversation.sidebar.previousConvo') }
+  { id: 'previous_conversations', label: t('globals.terms.conversation', 2) }
 ])
 const sectionOrder = useStorage(
   computed(() => `conversation-sidebar-section-order:${userStore.userID}`),
