@@ -63,6 +63,42 @@ func TestDefaultTemplateConflict(t *testing.T) {
 	}
 }
 
+func TestUpdateDefaultTemplateType(t *testing.T) {
+	db := testutil.NewDB(t, "default_template_type")
+	lo := logf.New(logf.Opts{})
+	m, err := New(&lo, db, nil /** webTpls **/, nil /** tpls **/, nil /** funcMap **/, testutil.NewI18n(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := m.Create(models.Template{Name: "Layout", Type: TypeEmailOutgoing, Body: `{{ template "content" . }}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, typ := range []string{TypeEmailNotification, "", "invalid", TypeEmailOutgoing} {
+		candidate := saved
+		candidate.Type = typ
+		candidate.IsDefault = true
+		updated, err := m.Update(saved.ID, candidate)
+		if err != nil || updated.Type != TypeEmailOutgoing || !updated.IsDefault {
+			t.Fatalf("default type %q was not normalized: %+v, %v", typ, updated, err)
+		}
+		stored, err := m.Get(saved.ID)
+		if err != nil || stored.Type != TypeEmailOutgoing || !stored.IsDefault {
+			t.Fatalf("incorrect persisted default: %+v, %v", stored, err)
+		}
+		candidate.Body = "<p>No reply placeholder</p>"
+		if _, err := m.Update(saved.ID, candidate); err == nil {
+			t.Fatalf("accepted default type %q without a reply", typ)
+		}
+	}
+	saved.Type = TypeEmailNotification
+	saved.Body = "<p>Notification</p>"
+	updated, err := m.Update(saved.ID, saved)
+	if err != nil || updated.Type != TypeEmailNotification || updated.IsDefault {
+		t.Fatalf("changed nondefault notification type: %+v, %v", updated, err)
+	}
+}
+
 func TestValidateOutgoingTemplate(t *testing.T) {
 	m := &Manager{i18n: testutil.NewI18n(t)}
 	for _, tc := range []struct {

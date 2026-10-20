@@ -66,6 +66,9 @@ func New(lo *logf.Logger, db *sqlx.DB, webTpls *template.Template, tpls *templat
 
 // Update updates a new template with the given name, and body.
 func (m *Manager) Update(id int, t models.Template) (models.Template, error) {
+	if t.IsDefault {
+		t.Type = TypeEmailOutgoing
+	}
 	if err := m.validateOutgoingTemplate(t); err != nil {
 		return models.Template{}, err
 	}
