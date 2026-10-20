@@ -14,7 +14,7 @@
       :style="{ maxHeight }"
       :aria-busy="loading"
     >
-      <table class="w-full caption-bottom text-sm sm:w-max sm:min-w-full">
+      <table class="w-full table-auto caption-bottom text-sm">
         <TableHeader class="sticky top-0 z-10 bg-card">
           <TableRow
             v-for="headerGroup in table.getHeaderGroups()"
@@ -34,9 +34,12 @@
                       : 'none'
                   : undefined
               "
-              class="h-11 px-4 text-center text-sm font-medium text-muted-foreground sm:whitespace-nowrap"
+              class="h-11 px-4 text-left text-sm font-medium text-muted-foreground"
               :class="{
-                'max-sm:hidden': isHiddenOnPhone(header.column.id, headerIndex)
+                'max-sm:hidden': isHiddenOnPhone(header.column.id, headerIndex),
+                'whitespace-nowrap': header.column.columnDef.meta?.compact || header.column.id === 'actions',
+                'w-px': header.column.id === 'actions',
+                'min-w-40': !header.column.columnDef.meta?.compact && header.column.id !== 'actions'
               }"
             >
               <Button
@@ -44,7 +47,8 @@
                 type="button"
                 variant="ghost"
                 size="sm"
-                class="group h-auto w-full gap-2 py-2 text-muted-foreground hover:text-foreground"
+                class="group h-auto justify-start gap-2 whitespace-normal px-0 py-2 text-left text-muted-foreground can-hover:hover:bg-transparent can-hover:hover:text-foreground"
+                :class="{ 'whitespace-nowrap': header.column.columnDef.meta?.compact }"
                 @click="header.column.getToggleSortingHandler()?.($event)"
               >
                 <FlexRender
@@ -54,21 +58,21 @@
                 />
                 <ChevronUp
                   v-if="header.column.getIsSorted() === 'asc'"
-                  class="h-3.5 w-3.5"
+                  class="h-3.5 w-3.5 shrink-0"
                   aria-hidden="true"
                 />
                 <ChevronDown
                   v-else-if="header.column.getIsSorted() === 'desc'"
-                  class="h-3.5 w-3.5"
+                  class="h-3.5 w-3.5 shrink-0"
                   aria-hidden="true"
                 />
                 <ArrowUpDown
                   v-else
-                  class="h-3.5 w-3.5 opacity-50 can-hover:opacity-0 can-hover:group-hover:opacity-50 group-focus-visible:opacity-50"
+                  class="h-3.5 w-3.5 shrink-0 opacity-50 can-hover:opacity-0 can-hover:group-hover:opacity-50 group-focus-visible:opacity-50"
                   aria-hidden="true"
                 />
               </Button>
-              <div v-else class="flex items-center justify-center gap-2">
+              <div v-else class="flex items-center gap-2">
                 <FlexRender
                   v-if="!header.isPlaceholder"
                   :render="header.column.columnDef.header"
@@ -85,6 +89,7 @@
             <TableRow
               v-for="virtualRow in virtualRows"
               :key="rows[virtualRow.index].id"
+              :ref="measureRow"
               :data-index="virtualRow.index"
               :data-state="rows[virtualRow.index].getIsSelected() ? 'selected' : undefined"
               class="group/row border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30 data-[state=selected]:bg-muted"
@@ -92,13 +97,19 @@
               <TableCell
                 v-for="(cell, cellIndex) in rows[virtualRow.index].getVisibleCells()"
                 :key="cell.id"
-                class="px-4 py-3 text-center text-sm sm:whitespace-nowrap"
+                class="px-4 py-3 text-left text-sm [overflow-wrap:anywhere]"
                 :class="[
                   cell.column.id === 'actions' ? actionCellClass : '',
+                  cell.column.columnDef.meta?.compact && 'whitespace-nowrap',
                   isHiddenOnPhone(cell.column.id, cellIndex) && 'max-sm:hidden'
                 ]"
               >
-                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                <div
+                  :class="{ 'line-clamp-3': !cell.column.columnDef.meta?.compact && cell.column.id !== 'actions' }"
+                  :title="!cell.column.columnDef.meta?.compact && typeof cell.getValue() === 'string' ? cell.getValue() : undefined"
+                >
+                  <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                </div>
               </TableCell>
             </TableRow>
             <tr v-if="paddingBottom > 0" :style="{ height: `${paddingBottom}px` }"></tr>
@@ -163,7 +174,7 @@ const overlayLoading = inject(LOADING_OVERLAY_INJECTION_KEY, ref(false))
 
 // Hidden until row-hover on pointer devices; always shown on touch, focus, and while the menu is open.
 const actionCellClass =
-  'transition-opacity duration-150 can-hover:opacity-0 can-hover:group-hover/row:opacity-100 focus-within:!opacity-100 [&:has([data-state=open])]:!opacity-100 max-md:[&_button]:size-11'
+  'w-px whitespace-nowrap transition-opacity duration-150 can-hover:opacity-0 can-hover:group-hover/row:opacity-100 focus-within:!opacity-100 [&:has([data-state=open])]:!opacity-100 max-md:[&_button]:size-11'
 
 const isHiddenOnPhone = (columnId, index) =>
   (index > 1 && columnId !== 'actions') || ['created_at', 'updated_at'].includes(columnId)
@@ -209,6 +220,7 @@ const table = useVueTable({
   get columns() {
     return props.columns
   },
+  getRowId: (row) => String(row.id),
   state: {
     get sorting() {
       return sorting.value
@@ -233,15 +245,25 @@ const table = useVueTable({
 
 const scrollContainer = ref(null)
 const rows = computed(() => table.getRowModel().rows)
+const getRowKey = computed(() => {
+  const currentRows = rows.value
+  return (index) => currentRows[index].id
+})
 
 const rowVirtualizer = useVirtualizer({
   get count() {
     return rows.value.length
   },
+  get getItemKey() {
+    return getRowKey.value
+  },
   getScrollElement: () => scrollContainer.value,
   estimateSize: () => props.estimatedRowHeight,
   overscan: 10
 })
+
+// Wrapped rows change height when content or available width changes.
+const measureRow = (row) => rowVirtualizer.value.measureElement(row?.$el)
 
 const virtualRows = computed(() => rowVirtualizer.value.getVirtualItems())
 const totalSize = computed(() => rowVirtualizer.value.getTotalSize())

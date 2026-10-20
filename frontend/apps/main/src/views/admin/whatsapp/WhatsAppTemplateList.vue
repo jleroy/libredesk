@@ -95,7 +95,7 @@
 <script setup>
 import { computed, h, onMounted, ref } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
-import { format } from 'date-fns'
+import TableDate from '@main/components/table/TableDate.vue'
 import { useI18n } from 'vue-i18n'
 import { Info, RefreshCw, Trash2 } from 'lucide-vue-next'
 import { Button } from '@shared-ui/components/ui/button'
@@ -225,12 +225,9 @@ const columns = [
   },
   {
     accessorKey: 'updated_at',
+    meta: { compact: true },
     header: () => h('div', t('globals.terms.updatedAt')),
-    cell: ({ row }) => {
-      const value = row.getValue('updated_at')
-      const date = value ? new Date(value) : null
-      return date && !isNaN(date.getTime()) ? format(date, 'PPpp') : ''
-    }
+    cell: ({ row }) => h(TableDate, { value: row.getValue('updated_at') })
   },
   {
     id: 'actions',

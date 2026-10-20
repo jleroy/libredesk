@@ -53,7 +53,9 @@
             :key="key"
             class="p-4 text-sm text-foreground whitespace-normal break-words"
           >
-            {{ item[key] }}
+            <slot :name="`cell-${key}`" :value="item[key]" :item="item">
+              {{ item[key] }}
+            </slot>
           </td>
           <td v-if="showDelete" class="px-6 py-4 text-sm text-muted-foreground">
             <Button size="xs" variant="ghost" @click.prevent="deleteItem(item)">
