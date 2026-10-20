@@ -352,6 +352,7 @@ describe('Conversation lifecycle', () => {
   for (const field of ['CC', 'BCC']) {
     it(`keeps ${field} open and focused while replacing an address`, () => {
       openConversation(ccConversationUuid)
+      cy.get('.tiptap.ProseMirror[contenteditable="true"]').should('be.focused')
       if (field === 'BCC') {
         cy.contains('button', /^BCC$/).click()
         recipientRow(/^BCC$/).find('input').type(bccAddress)
@@ -374,7 +375,7 @@ describe('Conversation lifecycle', () => {
     it(`preserves a minimized reply through reload and send ${copies.name}`, () => {
       const content = `Minimized reply ${copies.name} ${stamp}`
       const sender = `lifecycle+${stamp}@cypress.test`
-      const contactEmail = `minimized.${copies.name.replaceAll(' ', '.')}.${stamp}@example.com`
+      const contactEmail = `minimized.${copies.name.toLowerCase().replaceAll(' ', '.')}.${stamp}@example.com`
       const to = [contactEmail, 'second.recipient@example.com']
       const uploads = []
       let uuid
@@ -383,9 +384,13 @@ describe('Conversation lifecycle', () => {
         content: '<p>Minimize test conversation.</p>', initiator: 'contact'
       }).then(({ body }) => {
         uuid = body.data.uuid
+        cy.api('POST', `/api/v1/conversations/${uuid}/messages`, {
+          sender_type: 'agent', private: false, message: '<p>Previous reply.</p>',
+          to, cc: copies.cc ? [copies.cc] : [], bcc: copies.bcc ? [copies.bcc] : [],
+          send_from: sender
+        }).its('status').should('eq', 200)
         cy.api('POST', `/api/v1/conversations/${uuid}/draft`, {
-          type: 'reply', content: `<p>${content}</p>`,
-          meta: { recipients: { to: to.join(', '), cc: copies.cc, bcc: copies.bcc, send_from: sender } }
+          type: 'reply', content: `<p>${content}</p>`, meta: {}
         }).its('status').should('eq', 200)
         openConversation(uuid)
       })
@@ -412,7 +417,7 @@ describe('Conversation lifecycle', () => {
         cy.get('.tiptap.ProseMirror').should('contain.text', content)
         recipientRow(/^To$/).find('input').should('have.value', to.join(', '))
         for (const field of ['cc', 'bcc']) {
-          if (copies[field]) recipientRow(new RegExp(`^${field.toUpperCase()}$`)).find('input').should('have.value', copies[field])
+          if (field === 'cc' && copies[field]) recipientRow(new RegExp(`^${field.toUpperCase()}$`)).find('input').should('have.value', copies[field])
           else cy.contains('label', new RegExp(`^${field.toUpperCase()}$`)).should('not.exist')
         }
         cy.contains('reply-draft.txt').should('be.visible')
@@ -436,6 +441,13 @@ describe('Conversation lifecycle', () => {
       cy.reload()
       cy.wait('@loadMessages')
       checkDraft()
+      if (copies.bcc) {
+        cy.contains('button', /^BCC$/).click()
+        recipientRow(/^BCC$/).find('input').type(copies.bcc)
+        cy.get('.box button[aria-label="Collapse"]').click()
+        cy.contains('button', content).click()
+        recipientRow(/^BCC$/).find('input').should('have.value', copies.bcc)
+      }
       cy.intercept('POST', '**/conversations/*/messages').as('sendMinimizedReply')
       cy.contains('button', /^Send$/).click()
       cy.wait('@sendMinimizedReply').then(({ request, response }) => {
@@ -461,7 +473,7 @@ describe('Conversation lifecycle', () => {
     })
   }
 
-  it('restores edited reply recipients and sender after reload and a failed send', () => {
+  it('restores reply content with conversation recipients after reload and a failed send', () => {
     const sender = 'billing@example.com'
     const extraRecipient = 'draft.recipient@example.com'
     const copy = 'draft.copy@example.com'
@@ -485,13 +497,16 @@ describe('Conversation lifecycle', () => {
     cy.contains('button', /^BCC$/).click()
     recipientRow(/^BCC$/).find('input').type(bccAddress)
     cy.get('.tiptap.ProseMirror').first().type(content)
-    cy.wait('@savedReplyDraft').its('response.statusCode').should('eq', 200)
+    cy.wait('@savedReplyDraft').then(({ request, response }) => {
+      expect(response.statusCode).to.eq(200)
+      expect(request.body.meta).not.to.have.property('recipients')
+    })
 
     const checkDraft = () => {
-      recipientRow(/^From$/).find('[role="combobox"]').should('contain.text', sender)
-      recipientRow(/^To$/).find('input').should('have.value', `${ccCustomerEmail}, ${extraRecipient}`)
-      recipientRow(/^CC$/).find('input').should('have.value', copy)
-      recipientRow(/^BCC$/).find('input').should('have.value', bccAddress)
+      recipientRow(/^From$/).find('[role="combobox"]').should('contain.text', `lifecycle+${stamp}@cypress.test`)
+      recipientRow(/^To$/).find('input').should('have.value', ccCustomerEmail)
+      recipientRow(/^CC$/).find('input').should('have.value', ccAddress)
+      cy.contains('label', /^BCC$/).should('not.exist')
       cy.get('.tiptap.ProseMirror').first().should('contain.text', content)
     }
     cy.reload()
@@ -517,16 +532,16 @@ describe('Conversation lifecycle', () => {
     cy.intercept('DELETE', `**/conversations/${ccConversationUuid}/draft*`).as('clearedReplyDraft')
     cy.contains('button', /^Send$/).click()
     cy.wait('@captureSend').then(({ request }) => {
-      expect(request.body.send_from).to.eq(sender)
-      expect(request.body.to).to.deep.eq([ccCustomerEmail, extraRecipient])
-      expect(request.body.cc).to.deep.eq([copy])
-      expect(request.body.bcc).to.deep.eq([bccAddress])
+      expect(request.body.send_from).to.eq(`lifecycle+${stamp}@cypress.test`)
+      expect(request.body.to).to.deep.eq([ccCustomerEmail])
+      expect(request.body.cc).to.deep.eq([ccAddress])
+      expect(request.body.bcc).to.deep.eq([])
     })
     cy.wait('@clearedReplyDraft').its('response.statusCode').should('eq', 200)
     cy.get('.tiptap.ProseMirror').first().should('have.text', '')
   })
 
-  it('preserves edited recipients when switching between conversations', () => {
+  it('restores conversation recipients when switching between conversations', () => {
     captureSend()
     openConversation(ccConversationUuid)
     recipientRow(/^CC$/).find('button[aria-label="Remove CC"]').click()
@@ -545,10 +560,10 @@ describe('Conversation lifecycle', () => {
     cy.contains(ccContactName).click()
     cy.location('pathname').should('include', ccConversationUuid)
     recipientRow(/^To$/).find('input').should('have.value', ccCustomerEmail)
-    cy.contains('label', /^CC$/).should('not.exist')
-    recipientRow(/^BCC$/).find('input').should('have.value', bccAddress)
+    recipientRow(/^CC$/).find('input').should('have.value', ccAddress)
+    cy.contains('label', /^BCC$/).should('not.exist')
     sendReply('Reply after switching back')
-    expectSentRecipients(ccConversationUuid, { cc: [], bcc: [bccAddress] })
+    expectSentRecipients(ccConversationUuid, { cc: [ccAddress], bcc: [] })
   })
 
   it('sends a reply that appears in the thread', () => {
