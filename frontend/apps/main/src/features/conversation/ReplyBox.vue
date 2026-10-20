@@ -184,6 +184,7 @@
 
 <script setup>
 import { ref, watch, computed, toRaw, nextTick, onMounted, onUnmounted } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { handleHTTPError } from '@shared-ui/utils/http.js'
 import { getTextFromHTML } from '@shared-ui/utils/string'
 import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
@@ -337,7 +338,7 @@ const {
 
 // Rest of existing state
 const isEditorFullscreen = ref(false)
-const isMinimized = ref(false)
+const isMinimized = useStorage('replyBoxMinimized', false)
 const isSending = ref(false)
 const isGenerating = ref(false)
 const to = ref('')

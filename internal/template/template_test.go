@@ -1,6 +1,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"os"
@@ -9,11 +10,235 @@ import (
 	"testing"
 
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
+	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/template/models"
+	"github.com/abhinavxd/libredesk/internal/testutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/volatiletech/null/v9"
+	"github.com/zerodha/logf"
 )
 
 var notificationSeedPattern = regexp.MustCompile(`(?s)VALUES\s*\(\s*'email_notification'::template_type,\s*'((?:''|[^'])*)'\s*,\s*false,\s*'([^']+)'`)
+
+func TestDefaultTemplateConflict(t *testing.T) {
+	db := testutil.NewDB(t, "default_template_conflict")
+	lo := logf.New(logf.Opts{})
+	m, err := New(&lo, db, nil /** webTpls **/, nil /** tpls **/, nil /** funcMap **/, testutil.NewI18n(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := m.Create(models.Template{Name: "First", Type: TypeEmailOutgoing, IsDefault: true, Body: `{{ template "content" . }}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := m.Create(models.Template{Name: "Second", Type: TypeEmailOutgoing, Body: `{{ template "content" . }}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second.IsDefault = true
+	for _, save := range []func() (models.Template, error){
+		func() (models.Template, error) { return m.Create(second) },
+		func() (models.Template, error) { return m.Update(second.ID, second) },
+	} {
+		_, err := save()
+		var conflict envelope.Error
+		if !errors.As(err, &conflict) || conflict.ErrorType != envelope.ConflictError {
+			t.Fatalf("expected an actionable conflict, got %v", err)
+		}
+		current, err := m.getDefaultOutgoingEmailTemplate()
+		if err != nil || current.ID != first.ID {
+			t.Fatalf("default changed after rejected save: %+v, %v", current, err)
+		}
+	}
+	first.IsDefault = false
+	if _, err := m.Update(first.ID, first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Update(second.ID, second); err != nil {
+		t.Fatal(err)
+	}
+	current, err := m.getDefaultOutgoingEmailTemplate()
+	if err != nil || current.ID != second.ID {
+		t.Fatalf("default did not switch: %+v, %v", current, err)
+	}
+}
+
+func TestUpdateDefaultTemplateType(t *testing.T) {
+	db := testutil.NewDB(t, "default_template_type")
+	lo := logf.New(logf.Opts{})
+	m, err := New(&lo, db, nil /** webTpls **/, nil /** tpls **/, nil /** funcMap **/, testutil.NewI18n(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := m.Create(models.Template{Name: "Layout", Type: TypeEmailOutgoing, Body: `{{ template "content" . }}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, typ := range []string{TypeEmailNotification, "", "invalid", TypeEmailOutgoing} {
+		candidate := saved
+		candidate.Type = typ
+		candidate.IsDefault = true
+		updated, err := m.Update(saved.ID, candidate)
+		if err != nil || updated.Type != TypeEmailOutgoing || !updated.IsDefault {
+			t.Fatalf("default type %q was not normalized: %+v, %v", typ, updated, err)
+		}
+		stored, err := m.Get(saved.ID)
+		if err != nil || stored.Type != TypeEmailOutgoing || !stored.IsDefault {
+			t.Fatalf("incorrect persisted default: %+v, %v", stored, err)
+		}
+		candidate.Body = "<p>No reply placeholder</p>"
+		if _, err := m.Update(saved.ID, candidate); err == nil {
+			t.Fatalf("accepted default type %q without a reply", typ)
+		}
+	}
+	saved.Type = TypeEmailNotification
+	saved.Body = "<p>Notification</p>"
+	updated, err := m.Update(saved.ID, saved)
+	if err != nil || updated.Type != TypeEmailNotification || updated.IsDefault {
+		t.Fatalf("changed nondefault notification type: %+v, %v", updated, err)
+	}
+}
+
+func TestValidateOutgoingTemplate(t *testing.T) {
+	m := &Manager{i18n: testutil.NewI18n(t)}
+	for _, tc := range []struct {
+		name string
+		body string
+		ok   bool
+	}{
+		{"empty", "", false},
+		{"missing", "<p>Header</p>", false},
+		{"single", `{{ template "content" . }}`, true},
+		{"duplicate", `{{ template "content" . }}{{ template "content" . }}`, true},
+		{"triple", `{{ template "content" . }}{{ template "content" . }}{{ template "content" . }}`, true},
+		{"trimmed duplicate", `{{- template "content" . -}}<p>Footer</p>{{- template "content" . -}}`, true},
+		{"comment only", `{{/* template "content" . */}}`, false},
+		{"comment and single", `{{/* template "content" . */}}{{ template "content" . }}`, true},
+		{"malformed", `{{ template "content" .`, false},
+		{"wrong name", `{{ template "contents" . }}`, false},
+		{"literal template text", `{{ printf "%s" "{{ template \"content\" . }}" }}`, false},
+		{"nested wrappers", `{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`, true},
+		{"nested duplicate", `{{ define "inner" }}{{ template "content" . }}{{ end }}{{ define "outer" }}{{ template "inner" . }}{{ template "inner" . }}{{ end }}{{ template "outer" . }}`, true},
+		{"unused duplicate", `{{ define "unused" }}{{ template "content" . }}{{ template "content" . }}{{ end }}{{ template "content" . }}`, true},
+		{"duplicate alternatives", `{{ if .Show }}{{ template "content" . }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ template "content" . }}{{ end }}`, true},
+		{"nested alternatives", `{{ if .Show }}{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}{{ else }}{{ template "content" . }}{{ end }}`, true},
+		{"dynamic conditional", `{{ template "content" . }}{{ if .Show }}{{ template "content" . }}{{ end }}`, true},
+		{"alternatives", `{{ if .Show }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
+		{"with alternatives", `{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
+		{"duplicate with alternatives", `{{ template "content" . }}{{ with .Author }}{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`, true},
+		{"unused definition", `{{ define "unused" }}{{ template "content" . }}{{ end }}{{ template "content" . }}`, true},
+		{"single wrapper", `{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}`, true},
+		{"repeated wrapper", `{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`, true},
+		{"previous messages", `{{ template "content" . }}{{ range .PreviousMessages }}{{ .Content }}{{ end }}`, true},
+		{"dynamic loop", `{{ range . }}{{ template "content" . }}{{ end }}`, true},
+		{"recursive definition", `{{ define "wrapper" }}{{ template "wrapper" . }}{{ end }}{{ template "wrapper" . }}{{ template "content" . }}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := m.validateOutgoingTemplate(models.Template{Type: TypeEmailOutgoing, Body: tc.body})
+			if (err == nil) != tc.ok {
+				t.Fatalf("validation error = %v, want valid = %v", err, tc.ok)
+			}
+		})
+	}
+}
+
+func TestOutgoingTemplatePreservesReply(t *testing.T) {
+	db := testutil.NewDB(t, "outgoing_template_content")
+	lo := logf.New(logf.Opts{})
+	m, err := New(&lo, db, nil /** webTpls **/, nil /** tpls **/, nil /** funcMap **/, testutil.NewI18n(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid := models.Template{Name: "Customer layout", Type: TypeEmailOutgoing, IsDefault: true, Body: `<header>Support</header>{{ template "content" . }}<footer>Thank you</footer>`}
+	saved, err := m.Create(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []string{
+		"",
+		"<p>Support header</p>",
+		`{{/* template "content" . */}}`,
+		`{{ template "content" .`,
+	} {
+		t.Run("reject "+body, func(t *testing.T) {
+			candidate := valid
+			candidate.Body = body
+			candidate.IsDefault = false
+			if _, err := m.Create(candidate); err == nil {
+				t.Fatal("created an invalid outgoing template")
+			}
+			if _, err := m.Update(saved.ID, candidate); err == nil {
+				t.Fatal("updated to an invalid outgoing template")
+			}
+			stored, err := m.Get(saved.ID)
+			if err != nil || stored.Body != valid.Body || !stored.IsDefault {
+				t.Fatalf("rejected edit changed the saved template: %+v, %v", stored, err)
+			}
+			var count int
+			if err := db.Get(&count, `SELECT COUNT(*) FROM templates WHERE type = $1`, TypeEmailOutgoing); err != nil || count != 1 {
+				t.Fatalf("rejected create changed template count: %d, %v", count, err)
+			}
+		})
+	}
+	stored, err := m.Get(saved.ID)
+	if err != nil || stored.Body != valid.Body {
+		t.Fatalf("rejected edit changed template: %+v, %v", stored, err)
+	}
+	for _, body := range []string{
+		`{{ template "content" . }}{{ template "content" . }}`,
+		`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`,
+		`{{ range . }}{{ template "content" . }}{{ end }}`,
+	} {
+		candidate := valid
+		candidate.Body = body
+		candidate.IsDefault = false
+		if _, err := m.Create(candidate); err != nil {
+			t.Fatalf("could not create repeated reply template: %v", err)
+		}
+		candidate.IsDefault = true
+		if _, err := m.Update(saved.ID, candidate); err != nil {
+			t.Fatalf("could not update repeated reply template: %v", err)
+		}
+	}
+	const conditional = `{{ if .Show }}<p>Hello</p>{{ template "content" . }}{{ else }}{{ template "content" . }}{{ end }}`
+	if _, err := m.Update(saved.ID, models.Template{Name: valid.Name, Type: valid.Type, IsDefault: true, Body: conditional}); err != nil {
+		t.Fatalf("rejected a conditional layout that renders the reply once: %v", err)
+	}
+	for _, tc := range []struct {
+		body  string
+		data  any
+		count int
+	}{
+		{valid.Body, nil, 1},
+		{`{{template "content" .}}`, nil, 1},
+		{`{{- template "content" . -}}`, nil, 1},
+		{`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}`, nil, 1},
+		{`{{ if .Show }}{{ template "content" . }}{{ end }}`, map[string]any{"Show": true}, 1},
+		{`{{ if .Show }}{{ template "content" . }}{{ end }}`, map[string]any{"Show": false}, 0},
+		{conditional, map[string]any{"Show": true}, 1},
+		{conditional, map[string]any{"Show": false}, 1},
+		{`{{ template "content" . }}{{ template "content" . }}`, nil, 2},
+		{`{{ range . }}{{ template "content" . }}{{ end }}`, []string{}, 0},
+		{`{{ range . }}{{ template "content" . }}{{ end }}`, []string{"first", "second"}, 2},
+		{`{{ define "wrapper" }}{{ template "content" . }}{{ end }}{{ template "wrapper" . }}{{ template "wrapper" . }}`, nil, 2},
+		{`<p>Previously saved layout without a reply</p>`, nil, 0},
+	} {
+		t.Run("render "+tc.body+fmt.Sprint(tc.data), func(t *testing.T) {
+			if _, err := db.Exec(`UPDATE templates SET body = $1 WHERE id = $2`, tc.body, saved.ID); err != nil {
+				t.Fatal(err)
+			}
+			const reply = "<p>Your receipt is ready. Café 日本語.</p>"
+			got, err := m.RenderEmailWithTemplate(tc.data, reply)
+			if tc.count > 0 {
+				if err != nil || strings.Count(got, reply) != tc.count {
+					t.Fatalf("unexpected rendered reply: %q, %v", got, err)
+				}
+			} else if err == nil || got != "" {
+				t.Fatalf("unsafe outgoing content accepted: %q, %v", got, err)
+			}
+		})
+	}
+}
 
 func TestRenderNotificationEmailUsesSystemLayout(t *testing.T) {
 	m := emailTemplateManager(t)
