@@ -333,8 +333,7 @@ const {
   clearDraft,
   loadedAttachments,
   loadedMacroActions,
-  loadedMacroID,
-  recipients
+  loadedMacroID
 } = useDraftManager(currentConversationUUID, messageType, mediaFiles)
 
 // Rest of existing state
@@ -342,19 +341,11 @@ const isEditorFullscreen = ref(false)
 const isMinimized = useStorage('replyBoxMinimized', false)
 const isSending = ref(false)
 const isGenerating = ref(false)
-const recipientField = (field, defaultValue) => computed({
-  get: () => recipients.value[field] ?? defaultValue(),
-  set: (value) => { recipients.value = { ...recipients.value, [field]: value } }
-})
-const to = recipientField('to', () => conversationStore.currentTo?.join(', ') || '')
-const cc = recipientField('cc', () => conversationStore.currentCC?.join(', ') || '')
-const bcc = recipientField('bcc', () => conversationStore.currentBCC?.join(', ') || '')
-const sendFrom = computed({
-  get: () => conversationStore.currentFromOptions.includes(recipients.value.send_from)
-    ? recipients.value.send_from
-    : conversationStore.currentFrom || '',
-  set: (value) => { recipients.value = { ...recipients.value, send_from: value } }
-})
+const to = ref('')
+const cc = ref('')
+const bcc = ref('')
+const sendFrom = ref('')
+const senderPickedFor = ref(null)
 const showCc = ref(false)
 const showBcc = ref(false)
 const emailErrors = ref([])
@@ -730,7 +721,21 @@ watch(
 
 const pickSender = (value) => {
   sendFrom.value = value
+  senderPickedFor.value = currentConversationUUID.value
 }
+
+// Keep the agent's own sender pick while it is still allowed, since currentFrom changes whenever a new message arrives.
+watch(
+  [currentConversationUUID, () => conversationStore.currentFrom],
+  ([uuid, value], [previousUUID] = []) => {
+    if (uuid !== previousUUID) senderPickedFor.value = null
+    const picked =
+      senderPickedFor.value === uuid &&
+      conversationStore.currentFromOptions.includes(sendFrom.value)
+    if (!picked) sendFrom.value = value || ''
+  },
+  { immediate: true }
+)
 
 // Reset first so a loaded draft never inherits the previous conversation's macro (drafts store no message_content).
 watch(
@@ -756,22 +761,31 @@ watch(
   { deep: true }
 )
 
+// Initialize to, cc, and bcc fields with the current conversation's values.
 watch(
-  [isDraftLoading, cc],
-  ([loading, value], [wasLoading] = []) => {
-    if (loading) return
-    if (wasLoading || value.length > 0) showCc.value = value.length > 0
+  () => conversationStore.currentCC,
+  (newVal) => {
+    cc.value = newVal?.join(', ') || ''
+    showCc.value = cc.value.length > 0
+  },
+  { deep: true, immediate: true }
+)
+
+watch(
+  () => conversationStore.currentTo,
+  (newVal) => {
+    to.value = newVal?.join(', ') || ''
   },
   { immediate: true }
 )
 
 watch(
-  [isDraftLoading, bcc],
-  ([loading, value], [wasLoading] = []) => {
-    if (loading) return
-    if (wasLoading || value.length > 0) showBcc.value = value.length > 0
+  () => conversationStore.currentBCC,
+  (newVal) => {
+    bcc.value = newVal?.join(', ') || ''
+    showBcc.value = bcc.value.length > 0
   },
-  { immediate: true }
+  { deep: true, immediate: true }
 )
 
 // Media files and macro state are restored per draft by the draft manager; resetting here would race ahead of the save and drop them.

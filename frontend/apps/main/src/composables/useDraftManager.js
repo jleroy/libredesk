@@ -23,21 +23,13 @@ const validateAttachments = (attachments) => {
   )
 }
 
-const validateRecipients = (recipients) =>
-  Object.fromEntries(
-    ['to', 'cc', 'bcc', 'send_from']
-      .filter(key => typeof recipients?.[key] === 'string')
-      .map(key => [key, recipients[key]])
-  )
-
 const isDraftEmpty = (draft) => {
   const content = draft?.content || ''
   const hasText = getTextFromHTML(content).length > 0
   const hasInlineImage = /<img\b/i.test(content)
   const hasAttachments = draft?.meta?.attachments?.length > 0
   const hasMacroActions = draft?.meta?.macro_actions?.length > 0
-  const hasRecipients = Object.keys(validateRecipients(draft?.meta?.recipients)).length > 0
-  return !hasText && !hasInlineImage && !hasAttachments && !hasMacroActions && !hasRecipients
+  return !hasText && !hasInlineImage && !hasAttachments && !hasMacroActions
 }
 
 const draftKey = (uuid, type) => `${uuid}::${type}`
@@ -46,7 +38,6 @@ const metaSignature = (meta) =>
   JSON.stringify({
     macro_id: meta?.macro_id || 0,
     macro_actions: meta?.macro_actions || [],
-    recipients: validateRecipients(meta?.recipients),
     attachments: (meta?.attachments || []).map(a => a.uuid)
   })
 
@@ -63,17 +54,13 @@ export function useDraftManager (conversationUUID, messageType, uploadedFiles = 
   const loadedAttachments = ref([])
   const loadedMacroActions = ref([])
   const loadedMacroID = ref(0)
-  const recipients = ref({})
 
   // Live-key guard: the editor is transiently empty during open/switch and must not clobber a stored draft.
   const loadedKey = ref(null)
   const currentKey = () => draftKey(conversationUUID.value, messageType.value)
 
-  const buildDraft = (type) => {
+  const buildDraft = () => {
     const meta = {}
-    if (type === 'reply' && Object.keys(recipients.value).length > 0) {
-      meta.recipients = { ...recipients.value }
-    }
     const macro = conversationStore.getMacro(MACRO_CONTEXT.REPLY)
     const macroActions = macro?.actions || []
     if (macro?.id > 0) meta.macro_id = macro.id
@@ -98,7 +85,6 @@ export function useDraftManager (conversationUUID, messageType, uploadedFiles = 
     loadedAttachments.value = validateAttachments(draft?.meta?.attachments)
     loadedMacroActions.value = validateMacroActions(draft?.meta?.macro_actions)
     loadedMacroID.value = Number(draft?.meta?.macro_id) > 0 ? Number(draft.meta.macro_id) : 0
-    recipients.value = validateRecipients(draft?.meta?.recipients)
   }
 
   const load = async (uuid, type) => {
@@ -123,7 +109,7 @@ export function useDraftManager (conversationUUID, messageType, uploadedFiles = 
 
   // Update the store synchronously; server sync runs in the background, never awaited.
   const save = (uuid, type) => {
-    const draft = buildDraft(type)
+    const draft = buildDraft()
     if (sameDraft(draft, conversationStore.getDraft(uuid, type))) return
     if (isDraftEmpty(draft)) {
       conversationStore.removeDraft(uuid, type)
@@ -148,7 +134,6 @@ export function useDraftManager (conversationUUID, messageType, uploadedFiles = 
   const watchSources = [
     htmlContent,
     textContent,
-    recipients,
     () => conversationStore.macros[MACRO_CONTEXT.REPLY]
   ]
   if (uploadedFiles) watchSources.push(uploadedFiles)
@@ -189,7 +174,6 @@ export function useDraftManager (conversationUUID, messageType, uploadedFiles = 
     clearDraft,
     loadedAttachments,
     loadedMacroActions,
-    loadedMacroID,
-    recipients
+    loadedMacroID
   }
 }
