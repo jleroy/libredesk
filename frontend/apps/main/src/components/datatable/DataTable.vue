@@ -220,6 +220,7 @@ const table = useVueTable({
   get columns() {
     return props.columns
   },
+  getRowId: (row) => String(row.id),
   state: {
     get sorting() {
       return sorting.value

@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import DataTable from './DataTable.vue'
 import AdminToolbar from '@main/layouts/admin/AdminToolbar.vue'
 import LoadingOverlay from '@main/components/layout/LoadingOverlay.vue'
@@ -15,7 +16,7 @@ import {
 vi.mock('@tanstack/vue-virtual', async () => {
   const { computed } = await import('vue')
   return {
-    useVirtualizer: (options) =>
+    useVirtualizer: vi.fn((options) =>
       computed(() => ({
         getVirtualItems: () =>
           Array.from({ length: options.count }, (_, index) => ({
@@ -25,7 +26,7 @@ vi.mock('@tanstack/vue-virtual', async () => {
           })),
         getTotalSize: () => options.count * 52,
         measureElement: vi.fn()
-      }))
+      })))
   }
 })
 
@@ -36,11 +37,13 @@ function mountTable({
   overlay = false,
   pageLoading = false,
   tableLoading = false,
-  toolbar = false
+  toolbar = false,
+  records = [{ id: 1, name: 'Customer A' }, { id: 2, name: 'Customer B' }]
 } = {}) {
   const search = ref('')
   const pageBusy = ref(pageLoading)
   const tableBusy = ref(tableLoading)
+  const tableData = ref(records)
   container = document.createElement('div')
   document.body.append(container)
   app = createApp({
@@ -56,7 +59,7 @@ function mountTable({
           }),
         h(DataTable, {
           columns: [{ accessorKey: 'name', header: 'Name' }],
-          data: tableBusy.value ? [] : [{ name: 'Customer A' }, { name: 'Customer B' }],
+          data: tableBusy.value ? [] : tableData.value,
           loading: tableBusy.value,
           searchable: !toolbar,
           search: search.value,
@@ -86,12 +89,46 @@ function mountTable({
     })
   )
   app.mount(container)
-  return { search, pageBusy, tableBusy }
+  return { search, pageBusy, tableBusy, tableData }
 }
 
 afterEach(() => {
   app?.unmount()
   container?.remove()
+})
+
+describe('DataTable row identity', () => {
+  it('keeps record identities through deletion, replacement, sorting and filtering', async () => {
+    const { tableData, search } = mountTable({
+      records: [{ id: 0, name: 'Customer B' }, { id: 42, name: 'Customer A' }]
+    })
+    const options = useVirtualizer.mock.lastCall[0]
+    const rowKeys = () => Array.from({ length: options.count }, (_, index) => options.getItemKey(index))
+    expect(rowKeys()).toEqual(['0', '42'])
+    const retainedRow = container.querySelectorAll('tbody tr[data-index]')[1]
+
+    tableData.value = [{ id: 42, name: 'Customer A' }]
+    await nextTick()
+    expect(rowKeys()).toEqual(['42'])
+    expect(container.querySelector('tbody tr[data-index]')).toBe(retainedRow)
+
+    tableData.value = [{ id: 99, name: 'Customer C' }, { id: 42, name: 'Customer A' }]
+    await nextTick()
+    expect(rowKeys()).toEqual(['99', '42'])
+    expect(container.querySelectorAll('tbody tr[data-index]')[1]).toBe(retainedRow)
+
+    container.querySelector('thead button').click()
+    await nextTick()
+    expect(rowKeys()).toEqual(['42', '99'])
+
+    search.value = 'Customer C'
+    await nextTick()
+    expect(rowKeys()).toEqual(['99'])
+
+    tableData.value = []
+    await nextTick()
+    expect(rowKeys()).toEqual([])
+  })
 })
 
 describe('DataTable toolbar search', () => {
