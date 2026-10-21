@@ -40,7 +40,7 @@ export const useProactiveStore = defineStore('proactive', () => {
       if (request !== generation || !response.data.data || widget.isOpen) return
       const delivery = response.data.data
       invitation.value = delivery
-      postToParent({ type: 'SHOW_CAMPAIGN', delivery })
+      postToParent({ type: 'SHOW_CAMPAIGN', delivery, url: context.url })
     } catch { return false }
     finally { if (request === generation) busy = false }
   }
