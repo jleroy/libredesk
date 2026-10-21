@@ -24,12 +24,12 @@ describe('campaign delivery', () => {
     const post = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {})
     const delivery = { id: 'delivery' }
 
-    const request = store.next({ url: 'https://example.com/pricing' })
+    const request = store.next({ url: 'https://example.com/pricing' }, 7 /* pageGeneration */)
     resolve({ data: { data: delivery } })
     await request
 
     expect(post).toHaveBeenCalledWith({
-      type: 'SHOW_CAMPAIGN', delivery, url: 'https://example.com/pricing'
+      type: 'SHOW_CAMPAIGN', delivery, url: 'https://example.com/pricing', pageGeneration: 7
     }, 'https://example.com')
     await store.event('dropped', delivery.id)
     expect(store.invitation).toBeNull()

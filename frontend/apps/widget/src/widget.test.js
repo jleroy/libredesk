@@ -25,13 +25,13 @@ afterEach(() => {
 })
 
 describe('campaign navigation', () => {
-  const deliver = url => {
+  const deliver = (url, pageGeneration = widget.campaignPageGeneration) => {
     const contentWindow = {}
     widget.iframe = { contentWindow }
     widget.handleMessage({
       source: contentWindow,
       origin: window.location.origin,
-      data: { type: 'SHOW_CAMPAIGN', delivery: { id: 'pricing-message' }, url }
+      data: { type: 'SHOW_CAMPAIGN', delivery: { id: 'pricing-message' }, url, pageGeneration }
     })
   }
 
@@ -53,6 +53,28 @@ describe('campaign navigation', () => {
     expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_EVENT', event: 'displayed', id: 'pricing-message' })
   })
 
+  test.each(['pushState', 'replaceState'])('rejects earlier visits after returning to the same URL with %s', method => {
+    widget.startPageTracking()
+    const requestedURL = window.location.href
+    const requestedGeneration = widget.campaignPageGeneration
+    for (let visit = 0; visit < 2; visit++) {
+      window.history[method]({}, '', '/checkout')
+      window.history[method]({}, '', '/pricing')
+    }
+    widget.renderPreviews.mockClear()
+
+    deliver(requestedURL, requestedGeneration)
+
+    expect(widget.campaignData).toBeNull()
+    expect(widget.renderPreviews).not.toHaveBeenCalled()
+    expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_EVENT', event: 'dropped', id: 'pricing-message' })
+
+    deliver(window.location.href)
+
+    expect(widget.campaignData).toEqual({ id: 'pricing-message' })
+    expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_EVENT', event: 'displayed', id: 'pricing-message' })
+  })
+
   test.each([false, true])('preserves an immediate event with page tracking enabled: %s', pageTracking => {
     if (pageTracking) widget.startPageTracking()
     widget.campaignDelay = 3
@@ -65,7 +87,7 @@ describe('campaign navigation', () => {
     widget.trackEvent('checkout-viewed')
     vi.advanceTimersByTime(3000)
 
-    expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_CONTEXT', context: {
+    expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_CONTEXT', pageGeneration: widget.campaignPageGeneration, context: {
       url: window.location.href, mobile: widget.isMobile, active_seconds: 3, event: 'checkout-viewed'
     } })
   })
@@ -80,7 +102,7 @@ describe('campaign navigation', () => {
     vi.advanceTimersByTime(2000)
 
     expect(widget.campaignData).toBeNull()
-    expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_CONTEXT', context: {
+    expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_CONTEXT', pageGeneration: widget.campaignPageGeneration, context: {
       url: window.location.href, mobile: widget.isMobile, active_seconds: 2, event: ''
     } })
   })

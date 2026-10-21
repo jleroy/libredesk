@@ -56,6 +56,7 @@
             this.campaignData = null;
             this.campaignActiveSeconds = 0;
             this.campaignURL = location.href;
+            this.campaignPageGeneration = 0;
             this.campaignEvent = "";
             this.campaignDelay = 0;
             this.campaignElapsed = 0;
@@ -493,7 +494,7 @@
 
             switch (event.data.type) {
                 case 'SHOW_CAMPAIGN':
-                    if (event.data.url !== location.href || this.isChatVisible || this.unreadCount > 0 || this.hideLauncher) {
+                    if (event.data.url !== location.href || event.data.pageGeneration !== this.campaignPageGeneration || this.isChatVisible || this.unreadCount > 0 || this.hideLauncher) {
                         this.dropCampaign(event.data.delivery.id);
                         break;
                     }
@@ -925,6 +926,7 @@
         resetCampaignPage () {
             if (location.href === this.campaignURL) return;
             this.campaignURL = location.href;
+            this.campaignPageGeneration++;
             this.campaignActiveSeconds = 0;
             this.campaignEvent = '';
             this.campaignElapsed = 0;
@@ -950,7 +952,7 @@
                 this.campaignElapsed = 0;
                 this.campaignGap = this.campaignAsked ? Math.min(this.campaignGap * 2, this.CAMPAIGN_POLL_MAX) : this.CAMPAIGN_POLL_MIN;
                 this.campaignAsked = true;
-                this.postToIframe({ type: 'CAMPAIGN_CONTEXT', context: { url: location.href, mobile: this.isMobile, active_seconds: Math.floor(this.campaignActiveSeconds), event: this.campaignEvent } });
+                this.postToIframe({ type: 'CAMPAIGN_CONTEXT', pageGeneration: this.campaignPageGeneration, context: { url: location.href, mobile: this.isMobile, active_seconds: Math.floor(this.campaignActiveSeconds), event: this.campaignEvent } });
             }, 1000);
         }
 
