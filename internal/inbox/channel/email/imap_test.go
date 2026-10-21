@@ -1,8 +1,10 @@
 package email
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net"
@@ -209,6 +211,43 @@ func TestProcessMailboxDecodesNonUTF8Headers(t *testing.T) {
 			require.Equal(t, tc.wantSubject, msg.Subject)
 			require.Equal(t, tc.wantFirst, msg.Contact.FirstName)
 			require.Equal(t, tc.wantLast, msg.Contact.LastName)
+		})
+	}
+}
+
+func TestProcessMailboxDecodesEncodedSenderEnvelope(t *testing.T) {
+	for _, from := range []string{
+		"=?windows-1252?Q?J=F6rg_M=FCller?=",
+		"=?windows-1252?B?SvZyZyBN/GxsZXI=?=",
+	} {
+		t.Run(from, func(t *testing.T) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			t.Cleanup(func() { listener.Close() })
+			serverErr := make(chan error, 1)
+			go func() { serverErr <- serveEncodedSenderEnvelope(listener, from) }()
+
+			logger := logf.New(logf.Opts{Writer: io.Discard})
+			store := &fakeMessageStore{}
+			e := &Email{
+				primary: "support@example.com", uuid: "inbox-uuid", lo: &logger,
+				messageStore: store, userStore: fakeUserStore{},
+			}
+			host, port, err := net.SplitHostPort(listener.Addr().String())
+			require.NoError(t, err)
+			portNum, err := strconv.Atoi(port)
+			require.NoError(t, err)
+			cfg := imodels.IMAPConfig{
+				Host: host, Port: portNum, Username: "test", Password: "secret", Mailbox: "INBOX", TLSType: "none",
+			}
+			require.NoError(t, e.processMailbox(t.Context(), time.Hour, cfg))
+			require.NoError(t, <-serverErr)
+			require.Len(t, store.enqueued, 1)
+			require.Equal(t, "Sender test", store.enqueued[0].Subject)
+			require.Equal(t, "Jörg", store.enqueued[0].Contact.FirstName)
+			require.Equal(t, "Müller", store.enqueued[0].Contact.LastName)
+			require.Equal(t, "jorg@example.com", store.enqueued[0].Contact.Email.String)
+			require.Equal(t, "body", store.enqueued[0].Content)
 		})
 	}
 }
@@ -1394,4 +1433,48 @@ func mailboxProcessor(t testing.TB) func(*testing.T, string, string) models.Inco
 		require.NoError(t, client.Expunge().Close())
 		return store.enqueued[0]
 	}
+}
+
+// Raw responses preserve the sender charset that imapmemserver converts before delivery.
+func serveEncodedSenderEnvelope(listener net.Listener, from string) error {
+	conn, err := listener.Accept()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(conn, "* OK [CAPABILITY IMAP4rev1] ready\r\n"); err != nil {
+		return err
+	}
+	headers := "Message-ID: <sender-test@example.com>\r\n\r\n"
+	raw := "From: Plain Sender <jorg@example.com>\r\nTo: support@example.com\r\n" +
+		"Subject: Sender test\r\n" + headers + "body"
+	envelope := fmt.Sprintf("(NIL \"Sender test\" ((%s NIL \"jorg\" \"example.com\")) NIL NIL NIL NIL NIL NIL \"<sender-test@example.com>\")", strconv.Quote(from))
+	replies := []struct {
+		command, response string
+	}{
+		{"LOGIN ", "{tag} OK [CAPABILITY IMAP4rev1] logged in\r\n"},
+		{"SELECT ", "* 1 EXISTS\r\n* OK [UIDVALIDITY 1] valid\r\n{tag} OK [READ-WRITE] selected\r\n"},
+		{"SEARCH ", "* SEARCH 1\r\n{tag} OK searched\r\n"},
+		{"FETCH ", fmt.Sprintf("* 1 FETCH (UID 1 ENVELOPE %s BODY[HEADER.FIELDS (MESSAGE-ID)] {%d}\r\n%s)\r\n{tag} OK fetched\r\n", envelope, len(headers), headers)},
+		{"FETCH ", fmt.Sprintf("* 1 FETCH (BODY[] {%d}\r\n%s)\r\n{tag} OK fetched\r\n", len(raw), raw)},
+		{"LOGOUT", "* BYE closing\r\n{tag} OK logged out\r\n"},
+	}
+	reader := bufio.NewReader(conn)
+	for _, reply := range replies {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		tag, command, ok := strings.Cut(line, " ")
+		if !ok || !strings.HasPrefix(command, reply.command) {
+			return fmt.Errorf("expected %s, got %q", reply.command, line)
+		}
+		if _, err := io.WriteString(conn, strings.ReplaceAll(reply.response, "{tag}", tag)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
