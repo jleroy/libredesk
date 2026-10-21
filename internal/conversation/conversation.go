@@ -57,6 +57,7 @@ var (
 	efs                             embed.FS
 	errConversationNotFound         = errors.New("conversation not found")
 	ErrConversationAlreadyAssigned  = errors.New("conversation already assigned")
+	ErrAssigneeAway                 = errors.New("assignee is away")
 	ErrMessageNotFound              = errors.New("message not found")
 	conversationsAllowedFields      = []string{"status_id", "priority_id", "assigned_team_id", "assigned_user_id", "inbox_id", "last_message_at", "last_interaction_at", "last_interaction_sender", "created_at", "waiting_since", "next_sla_deadline_at", "snoozed_until", "sla_policy_id"}
 	conversationStatusAllowedFields = []string{"id", "name"}
@@ -872,7 +873,7 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	return c.afterUserAssignedHooks(uuid, assigneeID, actor, amodels.PreviousValues(previousConversation))
 }
 
-// ClaimUnassignedConversation atomically assigns a conversation only if still unassigned and still in expectedTeamID, else returns ErrConversationAlreadyAssigned.
+// ClaimUnassignedConversation atomically assigns a conversation only if still unassigned, still in expectedTeamID and the assignee is not away.
 func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedTeamID int, actor umodels.User) error {
 	previousConversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
@@ -880,17 +881,18 @@ func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedT
 	}
 	prev, prevErr := c.GetConversationListItem(uuid)
 
-	res, err := c.q.ClaimUnassignedConversation.Exec(uuid, assigneeID, expectedTeamID)
-	if err != nil {
+	var (
+		availability string
+		claimed      bool
+	)
+	if err := c.q.ClaimUnassignedConversation.QueryRow(uuid, assigneeID, expectedTeamID).Scan(&availability, &claimed); err != nil {
 		c.lo.Error("error claiming unassigned conversation", "uuid", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
-	rows, err := res.RowsAffected()
-	if err != nil {
-		c.lo.Error("error reading rows affected for conversation claim", "uuid", uuid, "error", err)
-		return envelope.NewError(envelope.GeneralError, c.i18n.T("globals.messages.somethingWentWrong"), nil)
-	}
-	if rows == 0 {
+	if !claimed {
+		if availability == umodels.AwayManual || availability == umodels.AwayAndReassigning {
+			return ErrAssigneeAway
+		}
 		return ErrConversationAlreadyAssigned
 	}
 
