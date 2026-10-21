@@ -787,14 +787,4 @@ watch(
   },
   { deep: true, immediate: true }
 )
-
-// Media files and macro state are restored per draft by the draft manager; resetting here would race ahead of the save and drop them.
-watch(
-  () => conversationStore.current?.uuid,
-  () => {
-    setTimeout(() => {
-      activeContentRef()?.focus()
-    }, 100)
-  }
-)
 </script>
