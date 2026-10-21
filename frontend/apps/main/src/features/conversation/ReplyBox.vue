@@ -63,7 +63,7 @@
     </AlertDialogContent>
   </AlertDialog>
 
-  <div class="rounded-t-xl bg-background text-foreground">
+  <div class="text-foreground">
     <!-- Fullscreen editor -->
     <Dialog :open="isEditorFullscreen" @update:open="isEditorFullscreen = false">
       <DialogContent
@@ -142,7 +142,7 @@
 
     <!-- Main Editor non-fullscreen -->
     <div
-      class="bg-background text-card-foreground box m-2 px-2 pt-2 flex flex-col relative"
+      class="bg-card text-card-foreground box m-2 px-2 pt-2 flex flex-col relative"
       :class="{ '!bg-private': messageType === 'private_note', 'ai-generating': isGenerating }"
       v-if="!isCollapsed && !isEditorFullscreen"
     >
