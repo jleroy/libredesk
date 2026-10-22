@@ -50,7 +50,7 @@ func TestCampaignWithinHours(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hours, err := manager.Create("Overnight", null.String{} /* description */, false /* isAlwaysOpen */, types.JSONText(`{"Friday":{"open":"22:00","close":"02:00"},"Sunday":{"open":"22:00","close":"02:00"}}`), types.JSONText(`[{"date":"2026-10-31"}]`))
+	hours, err := manager.Create("Overnight", null.String{} /* description */, false /* isAlwaysOpen */, types.JSONText(`{"Friday":{"open":"22:00","close":"02:00"},"Sunday":{"open":"22:00","close":"02:00"},"Monday":{"open":"09:00","close":"17:00"}}`), types.JSONText(`[{"date":"2026-10-31"},{"date":"2026-11-06"},{"date":"2026-11-08"}]`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,6 +71,12 @@ func TestCampaignWithinHours(t *testing.T) {
 		{name: "Friday early morning before opening", now: "2026-10-22T19:30:00Z"},
 		{name: "Sunday overnight carries into Monday", now: "2026-10-25T19:30:00Z", want: true},
 		{name: "holiday blocks previous overnight hours", now: "2026-10-30T19:30:00Z"},
+		{name: "holiday cancels evening shift", now: "2026-11-06T17:30:00Z"},
+		{name: "holiday shift cannot carry into midnight", now: "2026-11-06T18:30:00Z"},
+		{name: "holiday shift cannot carry into an unscheduled day", now: "2026-11-06T19:30:00Z"},
+		{name: "holiday shift cannot carry into a scheduled day", now: "2026-11-08T19:30:00Z"},
+		{name: "day after holiday opens at its own hours", now: "2026-11-09T03:30:00Z", want: true},
+		{name: "next week overnight shift remains open", now: "2026-11-13T19:30:00Z", want: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

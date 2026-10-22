@@ -191,13 +191,17 @@ func campaignWithinHours(app *App, c proactive.Campaign, now time.Time, loc *tim
 	if err := json.Unmarshal(hours.Hours, &working); err != nil {
 		return false, campaignInputError(app)
 	}
+	previousDate := local.AddDate(0, 0, -1)
+	previous := working[previousDate.Weekday().String()]
 	for _, holiday := range holidays {
 		if holiday.Date == local.Format(time.DateOnly) {
 			return false, nil
 		}
+		if holiday.Date == previousDate.Format(time.DateOnly) {
+			previous = bhmodels.WorkingHours{}
+		}
 	}
 	day := working[local.Weekday().String()]
-	previous := working[local.AddDate(0, 0, -1).Weekday().String()]
 	clock := local.Format("15:04")
 	return withinWorkingHours(clock, day, previous), nil
 }
