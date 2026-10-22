@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"time"
 
 	"golang.org/x/mod/semver"
@@ -37,15 +36,10 @@ type AppUpdate struct {
 	} `json:"messages"`
 }
 
-var reSemver = regexp.MustCompile(`-(.*)`)
-
 // checkUpdates is a blocking function that checks for updates to the app
 // at the given intervals. On detecting a new update (new semver), it
 // sets the global update status that renders a prompt on the UI.
 func checkUpdates(curVersion string, interval time.Duration, app *App) {
-	// Strip -* suffix.
-	curVersion = reSemver.ReplaceAllString(curVersion, "")
-
 	client := &http.Client{Timeout: updateCheckTimeout}
 
 	fnCheck := func() {
@@ -56,9 +50,9 @@ func checkUpdates(curVersion string, interval time.Duration, app *App) {
 		}
 
 		// There is an update. Set it on the global app state.
+		// semver ranks v2.9.0-rc.10 below v2.9.0, so RC builds are offered the stable release.
 		if semver.IsValid(out.Update.ReleaseVersion) {
-			v := reSemver.ReplaceAllString(out.Update.ReleaseVersion, "")
-			if semver.Compare(v, curVersion) > 0 {
+			if semver.Compare(out.Update.ReleaseVersion, curVersion) > 0 {
 				out.Update.IsNew = true
 				app.lo.Info("new update available", "version", out.Update.ReleaseVersion)
 			}
