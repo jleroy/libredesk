@@ -238,14 +238,11 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 	prevSeen, hasPrev := m.lastSeen[convID]
 	m.lastSeen[convID] = msgs[len(msgs)-1].ID
 	m.mu.Unlock()
-	// A requeued run finds the previous run's reply after the customer messages that arrived while it
-	// was being written. Moving the reply above them keeps the history in the order the assistant saw
-	// it and leaves the newest customer message last, which providers require.
+	// Providers reject a history that ends with the reply, so put it above messages sent while it was written.
 	if hasPrev {
 		msgs = previousReplyFirst(msgs, prevSeen)
 	}
-	// Only respond when the newest message is the customer's, never to the assistant's own, a human's
-	// or automated replies.
+	// A human or automated reply after the customer's message leaves nothing to answer.
 	if !lastIsInboundContact(msgs) {
 		return
 	}

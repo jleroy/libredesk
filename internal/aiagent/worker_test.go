@@ -113,30 +113,43 @@ func TestArticleCitationHTML(t *testing.T) {
 }
 
 func TestPreviousReplyFirst(t *testing.T) {
-	msg := func(id int) cmodels.Message { return cmodels.Message{ID: id} }
+	customer := func(id int) cmodels.Message {
+		return cmodels.Message{ID: id, Type: cmodels.MessageIncoming, SenderType: cmodels.SenderTypeContact}
+	}
+	human := func(id int) cmodels.Message {
+		return cmodels.Message{ID: id, Type: cmodels.MessageOutgoing, SenderType: cmodels.SenderTypeAgent}
+	}
 	reply := func(id int) cmodels.Message {
-		return cmodels.Message{ID: id, Meta: json.RawMessage(`{"ai_assistant_id":7}`)}
+		msg := human(id)
+		msg.Meta = json.RawMessage(`{"ai_assistant_id":7}`)
+		return msg
 	}
 	tests := []struct {
 		name     string
 		msgs     []cmodels.Message
 		prevSeen int
 		want     []int
+		respond  bool
 	}{
-		{"messages sent while replying", []cmodels.Message{msg(1), msg(2), msg(3), reply(4)}, 1, []int{1, 4, 2, 3}},
-		{"split reply", []cmodels.Message{msg(1), msg(2), reply(3), reply(4)}, 1, []int{1, 3, 4, 2}},
-		{"no new message", []cmodels.Message{msg(1), reply(2)}, 1, []int{1, 2}},
-		{"no reply posted", []cmodels.Message{msg(1), msg(2)}, 1, []int{1, 2}},
-		{"older replies untouched", []cmodels.Message{msg(1), reply(2), msg(3), msg(4), reply(5)}, 3, []int{1, 2, 3, 5, 4}},
+		{"messages sent while replying", []cmodels.Message{customer(1), customer(2), customer(3), reply(4)}, 1, []int{1, 4, 2, 3}, true},
+		{"split reply", []cmodels.Message{customer(1), customer(2), reply(3), reply(4)}, 1, []int{1, 3, 4, 2}, true},
+		{"human answered meanwhile", []cmodels.Message{customer(1), customer(2), human(3), reply(4)}, 1, []int{1, 4, 2, 3}, false},
+		{"no new message", []cmodels.Message{customer(1), reply(2)}, 1, []int{1, 2}, false},
+		{"no reply posted", []cmodels.Message{customer(1), customer(2)}, 1, []int{1, 2}, true},
+		{"older replies untouched", []cmodels.Message{customer(1), reply(2), customer(3), customer(4), reply(5)}, 3, []int{1, 2, 3, 5, 4}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			msgs := previousReplyFirst(tt.msgs, tt.prevSeen)
 			var got []int
-			for _, m := range previousReplyFirst(tt.msgs, tt.prevSeen) {
+			for _, m := range msgs {
 				got = append(got, m.ID)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+			if respond := lastIsInboundContact(msgs); respond != tt.respond {
+				t.Fatalf("respond = %v, want %v", respond, tt.respond)
 			}
 		})
 	}
