@@ -234,14 +234,19 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 	if inbound == nil {
 		return
 	}
-	// Only respond to a fresh inbound customer message, never to the assistant's own or automated
-	// replies. A requeued run sees the previous run's just-posted reply as the last message, so it
-	// instead checks for an inbound message the previous run's history never included.
 	m.mu.Lock()
 	prevSeen, hasPrev := m.lastSeen[convID]
 	m.lastSeen[convID] = msgs[len(msgs)-1].ID
 	m.mu.Unlock()
-	if !lastIsInboundContact(msgs) && (!hasPrev || inbound.ID <= prevSeen) {
+	// A requeued run finds the previous run's reply after the customer messages that arrived while it
+	// was being written. Moving the reply above them keeps the history in the order the assistant saw
+	// it and leaves the newest customer message last, which providers require.
+	if hasPrev {
+		msgs = previousReplyFirst(msgs, prevSeen)
+	}
+	// Only respond when the newest message is the customer's, never to the assistant's own, a human's
+	// or automated replies.
+	if !lastIsInboundContact(msgs) {
 		return
 	}
 	// The reply and any identity-scoped tools act as the primary contact. An email thread can carry
@@ -866,4 +871,26 @@ func messageMetaBool(raw json.RawMessage, key string) bool {
 	}
 	value, _ := meta[key].(bool)
 	return value
+}
+
+// previousReplyFirst moves AI replies posted after prevSeen above the other messages that arrived since.
+func previousReplyFirst(msgs []cmodels.Message, prevSeen int) []cmodels.Message {
+	out := make([]cmodels.Message, 0, len(msgs))
+	var later []cmodels.Message
+	for _, msg := range msgs {
+		if msg.ID > prevSeen && !isAIReply(msg) {
+			later = append(later, msg)
+			continue
+		}
+		out = append(out, msg)
+	}
+	return append(out, later...)
+}
+
+// isAIReply matches replies from any assistant, so a reassignment mid-run still finds the old reply.
+func isAIReply(msg cmodels.Message) bool {
+	var meta struct {
+		AssistantID int `json:"ai_assistant_id"`
+	}
+	return json.Unmarshal(msg.Meta, &meta) == nil && meta.AssistantID > 0
 }

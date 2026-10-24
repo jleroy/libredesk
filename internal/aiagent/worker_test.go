@@ -1,12 +1,14 @@
 package aiagent
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 
 	aimodels "github.com/abhinavxd/libredesk/internal/ai/models"
 	"github.com/abhinavxd/libredesk/internal/aiagent/models"
+	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 )
 
@@ -107,5 +109,35 @@ func TestArticleCitationHTML(t *testing.T) {
 	}
 	if got := numberedCitationText("JWT.[[cite:12]] Logout.[[cite:34]][[cite:999]]", []int{12, 34}); got != "JWT.(1) Logout.(2)" {
 		t.Fatalf("unexpected preview: %q", got)
+	}
+}
+
+func TestPreviousReplyFirst(t *testing.T) {
+	msg := func(id int) cmodels.Message { return cmodels.Message{ID: id} }
+	reply := func(id int) cmodels.Message {
+		return cmodels.Message{ID: id, Meta: json.RawMessage(`{"ai_assistant_id":7}`)}
+	}
+	tests := []struct {
+		name     string
+		msgs     []cmodels.Message
+		prevSeen int
+		want     []int
+	}{
+		{"messages sent while replying", []cmodels.Message{msg(1), msg(2), msg(3), reply(4)}, 1, []int{1, 4, 2, 3}},
+		{"split reply", []cmodels.Message{msg(1), msg(2), reply(3), reply(4)}, 1, []int{1, 3, 4, 2}},
+		{"no new message", []cmodels.Message{msg(1), reply(2)}, 1, []int{1, 2}},
+		{"no reply posted", []cmodels.Message{msg(1), msg(2)}, 1, []int{1, 2}},
+		{"older replies untouched", []cmodels.Message{msg(1), reply(2), msg(3), msg(4), reply(5)}, 3, []int{1, 2, 3, 5, 4}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got []int
+			for _, m := range previousReplyFirst(tt.msgs, tt.prevSeen) {
+				got = append(got, m.ID)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
