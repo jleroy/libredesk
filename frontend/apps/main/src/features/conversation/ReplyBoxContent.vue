@@ -165,7 +165,7 @@
         :message-type="messageType"
         :placeholder="isCramped ? t('globals.terms.typeMessage') : t('editor.hint.full')"
         :insertContent="insertContent"
-        :autoFocus="true"
+        :autoFocus="false"
         :disabled="isDraftLoading"
         :enableMentions="messageType === 'private_note'"
         :enableConversationReferences="messageType === 'private_note'"
@@ -502,12 +502,18 @@ watch(
     } else if (newType === 'private_note') {
       macroStore.setCurrentView('adding_private_note')
     }
-    // Focus editor on tab change
-    setTimeout(() => {
-      editorRef.value?.focus()
-    }, 50)
   },
   { immediate: true }
+)
+
+watch(
+  [messageType, () => props.isDraftLoading, () => conversationStore.current?.uuid],
+  async () => {
+    await nextTick()
+    if (props.isDraftLoading || document.activeElement?.matches('input, textarea')) return
+    editorRef.value?.focus()
+  },
+  { immediate: true, flush: 'post' }
 )
 
 // Expose focus method for parent components
