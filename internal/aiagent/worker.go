@@ -278,6 +278,11 @@ func (m *Manager) handle(ctx context.Context, convID int) {
 	if block := customerContextBlock(conv, contactLines); block != "" {
 		history = append([]aimodels.ChatMessage{{Role: aimodels.RoleUser, Content: block}}, history...)
 	}
+	// buildHistory drops a customer message with no readable text, which leaves the assistant's turn last.
+	if !historyEndsWithUser(history) {
+		m.handoff(conv, assistant, m.i18n.T("ai.agent.handoffError"))
+		return
+	}
 	m.lo.Debug("ai agent running", "conversation_uuid", conv.UUID, "history_messages", len(history), "turns", turns)
 
 	// Read live so mid-turn verification counts.
@@ -890,4 +895,8 @@ func isAIReply(msg cmodels.Message) bool {
 		AssistantID int `json:"ai_assistant_id"`
 	}
 	return json.Unmarshal(msg.Meta, &meta) == nil && meta.AssistantID > 0
+}
+
+func historyEndsWithUser(history []aimodels.ChatMessage) bool {
+	return len(history) > 0 && history[len(history)-1].Role == aimodels.RoleUser
 }

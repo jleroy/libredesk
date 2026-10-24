@@ -154,3 +154,24 @@ func TestPreviousReplyFirst(t *testing.T) {
 		})
 	}
 }
+
+func TestHistoryEndsWithUser(t *testing.T) {
+	user := aimodels.ChatMessage{Role: aimodels.RoleUser, Content: "Where is my order?"}
+	asst := aimodels.ChatMessage{Role: aimodels.RoleAssistant, Content: "Can you share your order number?"}
+	tests := []struct {
+		name    string
+		history []aimodels.ChatMessage
+		want    bool
+	}{
+		{"customer message last", []aimodels.ChatMessage{asst, user}, true},
+		{"assistant reply last", []aimodels.ChatMessage{user, asst}, false},
+		{"empty", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := historyEndsWithUser(tt.history); got != tt.want {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
