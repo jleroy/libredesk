@@ -49,13 +49,9 @@ func checkUpdates(curVersion string, interval time.Duration, app *App) {
 			return
 		}
 
-		// There is an update. Set it on the global app state.
-		// semver ranks v2.9.0-rc.10 below v2.9.0, so RC builds are offered the stable release.
-		if semver.IsValid(out.Update.ReleaseVersion) {
-			if semver.Compare(out.Update.ReleaseVersion, curVersion) > 0 {
-				out.Update.IsNew = true
-				app.lo.Info("new update available", "version", out.Update.ReleaseVersion)
-			}
+		if isNewRelease(curVersion, out.Update.ReleaseVersion) {
+			out.Update.IsNew = true
+			app.lo.Info("new update available", "version", out.Update.ReleaseVersion)
 		}
 
 		app.Lock()
@@ -75,6 +71,10 @@ func checkUpdates(curVersion string, interval time.Duration, app *App) {
 	for range ticker.C {
 		fnCheck()
 	}
+}
+
+func isNewRelease(curVersion, releaseVersion string) bool {
+	return semver.IsValid(releaseVersion) && semver.Compare(releaseVersion, curVersion) > 0
 }
 
 func fetchAppUpdate(client *http.Client, url string) (*AppUpdate, error) {
