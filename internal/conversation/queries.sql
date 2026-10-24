@@ -551,19 +551,23 @@ updated_at = NOW()
 WHERE uuid = $1;
 
 -- name: claim-unassigned-conversation
--- Assigns only if the conversation is still unassigned in the team and the user is not away at this moment.
+-- Assigns only if the conversation is still unassigned in the team and the user is still an enabled, non-away agent of that team.
 WITH assignee AS (
-    SELECT availability_status FROM users WHERE id = $2
+    SELECT u.id
+    FROM users u
+    JOIN team_members tm ON tm.user_id = u.id AND tm.team_id = $3
+    WHERE u.id = $2 AND u.deleted_at IS NULL AND u.type = 'agent' AND u.enabled = true
+    AND u.availability_status NOT IN ('away_manual', 'away_and_reassigning')
 ),
 claimed AS (
     UPDATE conversations
     SET assigned_user_id = $2,
     updated_at = NOW()
     WHERE uuid = $1 AND assigned_user_id IS NULL AND assigned_team_id = $3
-    AND (SELECT availability_status FROM assignee) NOT IN ('away_manual', 'away_and_reassigning')
+    AND EXISTS (SELECT 1 FROM assignee)
     RETURNING id
 )
-SELECT (SELECT availability_status FROM assignee), EXISTS (SELECT 1 FROM claimed);
+SELECT EXISTS (SELECT 1 FROM assignee), EXISTS (SELECT 1 FROM claimed);
 
 -- name: update-conversation-contact-last-seen
 UPDATE conversations
