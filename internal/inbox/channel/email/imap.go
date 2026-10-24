@@ -16,6 +16,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
+	"github.com/emersion/go-message/charset"
 	"github.com/jhillyerd/enmime/v2"
 	"github.com/volatiletech/null/v9"
 )
@@ -80,6 +81,8 @@ func (e *Email) processMailbox(ctx context.Context, scanInboxSince time.Duration
 		TLSConfig: &tls.Config{
 			InsecureSkipVerify: cfg.TLSSkipVerify,
 		},
+		// The default decoder only knows UTF-8, ISO-8859-1 and US-ASCII, leaving other charsets in subjects and sender names undecoded.
+		WordDecoder: &mime.WordDecoder{CharsetReader: charset.Reader},
 	}
 	switch cfg.TLSType {
 	case "none":
