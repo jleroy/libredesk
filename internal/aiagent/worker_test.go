@@ -6,10 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/abhinavxd/libredesk/internal/ai"
 	aimodels "github.com/abhinavxd/libredesk/internal/ai/models"
 	"github.com/abhinavxd/libredesk/internal/aiagent/models"
+	"github.com/abhinavxd/libredesk/internal/attachment"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
+	"github.com/abhinavxd/libredesk/internal/testutil"
+	"github.com/volatiletech/null/v9"
+	"github.com/zerodha/logf"
 )
 
 func TestSplitSuggestions(t *testing.T) {
@@ -155,23 +160,96 @@ func TestPreviousReplyFirst(t *testing.T) {
 	}
 }
 
-func TestHistoryEndsWithUser(t *testing.T) {
-	user := aimodels.ChatMessage{Role: aimodels.RoleUser, Content: "Where is my order?"}
-	asst := aimodels.ChatMessage{Role: aimodels.RoleAssistant, Content: "Can you share your order number?"}
+func TestBuildHistoryPreservesCustomerMessages(t *testing.T) {
+	db := testutil.NewDB(t, "aiagent_worker_history")
+	lo := logf.New(logf.Opts{})
+	aiManager, err := ai.New(ai.Opts{Ctx: t.Context(), DB: db, Lo: &lo, I18n: testutil.NewI18n(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(aiManager.Close)
+	m := &Manager{ai: aiManager, lo: &lo}
+	const contactID = 7
+	const emptyMessage = "[The customer sent a message with no readable text.]"
+	previous := []cmodels.Message{
+		{ID: 1, SenderID: contactID, SenderType: cmodels.SenderTypeContact, Type: cmodels.MessageIncoming, TextContent: "Where is my order?"},
+		{ID: 2, SenderType: cmodels.SenderTypeAgent, Type: cmodels.MessageOutgoing, TextContent: "Can you share your order number?"},
+	}
 	tests := []struct {
-		name    string
-		history []aimodels.ChatMessage
-		want    bool
+		name        string
+		content     string
+		contentType string
+		attachments attachment.Attachments
+		want        string
 	}{
-		{"customer message last", []aimodels.ChatMessage{asst, user}, true},
-		{"assistant reply last", []aimodels.ChatMessage{user, asst}, false},
-		{"empty", nil, false},
+		{name: "blank", want: emptyMessage},
+		{name: "whitespace", content: " \n\t ", want: emptyMessage},
+		{name: "external image", content: `<img src="https://example.com/screenshot.png">`, contentType: cmodels.ContentTypeHTML, want: emptyMessage},
+		{name: "empty HTML", content: "<p><br></p>", contentType: cmodels.ContentTypeHTML, want: emptyMessage},
+		{name: "plain text", content: "Order 123", want: "Order 123"},
+		{name: "HTML text", content: "<p>Order 123</p>", contentType: cmodels.ContentTypeHTML, want: "Order 123"},
+		{name: "quoted reply", content: "> Order 123", want: "> Order 123"},
+		{
+			name:        "image without vision",
+			attachments: attachment.Attachments{{Name: "screenshot.png", ContentType: "image/png", UUID: "image"}},
+			want:        `[The customer attached an image "screenshot.png" that you cannot view. Ask them to describe it if it matters.]`,
+		},
+		{
+			name:        "PDF attachment",
+			attachments: attachment.Attachments{{Name: "invoice.pdf", ContentType: "application/pdf"}},
+			want:        `[The customer attached a file "invoice.pdf" (application/pdf) that cannot be read here. Ask them to share the relevant details as text if it matters.]`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := historyEndsWithUser(tt.history); got != tt.want {
-				t.Fatalf("got %v, want %v", got, tt.want)
+			latest := cmodels.Message{
+				ID: 3, SenderID: contactID, SenderType: cmodels.SenderTypeContact, Type: cmodels.MessageIncoming,
+				Content: tt.content, TextContent: tt.content, ContentType: tt.contentType, Attachments: tt.attachments,
+			}
+			if tt.contentType == cmodels.ContentTypeHTML {
+				latest.TextContent = stringutil.HTML2Text(tt.content)
+			}
+			history := m.buildHistory(append(previous, latest), contactID)
+			want := []aimodels.ChatMessage{
+				{Role: aimodels.RoleUser, Content: previous[0].TextContent},
+				{Role: aimodels.RoleAssistant, Content: previous[1].TextContent},
+				{Role: aimodels.RoleUser, Content: tt.want},
+			}
+			if !reflect.DeepEqual(history, want) {
+				t.Fatalf("got %#v, want %#v", history, want)
 			}
 		})
 	}
+	t.Run("subject without body", func(t *testing.T) {
+		history := m.buildHistory([]cmodels.Message{{SenderType: cmodels.SenderTypeContact, SenderID: contactID, Type: cmodels.MessageIncoming}}, contactID)
+		conv := cmodels.Conversation{Subject: null.StringFrom("How do I reset my password?")}
+		block := customerContextBlock(conv, nil /** contactLines **/)
+		history = append([]aimodels.ChatMessage{{Role: aimodels.RoleUser, Content: block}}, history...)
+		if len(history) != 2 || !strings.Contains(history[0].Content, conv.Subject.String) || history[1].Content != emptyMessage {
+			t.Fatalf("subject or customer message missing: %#v", history)
+		}
+	})
+	t.Run("consecutive blank messages", func(t *testing.T) {
+		blank := cmodels.Message{SenderType: cmodels.SenderTypeContact, SenderID: contactID, Type: cmodels.MessageIncoming}
+		history := m.buildHistory([]cmodels.Message{previous[0], blank, blank}, contactID)
+		want := []aimodels.ChatMessage{
+			{Role: aimodels.RoleUser, Content: previous[0].TextContent},
+			{Role: aimodels.RoleUser, Content: emptyMessage},
+			{Role: aimodels.RoleUser, Content: emptyMessage},
+		}
+		if !reflect.DeepEqual(history, want) {
+			t.Fatalf("got %#v, want %#v", history, want)
+		}
+	})
+	t.Run("empty assistant message", func(t *testing.T) {
+		history := m.buildHistory([]cmodels.Message{{SenderType: cmodels.SenderTypeAgent, Type: cmodels.MessageOutgoing}}, contactID)
+		if len(history) != 0 {
+			t.Fatalf("empty assistant message kept: %#v", history)
+		}
+	})
+	t.Run("empty history", func(t *testing.T) {
+		if history := m.buildHistory(nil /** msgs **/, contactID); len(history) != 0 {
+			t.Fatalf("unexpected history: %#v", history)
+		}
+	})
 }
