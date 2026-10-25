@@ -81,7 +81,7 @@ func handleOIDCCallback(r *fastglue.Request) error {
 	nextStr, _ := next.(string)
 
 	if err != nil {
-		app.lo.Error("error parsing provider id", "error", err)
+		app.lo.Debug("OIDC callback rejected: invalid provider ID", "error", err)
 		return redirectLoginError(r, oidcErrLoginFailed, nextStr)
 	}
 
@@ -105,7 +105,7 @@ func handleOIDCCallback(r *fastglue.Request) error {
 		return redirectLoginError(r, oidcErrSessionExpired, nextStr)
 	}
 	if state != sessionState {
-		app.lo.Debug("oidc state mismatch, the session cookie may be missing or expired or the callback URL is stale", "provider_id", providerID)
+		app.lo.Warn("OIDC login rejected: state mismatch, session may have expired", "provider_id", providerID, "ip", ip)
 		return redirectLoginError(r, oidcErrSessionExpired, nextStr)
 	}
 

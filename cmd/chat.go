@@ -380,7 +380,7 @@ func handleAuthExchange(r *fastglue.Request) error {
 	// Verify the customer-generated JWT.
 	claims, err := verifyStandardJWT(req.JWT, inbox.Secret.String)
 	if err != nil {
-		app.lo.Debug("invalid JWT in auth exchange", "error", err)
+		app.lo.Warn("widget authentication rejected: invalid JWT", "inbox_id", inbox.ID, "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
 	}
 
@@ -717,7 +717,7 @@ func handleWidgetMediaUpload(r *fastglue.Request) error {
 	// Check file size
 	consts := app.consts.Load().(*constants)
 	if bytesToMegabytes(srcFileSize) > float64(consts.MaxFileUploadSizeMB) {
-		app.lo.Debug("error: uploaded file size is larger than max allowed", "size", bytesToMegabytes(srcFileSize), "max_allowed", consts.MaxFileUploadSizeMB)
+		app.lo.Debug("widget upload rejected: file exceeds size limit", "size_mb", bytesToMegabytes(srcFileSize), "max_allowed_mb", consts.MaxFileUploadSizeMB)
 		return r.SendErrorEnvelope(
 			fasthttp.StatusRequestEntityTooLarge,
 			app.i18n.Ts("media.fileSizeTooLarge", "size", fmt.Sprintf("%dMB", consts.MaxFileUploadSizeMB)),
@@ -820,7 +820,7 @@ func getContactConversation(r *fastglue.Request, conversationUUID string) (int, 
 	}
 
 	if conversation.ContactID != contactID || conversation.InboxID != inbox.ID {
-		app.lo.Debug("unauthorized access to conversation", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID, "session_inbox_id", inbox.ID, "conversation_inbox_id", conversation.InboxID)
+		app.lo.Warn("widget conversation access denied: contact or inbox does not match", "conversation_uuid", conversationUUID, "contact_id", contactID, "conversation_contact_id", conversation.ContactID, "session_inbox_id", inbox.ID, "conversation_inbox_id", conversation.InboxID)
 		return 0, cmodels.Conversation{}, envelope.NewError(envelope.PermissionError, app.i18n.T("status.deniedPermission"), nil)
 	}
 
