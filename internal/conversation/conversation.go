@@ -1085,7 +1085,7 @@ func (c *Manager) UpdateConversationStatus(uuid string, statusID int, status, sn
 	if status == models.StatusSnoozed {
 		duration, err := time.ParseDuration(snoozeDur)
 		if err != nil || duration <= 0 {
-			c.lo.Error("error parsing snooze duration", "duration", snoozeDur, "error", err)
+			c.lo.Debug("error parsing snooze duration", "duration", snoozeDur, "error", err)
 			return envelope.NewError(envelope.InputError, c.i18n.T("validation.invalidSnoozeDuration"), nil)
 		}
 		snoozeUntil = time.Now().Add(duration)
@@ -2103,7 +2103,7 @@ func (c *Manager) ValidateListFilters(filtersJSON string) error {
 	if err == nil {
 		return nil
 	}
-	c.lo.Error("error validating view filters", "error", err)
+	c.lo.Debug("error validating view filters", "error", err)
 	if errors.Is(err, dbutil.ErrTooManyGroups) {
 		return envelope.NewError(envelope.InputError, c.i18n.Ts("conversation.filters.tooManyGroups", "max", fmt.Sprintf("%d", dbutil.MaxFilterGroups)), nil)
 	}

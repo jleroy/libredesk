@@ -548,7 +548,7 @@ func handleUpdateUserAssignee(r *fastglue.Request) error {
 	)
 
 	if err := r.Decode(&req, "json"); err != nil {
-		app.lo.Error("error decoding assignee change request", "error", err)
+		app.lo.Debug("error decoding assignee change request", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 

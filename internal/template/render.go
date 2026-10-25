@@ -2,6 +2,7 @@ package template
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"text/template"
@@ -35,15 +36,8 @@ const (
 // RenderString renders Go template variables in the given content string
 // without wrapping it in the base email template. Returns original content on any error.
 func (m *Manager) RenderString(data any, content string) string {
-	t, err := template.New("content").Funcs(m.funcMap).Parse(content)
-	if err != nil {
-		return content
-	}
-	var buf strings.Builder
-	if err := t.Execute(&buf, data); err != nil {
-		return content
-	}
-	return buf.String()
+	rendered, _ := renderString(data, content, m.funcMap)
+	return rendered
 }
 
 // RenderStoredTemplate fetches a template by name and renders its body with the provided data
@@ -53,7 +47,11 @@ func (m *Manager) RenderStoredTemplate(name string, data any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return m.RenderString(data, tmpl.Body), nil
+	rendered, err := renderString(data, tmpl.Body, m.funcMap)
+	if err != nil {
+		m.lo.Warn("saved template interpolation failed, using original content", "template", name, "error", err)
+	}
+	return rendered, nil
 }
 
 // RenderEmailWithTemplate renders content inside the default outgoing email template.
@@ -62,7 +60,7 @@ func (m *Manager) RenderEmailWithTemplate(data any, content string) (string, err
 	defer m.mutex.RUnlock()
 
 	defaultTmpl, err := m.getDefaultOutgoingEmailTemplate()
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrTemplateNotFound) {
 		m.lo.Error("error fetching default outgoing email template", "error", err)
 	}
 
@@ -267,4 +265,16 @@ func countContentTemplates(node parse.Node) int {
 		return countContentTemplates(node.List) + countContentTemplates(node.ElseList)
 	}
 	return 0
+}
+
+func renderString(data any, content string, funcs template.FuncMap) (string, error) {
+	t, err := template.New("content").Funcs(funcs).Parse(content)
+	if err != nil {
+		return content, err
+	}
+	var buf strings.Builder
+	if err := t.Execute(&buf, data); err != nil {
+		return content, err
+	}
+	return buf.String(), nil
 }
