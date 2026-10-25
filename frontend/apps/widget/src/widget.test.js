@@ -168,12 +168,15 @@ describe('opening proactive messages', () => {
   test('keeps unread replies ahead of a proactive message', () => {
     widget.updateUnreadCount(1 /* count */)
 
+    expect(widget.previewHost).toBeNull()
+
     widget.toggleButton.click()
 
     expect(widget.postToIframe).toHaveBeenCalledExactlyOnceWith({ type: 'WIDGET_OPENED' })
   })
 
-  test('opens a support reply without opening the proactive message', () => {
+  test.each(['before', 'after'])('opens a reply when its unread count arrives %s its preview', order => {
+    if (order === 'before') widget.updateUnreadCount(1 /* count */)
     widget.handleMessage({
       source: widget.iframe.contentWindow,
       origin: window.location.origin,
@@ -183,6 +186,7 @@ describe('opening proactive messages', () => {
         previews: [{ key: 'support-reply', conversation: 'support-thread', name: 'Support', text: 'Your answer' }]
       }
     })
+    if (order === 'after') widget.updateUnreadCount(1 /* count */)
     widget.postToIframe.mockClear()
 
     widget.previewHost.shadowRoot.querySelector('.open').click()
@@ -191,6 +195,19 @@ describe('opening proactive messages', () => {
       { type: 'OPEN_CONVERSATION', uuid: 'support-thread' },
       { type: 'WIDGET_OPENED' }
     ])
+  })
+
+  test('restores the proactive bubble when the unread count clears', () => {
+    widget.updateUnreadCount(1 /* count */)
+    expect(widget.previewHost).toBeNull()
+
+    widget.updateUnreadCount(0 /* count */)
+
+    expect(widget.previewHost.shadowRoot.querySelector('.text').textContent).toBe('Need help choosing a plan?')
+
+    widget.previewHost.shadowRoot.querySelector('.open').click()
+
+    expect(widget.postToIframe).toHaveBeenCalledWith({ type: 'CAMPAIGN_EVENT', event: 'opened', id: 'pricing-message' })
   })
 
   test('does not open a proactive message without a visible bubble', () => {

@@ -740,6 +740,7 @@
             } else {
                 this.unreadBadge.style.display = 'none';
             }
+            this.renderPreviews();
         }
 
         expandWidget () {
