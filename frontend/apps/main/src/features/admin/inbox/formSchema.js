@@ -3,7 +3,7 @@ import { isGoDuration, validateEmail, isValidTemplate } from '@shared-ui/utils/s
 import { AUTH_TYPE_PASSWORD, AUTH_TYPE_OAUTH2 } from '@main/constants/auth.js'
 import { extractEmailAddress } from '@main/utils/email-sender'
 
-const FROM_NAME_TEMPLATE_VARS = ['.Agent.FirstName', '.Agent.LastName', '.Agent.FullName', '.Inbox.Name']
+export const FROM_NAME_TEMPLATE_VARS = ['.Agent.FirstName', '.Agent.LastName', '.Agent.FullName', '.Inbox.Name']
 
 export const createFormSchema = (t) => z.object({
   name: z.string().min(1, t('globals.messages.required')),

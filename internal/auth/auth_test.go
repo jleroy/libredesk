@@ -316,6 +316,59 @@ func TestSessionValidationUsesOneRedisRead(t *testing.T) {
 	}
 }
 
+func TestSessionValuesPreserveLoginAndReplaceInvalidCookies(t *testing.T) {
+	for _, cookieType := range []string{"missing", "unknown", "expired", "authenticated"} {
+		t.Run(cookieType, func(t *testing.T) {
+			a, _, mr := sessionAuthForTest(t, time.Hour)
+			cookie := ""
+			switch cookieType {
+			case "unknown":
+				cookie = "unknown-session"
+			case "expired", "authenticated":
+				cookie = saveTestSession(t, a, 1)
+				if cookieType == "expired" {
+					mr.FastForward(2 * time.Hour)
+				}
+			}
+			r := sessionRequest(cookie)
+			if err := a.SetSessionValues(r, map[string]any{"oidc_state": "state"}); err != nil {
+				t.Fatal(err)
+			}
+			var responseCookie fasthttp.Cookie
+			responseCookie.SetKey("libredesk_session")
+			hasCookie := r.RequestCtx.Response.Header.Cookie(&responseCookie)
+			if cookieType == "authenticated" {
+				if hasCookie {
+					t.Fatal("SSO replaced the authenticated session cookie")
+				}
+				requireSession(t, a, cookie, 1)
+			} else {
+				if !hasCookie || len(responseCookie.Value()) != 64 || string(responseCookie.Value()) == cookie {
+					t.Fatal("SSO did not issue a new random session cookie")
+				}
+				cookie = string(responseCookie.Value())
+			}
+			state, err := a.GetSessionValue(sessionRequest(cookie), "oidc_state")
+			if err != nil || state != "state" {
+				t.Fatalf("SSO state = %v, error = %v", state, err)
+			}
+		})
+	}
+}
+
+func TestSessionValidationDoesNotCreateAnonymousSessions(t *testing.T) {
+	a, _, mr := sessionAuthForTest(t, time.Hour)
+	for _, cookie := range []string{"", "unknown-session"} {
+		r := sessionRequest(cookie)
+		if _, err := a.ValidateSession(r); !errors.Is(err, simplesessions.ErrInvalidSession) {
+			t.Fatalf("invalid session accepted: %v", err)
+		}
+		if len(mr.Keys()) != 0 || len(r.RequestCtx.Response.Header.Peek("Set-Cookie")) != 0 {
+			t.Fatal("invalid session validation created an anonymous session")
+		}
+	}
+}
+
 func sessionAuthForTest(t *testing.T, lifetime time.Duration) (*Auth, *redis.Client, *miniredis.Miniredis) {
 	t.Helper()
 	mr := miniredis.RunT(t)
