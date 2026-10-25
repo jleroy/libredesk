@@ -3,8 +3,8 @@ package locales
 
 import "embed"
 
-// LocaleFiles contains backend and template catalogs for each translated language.
-// English source strings need no catalog.
+// LocaleFiles contains Go PO/MO catalogs and compiled Lingui JSON catalogs.
+// The English frontend JSON is generated from source; no English PO is needed.
 //
 //go:embed */LC_MESSAGES
 var LocaleFiles embed.FS

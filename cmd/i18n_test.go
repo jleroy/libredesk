@@ -98,47 +98,45 @@ func TestLanguageReloadReachesExistingManagers(t *testing.T) {
 	}
 }
 
-// The API overlays the selected frontend JSON catalog on English defaults.
-// This checks the merge contract, not a historical snapshot of translations.
-func TestFrontendCatalogMergesEnglishFallback(t *testing.T) {
-	root, err := filepath.Abs("..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fs, err := stuffbin.NewLocalFS("/", root+"/i18n:i18n")
-	if err != nil {
-		t.Fatal(err)
-	}
-	app := &App{fs: fs}
-	for _, code := range []string{"en-US", "fr-FR", "ja-JP", "pt-PT"} {
-		want := map[string]string{}
-		for _, lang := range []string{"en-US", code} {
-			b, err := fs.Read("/i18n/" + lang + ".json")
+// Keep English separate: missing translations must use English plural rules.
+func TestFrontendCatalogIncludesEnglishFallback(t *testing.T) {
+	for requested, resolved := range map[string]string{
+		"en-US": "en-US", "fr-CA": "fr-FR", "ja": "ja-JP", "pt-PT": "pt-PT", "unknown": "en-US",
+	} {
+		t.Run(requested, func(t *testing.T) {
+			b, err := i18nLangJSON(nil, requested)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := json.Unmarshal(b, &want); err != nil {
+			var got frontendCatalog
+			if err := json.Unmarshal(b, &got); err != nil {
 				t.Fatal(err)
 			}
-		}
-		b, err := i18nLangJSON(app, code)
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := map[string]string{}
-		if err := json.Unmarshal(b, &got); err != nil {
-			t.Fatal(err)
-		}
-		if len(got) != len(want) {
-			t.Fatalf("%s: merged catalog has %d entries, want %d", code, len(got), len(want))
-		}
-		for key, value := range want {
-			if actual, ok := got[key]; !ok {
-				t.Errorf("%s: merged catalog is missing key %q", code, key)
-			} else if actual != value {
-				t.Errorf("%s: merged key %q = %q, want %q", code, key, actual, value)
+			if got.Locale != resolved || got.Name == "" {
+				t.Fatalf("unexpected catalog metadata: %s %q", got.Locale, got.Name)
 			}
-		}
+			for label, raw := range map[string]json.RawMessage{"messages": got.Messages, "english": got.English} {
+				var messages map[string]json.RawMessage
+				if err := json.Unmarshal(raw, &messages); err != nil || len(messages) == 0 {
+					t.Fatalf("%s must contain compiled Lingui messages: %v", label, err)
+				}
+			}
+			english, err := i18nLangJSON(nil, "en-US")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var source frontendCatalog
+			if err := json.Unmarshal(english, &source); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got.English, source.Messages) {
+				t.Fatal("fallback differs from the English catalog")
+			}
+			cached, err := i18nLangJSON(nil, requested)
+			if err != nil || !bytes.Equal(cached, b) {
+				t.Fatalf("cached response changed: %v", err)
+			}
+		})
 	}
 }
 

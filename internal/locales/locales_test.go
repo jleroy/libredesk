@@ -132,15 +132,16 @@ func TestDomainsFormattingAndFallback(t *testing.T) {
 }
 
 func TestCatalogsAndConcurrentLocales(t *testing.T) {
-	entries, err := fs.ReadDir(catalogs.LocaleFiles, ".")
+	files, err := fs.Glob(catalogs.LocaleFiles, "*/LC_MESSAGES/backend.po")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		code := entry.Name()
+	if len(files) == 0 {
+		t.Fatal("no backend source catalogs embedded")
+	}
+	// Frontend-only locales (including English) do not have backend catalogs.
+	for _, filename := range files {
+		code := strings.Split(filename, "/")[0]
 		t.Run(code, func(t *testing.T) {
 			t.Parallel()
 			locale, err := New(code)
@@ -151,9 +152,6 @@ func TestCatalogsAndConcurrentLocales(t *testing.T) {
 				if locale.Domains[domain] == nil {
 					t.Fatalf("missing domain %s", domain)
 				}
-				if _, err := catalogs.LocaleFiles.ReadFile(code + "/LC_MESSAGES/" + domain + ".mo"); err != nil {
-					t.Fatalf("missing compiled catalog: %v", err)
-				}
 				po := gotext.NewPo()
 				b, err := catalogs.LocaleFiles.ReadFile(code + "/LC_MESSAGES/" + domain + ".po")
 				if err != nil {
@@ -161,7 +159,8 @@ func TestCatalogsAndConcurrentLocales(t *testing.T) {
 				}
 				po.Parse(b)
 				for id, translation := range po.GetDomain().GetTranslations() {
-					// Every imported singular must behave identically in PO and MO.
+					// Check the loader against source translations, whether it used
+					// a compiled MO or the development PO fallback.
 					if got, want := locale.GetD(domain, id, []any{}...), po.Get(id, []any{}...); got != want {
 						t.Errorf("%s: %q = %q, want %q", domain, id, got, want)
 					}
