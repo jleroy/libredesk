@@ -3,18 +3,18 @@
 ## For translators
 
 > [!CAUTION]
-> Libredesk localization are handled through [Crowdin](
-> https://crowdin.com/project/libredesk), use it to translate the app. Do not
-> submit a pull request to update translation files unless you have been asked
-> to do so.
+> Translations for libredesk are managed through [Crowdin](
+> https://crowdin.com/project/libredesk). Please use it to translate the app.
+> Do not submit a pull request to update translation files unless you have been
+> asked to do so.
 
-## For developpers
+## For developers
 
 ### How it works
 
 The Go backend uses [leonelquinteros/gotext](
 https://github.com/leonelquinteros/gotext). The Vue frontends (interface
-and chat widget) uses [Lingui](https://github.com/lingui/js-lingui) with its
+and chat widget) use [Lingui](https://github.com/lingui/js-lingui) with the
 `@lingui/format-po-gettext` formatter.
 
 English source messages are the message IDs: there is no English catalog.
@@ -46,7 +46,7 @@ i18n.GetN("Attachment", "Attachments", len(attachments))
 locale.GetND("templates", "%d result", "%d results", count, count)
 ```
 
-The count selects the plural form; pass it again as a formatting argument when
+The count selects the plural form: pass it again as a formatting argument when
 the message contains `%d`. Explicit argument indexes allow translators to
 reorder arguments. In Go HTML templates, always select the template domain:
 
@@ -133,12 +133,13 @@ const helpMessage = defineMessage({
 > [!TIP]
 > The `{documentation}` placeholder is replaced by the Vue content in the
 > `documentation` slot. Translators can move the placeholder within the
-> sentence, the link itself remains defined in the component. `TranslatedText`
+> sentence. The link itself remains defined in the component. `TranslatedText`
 > is registered globally by the application's translation plugin.
 
 Translate navigation labels when rendering them. For routes, menus and other
 static configuration, use Lingui's `defineMessage` macro to declare the English
-text alongside the item. It creates a message descriptor that can be translated later, using the currently selected language:
+text alongside the item. It creates a message descriptor that can be translated
+later using the currently selected language:
 
 ```js
 import { defineMessage } from '@lingui/core/macro'
@@ -237,16 +238,15 @@ Follow these guidelines when writing messages:
 > [!CAUTION]
 > Never commit any `.po`, `.mo` or `frontend.json` files to the repository.
 > Translation updates in Git must come from [Crowdin](
-> https://crowdin.com/project/libredesk) exports, string must be edited through
-> it.
+> https://crowdin.com/project/libredesk) exports. Edit translations in Crowdin.
 
 #### Updating source messages
 
 Install only the tools needed for the part you are working on:
 
 - Backend: Go.
-- Frontend: Node.js 24 or newer `pnpm`. Run `make frontend-build` in
-  `frontend/` if not already done to install dependancies.
+- Frontend: Node.js 24 or newer and pnpm. Run `make frontend-build` from the
+  repository root if you have not already done so to install dependencies.
 
 Then, from the repository root:
 
@@ -256,7 +256,7 @@ make i18n-extract-frontend   # Update frontend.pot.
 make i18n-extract            # Update all .pot files.
 ```
 
-Commit **only** the updated `.pot` files. 
+Commit **only** the updated `.pot` files.
 
 #### Local development and validation
 
