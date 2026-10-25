@@ -2,14 +2,47 @@ package ai
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/abhinavxd/libredesk/internal/ai/models"
+	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/testutil"
 	"github.com/zerodha/logf"
 )
+
+func TestProviderErrorKeepsTransportDetailsPrivate(t *testing.T) {
+	translations := testutil.NewI18n(t)
+	for _, tc := range []struct {
+		name string
+		err  error
+		key  string
+		logs bool
+	}{
+		{name: "canceled", err: context.Canceled, key: "ai.providerUnavailable"},
+		{name: "wrapped cancellation", err: fmt.Errorf("%w: POST https://private-provider.example: %w", ErrProviderUnavailable, context.Canceled), key: "ai.providerUnavailable"},
+		{name: "unavailable", err: fmt.Errorf("%w: private transport details", ErrProviderUnavailable), key: "ai.providerUnavailable", logs: true},
+		{name: "timeout", err: fmt.Errorf("%w: %w", ErrProviderUnavailable, context.DeadlineExceeded), key: "ai.providerTimeout", logs: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			logger := logf.New(logf.Opts{Writer: &logs})
+			manager := &Manager{i18n: translations, lo: &logger}
+			err := manager.providerError(tc.err)
+			response, ok := err.(envelope.Error)
+			if !ok || response.Message != translations.T(tc.key) || response.ErrorType != envelope.GeneralError {
+				t.Fatalf("unexpected provider error response: %v", err)
+			}
+			if got := strings.Contains(logs.String(), "level=error"); got != tc.logs {
+				t.Fatalf("error log present = %v, want %v: %s", got, tc.logs, logs.String())
+			}
+		})
+	}
+}
 
 func TestStripCodeFence(t *testing.T) {
 	tests := []struct {
