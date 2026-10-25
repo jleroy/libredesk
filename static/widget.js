@@ -631,6 +631,11 @@
         showChat () {
             if (!this.iframe) return;
 
+            if (!this.isChatVisible && this.campaignData && this.previewHost && this.unreadCount === 0) {
+                this.postToIframe({ type: 'CAMPAIGN_EVENT', event: 'opened', id: this.campaignData.id });
+                this.campaignData = null;
+            }
+
             this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
             this.isChatVisible = true;
             this.renderPreviews();
@@ -880,10 +885,7 @@
                 open.className = 'open';
                 open.setAttribute('aria-label', `${data.labels.open}: ${item.name}. ${item.text}`);
                 open.addEventListener('click', () => {
-                    if (item.campaign) {
-                        this.postToIframe({ type: 'CAMPAIGN_EVENT', event: 'opened', id: item.key });
-                        this.campaignData = null;
-                    } else this.postToIframe({ type: 'OPEN_CONVERSATION', uuid: item.conversation });
+                    if (!item.campaign) this.postToIframe({ type: 'OPEN_CONVERSATION', uuid: item.conversation });
                     this.showChat();
                 });
                 const avatar = safeImage(item.avatar, 'avatar');
