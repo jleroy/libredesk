@@ -131,9 +131,9 @@ func (m *Manager) continueAgentRun(ctx context.Context, run *pendingAgentRun) (m
 		if err != nil {
 			return models.AgentRunResult{}, err
 		}
-		m.lo.Debug("ai run model response", "step", run.Step, "content_len", len(res.Content), "tool_calls", len(res.ToolCalls), "content", res.Content, "prompt_tokens", res.Usage.PromptTokens, "completion_tokens", res.Usage.CompletionTokens)
+		m.lo.Debug("ai run model response", "step", run.Step, "content_len", len(res.Content), "tool_calls", len(res.ToolCalls), "prompt_tokens", res.Usage.PromptTokens, "completion_tokens", res.Usage.CompletionTokens)
 		if len(res.ToolCalls) == 0 {
-			m.lo.Debug("ai run final answer", "answer", res.Content)
+			m.lo.Debug("ai run final answer", "answer_len", len(res.Content))
 			return completedAgentRun(res.Content), nil
 		}
 		run.Messages = append(run.Messages, models.ChatMessage{Role: models.RoleAssistant, Content: res.Content, ToolCalls: res.ToolCalls})
@@ -157,7 +157,7 @@ func (m *Manager) continueAgentRun(ctx context.Context, run *pendingAgentRun) (m
 		m.lo.Warn("agent produced no answer within the step budget", "max_steps", run.MaxSteps)
 		return models.AgentRunResult{}, envelope.NewError(envelope.GeneralError, m.i18n.T("ai.noAnswerWithinSteps"), nil)
 	}
-	m.lo.Debug("ai run final answer", "answer", res.Content, "forced", true)
+	m.lo.Debug("ai run final answer", "answer_len", len(res.Content), "forced", true)
 	return completedAgentRun(res.Content), nil
 }
 

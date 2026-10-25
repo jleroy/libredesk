@@ -1,6 +1,15 @@
 package ai
 
-import "testing"
+import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/abhinavxd/libredesk/internal/ai/models"
+	"github.com/zerodha/logf"
+)
 
 func TestStripCodeFence(t *testing.T) {
 	tests := []struct {
@@ -101,5 +110,24 @@ func TestEnsureHTMLFragment(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestCustomToolHTTPFailureHasSafeOutcomeLog(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte("private customer response"))
+	}))
+	defer server.Close()
+	var logs bytes.Buffer
+	lo := logf.New(logf.Opts{Writer: &logs, Level: logf.DebugLevel})
+	tool := newHTTPTool(models.Tool{ID: 42, Name: "lookup", URL: server.URL, Method: http.MethodGet}, "" /** encryptionKey **/, &lo, server.Client(), ToolContext{ConversationUUID: "conversation"})
+	manager := &Manager{lo: &lo}
+	result := manager.executeToolCall(t.Context(), map[string]Tool{"lookup": tool}, models.ToolCall{Function: models.ToolCallFunction{Name: "lookup", Arguments: `{"otp":"private-otp-value"}`}})
+	if !strings.Contains(result, "503") {
+		t.Fatalf("model tool response changed: %q", result)
+	}
+	if !strings.Contains(logs.String(), "status=503") || !strings.Contains(logs.String(), "tool_id=42") || strings.Contains(logs.String(), "private customer response") || strings.Contains(logs.String(), "private-otp-value") {
+		t.Fatalf("missing safe HTTP outcome log: %s", logs.String())
 	}
 }

@@ -158,7 +158,12 @@ type colorSchemeResult struct {
 }
 
 func (w helpCenterCacheLogWriter) Write(p []byte) (int, error) {
-	w.lo.Error("help center page cache: " + strings.TrimSpace(string(p)))
+	message := strings.TrimSpace(string(p))
+	if strings.Contains(message, "error running middleware:") {
+		w.lo.Error("help center page cache: " + message)
+	} else {
+		w.lo.Warn("help center page cache: " + message)
+	}
 	return len(p), nil
 }
 

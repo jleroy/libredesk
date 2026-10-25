@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"slices"
 	"strings"
-
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/ai"
@@ -19,7 +19,6 @@ import (
 	imageutil "github.com/abhinavxd/libredesk/internal/image"
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/inbox/channel/livechat"
-
 	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 )
@@ -107,7 +106,7 @@ func (m *Manager) worker(ctx context.Context) {
 func (m *Manager) handleWithRecover(ctx context.Context, convID int) {
 	defer func() {
 		if r := recover(); r != nil {
-			m.lo.Error("recovered from panic in ai agent worker", "conversation_id", convID, "panic", r)
+			m.lo.Error("recovered from panic in ai agent worker", "conversation_id", convID, "panic", r, "stack", string(debug.Stack()))
 		}
 	}()
 	m.handle(ctx, convID)
@@ -164,7 +163,7 @@ func (m *Manager) enqueue(convID int) {
 func (m *Manager) handoffByConvID(convID int, reason string) {
 	defer func() {
 		if r := recover(); r != nil {
-			m.lo.Error("recovered from panic handing off dropped ai job", "conversation_id", convID, "panic", r)
+			m.lo.Error("recovered from panic handing off dropped ai job", "conversation_id", convID, "panic", r, "stack", string(debug.Stack()))
 		}
 	}()
 	conv, err := m.convo.GetConversation(convID, "", "")
@@ -810,11 +809,7 @@ func (m *Manager) messageText(msg cmodels.Message) string {
 		return full
 	}
 	if trimmed != full {
-		removed := full
-		if rest, ok := strings.CutPrefix(full, trimmed); ok {
-			removed = strings.TrimSpace(rest)
-		}
-		m.lo.Debug("ai agent stripped quoted text", "message_uuid", msg.UUID, "kept_len", len(trimmed), "full_len", len(full), "removed", removed)
+		m.lo.Debug("ai agent stripped quoted text", "message_uuid", msg.UUID, "kept_len", len(trimmed), "full_len", len(full))
 	}
 	return trimmed
 }

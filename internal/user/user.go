@@ -465,6 +465,7 @@ func (u *Manager) ValidateAPIKey(apiKey, apiSecret string) (models.User, error) 
 		if err == sql.ErrNoRows {
 			return user, envelope.NewError(envelope.UnauthorizedError, u.i18n.T("validation.invalidCredential"), nil)
 		}
+		u.lo.Error("error looking up API key user", "error", err)
 		return user, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
@@ -638,7 +639,9 @@ func (u *Manager) makeUserListQuery(page, pageSize int, userTypes []string, orde
 // verifyPassword compares the provided password with the stored password hash.
 func (u *Manager) verifyPassword(pwd []byte, pwdHash string) error {
 	if err := bcrypt.CompareHashAndPassword([]byte(pwdHash), pwd); err != nil {
-		u.lo.Error("error verifying password", "error", err)
+		if !errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			u.lo.Error("error verifying password", "error", err)
+		}
 		return fmt.Errorf("error verifying password: %w", err)
 	}
 	return nil

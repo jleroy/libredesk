@@ -141,7 +141,7 @@ func (m *Manager) IncomingMessageWorker(ctx context.Context) {
 				return
 			}
 			if _, err := m.ProcessIncomingMessage(msg); err != nil {
-				m.lo.Error("error processing incoming msg", "error", err)
+				m.lo.Error("error processing incoming message", "inbox_id", msg.InboxID, "channel", msg.Channel, "source_id", msg.SourceID.String, "error", err)
 			}
 		}
 	}
@@ -169,7 +169,7 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 	// Helper function to handle errors
 	handleError := func(err error, errorMsg string) bool {
 		if err != nil {
-			m.lo.Error(errorMsg, "error", err, "message_id", message.ID)
+			m.lo.Error(errorMsg, "error", err, "message_id", message.ID, "message_uuid", message.UUID, "conversation_uuid", message.ConversationUUID, "inbox_id", message.InboxID)
 			m.UpdateMessageStatus(message.UUID, models.MessageStatusFailed)
 			return true
 		}
@@ -235,6 +235,11 @@ func (m *Manager) sendOutgoingMessage(message models.Message) {
 		return
 	}
 
+	if errors.Is(err, livechat.ErrClientNotConnected) {
+		m.lo.Info("outgoing message stored for offline widget", "message_uuid", message.UUID, "conversation_uuid", message.ConversationUUID, "inbox_id", message.InboxID)
+	} else {
+		m.lo.Info("outgoing message accepted by channel", "message_uuid", message.UUID, "conversation_uuid", message.ConversationUUID, "inbox_id", message.InboxID, "channel", inb.Channel())
+	}
 	// Update status as sent.
 	m.UpdateMessageStatus(message.UUID, models.MessageStatusSent)
 
@@ -446,7 +451,9 @@ func (m *Manager) GetAllConversationMessages(conversationUUID string, private *b
 func (m *Manager) GetMessage(uuid string) (models.Message, error) {
 	var message models.Message
 	if err := m.q.GetMessage.Get(&message, uuid); err != nil {
-		m.lo.Error("error fetching message", "uuid", uuid, "error", err)
+		if !errors.Is(err, sql.ErrNoRows) {
+			m.lo.Error("error fetching message", "uuid", uuid, "error", err)
+		}
 		return message, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
@@ -808,7 +815,7 @@ func (m *Manager) InsertMessageTx(tx *sqlx.Tx, message *models.Message) ([]strin
 
 	if err := tx.Stmtx(m.q.InsertMessage).Get(message, message.Type, message.Status, message.ConversationID, message.ConversationUUID, message.Content, message.TextContent, message.SenderID, message.SenderType,
 		message.Private, message.ContentType, message.SourceID, message.Meta); err != nil {
-		m.lo.Error("error inserting message in db", "error", err)
+		m.lo.Error("error inserting message in db", "inbox_id", message.InboxID, "conversation_uuid", message.ConversationUUID, "source_id", message.SourceID.String, "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 
@@ -820,6 +827,9 @@ func (m *Manager) InsertMessageTx(tx *sqlx.Tx, message *models.Message) ([]strin
 
 // AfterMessageInsert runs the post-commit side effects of a message insert: participant, last message and broadcast.
 func (m *Manager) AfterMessageInsert(message *models.Message, inlineUUIDs []string) {
+	if message.Type == models.MessageIncoming {
+		m.lo.Info("incoming message stored", "message_uuid", message.UUID, "conversation_uuid", message.ConversationUUID, "inbox_id", message.InboxID, "source_id", message.SourceID.String)
+	}
 	m.addConversationParticipant(message.SenderID, message.ConversationUUID)
 
 	// Skip updating last_message and broadcasting for continuity emails.
@@ -1060,7 +1070,6 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 
 	// Upload message attachments. On failure, delete the conversation if it was just created for this message.
 	if upErr := m.uploadMessageAttachments(&msg); upErr != nil {
-		m.lo.Error("error uploading message attachments", "message_source_id", in.SourceID.String, "error", upErr)
 		if isNewConversation && conversationUUID != "" {
 			m.lo.Info("deleting conversation as message attachment upload failed", "conversation_uuid", conversationUUID, "message_source_id", in.SourceID.String)
 			if err := m.DeleteConversation(conversationUUID); err != nil {
@@ -1072,7 +1081,6 @@ func (m *Manager) ProcessIncomingMessage(in models.IncomingMessage) (models.Mess
 
 	// Insert message. On failure, delete the conversation if it was just created for this message.
 	if err = m.InsertMessage(&msg); err != nil {
-		m.lo.Error("error inserting incoming message", "message_source_id", in.SourceID.String, "conversation_uuid", conversationUUID, "is_new", isNewConversation, "error", err)
 		if isNewConversation && conversationUUID != "" {
 			if delErr := m.DeleteConversation(conversationUUID); delErr != nil {
 				return models.Message{}, fmt.Errorf("deleting conversation after message insert failure: %w", delErr)
@@ -1680,7 +1688,7 @@ func (m *Manager) ProcessIncomingMessageHooks(message models.Message, isNewConve
 		}
 
 		if conversation.SLAPolicyID.Int == 0 {
-			m.lo.Info("no SLA policy applied to conversation, skipping next response SLA event creation")
+			m.lo.Debug("no SLA policy applied to conversation, skipping next response SLA event creation")
 			return nil
 		}
 		if deadline, err := m.slaStore.CreateNextResponseSLAEvent(conversation.ID, conversation.AppliedSLAID.Int, conversation.SLAPolicyID.Int, conversation.AssignedTeamID.Int); err != nil && !errors.Is(err, sla.ErrUnmetSLAEventAlreadyExists) {

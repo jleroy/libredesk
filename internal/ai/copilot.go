@@ -118,7 +118,7 @@ func (m *Manager) SuggestTags(ctx context.Context, transcript string) ([]string,
 	}
 	suggestions := parseSuggestedTags(resp, allowed)
 	if suggestions == nil {
-		m.lo.Warn("could not parse ai tag suggestion response", "response", resp)
+		m.lo.Warn("could not parse ai tag suggestion response", "response_len", len(resp))
 		return []string{}, nil
 	}
 	return suggestions, nil

@@ -15,7 +15,7 @@ import (
 // evalConversationRules evaluates a list of rules against a given conversation.
 func (e *Engine) evalConversationRules(rules []models.Rule, conversation cmodels.Conversation, previousValues map[string]string) {
 	for _, rule := range rules {
-		e.lo.Debug("evaluating rules for conversation", "rule", rule, "conversation_id", conversation.ID)
+		e.lo.Debug("evaluating rule for conversation", "rule_id", rule.ID, "conversation_id", conversation.ID)
 
 		if len(rule.Groups) > 2 {
 			e.lo.Warn("WARNING: more than 2 groups found for rules skipping evaluation")
@@ -38,7 +38,9 @@ func (e *Engine) evalConversationRules(rules []models.Rule, conversation cmodels
 			e.suppress(conversation.UUID)
 			for _, action := range rule.Actions {
 				if err := e.conversationStore.ApplyAction(action, conversation, umodels.User{}); err != nil {
-					e.lo.Error("error applying action on conversation", "action", action, "conversation_uuid", conversation.UUID, "error", err)
+					e.lo.Error("error applying action on conversation", "rule_id", rule.ID, "action", action.Type, "conversation_uuid", conversation.UUID, "error", err)
+				} else {
+					e.lo.Info("automation action completed", "rule_id", rule.ID, "action", action.Type, "conversation_uuid", conversation.UUID)
 				}
 			}
 			e.unsuppress(conversation.UUID)
@@ -186,7 +188,7 @@ func (e *Engine) evaluateRule(rule models.RuleDetail, conversation cmodels.Conve
 			e.lo.Error("error unmarshalling custom attributes", "conversation_uuid", conversation.UUID, "error", err)
 			return false
 		}
-		e.lo.Debug("unmarshalled custom attributes", "custom_attributes", customAttributes, "conversation_uuid", conversation.UUID)
+		e.lo.Debug("unmarshalled custom attributes", "custom_attribute_count", len(customAttributes), "conversation_uuid", conversation.UUID)
 
 		// Only the set/not set operators can act on an attribute the contact does not have.
 		val, ok := customAttributes[rule.Field]

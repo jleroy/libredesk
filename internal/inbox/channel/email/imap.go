@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime"
 	"strings"
@@ -74,10 +75,13 @@ func (e *Email) ReadIncomingMessages(ctx context.Context, cfg imodels.IMAPConfig
 
 // readMailbox runs a single scan of the mailbox and logs the outcome.
 func (e *Email) readMailbox(ctx context.Context, scanInboxSince time.Duration, cfg imodels.IMAPConfig) {
-	if err := e.processMailbox(ctx, scanInboxSince, cfg); err != nil && err != context.Canceled {
-		e.lo.Error("error searching emails", "error", err)
+	if err := e.processMailbox(ctx, scanInboxSince, cfg); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			e.lo.Error("error searching emails", "mailbox", cfg.Mailbox, "inbox_id", e.Identifier(), "error", err)
+		}
+		return
 	}
-	e.lo.Info("email search complete", "mailbox", cfg.Mailbox, "inbox_id", e.Identifier())
+	e.lo.Debug("email search complete", "mailbox", cfg.Mailbox, "inbox_id", e.Identifier())
 }
 
 // processMailbox processes emails in the specified mailbox.
@@ -144,7 +148,7 @@ func (e *Email) processMailbox(ctx context.Context, scanInboxSince time.Duration
 	scanStarted := time.Now()
 	since := scanStarted.Add(-scanInboxSince)
 
-	e.lo.Info("searching emails", "since", since, "mailbox", cfg.Mailbox, "inbox_id", e.Identifier())
+	e.lo.Debug("searching emails", "since", since, "mailbox", cfg.Mailbox, "inbox_id", e.Identifier())
 
 	// Search for messages in the mailbox.
 	searchResults, err := e.searchMessages(client, since)
@@ -187,7 +191,7 @@ func (e *Email) searchMessages(client *imapclient.Client, since time.Time) (*ima
 }
 
 // fetchAndProcessMessages fetches and processes messages based on the search results.
-func (e *Email) fetchAndProcessMessages(ctx context.Context, client *imapclient.Client, searchResults *imap.SearchData, inboxID int) error {
+func (e *Email) fetchAndProcessMessages(ctx context.Context, client *imapclient.Client, searchResults *imap.SearchData, inboxID int) (resultErr error) {
 	seqSet := imap.SeqSet{}
 	if seqNums := searchResults.AllSeqNums(); len(seqNums) > 0 {
 		e.lo.Debug("using SEARCH results", "count", len(seqNums), "inbox_id", inboxID)
@@ -231,6 +235,11 @@ func (e *Email) fetchAndProcessMessages(ctx context.Context, client *imapclient.
 	var messages []msgData
 
 	fetchCmd := client.Fetch(seqSet, fetchOptions)
+	defer func() {
+		if err := fetchCmd.Close(); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("fetching mailbox messages: %w", err))
+		}
+	}()
 
 	if e.PrimaryAddress() == "" {
 		e.lo.Error("inbox email address is empty, cannot process messages", "inbox_id", e.Identifier())
@@ -339,18 +348,18 @@ func (e *Email) fetchAndProcessMessages(ctx context.Context, client *imapclient.
 
 		// Skip if this is an auto-reply message.
 		if msgData.autoReply {
-			e.lo.Info("skipping auto-reply message", "subject", msgData.env.Subject, "message_id", msgData.env.MessageID)
+			e.lo.Debug("skipping auto-reply message", "subject", msgData.env.Subject, "message_id", msgData.env.MessageID)
 			continue
 		}
 
 		// Skip if this message is a loop prevention message.
 		if msgData.isLoop {
-			e.lo.Info("skipping message with loop prevention header", "subject", msgData.env.Subject, "message_id", msgData.env.MessageID)
+			e.lo.Debug("skipping message with loop prevention header", "subject", msgData.env.Subject, "message_id", msgData.env.MessageID)
 			continue
 		}
 		// Process the envelope.
-		if err := e.processEnvelope(ctx, client, msgData.env, msgData.seqNum, inboxID, msgData.extractedMessageID); err != nil && err != context.Canceled {
-			e.lo.Error("error processing envelope", "error", err)
+		if err := e.processEnvelope(ctx, client, msgData.env, msgData.seqNum, inboxID, msgData.extractedMessageID); err != nil && !errors.Is(err, context.Canceled) {
+			e.lo.Error("error processing envelope", "inbox_id", inboxID, "message_id", msgData.env.MessageID, "error", err)
 		}
 	}
 	if len(verificationUIDs) > 0 {
@@ -369,7 +378,7 @@ func (e *Email) fetchAndProcessMessages(ctx context.Context, client *imapclient.
 }
 
 // processEnvelope processes a single email envelope.
-func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, env *imap.Envelope, seqNum uint32, inboxID int, extractedMessageID string) error {
+func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, env *imap.Envelope, seqNum uint32, inboxID int, extractedMessageID string) (resultErr error) {
 	if len(env.From) == 0 {
 		e.lo.Warn("no sender received for email", "message_id", env.MessageID)
 		return nil
@@ -474,6 +483,11 @@ func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, 
 	seqSet.AddNum(seqNum)
 
 	fullFetchCmd := client.Fetch(seqSet, fetchOptions)
+	defer func() {
+		if err := fullFetchCmd.Close(); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("fetching mailbox messages: %w", err))
+		}
+	}()
 	fullMsg := fullFetchCmd.Next()
 	if fullMsg == nil {
 		return nil
@@ -510,7 +524,7 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 
 	// Log any envelope errors.
 	for _, err := range envelope.Errors {
-		e.lo.Error("error parsing email envelope", "error", err.Error(), "message_id", incomingMsg.SourceID.String)
+		e.lo.Warn("error parsing email envelope", "error", err.Error(), "message_id", incomingMsg.SourceID.String)
 	}
 
 	// Extract all HTML content by traversing the tree
@@ -530,7 +544,7 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 	if allHTML.Len() > 0 {
 		incomingMsg.Content = allHTML.String()
 		incomingMsg.ContentType = models.ContentTypeHTML
-		e.lo.Debug("extracted HTML content from parts", "message_id", incomingMsg.SourceID.String, "content", incomingMsg.Content)
+		e.lo.Debug("extracted HTML content from parts", "message_id", incomingMsg.SourceID.String, "content_len", len(incomingMsg.Content))
 	} else if len(envelope.HTML) > 0 {
 		incomingMsg.Content = envelope.HTML
 		incomingMsg.ContentType = models.ContentTypeHTML
@@ -539,8 +553,8 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 		incomingMsg.ContentType = models.ContentTypeText
 	}
 
-	e.lo.Debug("envelope HTML content", "message_id", incomingMsg.SourceID.String, "content", incomingMsg.Content)
-	e.lo.Debug("envelope text content", "message_id", incomingMsg.SourceID.String, "content", envelope.Text)
+	e.lo.Debug("envelope HTML content", "message_id", incomingMsg.SourceID.String, "content_len", len(incomingMsg.Content))
+	e.lo.Debug("envelope text content", "message_id", incomingMsg.SourceID.String, "content_len", len(envelope.Text))
 
 	// Clean headers
 	inReplyTo := strings.ReplaceAll(strings.ReplaceAll(envelope.GetHeader("In-Reply-To"), "<", ""), ">", "")
