@@ -552,7 +552,7 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 	if allHTML.Len() > 0 {
 		incomingMsg.Content = allHTML.String()
 		incomingMsg.ContentType = models.ContentTypeHTML
-		e.lo.Debug("extracted HTML content from parts", "message_id", incomingMsg.SourceID.String, "content_len", len(incomingMsg.Content))
+		e.lo.Debug("extracted HTML content from parts", "message_id", incomingMsg.SourceID.String, "content", incomingMsg.Content)
 	} else if len(envelope.HTML) > 0 {
 		incomingMsg.Content = envelope.HTML
 		incomingMsg.ContentType = models.ContentTypeHTML
@@ -561,8 +561,8 @@ func (e *Email) processFullMessage(item imapclient.FetchItemDataBodySection, inc
 		incomingMsg.ContentType = models.ContentTypeText
 	}
 
-	e.lo.Debug("envelope HTML content", "message_id", incomingMsg.SourceID.String, "content_len", len(incomingMsg.Content))
-	e.lo.Debug("envelope text content", "message_id", incomingMsg.SourceID.String, "content_len", len(envelope.Text))
+	e.lo.Debug("envelope HTML content", "message_id", incomingMsg.SourceID.String, "content", incomingMsg.Content)
+	e.lo.Debug("envelope text content", "message_id", incomingMsg.SourceID.String, "content", envelope.Text)
 
 	// Clean headers
 	inReplyTo := strings.ReplaceAll(strings.ReplaceAll(envelope.GetHeader("In-Reply-To"), "<", ""), ">", "")

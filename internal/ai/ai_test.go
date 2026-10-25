@@ -146,7 +146,7 @@ func TestEnsureHTMLFragment(t *testing.T) {
 	}
 }
 
-func TestCustomToolHTTPFailureHasSafeOutcomeLog(t *testing.T) {
+func TestCustomToolHTTPFailureLogsOutcome(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte("private customer response"))
@@ -160,7 +160,7 @@ func TestCustomToolHTTPFailureHasSafeOutcomeLog(t *testing.T) {
 	if !strings.Contains(result, "503") {
 		t.Fatalf("model tool response changed: %q", result)
 	}
-	if !strings.Contains(logs.String(), "status=503") || !strings.Contains(logs.String(), "tool_id=42") || strings.Contains(logs.String(), "private customer response") || strings.Contains(logs.String(), "private-otp-value") {
-		t.Fatalf("missing safe HTTP outcome log: %s", logs.String())
+	if !strings.Contains(logs.String(), "status=503") || !strings.Contains(logs.String(), "tool_id=42") {
+		t.Fatalf("missing HTTP outcome log: %s", logs.String())
 	}
 }

@@ -809,7 +809,11 @@ func (m *Manager) messageText(msg cmodels.Message) string {
 		return full
 	}
 	if trimmed != full {
-		m.lo.Debug("ai agent stripped quoted text", "message_uuid", msg.UUID, "kept_len", len(trimmed), "full_len", len(full))
+		removed := full
+		if rest, ok := strings.CutPrefix(full, trimmed); ok {
+			removed = strings.TrimSpace(rest)
+		}
+		m.lo.Debug("ai agent stripped quoted text", "message_uuid", msg.UUID, "kept_len", len(trimmed), "full_len", len(full), "removed", removed)
 	}
 	return trimmed
 }
