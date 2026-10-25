@@ -236,6 +236,10 @@ func (e *Email) fetchAndProcessMessages(ctx context.Context, client *imapclient.
 
 	fetchCmd := client.Fetch(seqSet, fetchOptions)
 	defer func() {
+		// Close downloads the rest of the FETCH first, which would hold up shutdown.
+		if ctx.Err() != nil {
+			return
+		}
 		if err := fetchCmd.Close(); err != nil {
 			resultErr = errors.Join(resultErr, fmt.Errorf("fetching mailbox messages: %w", err))
 		}
@@ -484,6 +488,10 @@ func (e *Email) processEnvelope(ctx context.Context, client *imapclient.Client, 
 
 	fullFetchCmd := client.Fetch(seqSet, fetchOptions)
 	defer func() {
+		// Close downloads the rest of the message first, which would hold up shutdown.
+		if ctx.Err() != nil {
+			return
+		}
 		if err := fullFetchCmd.Close(); err != nil {
 			resultErr = errors.Join(resultErr, fmt.Errorf("fetching mailbox messages: %w", err))
 		}

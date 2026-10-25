@@ -159,9 +159,13 @@ type colorSchemeResult struct {
 
 func (w helpCenterCacheLogWriter) Write(p []byte) (int, error) {
 	message := strings.TrimSpace(string(p))
-	if strings.Contains(message, "error running middleware:") {
+	switch {
+	case strings.Contains(message, "error running middleware:"):
 		w.lo.Error("help center page cache: " + message)
-	} else {
+	case strings.HasSuffix(message, "goredis-store: nil received"):
+		// The Redis store reports a cache miss as a read error.
+		w.lo.Debug("help center page cache: " + message)
+	default:
 		w.lo.Warn("help center page cache: " + message)
 	}
 	return len(p), nil
