@@ -184,7 +184,8 @@ func handleGetHelpCenter(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	helpCenter, err := app.helpcenter.GetHelpCenterByID(id)
 	if err != nil {
@@ -200,7 +201,7 @@ func handleCreateHelpCenter(r *fastglue.Request) error {
 		req = helpcenter.HelpCenterRequest{}
 	)
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := validateHelpCenter(app, &req); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -220,10 +221,11 @@ func handleUpdateHelpCenter(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := validateHelpCenter(app, &req); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -243,10 +245,11 @@ func handleHelpCenterPreview(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	helpCenter, err := app.helpcenter.DraftHelpCenter(id, req)
 	if err != nil {
@@ -287,7 +290,8 @@ func handleToggleHelpCenterActive(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	hc, err := app.helpcenter.ToggleHelpCenterActive(id)
 	if err != nil {
@@ -303,7 +307,8 @@ func handleDeleteHelpCenter(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := app.helpcenter.DeleteHelpCenter(id); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -319,7 +324,8 @@ func handleGetHelpCenterTree(r *fastglue.Request) error {
 		locale = strings.TrimSpace(string(r.RequestCtx.QueryArgs().Peek("locale")))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	tree, err := app.helpcenter.GetHelpCenterTree(id, locale)
 	if err != nil {
@@ -335,7 +341,8 @@ func handleGetCollections(r *fastglue.Request) error {
 		helpCenterID, _ = strconv.Atoi(r.RequestCtx.UserValue("hc_id").(string))
 	)
 	if helpCenterID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`help_center_id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`help_center_id`"), nil, envelope.InputError)
 	}
 	collections, err := app.helpcenter.GetCollectionsByHelpCenter(helpCenterID)
 	if err != nil {
@@ -352,10 +359,11 @@ func handleCreateCollection(r *fastglue.Request) error {
 		helpCenterID, _ = strconv.Atoi(r.RequestCtx.UserValue("hc_id").(string))
 	)
 	if helpCenterID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`help_center_id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`help_center_id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := validateCollection(app, &req); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -376,10 +384,11 @@ func handleUpdateCollection(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := validateCollection(app, &req); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -404,10 +413,11 @@ func handleUpdateCollectionSortOrders(r *fastglue.Request) error {
 		orders          = make(map[int]int)
 	)
 	if helpCenterID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`help_center_id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`help_center_id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&orders, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := app.helpcenter.UpdateCollectionSortOrders(helpCenterID, orders); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -422,7 +432,8 @@ func handleToggleCollection(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	collection, err := app.helpcenter.ToggleCollectionPublished(id)
 	if err != nil {
@@ -438,7 +449,8 @@ func handleDeleteCollection(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := app.helpcenter.DeleteCollection(id); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -453,7 +465,8 @@ func handleGetArticle(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	article, err := app.helpcenter.GetArticleByID(id)
 	if err != nil {
@@ -474,10 +487,11 @@ func handleCreateArticle(r *fastglue.Request) error {
 		collectionID, _ = strconv.Atoi(r.RequestCtx.UserValue("col_id").(string))
 	)
 	if collectionID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`collection_id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`collection_id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := validateArticle(app, &req); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -511,7 +525,8 @@ func handleDeleteArticle(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := app.helpcenter.DeleteArticle(id); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -529,13 +544,15 @@ func handleMoveArticle(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if req.CollectionID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`collection_id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`collection_id`"), nil, envelope.InputError)
 	}
 	article, err := app.helpcenter.MoveArticle(id, req.CollectionID)
 	if err != nil {
@@ -552,10 +569,11 @@ func handleUpdateArticleSortOrders(r *fastglue.Request) error {
 		orders          = make(map[int]int)
 	)
 	if collectionID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`collection_id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`collection_id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&orders, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := app.helpcenter.UpdateArticleSortOrders(collectionID, orders); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -573,13 +591,15 @@ func handleUpdateArticleStatus(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if req.Status == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`status`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`status`"), nil, envelope.InputError)
 	}
 	article, err := app.helpcenter.UpdateArticleStatus(id, req.Status)
 	if err != nil {
@@ -596,10 +616,12 @@ func handleGetLinkableArticles(r *fastglue.Request) error {
 		excludeLocale = strings.TrimSpace(string(r.RequestCtx.QueryArgs().Peek("exclude_locale")))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if excludeLocale == "" {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`exclude_locale`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`exclude_locale`"), nil, envelope.InputError)
 	}
 	articles, err := app.helpcenter.GetLinkableArticles(id, excludeLocale)
 	if err != nil {
@@ -618,13 +640,15 @@ func handleLinkArticleTranslation(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if req.TranslationOfID <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`translation_of_id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`translation_of_id`"), nil, envelope.InputError)
 	}
 	article, err := app.helpcenter.LinkArticleTranslation(id, req.TranslationOfID)
 	if err != nil {
@@ -640,7 +664,8 @@ func handleUnlinkArticleTranslation(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	article, err := app.helpcenter.UnlinkArticleTranslation(id)
 	if err != nil {
@@ -903,7 +928,7 @@ func handleHelpCenterSearch(r *fastglue.Request) error {
 	return renderHelpCenterPage(r, hcPageName(helpCenter, "help-search"), map[string]interface{}{
 		"L": lcl,
 		"Data": map[string]interface{}{
-			"Title":       fmt.Sprintf("%s - %s", lcl.T("globals.terms.search"), helpCenter.Name),
+			"Title":       fmt.Sprintf("%s - %s", lcl.Get("Search"), helpCenter.Name),
 			"NoIndex":     true,
 			"LocaleLinks": helpCenterLocaleLinks(helpCenter, helpCenterLocales(helpCenter), pathFor),
 			"HelpCenter":  data,
@@ -922,14 +947,14 @@ func handleHelpCenterSitemap(r *fastglue.Request) error {
 	)
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
-		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.T("globals.messages.notFound"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.Get("Not found"), nil, envelope.NotFoundError)
 	}
 	if redirectHelpCenterCanonicalHost(r, helpCenter) {
 		return nil
 	}
 	locale, ok := resolveLocale(r, helpCenter)
 	if !ok {
-		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.T("globals.messages.notFound"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(fasthttp.StatusNotFound, app.i18n.Get("Not found"), nil, envelope.NotFoundError)
 	}
 	articles, err := app.helpcenter.GetPopularArticles(slug, locale, sitemapURLLimit)
 	if err != nil {
@@ -1087,7 +1112,7 @@ func handleHelpCenterArticleFeedback(r *fastglue.Request) error {
 		}{}
 	)
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	helpCenter, err := app.helpcenter.GetHelpCenterBySlug(slug)
 	if err != nil {
@@ -1116,7 +1141,8 @@ func handleGetHelpCenterInsights(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	insights, err := app.helpcenter.GetInsights(id, insightsTermLimit)
 	if err != nil {
@@ -1133,10 +1159,11 @@ func handleUpdateArticle(r *fastglue.Request) error {
 		id, _ = strconv.Atoi(r.RequestCtx.UserValue("id").(string))
 	)
 	if id <= 0 {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Ts("globals.messages.empty", "name", "`id`"), nil, envelope.InputError)
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("%[1]s empty",
+			"`id`"), nil, envelope.InputError)
 	}
 	if err := r.Decode(&req, "json"); err != nil {
-		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.T("errors.parsingRequest"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.InputError, app.i18n.Get("Error parsing request"), nil))
 	}
 	if err := validateArticle(app, &req); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -1156,7 +1183,7 @@ func handleUpdateArticle(r *fastglue.Request) error {
 			return sendErrorEnvelope(r, err)
 		}
 		if from.HelpCenterID != to.HelpCenterID {
-			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.T("helpCenter.invalidParent"), nil, envelope.InputError)
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, app.i18n.Get("A collection cannot be its own parent."), nil, envelope.InputError)
 		}
 	}
 	if req.Status == "" {
@@ -1964,9 +1991,17 @@ func renderHelpCenterPageError(r *fastglue.Request, hc *hcmodels.HelpCenter, err
 
 func renderHelpCenterStatusPage(r *fastglue.Request, hc *hcmodels.HelpCenter, status int) error {
 	app := r.Context.(*App)
-	headingKey, textKey := "globals.messages.pageNotFound", "helpCenter.notFoundText"
+	lcl := app.i18n
+	if hc != nil {
+		locale, ok := resolveLocale(r, *hc)
+		if !ok {
+			locale = hc.DefaultLocale
+		}
+		lcl = localeI18n(app, locale)
+	}
+	heading, text := lcl.Get("Page not found"), lcl.Get("This page doesn't exist or may have moved. Search above, or go back to the help center home.")
 	if status == fasthttp.StatusInternalServerError {
-		headingKey, textKey = "globals.messages.somethingWentWrong", "helpCenter.errorText"
+		heading, text = lcl.Get("Something went wrong"), lcl.Get("The page couldn't be loaded due to a temporary problem. Try again in a moment, or go back to the help center home.")
 	}
 	if hc != nil {
 		helpCenter := *hc
@@ -1975,16 +2010,15 @@ func renderHelpCenterStatusPage(r *fastglue.Request, hc *hcmodels.HelpCenter, st
 			locale = helpCenter.DefaultLocale
 		}
 		data := helpCenterTemplateData(app, r, helpCenter, locale)
-		lcl := localeI18n(app, locale)
 		r.RequestCtx.Response.Header.Set("X-Robots-Tag", noIndexHeader)
 		rerr := app.tmpl.RenderWebPage(r.RequestCtx, hcPageName(helpCenter, "help-notfound"), map[string]interface{}{
 			"L": lcl,
 			"Data": map[string]interface{}{
-				"Title":       lcl.T(headingKey),
+				"Title":       heading,
 				"NoIndex":     true,
 				"ErrorCode":   strconv.Itoa(status),
-				"ErrorTitle":  lcl.T(headingKey),
-				"ErrorText":   lcl.T(textKey),
+				"ErrorTitle":  heading,
+				"ErrorText":   text,
 				"LocaleLinks": helpCenterLocaleLinks(helpCenter, nil, func(l string) string { return helpCenterHomePath(helpCenter, l) }),
 				"HelpCenter":  data,
 				"Tree":        sidebarTree(app, helpCenter, locale),
@@ -1995,8 +2029,8 @@ func renderHelpCenterStatusPage(r *fastglue.Request, hc *hcmodels.HelpCenter, st
 	}
 	rerr := app.tmpl.RenderWebPage(r.RequestCtx, "error", map[string]interface{}{
 		"Data": map[string]interface{}{
-			"Title":        app.i18n.T(headingKey),
-			"ErrorMessage": app.i18n.T(headingKey),
+			"Title":        heading,
+			"ErrorMessage": heading,
 		},
 	})
 	r.RequestCtx.SetStatusCode(status)
@@ -2009,13 +2043,13 @@ func validateHelpCenter(app *App, req *helpcenter.HelpCenterRequest) error {
 	req.PageTitle = strings.TrimSpace(req.PageTitle)
 	req.MetaDescription = strings.TrimSpace(req.MetaDescription)
 	if req.Name == "" {
-		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`name`"), nil)
+		return envelope.NewError(envelope.InputError, app.i18n.Get("%[1]s empty", "`name`"), nil)
 	}
 	if req.Slug == "" {
-		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`slug`"), nil)
+		return envelope.NewError(envelope.InputError, app.i18n.Get("%[1]s empty", "`slug`"), nil)
 	}
 	if req.PageTitle == "" {
-		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`page_title`"), nil)
+		return envelope.NewError(envelope.InputError, app.i18n.Get("%[1]s empty", "`page_title`"), nil)
 	}
 	req.Theme = json.RawMessage(publicAssetPaths(app, string(req.Theme)))
 	if req.LivechatInboxID.Valid {
@@ -2024,7 +2058,7 @@ func validateHelpCenter(app *App, req *helpcenter.HelpCenterRequest) error {
 			return err
 		}
 		if inb.Channel != livechat.ChannelLiveChat {
-			return envelope.NewError(envelope.InputError, app.i18n.T("helpCenter.invalidLivechatInbox"), nil)
+			return envelope.NewError(envelope.InputError, app.i18n.Get("Select a live chat inbox."), nil)
 		}
 	}
 	return nil
@@ -2033,7 +2067,7 @@ func validateHelpCenter(app *App, req *helpcenter.HelpCenterRequest) error {
 func validateCollection(app *App, req *helpcenter.CollectionRequest) error {
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`name`"), nil)
+		return envelope.NewError(envelope.InputError, app.i18n.Get("%[1]s empty", "`name`"), nil)
 	}
 	return nil
 }
@@ -2041,10 +2075,10 @@ func validateCollection(app *App, req *helpcenter.CollectionRequest) error {
 func validateArticle(app *App, req *helpcenter.ArticleRequest) error {
 	req.Title = strings.TrimSpace(req.Title)
 	if req.Title == "" {
-		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`title`"), nil)
+		return envelope.NewError(envelope.InputError, app.i18n.Get("%[1]s empty", "`title`"), nil)
 	}
 	if strings.TrimSpace(req.Content) == "" {
-		return envelope.NewError(envelope.InputError, app.i18n.Ts("globals.messages.empty", "name", "`content`"), nil)
+		return envelope.NewError(envelope.InputError, app.i18n.Get("%[1]s empty", "`content`"), nil)
 	}
 	req.Content = publicAssetPaths(app, req.Content)
 	req.MetaImageURL = publicAssetPaths(app, req.MetaImageURL)
@@ -2129,20 +2163,20 @@ func renderHelpCenterArticlePreview(r *fastglue.Request, helpCenter hcmodels.Hel
 	var (
 		app  = r.Context.(*App)
 		i18n = localeI18n(app, locale)
-		body = template.HTMLEscapeString(i18n.T("helpCenter.preview.sampleArticleBody"))
-		item = template.HTMLEscapeString(i18n.T("helpCenter.preview.sampleArticleListItem"))
+		body = template.HTMLEscapeString(i18n.Get("Body text, links and images appear here, styled with the settings you pick on the left."))
+		item = template.HTMLEscapeString(i18n.Get("List items and other formatting are styled the same way."))
 		toc  = []previewTOCItem{
-			{ID: "sample-1", Title: i18n.T("helpCenter.preview.sampleArticleHeading1")},
-			{ID: "sample-2", Title: i18n.T("helpCenter.preview.sampleArticleHeading2")},
-			{ID: "sample-3", Title: i18n.T("helpCenter.preview.sampleArticleHeading3")},
+			{ID: "sample-1", Title: i18n.Get("Getting started")},
+			{ID: "sample-2", Title: i18n.Get("Before you begin")},
+			{ID: "sample-3", Title: i18n.Get("Next steps")},
 		}
-		author  = i18n.T("helpCenter.preview.sampleAuthor")
+		author  = i18n.Get("Sample author")
 		article = hcmodels.Article{
 			Slug:       "sample-article",
 			Locale:     locale,
 			AuthorName: &author,
-			Title:      i18n.T("helpCenter.preview.sampleArticleTitle"),
-			Excerpt:    i18n.T("helpCenter.preview.sampleArticleExcerpt"),
+			Title:      i18n.Get("Sample article"),
+			Excerpt:    i18n.Get("A sample article showing how your article pages will look."),
 			UpdatedAt:  time.Now(),
 			Content: fmt.Sprintf(
 				`<h2 id="%s">%s</h2><p>%s</p><h2 id="%s">%s</h2><p>%s</p><ul><li>%s</li><li>%s</li></ul><h2 id="%s">%s</h2><p>%s</p>`,
@@ -2152,7 +2186,7 @@ func renderHelpCenterArticlePreview(r *fastglue.Request, helpCenter hcmodels.Hel
 		}
 		collection = hcmodels.Collection{
 			Slug: "sample-collection",
-			Name: i18n.T("helpCenter.preview.sampleCollection"),
+			Name: i18n.Get("Sample collection"),
 		}
 		related = []hcmodels.Article{
 			{Slug: "sample-1", Title: toc[0].Title},

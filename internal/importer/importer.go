@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
-	"github.com/knadh/go-i18n"
+	"github.com/leonelquinteros/gotext"
 	"github.com/zerodha/logf"
 )
 
@@ -25,7 +25,7 @@ type Job struct {
 // Importer manages background import jobs.
 type Importer struct {
 	lo     *logf.Logger
-	i18n   *i18n.I18n
+	i18n   *gotext.Locale
 	jobs   map[string]*Job
 	mu     sync.RWMutex
 	wg     sync.WaitGroup
@@ -36,7 +36,7 @@ type Importer struct {
 // Opts contains options for initializing the Importer.
 type Opts struct {
 	Lo   *logf.Logger
-	I18n *i18n.I18n
+	I18n *gotext.Locale
 }
 
 // New creates and returns a new instance of the Importer.
@@ -61,7 +61,7 @@ func (i *Importer) Submit(namespace string, fn func() error) error {
 	if status, exists := i.jobs[namespace]; exists && status.Running {
 		i.mu.Unlock()
 		return envelope.NewError(envelope.ConflictError,
-			i.i18n.T("importer.importAlreadyInProgress"), nil)
+			i.i18n.Get("Import already in progress"), nil)
 	}
 
 	status := &Job{
@@ -112,7 +112,7 @@ func (i *Importer) GetStatus(namespace string) (*Job, error) {
 	status, exists := i.jobs[namespace]
 	if !exists {
 		return nil, envelope.NewError(envelope.NotFoundError,
-			i.i18n.T("validation.notFoundImport"), nil)
+			i.i18n.Get("Import not found"), nil)
 	}
 
 	return status, nil

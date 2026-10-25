@@ -16,7 +16,7 @@ GOPATH ?= $(HOME)/go
 STUFFBIN ?= $(GOPATH)/bin/stuffbin
 
 # The default target to run when `make` is executed.
-.DEFAULT_GOAL := build 
+.DEFAULT_GOAL := build
 
 # Install stuffbin if it doesn't exist.
 $(STUFFBIN):
@@ -82,11 +82,11 @@ run-frontend-widget:
 
 # Build the backend binary.
 .PHONY: build-backend
-build-backend: $(STUFFBIN)
+build-backend: $(STUFFBIN) i18n-compile
 	@echo "→ Building backend..."
 	@CGO_ENABLED=0 go build \
 		-ldflags="-X 'main.buildString=${BUILDSTR}' -X 'main.versionString=${VERSION}' -X 'github.com/abhinavxd/libredesk/internal/version.Version=${VERSION}' -s -w" \
-		-o ${BIN} cmd/*.go
+		-o ${BIN} ./cmd
 
 # Main build target: builds both frontend and backend, then stuffs static assets into the binary.
 .PHONY: build
@@ -124,3 +124,47 @@ test-db:
 .PHONY: test-db-down
 test-db-down:
 	docker rm -f libredesk-test-db
+
+# Backend Gettext catalogs. Vue's i18n/*.json files have a separate lifecycle.
+GETTEXT_PO := $(wildcard locales/*/LC_MESSAGES/*.po)
+GETTEXT_MO := $(GETTEXT_PO:.po=.mo)
+
+.PHONY: i18n-extract
+i18n-extract:
+	@set -e; for domain in backend templates; do \
+		go run ./scripts/gettext -domain $$domain > locales/$$domain.pot.tmp; \
+		mv locales/$$domain.pot.tmp locales/$$domain.pot; \
+	done
+
+.PHONY: i18n-update
+i18n-update: i18n-extract
+	@set -e; for po in $(GETTEXT_PO); do \
+		domain=$$(basename "$$po" .po); \
+		# Disable fuzzy matching: a changed English message needs a reviewed translation. \
+		msgmerge --quiet --no-fuzzy-matching --no-wrap "$$po" locales/$$domain.pot -o "$$po.merge"; \
+		msgattrib --no-obsolete --no-wrap "$$po.merge" -o "$$po"; \
+		rm "$$po.merge"; \
+	done
+
+.PHONY: i18n-compile
+i18n-compile: $(GETTEXT_MO)
+
+locales/%/LC_MESSAGES/backend.mo: locales/%/LC_MESSAGES/backend.po
+	msgfmt --check --check-format -o $@ $<
+
+locales/%/LC_MESSAGES/templates.mo: locales/%/LC_MESSAGES/templates.po
+	msgfmt --check --check-format -o $@ $<
+
+# Read-only verification of source coverage, PO validity and committed MO files.
+.PHONY: i18n-check
+i18n-check:
+	@set -e; for domain in backend templates; do \
+		go run ./scripts/gettext -domain $$domain | cmp - locales/$$domain.pot; \
+	done; \
+	for po in $(GETTEXT_PO); do \
+		domain=$$(basename "$$po" .po); \
+		msgfmt --check --check-format -o /dev/null "$$po"; \
+		msgcmp --use-untranslated "$$po" locales/$$domain.pot; \
+		msgcmp --use-untranslated locales/$$domain.pot "$$po"; \
+		msgfmt -o - "$$po" | cmp - "$${po%.po}.mo"; \
+	done

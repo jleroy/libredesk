@@ -2,8 +2,6 @@ package conversation
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,7 +18,7 @@ import (
 	wtmodels "github.com/abhinavxd/libredesk/internal/whatsapp/template/models"
 	"github.com/abhinavxd/libredesk/internal/ws"
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/go-i18n"
+	"github.com/leonelquinteros/gotext"
 	"github.com/volatiletech/null/v9"
 	"github.com/zerodha/logf"
 )
@@ -112,7 +110,7 @@ func TestQueueWhatsAppReplyVariables(t *testing.T) {
 				nil, /** to **/
 				nil, /** cc **/
 				nil, /** bcc **/
-				"", /** sendFrom **/
+				"",  /** sendFrom **/
 				tc.meta)
 			if err != nil {
 				t.Fatal(err)
@@ -144,7 +142,7 @@ func TestQueueWhatsAppReplyVariables(t *testing.T) {
 			nil, /** to **/
 			nil, /** cc **/
 			nil, /** bcc **/
-			"", /** sendFrom **/
+			"",  /** sendFrom **/
 			map[string]any{}); err == nil || !strings.Contains(err.Error(), "4096") {
 			t.Fatalf("expected rendered content to exceed the limit, got %v", err)
 		}
@@ -447,16 +445,9 @@ func TestStripCSATUUID(t *testing.T) {
 	}
 }
 
-// testManager carries the real language file, so a renamed i18n key fails the test.
+// testManager uses English source messages.
 func testManager(t *testing.T) *Manager {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "i18n", "en-US.json"))
-	if err != nil {
-		t.Fatalf("reading the language file: %v", err)
-	}
-	lang, err := i18n.New(raw)
-	if err != nil {
-		t.Fatalf("loading i18n: %v", err)
-	}
+	lang := gotext.NewLocale("", "en_US")
 	return &Manager{i18n: lang}
 }

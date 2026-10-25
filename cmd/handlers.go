@@ -472,7 +472,7 @@ func serveIndexPage(r *fastglue.Request) error {
 	// Serve the index.html file from the embedded filesystem.
 	file, err := app.fs.Get(path.Join(frontendDir, "index.html"))
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Get("File not found"), nil, envelope.NotFoundError)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", "text/html")
 	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
@@ -480,7 +480,7 @@ func serveIndexPage(r *fastglue.Request) error {
 	// Set CSRF cookie if not already set.
 	if err := app.auth.SetCSRFCookie(r); err != nil {
 		app.lo.Error("error setting csrf cookie", "error", err)
-		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
+		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.Get("Something went wrong"), nil))
 	}
 	return nil
 }
@@ -503,7 +503,7 @@ func serveWidgetIndexPage(r *fastglue.Request) error {
 	// Serve the index.html file from the embedded filesystem.
 	file, err := app.fs.Get(path.Join(widgetDir, "index.html"))
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Get("File not found"), nil, envelope.NotFoundError)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", "text/html")
 	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
@@ -519,7 +519,7 @@ func serveStaticFiles(r *fastglue.Request) error {
 
 	file, err := app.fs.Get(filePath)
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Get("File not found"), nil, envelope.NotFoundError)
 	}
 
 	body := file.ReadBytes()
@@ -545,7 +545,7 @@ func serveFrontendStaticFiles(r *fastglue.Request) error {
 	finalPath := filepath.Join(frontendDir, filePath)
 	file, err := app.fs.Get(finalPath)
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Get("File not found"), nil, envelope.NotFoundError)
 	}
 
 	body := file.ReadBytes()
@@ -572,7 +572,7 @@ func serveMainFrontendFile(r *fastglue.Request, name, contentType, cacheControl 
 	app := r.Context.(*App)
 	file, err := app.fs.Get(filepath.Join(frontendDir, name))
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Get("File not found"), nil, envelope.NotFoundError)
 	}
 	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
 	r.RequestCtx.Response.Header.Set("Cache-Control", cacheControl)
@@ -589,7 +589,7 @@ func serveWidgetStaticFiles(r *fastglue.Request) error {
 
 	file, err := app.fs.Get(finalPath)
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Get("File not found"), nil, envelope.NotFoundError)
 	}
 
 	body := file.ReadBytes()
@@ -614,7 +614,7 @@ func serveWidgetJS(r *fastglue.Request) error {
 
 	file, err := app.fs.Get("static/widget.js")
 	if err != nil {
-		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.Get("File not found"), nil, envelope.NotFoundError)
 	}
 
 	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
@@ -680,7 +680,7 @@ func sendErrorEnvelope(r *fastglue.Request, err error) error {
 		app := r.Context.(*App)
 		app.lo.Error("non-envelope error reached sendErrorEnvelope", "path", string(r.RequestCtx.Path()), "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError,
-			app.i18n.T("globals.messages.somethingWentWrong"), nil, fastglue.ErrorType(envelope.GeneralError))
+			app.i18n.Get("Something went wrong"), nil, fastglue.ErrorType(envelope.GeneralError))
 	}
 	return r.SendErrorEnvelope(e.Code, e.Error(), e.Data, fastglue.ErrorType(e.ErrorType))
 }
