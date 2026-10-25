@@ -366,6 +366,7 @@ func (o *OpenAIClient) doRequest(ctx context.Context, path string, bodyBytes []b
 	case resp.StatusCode == http.StatusOK:
 		return respBytes, 0, false, nil
 	case resp.StatusCode == http.StatusUnauthorized:
+		o.lo.Error("unauthorized from AI provider (401)", "base_url", o.cfg.BaseURL, "response", string(respBytes))
 		return nil, 0, false, ErrInvalidAPIKey
 	case resp.StatusCode == http.StatusTooManyRequests:
 		return nil, parseRetryAfter(resp.Header.Get("Retry-After")), true, fmt.Errorf("%w: status %d: %s", ErrRateLimited, resp.StatusCode, string(respBytes))
