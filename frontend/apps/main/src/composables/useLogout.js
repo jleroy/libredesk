@@ -9,7 +9,11 @@ const defaultBrowser = typeof window === 'undefined' ? {} : window
 
 export const createLogout = (pushNotifications, browser = defaultBrowser, apiClient = api) => async () => {
   await Promise.resolve(pushNotifications.disable()).catch(() => {})
-  await apiClient.logout()
+  try {
+    await apiClient.logout()
+  } catch (error) {
+    if (error?.response?.status !== 401) throw error
+  }
   clearNewConversationDrafts(browser.localStorage)
   browser.location.href = '/'
 }

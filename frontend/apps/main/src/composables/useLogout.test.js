@@ -25,9 +25,32 @@ describe('createLogout', () => {
     expect(browser.location.href).toBe('/')
   })
 
-  it('preserves the page and drafts when logout fails', async () => {
+  it('clears drafts and redirects when the session is already gone', async () => {
     const pushNotifications = { disable: vi.fn().mockResolvedValue() }
-    const error = new Error('offline')
+    const error = Object.assign(new Error('session expired'), { response: { status: 401 } })
+    const apiClient = { logout: vi.fn().mockRejectedValue(error) }
+    const browser = {
+      location: { href: '/inboxes/assigned' },
+      localStorage: { removeItem: vi.fn() }
+    }
+
+    await createLogout(pushNotifications, browser, apiClient)()
+
+    expect(browser.location.href).toBe('/')
+    expect(browser.localStorage.removeItem.mock.calls).toEqual([
+      ['newConversationDraftEmail'],
+      ['newConversationDraftWhatsApp']
+    ])
+  })
+
+  it.each([
+    ['network', undefined],
+    ['forbidden', 403],
+    ['server', 500]
+  ])('preserves the page and drafts on a %s failure', async (_, status) => {
+    const pushNotifications = { disable: vi.fn().mockResolvedValue() }
+    const error = new Error('logout failed')
+    if (status !== undefined) error.response = { status }
     const apiClient = { logout: vi.fn().mockRejectedValue(error) }
     const browser = {
       location: { href: '/inboxes/assigned' },
