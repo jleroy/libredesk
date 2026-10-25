@@ -204,7 +204,7 @@ func handleSendMessage(r *fastglue.Request) error {
 	}
 
 	if err := r.Decode(&req, "json"); err != nil {
-		app.lo.Error("error unmarshalling message request", "error", err)
+		app.lo.Debug("error unmarshalling message request", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
 

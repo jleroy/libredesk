@@ -58,7 +58,6 @@ func handleLogin(r *fastglue.Request) error {
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 	}, r); err != nil {
-		app.lo.Error("error saving session", "error", err)
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.T("globals.messages.somethingWentWrong"), nil))
 	}
 	// Set CSRF cookie if not already set.

@@ -56,8 +56,12 @@
             this.campaignData = null;
             this.campaignActiveSeconds = 0;
             this.campaignURL = location.href;
+            this.campaignPageGeneration = 0;
             this.campaignEvent = "";
             this.campaignDelay = 0;
+            this.campaignElapsed = 0;
+            this.campaignAsked = false;
+            this.campaignGap = this.CAMPAIGN_POLL_MIN;
             this.campaignBrowserKey = this.getCookie(this.getCookieName('campaign')) || this.randomKey();
             this.setCookie(this.getCookieName('campaign'), this.campaignBrowserKey);
             this.campaignSessionKey = this.getCookie(this.getCookieName('campaign-session')) || this.randomKey();
@@ -490,7 +494,7 @@
 
             switch (event.data.type) {
                 case 'SHOW_CAMPAIGN':
-                    if (this.isChatVisible || this.unreadCount > 0 || this.hideLauncher) {
+                    if (event.data.url !== location.href || event.data.pageGeneration !== this.campaignPageGeneration || this.isChatVisible || this.unreadCount > 0 || this.hideLauncher) {
                         this.dropCampaign(event.data.delivery.id);
                         break;
                     }
@@ -627,6 +631,11 @@
         showChat () {
             if (!this.iframe) return;
 
+            if (!this.isChatVisible && this.campaignData && this.previewHost && this.unreadCount === 0) {
+                this.postToIframe({ type: 'CAMPAIGN_EVENT', event: 'opened', id: this.campaignData.id });
+                this.campaignData = null;
+            }
+
             this.isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
             this.isChatVisible = true;
             this.renderPreviews();
@@ -731,6 +740,7 @@
             } else {
                 this.unreadBadge.style.display = 'none';
             }
+            this.renderPreviews();
         }
 
         expandWidget () {
@@ -757,6 +767,7 @@
                 const url = window.location.href;
                 if (url === self._lastPageURL) return;
                 self._lastPageURL = url;
+                self.resetCampaignPage();
                 // Defer to let SPA frameworks update document.title after route change.
                 setTimeout(() => { self.sendPageInfo(); }, 100);
             };
@@ -875,10 +886,7 @@
                 open.className = 'open';
                 open.setAttribute('aria-label', `${data.labels.open}: ${item.name}. ${item.text}`);
                 open.addEventListener('click', () => {
-                    if (item.campaign) {
-                        this.postToIframe({ type: 'CAMPAIGN_EVENT', event: 'opened', id: item.key });
-                        this.campaignData = null;
-                    } else this.postToIframe({ type: 'OPEN_CONVERSATION', uuid: item.conversation });
+                    if (!item.campaign) this.postToIframe({ type: 'OPEN_CONVERSATION', uuid: item.conversation });
                     this.showChat();
                 });
                 const avatar = safeImage(item.avatar, 'avatar');
@@ -918,39 +926,41 @@
             this.previewHost = host;
         }
 
+        resetCampaignPage () {
+            if (location.href === this.campaignURL) return;
+            this.campaignURL = location.href;
+            this.campaignPageGeneration++;
+            this.campaignActiveSeconds = 0;
+            this.campaignEvent = '';
+            this.campaignElapsed = 0;
+            this.campaignAsked = false;
+            this.campaignGap = Math.max(this.CAMPAIGN_POLL_MIN, this.campaignDelay);
+            if (this.campaignData) this.dropCampaign(this.campaignData.id);
+            this.renderPreviews();
+        }
+
         startCampaignTracking () {
             if (this.campaignInterval) return;
             let last = performance.now();
-            let elapsed = 0;
-            let asked = false;
-            const firstGap = () => Math.max(this.CAMPAIGN_POLL_MIN, this.campaignDelay);
-            let gap = firstGap();
+            this.campaignGap = Math.max(this.CAMPAIGN_POLL_MIN, this.campaignDelay);
             this.campaignInterval = setInterval(() => {
                 const now = performance.now();
                 const delta = Math.min((now - last) / 1000, 2);
                 last = now;
-                if (location.href !== this.campaignURL) {
-                    this.campaignURL = location.href;
-                    this.campaignActiveSeconds = 0;
-                    this.campaignEvent = '';
-                    elapsed = 0;
-                    asked = false;
-                    gap = firstGap();
-                    if (this.campaignData) this.dropCampaign(this.campaignData.id);
-                    this.renderPreviews();
-                }
+                this.resetCampaignPage();
                 if (document.hidden || this.isChatVisible || this.hideLauncher) return;
                 this.campaignActiveSeconds += delta;
-                elapsed += delta;
-                if (elapsed < gap || this.unreadCount > 0 || this.campaignData) return;
-                elapsed = 0;
-                gap = asked ? Math.min(gap * 2, this.CAMPAIGN_POLL_MAX) : this.CAMPAIGN_POLL_MIN;
-                asked = true;
-                this.postToIframe({ type: 'CAMPAIGN_CONTEXT', context: { url: location.href, mobile: this.isMobile, active_seconds: Math.floor(this.campaignActiveSeconds), event: this.campaignEvent } });
+                this.campaignElapsed += delta;
+                if (this.campaignElapsed < this.campaignGap || this.unreadCount > 0 || this.campaignData) return;
+                this.campaignElapsed = 0;
+                this.campaignGap = this.campaignAsked ? Math.min(this.campaignGap * 2, this.CAMPAIGN_POLL_MAX) : this.CAMPAIGN_POLL_MIN;
+                this.campaignAsked = true;
+                this.postToIframe({ type: 'CAMPAIGN_CONTEXT', pageGeneration: this.campaignPageGeneration, context: { url: location.href, mobile: this.isMobile, active_seconds: Math.floor(this.campaignActiveSeconds), event: this.campaignEvent } });
             }, 1000);
         }
 
         trackEvent (name) {
+            this.resetCampaignPage();
             if (typeof name === 'string' && name.length <= 128) this.campaignEvent = name;
         }
 

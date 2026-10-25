@@ -285,7 +285,7 @@ func (a *Auth) SaveSession(user amodels.User, r *fastglue.Request) error {
 
 	sess, err := a.sess.NewSession(r, r)
 	if err != nil {
-		a.logger.Error("error creating login session", "error", err)
+		a.logger.Error("error creating login session", "user_id", user.ID, "error", err)
 		return err
 	}
 
@@ -306,7 +306,7 @@ func (a *Auth) SaveSession(user amodels.User, r *fastglue.Request) error {
 		"first_name": user.FirstName,
 		"last_name":  user.LastName,
 	}); err != nil {
-		a.logger.Error("error setting login session", "error", err)
+		a.logger.Error("error setting login session", "user_id", user.ID, "error", err)
 		return err
 	}
 	return nil
