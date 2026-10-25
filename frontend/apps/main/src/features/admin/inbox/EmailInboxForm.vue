@@ -675,24 +675,7 @@
                 <FormItem>
                   <div class="flex items-center gap-1">
                     <FormLabel>{{ $t('admin.inbox.fromNameTemplate') }}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger as-child>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          class="size-7 text-muted-foreground"
-                          :aria-label="$t('globals.terms.help')"
-                        >
-                          <CircleHelp aria-hidden="true" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent align="start" class="w-[28rem] max-w-[calc(100vw-2rem)]">
-                        <p class="text-xs leading-relaxed">
-                          {{ $t('admin.inbox.fromNameTemplate.variables') }}
-                        </p>
-                      </PopoverContent>
-                    </Popover>
+                    <HelpPopover :text="fromNameVariablesHelp" />
                   </div>
                   <FormControl>
                     <Input
@@ -917,7 +900,7 @@ import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed, nextTick, ref } from 'vue'
 import { useFieldArray, useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
-import { createFormSchema } from './formSchema.js'
+import { createFormSchema, FROM_NAME_TEMPLATE_VARS } from './formSchema.js'
 import {
   FormControl,
   FormField,
@@ -929,7 +912,8 @@ import {
 import { Input } from '@shared-ui/components/ui/input/index.js'
 import SwitchField from '@shared-ui/components/SwitchField.vue'
 import { Button } from '@shared-ui/components/ui/button/index.js'
-import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
+import HelpPopover from '@main/components/HelpPopover.vue'
+import { formatTemplateVariables } from '@shared-ui/utils/string'
 import {
   Select,
   SelectContent,
@@ -962,7 +946,6 @@ import {
   Lightbulb,
   Plus,
   Trash2,
-  CircleHelp,
   TriangleAlert
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
@@ -1052,6 +1035,9 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
+const fromNameVariablesHelp = computed(
+  () => `${t('globals.terms.variable', 2)}: ${formatTemplateVariables(FROM_NAME_TEMPLATE_VARS)}`
+)
 const emitter = useEmitter()
 const appSettingsStore = useAppSettingsStore()
 
