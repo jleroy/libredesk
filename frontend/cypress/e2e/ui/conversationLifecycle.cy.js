@@ -169,6 +169,9 @@ describe('Conversation lifecycle', () => {
   beforeEach(() => {
     cy.viewport(1440, 900) // desktop layout: list, conversation and sidebar all on screen
     cy.login()
+    for (const uuid of [conversationUuid, ccConversationUuid]) {
+      cy.api('DELETE', `/api/v1/conversations/${uuid}/draft?type=reply`)
+    }
   })
 
   it('opens the conversation from the inbox list', () => {
@@ -346,7 +349,203 @@ describe('Conversation lifecycle', () => {
     expectSentRecipients(ccConversationUuid, { cc: [], bcc: [] })
   })
 
-  it('sends only what each conversation shows after switching between them', () => {
+  for (const field of ['CC', 'BCC']) {
+    it(`keeps ${field} open and focused while replacing an address`, () => {
+      cy.intercept('GET', '**/api/v1/drafts', (req) => {
+        req.continue((res) => res.setDelay(1000))
+      }).as('loadDrafts')
+      openConversation(ccConversationUuid)
+      cy.wait('@loadDrafts')
+      cy.get('.tiptap.ProseMirror[contenteditable="true"]').should('be.focused')
+      if (field === 'BCC') {
+        cy.contains('button', /^BCC$/).click()
+        recipientRow(/^BCC$/).find('input').type(bccAddress)
+      }
+      recipientRow(new RegExp(`^${field}$`)).find('input').clear()
+      recipientRow(new RegExp(`^${field}$`)).find('input')
+        .should('be.focused').and('have.value', '')
+        .type('replacement@example.com')
+      recipientRow(new RegExp(`^${field}$`)).find('input')
+        .should('have.value', 'replacement@example.com')
+    })
+  }
+
+  for (const copies of [
+    { name: 'without copies', cc: '', bcc: '' },
+    { name: 'with CC', cc: 'draft.copy@example.com', bcc: '' },
+    { name: 'with BCC', cc: '', bcc: bccAddress },
+    { name: 'with CC and BCC', cc: 'draft.copy@example.com', bcc: bccAddress }
+  ]) {
+    it(`preserves a minimized reply through reload and send ${copies.name}`, () => {
+      const content = `Minimized reply ${copies.name} ${stamp}`
+      const sender = `lifecycle+${stamp}@cypress.test`
+      const contactEmail = `minimized.${copies.name.toLowerCase().replaceAll(' ', '.')}.${stamp}@example.com`
+      const to = [contactEmail, 'second.recipient@example.com']
+      const uploads = []
+      let uuid
+      cy.api('POST', '/api/v1/conversations', {
+        inbox_id: inboxId, contact_email: contactEmail, first_name: 'Minimize', subject: content,
+        content: '<p>Minimize test conversation.</p>', initiator: 'contact'
+      }).then(({ body }) => {
+        uuid = body.data.uuid
+        cy.api('POST', `/api/v1/conversations/${uuid}/messages`, {
+          sender_type: 'agent', private: false, message: '<p>Previous reply.</p>',
+          to, cc: copies.cc ? [copies.cc] : [], bcc: copies.bcc ? [copies.bcc] : [],
+          send_from: sender
+        }).its('status').should('eq', 200)
+        cy.api('POST', `/api/v1/conversations/${uuid}/draft`, {
+          type: 'reply', content: `<p>${content}</p>`, meta: {}
+        }).its('status').should('eq', 200)
+        openConversation(uuid)
+      })
+      cy.get('.tiptap.ProseMirror').should('contain.text', content)
+      cy.intercept('POST', '**/api/v1/media').as('replyUpload')
+      cy.intercept('POST', '**/conversations/*/draft', (req) => {
+        if (req.body.meta?.attachments?.length === 2) req.alias = 'savedMinimizedDraft'
+      })
+      cy.get('input[type="file"]').first().selectFile([
+        { contents: Cypress.Buffer.from('Reply attachment'), fileName: 'reply-draft.txt', mimeType: 'text/plain' },
+        {
+          contents: Cypress.Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jBz0AAAAASUVORK5CYII=', 'base64'),
+          fileName: 'reply-image.png', mimeType: 'image/png'
+        }
+      ], { force: true })
+      for (let index = 0; index < 2; index++) {
+        cy.wait('@replyUpload').then(({ response }) => {
+          expect(response.statusCode).to.eq(200)
+          uploads.push(response.body.data)
+        })
+      }
+      cy.wait('@savedMinimizedDraft').its('response.statusCode').should('eq', 200)
+      const checkDraft = () => {
+        cy.get('.tiptap.ProseMirror').should('contain.text', content)
+        recipientRow(/^To$/).find('input').should('have.value', to.join(', '))
+        for (const field of ['cc', 'bcc']) {
+          if (field === 'cc' && copies[field]) recipientRow(new RegExp(`^${field.toUpperCase()}$`)).find('input').should('have.value', copies[field])
+          else cy.contains('label', new RegExp(`^${field.toUpperCase()}$`)).should('not.exist')
+        }
+        cy.contains('reply-draft.txt').should('be.visible')
+        cy.contains('reply-image.png').should('be.visible')
+      }
+      checkDraft()
+      cy.get('.box button[aria-label="Collapse"]').click()
+      cy.window().its('localStorage').invoke('getItem', 'replyBoxMinimized').should('eq', 'true')
+      cy.reload()
+      cy.wait('@loadMessages')
+      cy.contains('button', content).should('be.visible')
+      cy.get('.tiptap.ProseMirror').should('not.exist')
+      cy.contains('button', content).click()
+      checkDraft()
+      cy.window().its('localStorage').invoke('getItem', 'replyBoxMinimized').should('eq', 'false')
+      cy.get('.box button[aria-label="Collapse"]').next('button').click()
+      cy.get('[role="dialog"]').should('be.visible')
+      checkDraft()
+      cy.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
+      cy.get('[role="dialog"]').should('not.exist')
+      cy.reload()
+      cy.wait('@loadMessages')
+      checkDraft()
+      if (copies.bcc) {
+        cy.contains('button', /^BCC$/).click()
+        recipientRow(/^BCC$/).find('input').type(copies.bcc)
+        cy.get('.box button[aria-label="Collapse"]').click()
+        cy.contains('button', content).click()
+        recipientRow(/^BCC$/).find('input').should('have.value', copies.bcc)
+      }
+      cy.intercept('POST', '**/conversations/*/messages').as('sendMinimizedReply')
+      cy.contains('button', /^Send$/).click()
+      cy.wait('@sendMinimizedReply').then(({ request, response }) => {
+        expect(response.statusCode).to.eq(200)
+        expect(request.body.message).to.contain(content)
+        expect(request.body.send_from).to.eq(sender)
+        expect(request.body.to).to.deep.eq(to)
+        expect(request.body.cc).to.deep.eq(copies.cc ? [copies.cc] : [])
+        expect(request.body.bcc).to.deep.eq(copies.bcc ? [copies.bcc] : [])
+        expect(request.body.attachments).to.have.members(uploads.map((upload) => upload.id))
+        expect(request.body.private).to.eq(false)
+        cy.api('GET', `/api/v1/conversations/${uuid}/messages?page=1`).then(({ body }) => {
+          const message = body.data.results.find((message) => message.uuid === response.body.data.uuid)
+          expect(message.content).to.contain(content)
+          expect(message.meta.to).to.deep.eq(to)
+          expect(message.meta.cc || []).to.deep.eq(copies.cc ? [copies.cc] : [])
+          expect(message.meta.bcc || []).to.deep.eq(copies.bcc ? [copies.bcc] : [])
+          expect(message.meta.send_from).to.eq(sender)
+          expect(message.attachments.map((attachment) => attachment.uuid)).to.have.members(uploads.map((upload) => upload.uuid))
+        })
+      })
+      cy.get('.tiptap.ProseMirror').should('have.text', '')
+    })
+  }
+
+  it('restores reply content with conversation recipients after reload and a failed send', () => {
+    const sender = 'billing@example.com'
+    const extraRecipient = 'draft.recipient@example.com'
+    const copy = 'draft.copy@example.com'
+    const content = `Reply draft ${stamp}`
+    const update = `Another agent replied ${stamp}`
+    cy.intercept('GET', `**/api/v1/conversations/${ccConversationUuid}`, (req) => {
+      req.continue((res) => {
+        res.body.data.inbox_aliases = [{ email: sender, verification_status: 'verified' }]
+      })
+    })
+    cy.intercept('POST', `**/conversations/${ccConversationUuid}/draft`, (req) => {
+      if (req.body.content?.includes(content)) req.alias = 'savedReplyDraft'
+    })
+    openConversation(ccConversationUuid)
+    recipientRow(/^From$/).find('[role="combobox"]').click()
+    cy.contains('[role="option"]', sender).trigger('keydown', { key: 'Enter' })
+    recipientRow(/^To$/).find('input').clear()
+    recipientRow(/^To$/).find('input').type(`${ccCustomerEmail}, ${extraRecipient}`)
+    recipientRow(/^CC$/).find('input').clear()
+    recipientRow(/^CC$/).find('input').type(copy)
+    cy.contains('button', /^BCC$/).click()
+    recipientRow(/^BCC$/).find('input').type(bccAddress)
+    cy.get('.tiptap.ProseMirror').first().type(content)
+    cy.wait('@savedReplyDraft').then(({ request, response }) => {
+      expect(response.statusCode).to.eq(200)
+      expect(request.body.meta).not.to.have.property('recipients')
+    })
+
+    const checkDraft = () => {
+      recipientRow(/^From$/).find('[role="combobox"]').should('contain.text', `lifecycle+${stamp}@cypress.test`)
+      recipientRow(/^To$/).find('input').should('have.value', ccCustomerEmail)
+      recipientRow(/^CC$/).find('input').should('have.value', ccAddress)
+      cy.contains('label', /^BCC$/).should('not.exist')
+      cy.get('.tiptap.ProseMirror').first().should('contain.text', content)
+    }
+    cy.reload()
+    cy.wait('@loadMessages')
+    checkDraft()
+    cy.api('POST', `/api/v1/conversations/${ccConversationUuid}/messages`, {
+      sender_type: 'agent', private: false, message: `<p>${update}</p>`,
+      to: [ccCustomerEmail], cc: [ccAddress], bcc: []
+    }).its('status').should('eq', 200)
+    cy.contains('[data-message-uuid]', update).should('be.visible')
+    checkDraft()
+
+    cy.intercept('POST', `**/conversations/${ccConversationUuid}/messages`, {
+      statusCode: 500, body: { status: 'error', message: 'Reply failed', error_type: 'GeneralException' }
+    }).as('failedReply')
+    cy.contains('button', /^Send$/).click()
+    cy.wait('@failedReply').its('response.statusCode').should('eq', 500)
+    cy.reload()
+    cy.wait('@loadMessages')
+    checkDraft()
+
+    captureSend()
+    cy.intercept('DELETE', `**/conversations/${ccConversationUuid}/draft*`).as('clearedReplyDraft')
+    cy.contains('button', /^Send$/).click()
+    cy.wait('@captureSend').then(({ request }) => {
+      expect(request.body.send_from).to.eq(`lifecycle+${stamp}@cypress.test`)
+      expect(request.body.to).to.deep.eq([ccCustomerEmail])
+      expect(request.body.cc).to.deep.eq([ccAddress])
+      expect(request.body.bcc).to.deep.eq([])
+    })
+    cy.wait('@clearedReplyDraft').its('response.statusCode').should('eq', 200)
+    cy.get('.tiptap.ProseMirror').first().should('have.text', '')
+  })
+
+  it('restores conversation recipients when switching between conversations', () => {
     captureSend()
     openConversation(ccConversationUuid)
     recipientRow(/^CC$/).find('button[aria-label="Remove CC"]').click()

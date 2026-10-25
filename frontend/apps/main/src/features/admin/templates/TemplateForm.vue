@@ -55,7 +55,7 @@
     <div class="flex gap-2">
       <Button type="submit" :isLoading="isLoading"> {{ submitLabel }} </Button>
       <Button
-        v-if="initialValues?.is_builtin && defaultBody"
+        v-if="(isOutgoingTemplate || initialValues?.is_builtin) && defaultBody"
         type="button"
         variant="outline"
         :disabled="isLoading"
@@ -88,7 +88,7 @@ import CodeEditor from '@main/components/editor/CodeEditor.vue'
 import { Checkbox } from '@shared-ui/components/ui/checkbox/index.js'
 import { Label } from '@shared-ui/components/ui/label/index.js'
 import { useI18n } from 'vue-i18n'
-import { BUILT_IN_TEMPLATE_BODIES } from './defaults.js'
+import { BUILT_IN_TEMPLATE_BODIES, DEFAULT_OUTGOING_TEMPLATE_BODY } from './defaults.js'
 
 const props = defineProps({
   initialValues: {
@@ -133,6 +133,7 @@ const hideSubject = computed(() => {
 })
 
 const defaultBody = computed(() => {
+  if (isOutgoingTemplate.value) return DEFAULT_OUTGOING_TEMPLATE_BODY
   return BUILT_IN_TEMPLATE_BODIES[props.initialValues?.name]
 })
 

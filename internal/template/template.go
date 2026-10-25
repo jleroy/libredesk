@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"strings"
 	"sync"
+	texttemplate "text/template"
 
 	"github.com/abhinavxd/libredesk/internal/dbutil"
 	"github.com/abhinavxd/libredesk/internal/envelope"
@@ -64,8 +66,17 @@ func New(lo *logf.Logger, db *sqlx.DB, webTpls *template.Template, tpls *templat
 
 // Update updates a new template with the given name, and body.
 func (m *Manager) Update(id int, t models.Template) (models.Template, error) {
+	if t.IsDefault {
+		t.Type = TypeEmailOutgoing
+	}
+	if err := m.validateOutgoingTemplate(t); err != nil {
+		return models.Template{}, err
+	}
 	var result models.Template
 	if err := m.q.UpdateTemplate.Get(&result, id, t.Name, t.Body, t.IsDefault, t.Subject, t.Type); err != nil {
+		if dbutil.IsUniqueViolationError(err) && t.IsDefault {
+			return models.Template{}, envelope.NewError(envelope.ConflictError, m.i18n.Get("Default template already exists"), nil /** data **/)
+		}
 		m.lo.Error("error updating template", "error", err)
 		return models.Template{}, envelope.NewError(envelope.GeneralError, m.i18n.Get("Something went wrong"), nil)
 	}
@@ -77,10 +88,13 @@ func (m *Manager) Create(t models.Template) (models.Template, error) {
 	if t.IsDefault {
 		t.Type = TypeEmailOutgoing
 	}
+	if err := m.validateOutgoingTemplate(t); err != nil {
+		return models.Template{}, err
+	}
 	var result models.Template
 	if err := m.q.InsertTemplate.Get(&result, t.Name, t.Body, t.IsDefault, t.Subject, t.Type); err != nil {
 		if dbutil.IsUniqueViolationError(err) && t.IsDefault {
-			return models.Template{}, envelope.NewError(envelope.GeneralError, m.i18n.Get("Default template already exists"), nil)
+			return models.Template{}, envelope.NewError(envelope.ConflictError, m.i18n.Get("Default template already exists"), nil /** data **/)
 		}
 		m.lo.Error("error inserting template", "error", err)
 		return models.Template{}, envelope.NewError(envelope.GeneralError, m.i18n.Get("Something went wrong"), nil)
@@ -126,6 +140,15 @@ func (m *Manager) Delete(id int) error {
 		return envelope.NewError(envelope.GeneralError, m.i18n.Get("Something went wrong"), nil)
 	}
 	return nil
+}
+
+// DefaultOutgoingEmailTemplateContains reports whether the default outgoing email template body contains s.
+func (m *Manager) DefaultOutgoingEmailTemplateContains(s string) bool {
+	t, err := m.getDefaultOutgoingEmailTemplate()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(t.Body, s)
 }
 
 // isBuiltIn returns true if the template is built-in.
@@ -180,5 +203,18 @@ func (m *Manager) Reload(webTpls, tpls *template.Template, funcMap template.Func
 	m.tpls = tpls
 	m.notificationTpls = notificationTpls
 	m.funcMap = funcMap
+	return nil
+}
+
+func (m *Manager) validateOutgoingTemplate(t models.Template) error {
+	if t.Type != TypeEmailOutgoing && !t.IsDefault {
+		return nil
+	}
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if _, err := parseOutgoingTemplate(t.Body, texttemplate.FuncMap(m.funcMap)); err != nil {
+		return envelope.NewError(envelope.InputError, m.i18n.Get("This email template cannot deliver replies. Check the syntax and include %[1]s.",
+			`{{ template "content" . }}`), nil /** data **/)
+	}
 	return nil
 }

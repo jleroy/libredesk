@@ -73,6 +73,9 @@ repository.
 
 ### Local development and validation
 
+Compiled `.mo` files are generated locally and ignored by Git. Run
+`make i18n-compile` before `make i18n-check`.
+
 You can run these commands from the repository root:
 
 - `make i18n-extract`: extract messages from Go code and HTML templates into

@@ -57,6 +57,7 @@ var (
 	efs                             embed.FS
 	errConversationNotFound         = errors.New("conversation not found")
 	ErrConversationAlreadyAssigned  = errors.New("conversation already assigned")
+	ErrAssigneeUnavailable          = errors.New("assignee is unavailable")
 	ErrMessageNotFound              = errors.New("message not found")
 	conversationsAllowedFields      = []string{"status_id", "priority_id", "assigned_team_id", "assigned_user_id", "inbox_id", "last_message_at", "last_interaction_at", "last_interaction_sender", "created_at", "waiting_since", "next_sla_deadline_at", "snoozed_until", "sla_policy_id"}
 	conversationStatusAllowedFields = []string{"id", "name"}
@@ -226,6 +227,7 @@ type settingsStore interface {
 type csatStore interface {
 	Create(conversationID int) (csatModels.CSATResponse, error)
 	Get(uuid string) (csatModels.CSATResponse, error)
+	UpdateResponse(uuid string, score int, feedback string, meta json.RawMessage) error
 	MakePublicURL(appBaseURL, uuid string) string
 }
 
@@ -386,10 +388,12 @@ type queries struct {
 
 	// Message queries.
 	GetMessage                         *sqlx.Stmt `query:"get-message"`
+	GetCSATMessages                    *sqlx.Stmt `query:"get-csat-messages"`
 	GetMessages                        string     `query:"get-messages"`
 	GetContactUnreadPreviewMessages    *sqlx.Stmt `query:"get-contact-unread-preview-messages"`
 	GetOutgoingPendingMessages         *sqlx.Stmt `query:"get-outgoing-pending-messages"`
 	GetMessageSourceIDs                *sqlx.Stmt `query:"get-message-source-ids"`
+	GetPreviousMessages                *sqlx.Stmt `query:"get-previous-messages"`
 	GetEmailSenderMessage              *sqlx.Stmt `query:"get-email-sender-message"`
 	GetConversationUUIDFromMessageUUID *sqlx.Stmt `query:"get-conversation-uuid-from-message-uuid"`
 	MessageExistsBySourceID            *sqlx.Stmt `query:"message-exists-by-source-id"`
@@ -869,7 +873,7 @@ func (c *Manager) UpdateConversationUserAssignee(uuid string, assigneeID int, ac
 	return c.afterUserAssignedHooks(uuid, assigneeID, actor, amodels.PreviousValues(previousConversation))
 }
 
-// ClaimUnassignedConversation atomically assigns a conversation only if still unassigned and still in expectedTeamID, else returns ErrConversationAlreadyAssigned.
+// ClaimUnassignedConversation atomically assigns a conversation only if still unassigned, still in expectedTeamID and the assignee is an enabled, non-away agent of that team.
 func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedTeamID int, actor umodels.User) error {
 	previousConversation, err := c.GetConversation(0, uuid, "")
 	if err != nil {
@@ -877,17 +881,15 @@ func (c *Manager) ClaimUnassignedConversation(uuid string, assigneeID, expectedT
 	}
 	prev, prevErr := c.GetConversationListItem(uuid)
 
-	res, err := c.q.ClaimUnassignedConversation.Exec(uuid, assigneeID, expectedTeamID)
-	if err != nil {
+	var available, claimed bool
+	if err := c.q.ClaimUnassignedConversation.QueryRow(uuid, assigneeID, expectedTeamID).Scan(&available, &claimed); err != nil {
 		c.lo.Error("error claiming unassigned conversation", "uuid", uuid, "error", err)
 		return envelope.NewError(envelope.GeneralError, c.i18n.Get("Something went wrong"), nil)
 	}
-	rows, err := res.RowsAffected()
-	if err != nil {
-		c.lo.Error("error reading rows affected for conversation claim", "uuid", uuid, "error", err)
-		return envelope.NewError(envelope.GeneralError, c.i18n.Get("Something went wrong"), nil)
-	}
-	if rows == 0 {
+	if !claimed {
+		if !available {
+			return ErrAssigneeUnavailable
+		}
 		return ErrConversationAlreadyAssigned
 	}
 
@@ -1432,7 +1434,10 @@ func (m *Manager) sendReplyNotification(conversation models.Conversation, messag
 	if len(group.recipients) == 0 {
 		return
 	}
-	messageText := replyNotificationText(message)
+	messageText := textWithoutQuotedReplies(message)
+	if messageText == "" && len(message.Attachments) > 0 {
+		messageText = m.i18n.GetN("Attachment", "Attachments", len(message.Attachments))
+	}
 	candidateIDs := make([]int, len(group.recipients))
 	for i, recipient := range group.recipients {
 		candidateIDs[i] = recipient.ID
@@ -1958,6 +1963,23 @@ func (m *Manager) SendCSATReply(actorUserID int, conversation models.Conversatio
 	return nil
 }
 
+func (m *Manager) UpdateCSATResponse(uuid string, rating int, feedback string, meta json.RawMessage) error {
+	if err := m.csatStore.UpdateResponse(uuid, rating, feedback, meta); err != nil {
+		return err
+	}
+	var messages []models.Message
+	if err := m.q.GetCSATMessages.Select(&messages, uuid); err != nil {
+		m.lo.Error("error fetching CSAT messages for update", "csat_uuid", uuid, "error", err)
+		return nil
+	}
+	for _, message := range messages {
+		message.CensorCSATContentWithStatus(true /** csatSubmitted **/, uuid, rating, feedback)
+		message.StripCSATUUID()
+		m.BroadcastMessageUpdate(message.ConversationUUID, message.UUID, map[string]any{"meta": message.Meta})
+	}
+	return nil
+}
+
 // DeleteConversation deletes a conversation.
 func (m *Manager) DeleteConversation(uuid string) error {
 	res, err := m.q.DeleteConversation.Exec(uuid)
@@ -2477,12 +2499,11 @@ func listTypeWhereClause(conditions []string) string {
 	return "AND (" + strings.Join(conditions, " OR ") + ")"
 }
 
-func replyNotificationText(message models.Message) string {
-	full := strings.TrimSpace(message.TextContent)
+func textWithoutQuotedReplies(message models.Message) string {
 	if message.ContentType == models.ContentTypeHTML {
-		return cmp.Or(stringutil.HTML2TextNoQuotes(message.Content), full)
+		return stringutil.HTML2TextNoQuotes(message.Content)
 	}
-	return cmp.Or(stringutil.TrimPlainTextQuotes(full), full)
+	return stringutil.TrimPlainTextQuotes(strings.TrimSpace(message.TextContent))
 }
 
 // readScopeArgs returns the agent's team IDs and read permissions in the argument order the read-permission queries expect.

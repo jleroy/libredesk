@@ -158,3 +158,30 @@ describe('Admin setup and outgoing conversation', () => {
     }
   })
 })
+
+describe('Recovering a stale route after deployment', () => {
+  it('reloads a missing route chunk once and opens the requested page', () => {
+    let loads = 0
+    cy.login()
+    cy.viewport(1280, 800)
+    cy.on('window:before:load', () => { loads++ })
+    cy.on('uncaught:exception', (error) => {
+      if (error.message.includes('Failed to fetch dynamically imported module:') &&
+          error.message.includes('/assets/WebhookList-')) return false
+    })
+    cy.intercept({ method: 'GET', url: '**/assets/WebhookList-*.js', times: 1 }, {
+      statusCode: 404, body: '', headers: { 'content-type': 'text/javascript' }
+    }).as('missingRouteChunk')
+    cy.visit('/admin/conversations/tags')
+    cy.contains('button', /^Integrations$/).click()
+    cy.get('a[href="/admin/webhooks"]').first().scrollIntoView()
+    cy.get('a[href="/admin/webhooks"]').first().click()
+    cy.wait('@missingRouteChunk').its('response.statusCode').should('eq', 404)
+    cy.location('pathname').should('eq', '/admin/webhooks')
+    cy.contains('button', 'New webhook').should('be.visible')
+    cy.window().should((win) => {
+      expect(loads).to.eq(2)
+      expect(win.sessionStorage.getItem('libredesk:preload-reload')).to.eq(null)
+    })
+  })
+})

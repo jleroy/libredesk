@@ -56,6 +56,8 @@ export function useReplyPreviews() {
           identity: String(user.userID || 'visitor'),
           previews,
           labels: {
+            openChat: t('globals.messages.openChat'),
+            closeChat: t('globals.messages.closeChat'),
             dismiss: t('globals.terms.dismiss'),
             dismissAll: t('widget.dismissPreviews'),
             open: t('globals.messages.openConversation')

@@ -1,4 +1,5 @@
 node_modules
+*.mo
 config.toml
 config.toml.*
 libredesk.bin

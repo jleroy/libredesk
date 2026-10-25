@@ -38,7 +38,7 @@ import { EMITTER_EVENTS } from '@main/constants/emitterEvents.js'
 import { useEmitter } from '@main/composables/useEmitter'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { format } from 'date-fns'
+import TableDate from '@main/components/table/TableDate.vue'
 import LoadingOverlay from '@main/components/layout/LoadingOverlay.vue'
 import { useInboxStore } from '@main/stores/inbox'
 import api from '@main/api'
@@ -113,7 +113,7 @@ const columns = [
   {
     accessorKey: 'name',
     header: function () {
-      return h('div', { class: 'text-center' }, t('globals.terms.name'))
+      return h('div', null, t('globals.terms.name'))
     },
     cell: function ({ row }) {
       const children = [
@@ -138,31 +138,33 @@ const columns = [
           })
         )
       }
-      return h('div', { class: 'flex items-center justify-center gap-1.5' }, children)
+      return h('div', { class: 'flex items-center gap-1.5' }, children)
     }
   },
   {
     accessorKey: 'channel',
+    meta: { compact: true },
     header: function () {
-      return h('div', { class: 'text-center' }, t('globals.terms.channel'))
+      return h('div', null, t('globals.terms.channel'))
     },
     cell: function ({ row }) {
       const channel = row.getValue('channel')
       return h(
         'div',
-        { class: 'text-center' },
+        null,
         CHANNEL_LABEL_KEYS[channel] ? t(CHANNEL_LABEL_KEYS[channel], 1) : channel
       )
     }
   },
   {
     accessorKey: 'enabled',
-    header: () => h('div', { class: 'text-center' }, t('globals.terms.status')),
+    meta: { compact: true },
+    header: () => h('div', null, t('globals.terms.status')),
     cell: ({ row }) => {
       const enabled = row.getValue('enabled')
       return h(
         'div',
-        { class: 'text-center' },
+        null,
         h(Badge, { variant: enabled ? 'success' : 'secondary' }, () =>
           enabled ? t('globals.terms.enabled') : t('globals.terms.disabled')
         )
@@ -171,20 +173,22 @@ const columns = [
   },
   {
     accessorKey: 'created_at',
+    meta: { compact: true },
     header: function () {
-      return h('div', { class: 'text-center' }, t('globals.terms.createdAt'))
+      return h('div', null, t('globals.terms.createdAt'))
     },
     cell: function ({ row }) {
-      return h('div', { class: 'text-center' }, format(row.getValue('created_at'), 'PPpp'))
+      return h(TableDate, { value: row.getValue('created_at') })
     }
   },
   {
     accessorKey: 'updated_at',
+    meta: { compact: true },
     header: function () {
-      return h('div', { class: 'text-center' }, t('globals.terms.updatedAt'))
+      return h('div', null, t('globals.terms.updatedAt'))
     },
     cell: function ({ row }) {
-      return h('div', { class: 'text-center' }, format(row.getValue('updated_at'), 'PPpp'))
+      return h(TableDate, { value: row.getValue('updated_at') })
     }
   },
   {

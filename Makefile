@@ -155,7 +155,7 @@ locales/%/LC_MESSAGES/backend.mo: locales/%/LC_MESSAGES/backend.po
 locales/%/LC_MESSAGES/templates.mo: locales/%/LC_MESSAGES/templates.po
 	msgfmt --check --check-format -o $@ $<
 
-# Read-only verification of source coverage, PO validity and committed MO files.
+# Read-only verification of source coverage, PO validity and generated MO files.
 .PHONY: i18n-check
 i18n-check:
 	@set -e; for domain in backend templates; do \
