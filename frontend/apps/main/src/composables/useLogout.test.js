@@ -24,4 +24,19 @@ describe('createLogout', () => {
     expect(apiClient.logout).toHaveBeenCalled()
     expect(browser.location.href).toBe('/')
   })
+
+  it('preserves the page and drafts when logout fails', async () => {
+    const pushNotifications = { disable: vi.fn().mockResolvedValue() }
+    const error = new Error('offline')
+    const apiClient = { logout: vi.fn().mockRejectedValue(error) }
+    const browser = {
+      location: { href: '/inboxes/assigned' },
+      localStorage: { removeItem: vi.fn() }
+    }
+
+    await expect(createLogout(pushNotifications, browser, apiClient)()).rejects.toBe(error)
+
+    expect(browser.location.href).toBe('/inboxes/assigned')
+    expect(browser.localStorage.removeItem).not.toHaveBeenCalled()
+  })
 })

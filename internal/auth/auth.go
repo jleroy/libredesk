@@ -312,12 +312,18 @@ func (a *Auth) SaveSession(user amodels.User, r *fastglue.Request) error {
 	return nil
 }
 
-// CreateSessionWithValues starts a new session holding the passed values.
-func (a *Auth) CreateSessionWithValues(r *fastglue.Request, values map[string]interface{}) error {
+// SetSessionValues preserves an existing session and creates one only when the browser has no valid session.
+func (a *Auth) SetSessionValues(r *fastglue.Request, values map[string]any) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	sess, err := a.sess.NewSession(r, r)
+	sess, err := a.sess.Acquire(r.RequestCtx, r, r)
+	if err == nil {
+		_, err = sess.GetMulti("id")
+	}
+	if errors.Is(err, simplesessions.ErrInvalidSession) {
+		sess, err = a.sess.NewSession(r, r)
+	}
 	if err != nil {
 		a.logger.Error("error creating session", "error", err)
 		return err

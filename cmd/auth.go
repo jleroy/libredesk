@@ -54,14 +54,13 @@ func handleOIDCLogin(r *fastglue.Request) error {
 		oidcNextSessKey: next,
 	}
 
-	if err = app.auth.CreateSessionWithValues(r, sessionValues); err != nil {
-		app.lo.Error("error saving state in session", "error", err)
-		return redirectLoginError(r, oidcErrLoginFailed, next)
-	}
-
 	authURL, err := app.auth.LoginURL(providerID, state)
 	if err != nil {
 		app.lo.Error("error getting oidc login url", "provider_id", providerID, "error", err)
+		return redirectLoginError(r, oidcErrLoginFailed, next)
+	}
+	if err = app.auth.SetSessionValues(r, sessionValues); err != nil {
+		app.lo.Error("error saving state in session", "error", err)
 		return redirectLoginError(r, oidcErrLoginFailed, next)
 	}
 	app.lo.Debug("redirecting to oidc provider for login", "provider_id", providerID)
