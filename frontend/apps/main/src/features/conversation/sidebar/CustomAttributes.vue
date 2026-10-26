@@ -33,12 +33,12 @@
           <PopoverTrigger as-child>
             <Button
               type="button"
-              :variant="getLinkUrl(attribute) ? 'ghost' : 'link'"
+              variant="link"
               :size="getLinkUrl(attribute) ? 'icon' : 'default'"
               :disabled="loading"
               :class="[
                 getLinkUrl(attribute)
-                  ? 'h-6 w-6 shrink-0 text-muted-foreground [&_svg]:size-3 can-hover:opacity-0 can-hover:group-hover/attribute:opacity-100 can-hover:group-focus-within/attribute:opacity-100 data-[state=open]:opacity-100'
+                  ? 'h-6 w-6 shrink-0 text-muted-foreground [&_svg]:size-3 [&_svg]:translate-y-0.5 can-hover:opacity-0 can-hover:group-hover/attribute:opacity-100 can-hover:group-focus-within/attribute:opacity-100 data-[state=open]:opacity-100'
                   : 'sidebar-value h-auto min-h-6 min-w-6 max-w-full justify-end justify-self-end rounded-sm whitespace-normal px-0 py-0.5 text-right font-normal decoration-muted-foreground/40 decoration-dotted underline-offset-4 can-hover:hover:decoration-foreground',
                 { 'text-muted-foreground': customAttributes?.[attribute.key] == null }
               ]"
