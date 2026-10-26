@@ -675,24 +675,7 @@
                 <FormItem>
                   <div class="flex items-center gap-1">
                     <FormLabel>{{ i18n._('From display name template (optional)') }}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger as-child>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          class="size-7 text-muted-foreground"
-                          :aria-label="i18n._('Help')"
-                        >
-                          <CircleHelp aria-hidden="true" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent align="start" class="w-[28rem] max-w-[calc(100vw-2rem)]">
-                        <p class="text-xs leading-relaxed">
-                          {{ i18n._(literalExampleMessage1) }}
-                        </p>
-                      </PopoverContent>
-                    </Popover>
+                    <HelpPopover :text="fromNameVariablesHelp" />
                   </div>
                   <FormControl>
                     <Input
@@ -913,7 +896,6 @@
 <script setup>
 import { defineMessage as msg } from '@lingui/core/macro'
 
-const literalExampleMessage1 = msg({ message: 'Variables: \'{{ .Agent.FirstName }}\', \'{{ .Agent.LastName }}\', \'{{ .Agent.FullName }}\', \'{{ .Inbox.Name }}\'.' })
 const literalExampleMessage2 = msg({ message: '\'{{ .Agent.FirstName }} at {{ .Inbox.Name }}\'' })
 
 
@@ -923,7 +905,7 @@ import FormGrid from '@shared-ui/components/FormGrid.vue'
 import { watch, computed, nextTick, ref } from 'vue'
 import { useFieldArray, useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
-import { createFormSchema } from './formSchema.js'
+import { createFormSchema, FROM_NAME_TEMPLATE_VARS } from './formSchema.js'
 import {
   FormControl,
   FormField,
@@ -935,7 +917,8 @@ import {
 import { Input } from '@shared-ui/components/ui/input/index.js'
 import SwitchField from '@shared-ui/components/SwitchField.vue'
 import { Button } from '@shared-ui/components/ui/button/index.js'
-import { Popover, PopoverContent, PopoverTrigger } from '@shared-ui/components/ui/popover'
+import HelpPopover from '@main/components/HelpPopover.vue'
+import { formatTemplateVariables } from '@shared-ui/utils/string'
 import {
   Select,
   SelectContent,
@@ -968,7 +951,6 @@ import {
   Lightbulb,
   Plus,
   Trash2,
-  CircleHelp,
   TriangleAlert
 } from 'lucide-vue-next'
 import { useI18n } from '@shared-ui/i18n'
@@ -1058,6 +1040,9 @@ const props = defineProps({
 })
 
 const i18n = useI18n()
+const fromNameVariablesHelp = computed(
+  () => i18n._('Variables: {variables}', { variables: formatTemplateVariables(FROM_NAME_TEMPLATE_VARS) })
+)
 const emitter = useEmitter()
 const appSettingsStore = useAppSettingsStore()
 

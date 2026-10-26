@@ -159,12 +159,16 @@ func (u *Manager) VerifyPassword(email string, password []byte) (models.User, er
 	var user models.User
 	if err := u.q.GetUser.Get(&user, 0, email, pq.Array([]string{models.UserTypeAgent})); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			u.lo.Warn("password login rejected: invalid credentials")
 			return user, envelope.NewError(envelope.InputError, u.i18n.Get("Invalid email or password."), nil)
 		}
 		u.lo.Error("error fetching user from db", "error", err)
 		return user, envelope.NewError(envelope.GeneralError, u.i18n.Get("Something went wrong"), nil)
 	}
 	if err := u.verifyPassword(password, user.Password.String); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			u.lo.Warn("password login rejected: invalid credentials", "user_id", user.ID)
+		}
 		return user, envelope.NewError(envelope.InputError, u.i18n.Get("Invalid email or password."), nil)
 	}
 	return user, nil
@@ -465,6 +469,7 @@ func (u *Manager) ValidateAPIKey(apiKey, apiSecret string) (models.User, error) 
 		if err == sql.ErrNoRows {
 			return user, envelope.NewError(envelope.UnauthorizedError, u.i18n.Get("Invalid credential"), nil)
 		}
+		u.lo.Error("error looking up API key user", "error", err)
 		return user, envelope.NewError(envelope.GeneralError, u.i18n.Get("Something went wrong"), nil)
 	}
 
@@ -638,7 +643,9 @@ func (u *Manager) makeUserListQuery(page, pageSize int, userTypes []string, orde
 // verifyPassword compares the provided password with the stored password hash.
 func (u *Manager) verifyPassword(pwd []byte, pwdHash string) error {
 	if err := bcrypt.CompareHashAndPassword([]byte(pwdHash), pwd); err != nil {
-		u.lo.Error("error verifying password", "error", err)
+		if !errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			u.lo.Error("error verifying password", "error", err)
+		}
 		return fmt.Errorf("error verifying password: %w", err)
 	}
 	return nil

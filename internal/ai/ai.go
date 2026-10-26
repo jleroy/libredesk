@@ -477,6 +477,9 @@ func (m *Manager) getProviderClient(providerType string) (ProviderClient, error)
 }
 
 func (m *Manager) providerError(err error) error {
+	if errors.Is(err, context.Canceled) {
+		return envelope.NewError(envelope.GeneralError, m.i18n.Get("The AI provider could not be reached. Try again in a few minutes, or ask your administrator to check the AI settings."), nil)
+	}
 	if errors.Is(err, ErrInvalidAPIKey) {
 		m.lo.Error("invalid provider API key")
 		return envelope.NewError(envelope.InputError, m.i18n.Get("The AI provider rejected the API key. AI features won't work until your administrator updates it in AI settings."), nil)

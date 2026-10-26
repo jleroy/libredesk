@@ -64,10 +64,6 @@ export default defineConfig(({ mode, command }) => {
           target: apiTarget,
           changeOrigin: true,
         },
-        '/logout': {
-          target: apiTarget,
-          changeOrigin: true,
-        },
         '/uploads': {
           target: apiTarget,
           changeOrigin: true,

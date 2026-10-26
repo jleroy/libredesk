@@ -120,7 +120,6 @@ func (e *Engine) reloadBalancer() error {
 
 	err := e.populateTeamBalancer()
 	if err != nil {
-		e.lo.Error("error updating team balancer pool", "error", err)
 		return err
 	}
 	return nil
@@ -253,6 +252,7 @@ func (e *Engine) assignConversations() error {
 				e.lo.Error("error assigning conversation", "conversation_uuid", conv.UUID, "user_id", userID, "error", err)
 				continue
 			}
+			e.lo.Info("conversation automatically assigned", "conversation_uuid", conv.UUID, "user_id", userID, "team_id", teamID)
 			break
 		}
 	}

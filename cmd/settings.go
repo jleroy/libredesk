@@ -117,6 +117,7 @@ func handleGetEmailNotificationSettings(r *fastglue.Request) error {
 
 	// Unmarshal and filter out password.
 	if err := json.Unmarshal(out, &notif); err != nil {
+		app.lo.Error("error decoding notification settings", "error", err)
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.Get("Something went wrong"), nil))
 	}
 	if notif.Password != "" {
@@ -151,6 +152,7 @@ func handleUpdateEmailNotificationSettings(r *fastglue.Request) error {
 	}
 
 	if err := json.Unmarshal(out, &cur); err != nil {
+		app.lo.Error("error decoding notification settings", "error", err)
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, app.i18n.Get("Something went wrong"), nil))
 	}
 

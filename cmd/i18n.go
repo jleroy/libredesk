@@ -38,6 +38,7 @@ func handleGetI18nLang(r *fastglue.Request) error {
 	)
 	b, err := i18nLangJSON(app, lang)
 	if err != nil {
+		app.lo.Error("error loading frontend language", "language", lang, "error", err)
 		return sendErrorEnvelope(r, err)
 	}
 	r.RequestCtx.Response.Header.SetContentType("application/json")
@@ -48,8 +49,10 @@ func handleGetI18nLang(r *fastglue.Request) error {
 
 // handleGetAvailableLanguages lists the compiled frontend catalogs.
 func handleGetAvailableLanguages(r *fastglue.Request) error {
+	app := r.Context.(*App)
 	files, err := fs.Glob(catalogs.LocaleFiles, "*/LC_MESSAGES/frontend.json")
 	if err != nil {
+		app.lo.Error("error listing language files", "error", err)
 		return sendErrorEnvelope(r, envelope.NewError(envelope.GeneralError, "error listing language files", nil))
 	}
 
@@ -63,11 +66,13 @@ func handleGetAvailableLanguages(r *fastglue.Request) error {
 		code := strings.Split(f, "/")[0]
 		b, err := catalogs.LocaleFiles.ReadFile(f)
 		if err != nil {
+			app.lo.Warn("error reading available language", "language", code, "error", err)
 			continue
 		}
 
 		var meta frontendCatalog
 		if err := json.Unmarshal(b, &meta); err != nil {
+			app.lo.Warn("error parsing available language", "language", code, "error", err)
 			continue
 		}
 
@@ -95,6 +100,9 @@ func localeI18n(app *App, locale string) *gotext.Locale {
 		return i
 	}
 	i, err := locales.New(loc)
+	if err != nil {
+		app.lo.Warn("selected language unavailable, using default language", "language", loc, "error", err)
+	}
 	if err != nil || i == nil {
 		i = app.i18n
 	}

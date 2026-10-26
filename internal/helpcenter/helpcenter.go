@@ -1622,7 +1622,7 @@ func (m *Manager) normalizeHelpCenterRequest(req HelpCenterRequest) (HelpCenterR
 	}
 	theme, err := normalizeTheme(req.Theme)
 	if err != nil {
-		m.lo.Error("error normalizing help center theme", "error", err)
+		m.lo.Debug("error normalizing help center theme", "error", err)
 		return req, envelope.NewError(envelope.InputError, m.i18n.Get("These appearance settings could not be read. Reload the page and try again."), nil)
 	}
 	req.Theme = theme
