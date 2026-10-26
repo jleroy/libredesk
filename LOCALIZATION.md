@@ -183,6 +183,28 @@ Follow these guidelines when writing messages:
   i18n.pgettext('Hyperlink', 'Link')
   ```
 
+- **Include punctuation inside the translatable message.** Do not append periods,
+  colons or other punctuation after translation. Translators need to be able to
+  adapt punctuation and spacing to their language.
+
+  Backend:
+
+  ```go
+  // Correct
+  i18n.Get("Name:")
+  // Incorrect
+  i18n.Get("Name") + ":"
+  ```
+
+  Frontend:
+
+  ```vue
+  <!-- Correct -->
+  <label>{{ i18n._('Name:') }}</label>
+  <!-- Incorrect -->
+  <label>{{ i18n._('Name') }}:</label>
+  ```
+
 - **Translate complete sentences and use placeholders for variables.**
   Translators need to be able to change word order. Use indexed printf
   arguments in Go and named variables in the frontend, rather than joining
