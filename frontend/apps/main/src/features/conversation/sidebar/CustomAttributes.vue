@@ -3,7 +3,7 @@
     <div
       v-for="attribute in attributes"
       :key="attribute.id"
-      class="grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-x-4"
+      class="group/attribute grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-x-4"
     >
       <div class="sidebar-label min-w-0 py-0.5 [overflow-wrap:anywhere]">
         <Tooltip :disabled="!attribute.description">
@@ -29,7 +29,31 @@
         :open="editingAttributeKey === attribute.key"
         @update:open="(open) => (open ? startEditing(attribute) : cancelEditing())"
       >
-        <div class="flex min-w-0 items-start justify-end gap-1">
+        <div class="flex min-w-0 items-baseline justify-end gap-1">
+          <PopoverTrigger as-child>
+            <Button
+              type="button"
+              :variant="getLinkUrl(attribute) ? 'ghost' : 'link'"
+              :size="getLinkUrl(attribute) ? 'icon' : 'default'"
+              :disabled="loading"
+              :class="[
+                getLinkUrl(attribute)
+                  ? 'h-6 w-6 shrink-0 text-muted-foreground [&_svg]:size-3 can-hover:opacity-0 can-hover:group-hover/attribute:opacity-100 can-hover:group-focus-within/attribute:opacity-100 data-[state=open]:opacity-100'
+                  : 'sidebar-value h-auto min-h-6 min-w-6 max-w-full justify-end justify-self-end rounded-sm whitespace-normal px-0 py-0.5 text-right font-normal decoration-muted-foreground/40 decoration-dotted underline-offset-4 can-hover:hover:decoration-foreground',
+                { 'text-muted-foreground': customAttributes?.[attribute.key] == null }
+              ]"
+              :aria-label="
+                getLinkUrl(attribute)
+                  ? `${t('globals.messages.edit')}: ${attribute.name}`
+                  : `${t('globals.messages.edit')}: ${attribute.name}: ${customAttributes?.[attribute.key] ?? t('globals.messages.set')}`
+              "
+            >
+              <Pencil v-if="getLinkUrl(attribute)" aria-hidden="true" />
+              <span v-else class="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{{
+                customAttributes?.[attribute.key] ?? t('globals.messages.set')
+              }}</span>
+            </Button>
+          </PopoverTrigger>
           <Button
             v-if="getLinkUrl(attribute)"
             as="a"
@@ -43,25 +67,6 @@
               customAttributes[attribute.key]
             }}</span>
           </Button>
-          <PopoverTrigger as-child>
-            <Button
-              type="button"
-              :variant="getLinkUrl(attribute) ? 'ghost' : 'link'"
-              :disabled="loading"
-              :class="[
-                getLinkUrl(attribute)
-                  ? 'h-6 w-6 shrink-0 text-muted-foreground'
-                  : 'sidebar-value h-auto min-h-6 min-w-6 max-w-full justify-end justify-self-end rounded-sm whitespace-normal px-0 py-0.5 text-right font-normal decoration-muted-foreground/40 decoration-dotted underline-offset-4 can-hover:hover:decoration-foreground',
-                { 'text-muted-foreground': customAttributes?.[attribute.key] == null }
-              ]"
-              :aria-label="`${t('globals.messages.edit')}: ${attribute.name}`"
-            >
-              <Pencil v-if="getLinkUrl(attribute)" aria-hidden="true" />
-              <span v-else class="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{{
-                customAttributes?.[attribute.key] ?? t('globals.messages.set')
-              }}</span>
-            </Button>
-          </PopoverTrigger>
         </div>
         <PopoverContent align="end" class="w-72" :aria-label="attribute.name">
           <form class="space-y-3" novalidate @submit.stop.prevent="saveAttribute(attribute.key)">

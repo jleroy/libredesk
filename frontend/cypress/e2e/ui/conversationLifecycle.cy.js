@@ -195,7 +195,7 @@ describe('Conversation lifecycle', () => {
       const url = 'https://example.com/'
       const updatedUrl = 'http://example.com/updated'
       const endpoint = `/api/v1/conversations/${conversationUuid}${path}/custom-attributes`
-      const editButton = `button[aria-label="Edit: ${name}"]`
+      const editButton = `button[aria-label^="Edit: ${name}"]`
       cy.api('POST', '/api/v1/custom-attributes', {
         name, key, applies_to: model, data_type: 'link',
         description: 'Customer website', values: [], regex: '', regex_hint: ''
@@ -207,7 +207,8 @@ describe('Conversation lifecycle', () => {
       cy.contains('button', new RegExp(`^${section}$`)).then(($trigger) => {
         if ($trigger.attr('aria-expanded') !== 'true') cy.wrap($trigger).click()
       })
-      cy.get(editButton).should('be.visible').parent().find('a').should('not.exist')
+      cy.get(editButton).should('be.visible').and('have.attr', 'aria-label', `Edit: ${name}: ${unsafeUrl}`)
+        .parent().find('a').should('not.exist')
       cy.get(editButton).focus()
       cy.get(editButton).type('{enter}')
       cy.get('[role="dialog"] input').should('be.focused').and('have.value', unsafeUrl).clear()
@@ -215,6 +216,15 @@ describe('Conversation lifecycle', () => {
       cy.get('[role="dialog"]').contains('button', 'Save').click()
       cy.wait('@saveAttribute').its('response.statusCode').should('eq', 200)
       cy.get('[role="dialog"]').should('not.exist')
+      cy.get(editButton).should('have.attr', 'aria-label', `Edit: ${name}`)
+      cy.get(editButton).find('svg').should('have.css', 'width', '12px')
+      cy.get(editButton).parent().should(($row) => {
+        expect($row.css('align-items')).to.eq('baseline')
+        const button = $row.find('button')[0].getBoundingClientRect()
+        const link = $row.find('a')[0].getBoundingClientRect()
+        expect(button.right).to.be.at.most(link.left)
+        expect(link.right).to.eq($row[0].getBoundingClientRect().right)
+      })
       cy.get(editButton).parent().find('a').should('have.attr', 'href', url)
         .and('have.attr', 'target', '_blank').and('have.attr', 'rel', 'noopener noreferrer')
         .then(($link) => $link.one('click', (event) => event.preventDefault())).click()
@@ -222,6 +232,7 @@ describe('Conversation lifecycle', () => {
       cy.get('@saveAttribute.all').should('have.length', 1)
 
       cy.get(editButton).focus()
+      cy.get(editButton).should('have.css', 'opacity', '1')
       cy.get(editButton).type('{enter}')
       cy.get('[role="dialog"] input').should('be.focused').and('have.value', url).clear()
       cy.get('[role="dialog"] input').type(`${updatedUrl}{enter}`)
@@ -237,9 +248,27 @@ describe('Conversation lifecycle', () => {
       cy.get('[role="dialog"]').contains('button', 'Remove').click()
       cy.wait('@saveAttribute').its('response.statusCode').should('eq', 200)
       cy.get('[role="dialog"]').should('not.exist')
-      cy.get(editButton).should('contain.text', 'Set').parent().find('a').should('not.exist')
+      cy.get(editButton).should('contain.text', 'Set').and('have.attr', 'aria-label', `Edit: ${name}: Set`)
+        .parent().find('a').should('not.exist')
     })
   }
+
+  it('includes saved text values in attribute edit labels', () => {
+    const name = `Company ${stamp}`
+    const key = `company_${stamp}`
+    const value = 'Acme Support'
+    cy.api('POST', '/api/v1/custom-attributes', {
+      name, key, applies_to: 'contact', data_type: 'text',
+      description: 'Customer company', values: [], regex: '', regex_hint: ''
+    }).then(({ body }) => attributeIds.push(body.data.id))
+    cy.api('PUT', `/api/v1/conversations/${conversationUuid}/contacts/custom-attributes`, { [key]: value })
+    openConversation()
+    cy.contains('button', /^Contact attributes$/).then(($trigger) => {
+      if ($trigger.attr('aria-expanded') !== 'true') cy.wrap($trigger).click()
+    })
+    cy.get(`button[aria-label="Edit: ${name}: ${value}"]`).should('contain.text', value).click()
+    cy.get('[role="dialog"] input').should('have.value', value)
+  })
 
   it('focuses the date button when the custom snooze picker opens', () => {
     openConversation()
