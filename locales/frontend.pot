@@ -391,7 +391,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. js-lingui:icu=%7Bcount%2C+plural%2C+one+%7BMessage%7D+other+%7BMessages%7D%7D&pluralize_on=count
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:67:32
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:68:32
 #: frontend/apps/main/src/features/admin/help-center/HelpCenterForm.vue:399:30
 #: frontend/apps/main/src/features/admin/inbox/LivechatWidgetPreview.vue:103:23
 #: frontend/apps/main/src/features/admin/inbox/LivechatWidgetPreview.vue:368:23
@@ -1107,7 +1107,7 @@ msgstr[1] ""
 #: frontend/apps/main/src/components/editor/MentionList.vue:61:31
 #: frontend/apps/main/src/composables/useConversationFilters.js:121:25
 #: frontend/apps/main/src/constants/navigation.js:183:26
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:233:14
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:234:14
 #: frontend/apps/main/src/features/admin/macros/MacroForm.vue:96:46
 #: frontend/apps/main/src/features/admin/macros/MacroForm.vue:125:24
 #: frontend/apps/main/src/features/admin/roles/RoleForm.vue:8:45
@@ -1511,7 +1511,7 @@ msgstr[1] ""
 
 #. js-lingui:icu=%7Bcount%2C+plural%2C+one+%7BSubject%7D+other+%7BSubjects%7D%7D&pluralize_on=count
 #: frontend/apps/main/src/composables/useConversationFilters.js:178:19
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:62:32
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:63:32
 #: frontend/apps/main/src/features/admin/templates/TemplateForm.vue:16:24
 #: frontend/apps/main/src/features/conversation/EmailConversationForm.vue:185:51
 #: frontend/apps/main/src/features/conversation/sidebar/ConversationInfo.vue:19:37
@@ -1539,7 +1539,7 @@ msgstr[1] ""
 #: frontend/apps/main/src/components/editor/MentionList.vue:62:30
 #: frontend/apps/main/src/constants/navigation.js:191:26
 #: frontend/apps/main/src/features/admin/agents/AgentForm.vue:99:24
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:228:14
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:229:14
 #: frontend/apps/main/src/features/admin/macros/MacroForm.vue:95:46
 #: frontend/apps/main/src/features/admin/macros/MacroForm.vue:111:24
 #: frontend/apps/main/src/features/admin/shared-views/SharedViewForm.vue:46:46
@@ -1759,7 +1759,7 @@ msgstr ""
 #: frontend/apps/main/src/features/contact/formSchema.js:7:28
 #: frontend/apps/main/src/features/conversation/EmailConversationForm.vue:419:15
 #: frontend/apps/main/src/features/conversation/EmailConversationForm.vue:427:32
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:168:37
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:204:37
 #: frontend/apps/main/src/features/view/ViewForm.vue:127:24
 #: frontend/apps/main/src/views/admin/whatsapp/CreateEditWhatsAppTemplate.vue:463:26
 #: frontend/apps/main/src/views/admin/whatsapp/CreateEditWhatsAppTemplate.vue:475:26
@@ -1849,7 +1849,7 @@ msgstr ""
 msgid "Add a language before authoring articles in it."
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:154:8
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:155:8
 #: frontend/apps/main/src/features/admin/macros/MacroForm.vue:214:17
 msgid "Add action"
 msgstr ""
@@ -2374,7 +2374,7 @@ msgstr ""
 msgid "Assign to me"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:224:11
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:225:11
 msgid "Assigned team"
 msgstr ""
 
@@ -2382,7 +2382,7 @@ msgstr ""
 msgid "Assigned user"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:223:11
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:224:11
 #: frontend/apps/main/src/features/conversation/list/ConversationListItem.vue:291:50
 #: frontend/apps/main/src/features/search/SearchFilters.vue:25:24
 msgid "Assignee"
@@ -2754,7 +2754,7 @@ msgstr ""
 #: frontend/apps/main/src/features/conversation/WhatsAppComposer.vue:47:15
 #: frontend/apps/main/src/features/conversation/message/MessageBubble.vue:259:30
 #: frontend/apps/main/src/features/conversation/sidebar/ConversationSideBar.vue:61:15
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:100:21
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:125:21
 #: frontend/apps/main/src/views/admin/help-center/HelpCenterTree.vue:234:30
 #: frontend/apps/main/src/views/admin/whatsapp/CreateEditWhatsAppTemplate.vue:290:15
 #: frontend/apps/main/src/views/admin/whatsapp/WhatsAppTemplateList.vue:63:34
@@ -3759,11 +3759,11 @@ msgstr ""
 msgid "During business hours"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:316:32
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:317:32
 msgid "e.g. 30m, 3h, 2h30m"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:112:34
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:113:34
 msgid "e.g. priority.escalated"
 msgstr ""
 
@@ -3794,7 +3794,6 @@ msgstr ""
 #: frontend/apps/main/src/features/admin/teams/TeamDataTableDropdown.vue:7:11
 #: frontend/apps/main/src/features/admin/templates/dataTableDropdown.vue:7:11
 #: frontend/apps/main/src/features/admin/webhooks/dataTableDropdown.vue:8:13
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:39:28
 #: frontend/apps/main/src/features/view/ViewForm.vue:6:25
 #: frontend/apps/main/src/router/index.js:390:42
 #: frontend/apps/main/src/views/admin/business-hours/CreateOrEditBusinessHours.vue:66:20
@@ -3920,6 +3919,14 @@ msgstr ""
 
 #: frontend/apps/main/src/router/index.js:580:42
 msgid "Edit webhook"
+msgstr ""
+
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:45:86
+msgid "Edit: {name}"
+msgstr ""
+
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:45:155
+msgid "Edit: {name}: {value}"
 msgstr ""
 
 #: frontend/apps/main/src/views/admin/ai/AIEditorPrompts.vue:39:12
@@ -4073,7 +4080,7 @@ msgstr ""
 msgid "Evaluate rule on these events."
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:117:23
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:118:23
 msgid "Event name sent in the webhook payload."
 msgstr ""
 
@@ -4706,16 +4713,16 @@ msgstr ""
 #: frontend/apps/main/src/features/admin/oidc/formSchema.js:16:15
 #: frontend/apps/main/src/features/admin/oidc/formSchema.js:18:38
 #: frontend/apps/main/src/features/admin/webhooks/formSchema.js:17:17
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:199:28
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:235:28
 #: frontend/apps/widget/src/components/preChatFormSchema.js:69:30
 #: frontend/apps/widget/src/components/preChatFormSchema.js:75:25
 msgid "Invalid URL"
 msgstr ""
 
 #: frontend/apps/main/src/features/admin/inbox/LivechatInboxForm.vue:923:21
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:187:32
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:196:50
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:204:19
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:223:32
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:232:50
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:240:19
 msgid "Invalid value"
 msgstr ""
 
@@ -6362,7 +6369,7 @@ msgstr ""
 #: frontend/apps/main/src/features/admin/inbox/PreChatFormConfig.vue:102:39
 #: frontend/apps/main/src/features/admin/inbox/WidgetHelpConfig.vue:159:29
 #: frontend/apps/main/src/features/admin/sla/SLAForm.vue:122:27
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:96:19
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:121:19
 #: frontend/apps/main/src/features/search/SearchFilters.vue:85:24
 msgid "Remove"
 msgstr ""
@@ -6648,7 +6655,7 @@ msgstr ""
 #: frontend/apps/main/src/features/admin/teams/TeamForm.vue:199:42
 #: frontend/apps/main/src/features/admin/templates/TemplateForm.vue:115:30
 #: frontend/apps/main/src/features/conversation/sidebar/ConversationSideBar.vue:64:15
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:102:51
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:127:51
 #: frontend/apps/main/src/features/view/ViewForm.vue:45:52
 #: frontend/apps/main/src/views/admin/automations/CreateOrEditRule.vue:151:43
 #: frontend/apps/main/src/views/admin/context-links/CreateEditContextLink.vue:10:46
@@ -6899,7 +6906,7 @@ msgstr ""
 msgid "Select provider"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:57:32
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:58:32
 msgid "Select recipients"
 msgstr ""
 
@@ -6951,15 +6958,15 @@ msgstr ""
 #: frontend/apps/main/src/components/filter/FilterRow.vue:81:28
 #: frontend/apps/main/src/components/filter/FilterRow.vue:87:28
 #: frontend/apps/main/src/components/filter/FilterRow.vue:94:28
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:92:32
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:93:32
 #: frontend/apps/main/src/features/admin/automation/RuleBox.vue:145:50
 #: frontend/apps/main/src/features/admin/automation/RuleBox.vue:167:47
 #: frontend/apps/main/src/features/admin/macros/MacroForm.vue:213:20
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:61:43
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:86:43
 msgid "Select value"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:105:34
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:106:34
 msgid "Select webhook"
 msgstr ""
 
@@ -7062,7 +7069,8 @@ msgstr ""
 msgid "Serve this help center on its own domain instead of the app URL. Point the domain at Libredesk in your DNS and reverse proxy first."
 msgstr ""
 
-#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:42:51
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:45:255
+#: frontend/apps/main/src/features/conversation/sidebar/CustomAttributes.vue:53:53
 msgid "Set"
 msgstr ""
 
@@ -7148,7 +7156,7 @@ msgstr ""
 msgid "Set up alert triggers and recipients"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:317:9
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:318:9
 #: frontend/apps/main/src/features/admin/automation/RuleBox.vue:94:32
 #: frontend/apps/main/src/features/admin/automation/RuleBox.vue:103:32
 #: frontend/apps/main/src/features/admin/automation/RuleBox.vue:154:32
@@ -7171,7 +7179,7 @@ msgstr ""
 msgid "Setup"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:146:28
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:147:28
 #: frontend/apps/main/src/features/admin/macros/MacroForm.vue:22:28
 msgid "Shift + Enter to add a new line."
 msgstr ""
@@ -8268,7 +8276,7 @@ msgstr ""
 msgid "Users"
 msgstr ""
 
-#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:217:8
+#: frontend/apps/main/src/features/admin/automation/ActionBox.vue:218:8
 #: frontend/apps/main/src/features/admin/inbox/EmailInboxForm.vue:1044:8
 msgid "Variables: {variables}"
 msgstr ""

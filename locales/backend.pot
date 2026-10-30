@@ -129,7 +129,7 @@ msgstr ""
 msgid "Add up to 6 quick replies."
 msgstr ""
 
-#: cmd/users.go:349:4 internal/conversation/continuity.go:298:17 internal/conversation/transcript.go:62:10
+#: cmd/users.go:349:4 internal/conversation/continuity.go:304:17 internal/conversation/transcript.go:62:10
 msgid "Agent"
 msgstr ""
 
@@ -679,11 +679,11 @@ msgstr ""
 msgid "Rate your interaction with us"
 msgstr ""
 
-#: internal/conversation/continuity.go:337:16
+#: internal/conversation/continuity.go:343:16
 msgid "Reply directly to this email to continue the conversation."
 msgstr ""
 
-#: internal/conversation/continuity.go:339:16
+#: internal/conversation/continuity.go:345:16
 #, go-format
 msgid "Reply to this email or %[1]sgo to chat%[2]s to continue the conversation."
 msgstr ""
